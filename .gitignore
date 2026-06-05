@@ -3,3 +3,5 @@ node_modules/
 opencode.json
 .DS_Store
 docs/superpowers/
+.vscode/
+*.log
