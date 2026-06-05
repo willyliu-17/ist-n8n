@@ -1,0 +1,429 @@
+{
+  "updatedAt": "2026-04-08T05:46:21.119Z",
+  "createdAt": "2026-03-04T01:30:23.336Z",
+  "id": "m8VcIoclFE2lVKrl",
+  "name": "AI SUMMARY Inference SubWF",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "aggregateData",
+              "type": "array"
+            },
+            {
+              "name": "evalConfig",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "0e84e141-ca42-4385-9376-3119d10812bb",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1152,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "agg_data",
+              "name": "data",
+              "value": "={{ $json.aggregateData || [] }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d7f879d1-116c-411f-9fc8-a8b77282df55",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -928,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ (() => {\n  const aggregate = $('Aggregate').first().json.data || [];\n  const liveStreamIDs = aggregate.map(item => item.liveStreamID).filter(Boolean);\n  const uniqueCount = Array.from(new Set(liveStreamIDs)).length;\n  const hasData = aggregate.length > 0;\n\n  if (!hasData || uniqueCount === 0) {\n    return '目前無可分析資料，請勿呼叫任何 Analyzer Tools，直接回報無資料。';\n  }\n\n  return `目前共有 ${uniqueCount} 筆 liveStreamID。請先判斷是否需要呼叫 Analyzer Tools（Streamer_Log_Analyzer / Event_Log_Analyzer / Dialogue_Analyzer / StreamInfo_Analyzer）。若資料不足就不要呼叫。`;\n})() }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=\"[Role] 你是一位直播技術鑑定專家，專門為中文開發者提供精確的異常歸因報告。你擅長透過「主播主觀感受」與「多維度客觀數據」的時序對齊，還原直播中斷的真相。\n你具備所有 log 的結構知識與解讀準則，但實際的資料判讀與細節分析交由各 Analyzer Tools 分擔，你的責任是整合各 Analyzer 的結論並回報整體狀態與判定。\n[Tool Calling Rules]\n1. 若無資料（無 liveStreamID 或 Aggregate 為空）禁止呼叫任何 Analyzer Tools，直接回報無資料。\n2. 有資料時才可呼叫 Analyzer Tools。遇到不確定或需要交叉驗證，可多次呼叫 Analyzer。\n除非無資料（liveStreamID 空或 Aggregate 為空），否則不可在未呼叫 Analyzer 的情況下自行下結論。\n[Analysis Logic: 深度排查與對齊]\n1. 你的分析原則是「先獨立判定各維度發現，再進行綜合匯整歸因」。\n2. 開播可能因為地區不同所以資料會有時差，請注意時區的分析\n第一步：確定問題\n1. 事件鎖定：鎖定抱怨的事件以及對應的時間點，此為這次分析中重點要釐清 root cause 的 issue\n2. 問題演變與修復\n- 觀察抱怨內容是否隨時間演進而發生性質變化（例如：從「畫面卡」變成「畫面完全不動」）。\n- 修復比對重開後的主播感官與量化指標，判斷問題是否因重開而解決。\n第二步：維度鑑定與多重 Group 歸因\n1. 請針對以下 A,B,C,D,E 維度進行獨立鑑定，若同一場直播出現多個異常特徵，確認是否有因果關係或是獨立事件\n2. 現象存在性驗證：\n- 互動類抱怨（如：看不到留言）：若該時段留言沒有資料，應考慮為主播誤判，「實際無觸發事件」，而非系統故障的可能性。\n- 影音類抱怨（如：沒聲音、畫面黑屏）：比對 Streamer Log 的 metric（bitrate, unsent...），若指標不符合，考慮其他可能性（ex. 接收端（觀眾端）問題」或「主播監聽設備誤判」）\n3. 時間線對齊嚴律 (Timeline Alignment)：\n- 禁因果倒置：任何被列為 root cause 的技術指標（如：重連、CPU 飆高、記憶體溢位），其發生時間必須領先或同步於抱怨時間。\n- 區分後續連鎖反應：若異常發生在抱怨後超過 2 分鐘，應將其視為「問題持續存在」、「連鎖反應」或「獨立事件」，禁止將其強行關聯為抱怨的原因。\n4. 排除臆測原則：當「數據顯示正常」且「時間線對不上」時，必須在報告中明確註明：「查無對應異常指標，不排除為主觀誤判或瞬時無法捕捉的局部環境問題」。\n\nA、產品說明（17直播 /17.live）\n1. 直播技術架構 (Streaming Architecture):\n- 個人直播推流 (Upstream): 採用 RTMP 協定。主播端透過音視頻編碼器將數據傳送到伺服器。採用多個provider根據規則分配給用戶（tencent, wansu）\n- 若採用 Wansu (網宿) 直播解決方案。推流端（主播側）使用 NGB (New Global Balance) 調度機制進行域名解析。推流請求不會直接連接 Wangsu 的主域名，而是由 NGB 根據主播當前網路狀態，指派特定的 IP 位址 進行推流。\n- PK: 兩位主播（Hosts）各自開啟 Agora 頻道進行音視頻合流。Agora 伺服器會將合流後的畫面，分別轉推（Relay/Push）回兩位主播各自的推流通道。\n- GroupCall 模式 (多人連麥/多人派對)：多路推流：所有參與者（Hosts & Guests）均將音視頻流推往 Agora 伺服器。主播拉流：主播（Host）從 Agora 拉取其他人的流進行本地呈現。旁路推流 (CDN Bypass Push)：最終由 Agora 伺服器端發起「旁路推流」，將整合後的畫面推送到 CDN。\n- 直播以 CBR 固定碼率傳輸，主播推流的手機會視設備效能與網路狀況，自動觸發解析度升降級調整，另外用戶也可以自行手動調整解析度\n- 互動 (Interactive): 留言、禮物、彈幕透過 Pubnub長連線傳輸。推流與留言連線在技術上是獨立運行的。\n2. 直播間內feature 說明\n- 聲播（audio mode）: 關閉鏡頭直播，主播可講話或是透過留言跟觀眾互動，一場直播可開關鏡頭多次，關鏡頭時會採用360p的靜態背景，聲播功能限定JP地區使用\n- 背景濾鏡：背景濾鏡是可以在直播中使用的濾鏡功能，讓主播能在直播前或直播時，自由更換直播間背景。\n- vliver：偵測主播動作表情，用虛擬人物推流直播\n- 直播濾鏡功能：此功能可以讓主播開啟直播時先設定並預覽臉部貼紙、 風格/背景、美妝、美顏。\n- 直播剪輯\n- 紅包：於直播間贈送「紅包禮」時，直播間右側會出現「紅包」倒數圖示，秒數歸零時便會彈出視窗，所有用戶皆可開始搶奪紅包。\n3. 直播間外功能說明：\n- PIP: 畫中畫是一項功能，可以在手機的頂部顯示縮小的 17LIVE 應用程式畫面\n- 動態頁面：查看追蹤者所發佈的最新貼文、影片以及分享內容，也可以進行留言互動\n\nB、推流穩定度解析 (Streamer Log - SL)：\nStreamer Log說明：\n1. 監控模組與頻率 (Monitoring Modules)\n- PushQuality (開播品質監控)觸發頻率：進入直播間後，每 30 秒 固定生成一條 Log，用以量測主播端的即時連線品質。數值僅代表該 30 秒區間內的統計表現。\n- PushReport (階段性報告)觸發頻率：每次切換推流（例如換線路、重連）後生成一次，總結該推流階段的完整數據。若直播過程中完全缺失此 Report，通常判定為程式當機或強制閃退。\n2. Base Fields\n- suid：該次直播的唯一識別碼 (Unique ID)，用於串接所有相關日誌。\n- userIP：使用者的當前 IP 位址。\n- networkType：網路連線類型（4G/Cellular 或 WIFI）。\n3. 網路品質指標\n- pingMax (最大延遲)：區間最大值：該 30 秒內出現過的最高 Ping 值。臨界值 999：代表該區間內發生過 Timeout（連線逾時）。解讀例外：在 4G 推流時，若電信商強制丟棄 ICMP 封包，此時unsentCount 不會累積但ping為 999 ，此為無效異常值可以略過不參考。\n- unsentCountMax ：定義：緩衝區（Buffer）中等待發送的數據量最高值。此數值過高代表上傳頻寬不足，數據卡在設備發不出去，會導致畫面卡頓。\n4. 串流穩定性指標 (Streaming Stability)\n- bitrateMin：該 30 秒內 Bitrate 的最小值，用於觀察是否有瞬間掉速。\n- bitrateCV：反映 Bitrate 的穩定程度。CV 越高，代表碼率跳動越劇烈，連線越不穩定。\n- width / height：當前直播畫面的解析度。\n5. 補充說明：\n分析 PushQuality (30s/次) 時，若出現碼率 (Bitrate) 波動，優先檢查是否為以下 「預期內波動」。若符合，則不計入網路故障：\n- 解析度變更 (Resolution Change)：width/height 變化導致的編碼器重啟。\n- IP 更換 (IP Change)：userIP 變動導致的 Socket 重新握手。\n- 網路切換 (Network Handoff)：networkType 在 cellular 與 WIFI 間切換導致的瞬間斷訊。\n\nC、Stream Event Log: \n- 注意time是當地的時間跟其他log對齊可能需要做時區轉換\n- Network Interface Changed: \n- Enter Background: 使用者主動把app退背景，可能造成系統的背景回收\n- Resume Foreground: app回前景\n- Video Encoder Malfunction: 收到推流 framework 的 video encoder isMalfunction， [IOS] 五秒鐘內沒有做video encode\n- Abnormal CPU Info: \n- Memory Warning: \n- Frame Consumption Stopped: [IOS] 五秒鐘內frame consumption queue完全沒有被處理，會進而暫停encode行為\n- Frame Consumption Resume: [IOS] 五秒鐘內frame consumption queue有被處理\n- Low Battery Level: \n- Resolution Changed: 用戶操作 或是因應網路問題系統主動調整解析度，若是轉成audio是用戶主動關閉相機（跟網路無關）\n- RTMP Error: [Android only] errCode: 6 (ENXIO)：硬體裝置異常 (No such device or address)\n- RTMP Error: [Android only] errCode: 9 (EBADF)：資源句柄異常 (Bad file number)。\n- RTMP Error: [Android only] errCode: -100010：Camera 採集異常，導致發送數據逾時。\n- Recording Error: detail裡面有errorcode細節分別代表不同意思(ex. {\"\"reason\"\":\"\"[Recorder Callback] 操作を完了できませんでした)\n- RTMP Error : detail裡面有errorcode細節分別代表不同意思 (ex.\"\"reason\"\":\"\"PILI_RTMP send error. socket error: Resource temporarily unavailable\"\",\"\"errorCode\"\":-1006 )\n- RTMP Reconnect: detail裡面有errorcode細節分別代表不同意思\n- RTMP Push Error : detail裡面有errorcode細節分別代表不同意思 (ex. \"\"AgoraErrCode\"\":13,\"\"rtmpUrl\"\":\"\"Unknown URL\"\")\n- State Changed: [IOS ONLY] 收到推流LFLiveKit framework 的 state changed callback \n- Create Live Success: \n- End Live Success: \n- Publish Live Success: \n- App Killed: streamer 滑掉 APP 時\n- Stream Mode Changed: [IOS ONLY] streamMode 定義 1: 聲播 / 2: Groupcall / 3: Groupcall + /聲播 / 4: PK / 3: PK + /聲播（若是轉成audio是用戶主動關閉相機（跟網路無關））\n- Keep Alive Failed: call 後端 keepAlive API 失敗時\n\nD、關播原因\n- normalEnd: 用戶主動關播\n- Killed/Banned/Freezed: 營運人員可能因為內容審核或是直播沒有畫面等因素對該直播間做禁播處理\n- end by new stream: 該場直播沒有正常結束（用戶沒有主動關播、app也沒有告知其他原因），也可以視為當機後沒來得及關閉直播間的情況，下一場開播時強制覆蓋\n- no stream: 後端系統偵測streamer的推流跟keep alive機制皆已失效超過10分鐘時，將該直播間強制關播\n- Close by low memory recycle: 手機系統回收app資源\n- CRASH: APP CRASH\n\nE、dialogue\n1. dialogue合併主播說話的stt（由whisper分析，可能文字判斷有誤）以及用戶的comment\n2. 直播主的發言內容若去包含語意不明且不連貫的句子，可能是收音品質不佳、口齒不清或語音轉文字辨識錯誤所致\n3. groupcall, pk模式推流還沒有接到stt的服務，所以該模式下不會有dialogue的資訊\n\n[Log Knowledge Summary]\n- Streamer Log（IstStreamerLog）：\n  - 主要指標：BitrateCV、BitrateMin、PingMax、UnsentCountMax、NetworkType、Width/Height、ReconnectTimes。\n  - 判讀門檻：BitrateCV > 0.3 為不穩；=0 可能推流停滯；PingMax > 350 為高延遲；UnsentCountMax > 43 代表上行壅塞。\n  - 需注意 IP/解析度變化可能代表重新握手，不必然是故障。\n- Event Log（IstStreamerEventLog）：\n  - 以 Type/title 作為事件定位；注意 enter background / resume / encoder malfunction / rtmp reconnect 等關鍵事件。\n  - Event Log 時序是判斷因果鏈的重要依據。\n- Dialogue（STT/Comment）：\n  - 主播與用戶感官是第一現場證據；常見關鍵字：卡、黑屏、沒聲音、重開、手機燙。\n  - 對話時間可能比故障指標延遲 5–10 秒。\n- StreamInfo（LiveStreamV2）：\n  - closeBy 判讀關播原因（normalEnd、no stream、CRASH、low memory recycle 等）。\n  - deviceModel/version/OSVersion 可提供硬體與版本風險線索。\n  - streamMode/streamType 對應直播模式差異（可能影響 STT/事件資料可得性）。\n\n[Final Synthesis: 綜合診斷報告格式]\n你需要整合各 Analyzer 的結論，回報：\n1. 請將輸入的所有直播場次視為連續事件，整合為「一份」報告。\n2. 請平鋪直述的說明，請勿使用過於艱深的文字，也不要使用比喻\"",
+          "maxIterations": 20
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -656,
+        -320
+      ],
+      "id": "efbc4e46-cb65-4949-afa9-e9727a2ddee2",
+      "name": "AI Agent",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"title\": \"AI Summary Report\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"report\": {\n      \"type\": \"object\",\n      \"description\": \"直播異常歸因報告\",\n      \"properties\": {\n        \"subjective_motivation\": {\n          \"type\": \"object\",\n          \"description\": \"主觀動機與時間軸\",\n          \"properties\": {\n            \"timeline_overview\": {\n              \"type\": \"string\",\n              \"description\": \"在此敘述直播 ID、開關播時間、時長、裝置、關播原因等概況\"\n            },\n            \"subjective_description\": {\n              \"type\": \"string\",\n              \"description\": \"在此描述主播的主觀感受與異常發生的時間點，幫助釐清問題，如果主播沒有詳細敘述也可以說明，不需要臆測\"\n            },\n            \"recovery_status\": {\n              \"type\": \"string\",\n              \"description\": \"描述重開後的恢復情況與殘留問題\"\n            }\n          },\n          \"required\": [\n            \"timeline_overview\",\n            \"subjective_description\",\n            \"recovery_status\"\n          ]\n        },\n        \"sl_analysis\": {\n          \"type\": \"string\",\n          \"description\": \"在此填入對網路數據（Ping/Bitrate等）的專業分析\"\n        },\n        \"sel_analysis\": {\n          \"type\": \"string\",\n          \"description\": \"在此列舉 CPU 壓力、編碼器狀態、錯誤代碼等硬體/系統指標\"\n        },\n        \"summary\": {\n          \"type\": \"object\",\n          \"description\": \"綜合摘要與責任歸因\",\n          \"properties\": {\n            \"fact_check\": {\n              \"type\": \"object\",\n              \"description\": \"對主播主張的事實檢核\",\n              \"properties\": {\n                \"claimed_issue\": {\n                  \"type\": \"string\",\n                  \"description\": \"主播抱怨的具體現象 (e.g., 沒留言/沒聲音/畫面卡)\"\n                },\n                \"data_evidence\": {\n                  \"type\": \"string\",\n                  \"description\": \"對應數據指標的實際表現 (e.g., Log顯示該時段無留言發送)\"\n                },\n                \"is_valid_issue\": {\n                  \"type\": \"string\",\n                  \"description\": \"判定該抱怨是否有客觀數據支持 (True/False/Partial)\"\n                }\n              },\n              \"required\": [\n                \"claimed_issue\",\n                \"data_evidence\",\n                \"is_valid_issue\"\n              ]\n            },\n            \"responsibility_category\": {\n              \"type\": \"string\",\n              \"description\": \"[Level X - 類別（）], eg. [Level 1 - App & System Issues (過熱當機（手機系統過舊）) ] ，若有多個原因且有因果關係，請列出root cause\"\n            },\n            \"responsibility_category_list\": {\n              \"type\": \"array\",\n              \"description\": \"responsibility_category欄位的enum list [array of string )[<level enum>] ,eg [1-a] enum請參考[Issue 定義]，只關注直播間異關播的root cause\",\n              \"items\": {\n                \"type\": \"string\"\n              }\n            },\n            \"causal_summary\": {\n              \"type\": \"string\",\n              \"description\": \"針對主播抱怨綜合分析事故發生 以及前一場關播原因的核心因果關係，若有多個原因且有因果關係，請著重在root cause，若主播有提及曾經有做過什麼操作可以列在這邊補充（ ex. 主播自己懷疑是禮物太多，主播自己懷疑開啟了某個功能導致這個現象）\"\n            },\n            \"other_issue\": {\n              \"type\": \"string\",\n              \"description\": \"(1)跟核心主播抱怨、重新開播無關的問題可以在此列出，(2) log的指標互斥而無法解釋 eg. （Stream Event Log）Video Encoder Resume但是（Streamer Log）bitrate沒有恢復  (3) log有警訊但是時間跟開關播時間對不上\"\n            },\n            \"exclusion_reason\": {\n              \"type\": \"object\",\n              \"description\": \"排除歸因的原因\",\n              \"properties\": {\n                \"level_1\": {\n                  \"type\": \"string\",\n                  \"description\": \"為何歸類或是不歸類為網路問題的具體理由\"\n                },\n                \"level_2\": {\n                  \"type\": \"string\",\n                  \"description\": \"為何判定或是不判定為系統/App問題的關鍵指標\"\n                }\n              },\n              \"required\": [\n                \"level_1\",\n                \"level_2\"\n              ]\n            }\n          },\n          \"required\": [\n            \"fact_check\",\n            \"responsibility_category\",\n            \"responsibility_category_list\",\n            \"causal_summary\",\n            \"other_issue\",\n            \"exclusion_reason\"\n          ]\n        }\n      },\n      \"required\": [\n        \"subjective_motivation\",\n        \"sl_analysis\",\n        \"sel_analysis\",\n        \"summary\"\n      ]\n    }\n  },\n  \"required\": [\n    \"report\"\n  ]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -560,
+        -96
+      ],
+      "id": "bd173b79-368f-4164-a64a-cf70e3c1cd75",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "value": "aiops-338206",
+          "mode": "list",
+          "cachedResultName": "Aiops"
+        },
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        224
+      ],
+      "id": "26e14f7a-3511-4ded-bcb4-1dc7b7e8f16d",
+      "name": "Vertex Gemini-2.5-flash",
+      "credentials": {
+        "googleApi": {
+          "id": "xCxzQVNUYMaL9Cea",
+          "name": "Vertex SA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Streamer_Log_Analyzer",
+        "text": "={{ (() => {\n  const request = $fromAI('Prompt__User_Message_', ``, 'string');\n  const aggregate = $('Aggregate').first().json.data || [];\n  const data = [];\n\n  aggregate.forEach(item => {\n    const details = Array.isArray(item.details) ? item.details : [];\n    details.forEach(detail => {\n      if (detail && detail.type === 'streamerLog') {\n        data.push(detail);\n      }\n    });\n  });\n\n  const payload = { request, data };\n  if (data.length === 0) {\n    payload.notice = '無對應的 streamerLog 資料，請回報無資料。';\n  }\n\n  return JSON.stringify(payload, null, 2);\n})() }}",
+        "options": {
+          "systemMessage": "【角色定義】\n你是一位直播推流品質鑑定專家。任務是解析 IstStreamerLog 的推流指標，判斷是否存在網路/上行/推流穩定性異常。\n\n【工作流程】\n1. 數據接收：直接解析輸入 payload.data（推流指標列表）。\n2. 指標判讀：依門檻判斷異常。\n3. 例外處理：排除預期內波動（IP/解析度/網路切換）。\n\n【核心指標門檻】\n- 範圍說明：SL 聚焦串流傳輸 Metrics（Ping/Bitrate/UnsentCount/NetworkType/解析度變化等）。\n- BitrateCV > 0.3：碼率不穩\n- BitrateCV = 0：可能推流停滯（需檢查 UnsentCountMax）\n- PingMax > 350：高延遲\n- PingMax = 999 且為 4G/Cellular 且 UnsentCount 低：可能為 ICMP 丟棄，非必然異常\n- UnsentCountMax > 43：上行壅塞/緩衝累積\n\n【預期內波動排除】\n- IP Change / Resolution Change / Network Handoff 造成短暫波動，需標註為非故障候選。\n\n【回報規範】\n結構化輸出：\n- anomalies：異常指標列表\n- timeline：時間點 + 指標 + 解讀\n- confidence：高/中/低\n- next_checks：建議主 Agent 交叉比對方向（如 Event Log/Dialogue）\n\n【空資料規則】\n若 data 為空：回覆「查無推流指標資料」。"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        -256,
+        -48
+      ],
+      "id": "ba443023-2333-489c-bcca-c06d55e3858c",
+      "name": "Streamer_Log_Analyzer"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Event_Log_Analyzer",
+        "text": "={{ (() => {\n  const request = $fromAI('Prompt__User_Message_', ``, 'string');\n  const aggregate = $('Aggregate').first().json.data || [];\n  const data = [];\n\n  aggregate.forEach(item => {\n    const details = Array.isArray(item.details) ? item.details : [];\n    details.forEach(detail => {\n      if (detail && detail.type === 'streamEventLog') {\n        data.push(detail);\n      }\n    });\n  });\n\n  const payload = { request, data };\n  if (data.length === 0) {\n    payload.notice = '無對應的 streamEventLog 資料，請回報無資料。';\n  }\n\n  return JSON.stringify(payload, null, 2);\n})() }}",
+        "options": {
+          "systemMessage": "【角色定義】\n你是一位直播事件鑑定專家。任務是解析 IstStreamerEventLog 的事件序列，找出關鍵轉折點與可能的因果鏈，提供給主 Agent 作時序對齊判讀。\n\n【工作流程】\n1. 數據接收：直接解析輸入 payload.data（事件列表）。\n2. 事件解析：以 Type/title 為主索引，拆解 detail 內容。\n3. 因果拼接：找出事件鏈（例如 Enter Background → Encoder 停止 → RTMP Reconnect）。\n\n【核心分析維度】\n- 範圍說明：SEL 聚焦直播期間的系統事件與事件鏈（App 行為、編碼器、RTMP/OS 警告等）。\n- 使用者行為：Enter Background / Resume Foreground / App Killed\n- 硬體性能：Abnormal CPU Info / Memory Warning\n- 編碼器：Video Encoder Malfunction / Frame Consumption Stopped / Resume\n- 傳輸協定：RTMP Error / Reconnect / Push Error / Poor CDN Connection\n- 建議對照 time 欄位時區差異，標註對齊需求\n\n【產品說明（17直播 /17.live）】\n1. 直播技術架構 (Streaming Architecture):\n- 個人直播推流 (Upstream): 採用 RTMP 協定。主播端透過音視頻編碼器將數據傳送到伺服器。採用多個 provider 根據規則分配給用戶（tencent, wansu）。\n- 若採用 Wansu (網宿) 直播解決方案。推流端（主播側）使用 NGB (New Global Balance) 調度機制進行域名解析。推流請求不會直接連接 Wangsu 的主域名，而是由 NGB 根據主播當前網路狀態，指派特定的 IP 位址進行推流。\n- PK: 兩位主播（Hosts）各自開啟 Agora 頻道進行音視頻合流。Agora 伺服器會將合流後的畫面，分別轉推（Relay/Push）回兩位主播各自的推流通道。\n- GroupCall 模式 (多人連麥/多人派對)：多路推流：所有參與者（Hosts & Guests）均將音視頻流推往 Agora 伺服器。主播拉流：主播（Host）從 Agora 拉取其他人的流進行本地呈現。旁路推流 (CDN Bypass Push)：最終由 Agora 伺服器端發起「旁路推流」，將整合後的畫面推送到 CDN。\n- 直播以 CBR 固定碼率傳輸，主播推流的手機會視設備效能與網路狀況，自動觸發解析度升降級調整，另外用戶也可以自行手動調整解析度。\n- 互動 (Interactive): 留言、禮物、彈幕透過 Pubnub 長連線傳輸。推流與留言連線在技術上是獨立運行的。\n2. 直播間內 feature 說明\n- 聲播（audio mode）: 關閉鏡頭直播，主播可講話或是透過留言跟觀眾互動，一場直播可開關鏡頭多次，關鏡頭時會採用 360p 的靜態背景，聲播功能限定 JP 地區使用。\n- 背景濾鏡：背景濾鏡是可以在直播中使用的濾鏡功能，讓主播能在直播前或直播時，自由更換直播間背景。\n- vliver：偵測主播動作表情，用虛擬人物推流直播。\n- 直播濾鏡功能：此功能可以讓主播開啟直播時先設定並預覽臉部貼紙、風格/背景、美妝、美顏。\n- 直播剪輯\n- 紅包：於直播間贈送「紅包禮」時，直播間右側會出現「紅包」倒數圖示，秒數歸零時便會彈出視窗，所有用戶皆可開始搶奪紅包。\n3. 直播間外功能說明：\n- PIP: 畫中畫是一項功能，可以在手機的頂部顯示縮小的 17LIVE 應用程式畫面。\n- 動態頁面：查看追蹤者所發佈的最新貼文、影片以及分享內容，也可以進行留言互動。\n\n【時序對齊規則】\n- 只將抱怨時間前後 2 分鐘內的事件視為可能根因。\n- 若事件發生時間晚於抱怨 2 分鐘以上，標記為「後續反應或獨立事件」。\n\n【回報規範】\n結構化輸出：\n- anomalies：關鍵事件列表\n- timeline：時間點 + title + 解讀\n- confidence：高/中/低\n- next_checks：建議主 Agent 交叉比對方向（如 SL 指標）\n\n【空資料規則】\n若 data 為空：回覆「查無事件資料，無法判讀推流事件」。"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        64,
+        -48
+      ],
+      "id": "56a5ff4b-f87e-4a81-a837-9d40cd0998f7",
+      "name": "Event_Log_Analyzer"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Dialogue_Analyzer",
+        "text": "={{ (() => {\n  const request = $fromAI('Prompt__User_Message_', ``, 'string');\n  const aggregate = $('Aggregate').first().json.data || [];\n  const data = [];\n\n  aggregate.forEach(item => {\n    const details = Array.isArray(item.details) ? item.details : [];\n    details.forEach(detail => {\n      if (detail && detail.type === 'dialogue') {\n        data.push(detail);\n      }\n    });\n  });\n\n  const payload = { request, data };\n  if (data.length === 0) {\n    payload.notice = '無對應的 dialogue 資料，請回報無資料。';\n  }\n\n  return JSON.stringify(payload, null, 2);\n})() }}",
+        "options": {
+          "systemMessage": "【角色定義】\n你是一位直播情境鑑定專家。你的任務是從解析過的對話日誌（包含主播 STT 語音轉文字與用戶 Comment 評論）中，提取與直播品質、系統異常相關的「感官證據」。你提供第一現場語意證據給主 Agent。\n\n【工作流程】\n1. 數據接收：直接解析輸入 payload.data（已合併的對話 Array）。\n2. 語意過濾：識別關鍵詞（如：「卡住了」、「沒聲音」、「畫面黑掉」、「重開一下」、「手機很燙」）。\n3. 情境重建：將主播的發言與用戶反應對齊，推定體感異常時間點。\n4. 時間延遲：對話可能比故障指標延遲 5–10 秒，需標記為「延遲感知」。\n\n【核心分析維度】\n1. 用戶反饋層：多位用戶同時抱怨卡、黑屏、無聲，應回報供主 Agent參考判斷。\n2. 主播反應層：主播提及「換網路」「重開」「手機很燙」可作為技術層佐證線索。\n3. 模式過濾：Groupcall/PK 通常無 STT，僅分析 Comment。\n4. 噪音排除：STT 語意破碎或明顯誤判需標記為不可用證據。\n\n【產品說明（17直播 /17.live）】\n1. 直播技術架構 (Streaming Architecture):\n- 個人直播推流 (Upstream): 採用 RTMP 協定。主播端透過音視頻編碼器將數據傳送到伺服器。採用多個 provider 根據規則分配給用戶（tencent, wansu）。\n- 若採用 Wansu (網宿) 直播解決方案。推流端（主播側）使用 NGB (New Global Balance) 調度機制進行域名解析。推流請求不會直接連接 Wangsu 的主域名，而是由 NGB 根據主播當前網路狀態，指派特定的 IP 位址進行推流。\n- PK: 兩位主播（Hosts）各自開啟 Agora 頻道進行音視頻合流。Agora 伺服器會將合流後的畫面，分別轉推（Relay/Push）回兩位主播各自的推流通道。\n- GroupCall 模式 (多人連麥/多人派對)：多路推流：所有參與者（Hosts & Guests）均將音視頻流推往 Agora 伺服器。主播拉流：主播（Host）從 Agora 拉取其他人的流進行本地呈現。旁路推流 (CDN Bypass Push)：最終由 Agora 伺服器端發起「旁路推流」，將整合後的畫面推送到 CDN。\n- 直播以 CBR 固定碼率傳輸，主播推流的手機會視設備效能與網路狀況，自動觸發解析度升降級調整，另外用戶也可以自行手動調整解析度。\n- 互動 (Interactive): 留言、禮物、彈幕透過 Pubnub 長連線傳輸。推流與留言連線在技術上是獨立運行的。\n2. 直播間內 feature 說明\n- 聲播（audio mode）: 關閉鏡頭直播，主播可講話或是透過留言跟觀眾互動，一場直播可開關鏡頭多次，關鏡頭時會採用 360p 的靜態背景，聲播功能限定 JP 地區使用。\n- 背景濾鏡：背景濾鏡是可以在直播中使用的濾鏡功能，讓主播能在直播前或直播時，自由更換直播間背景。\n- vliver：偵測主播動作表情，用虛擬人物推流直播。\n- 直播濾鏡功能：此功能可以讓主播開啟直播時先設定並預覽臉部貼紙、風格/背景、美妝、美顏。\n- 直播剪輯\n- 紅包：於直播間贈送「紅包禮」時，直播間右側會出現「紅包」倒數圖示，秒數歸零時便會彈出視窗，所有用戶皆可開始搶奪紅包。\n3. 直播間外功能說明：\n- PIP: 畫中畫是一項功能，可以在手機的頂部顯示縮小的 17LIVE 應用程式畫面。\n- 動態頁面：查看追蹤者所發佈的最新貼文、影片以及分享內容，也可以進行留言互動。\n\n【回報規範】\n請以結構化輸出提供：\n- anomalies：感官異常要點列表\n- timeline：時間點 + 發言者 + 摘要\n- confidence：高/中/低\n- next_checks：建議主 Agent 交叉比對的指標或 log\n\n【空資料規則】\n若 data 為空：回覆「查無對話資料，可能為無 STT/無評論」。"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        -48
+      ],
+      "id": "4a413c41-62ff-42d2-a4b8-b5039f2f64bc",
+      "name": "Dialogue_Analyzer"
+    },
+    {
+      "parameters": {
+        "toolDescription": "StreamInfo_Analyzer",
+        "text": "={{ (() => {\n  const request = $fromAI('Prompt__User_Message_', ``, 'string');\n  const aggregate = $('Aggregate').first().json.data || [];\n  const data = [];\n\n  aggregate.forEach(item => {\n    const details = Array.isArray(item.details) ? item.details : [];\n    details.forEach(detail => {\n      if (detail && detail.type === 'streamInfo') {\n        data.push(detail);\n      }\n    });\n  });\n\n  const payload = { request, data };\n  if (data.length === 0) {\n    payload.notice = '無對應的 streamInfo 資料，請回報無資料。';\n  }\n\n  return JSON.stringify(payload, null, 2);\n})() }}",
+        "options": {
+          "systemMessage": "【角色定義】\n你是一位直播情境分析官。任務是解析直播場次的中繼資料（Metadata），為技術指標診斷提供「場景背景」。你負責關播原因、設備與版本風險判讀，並提示可能的情境風險。\n\n【工作流程】\n1. 數據接收：直接解析輸入 payload.data（streamInfo）。\n2. 背景過濾：識別 closeBy、deviceModel、OSVersion、version、streamMode、publicIP/ipRegion。\n3. 異常預判：依 closeBy 與設備/版本狀態提示風險。\n\n【核心分析維度】\n1. 關播原因 closeBy：\n- normalEnd：用戶手動關播，不代表無問題。\n- Killed/Banned/Freezed：營運介入或畫面長時間靜止。\n- end by new stream：可能前一場未正常關閉（疑似當機）。\n- no stream：推流/keep alive 失效超過 10 分鐘。\n- Close by low memory recycle：記憶體回收。\n- CRASH：App 閃退。\n- closeBy 非 normalEnd 時，關播時間可能延遲，請標註不確定性。\n\n2. 設備與版本風險：\n- 低版本/老舊機型需標記可能風險。\n- 跨區推流可標記潛在網路路徑風險。\n\n【回報規範】\n結構化輸出：\n- environment_summary：開播/關播/裝置/版本/模式摘要\n- close_reason_analysis：關播原因判讀與可靠性\n- risk_flags：設備/版本/關播風險提示\n- cross_checks：建議主 Agent 交叉比對之 log\n\n【空資料規則】\n若 data 為空：回覆「查無基本資訊，可能為資料缺失或 streamID 不一致」。"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        656,
+        -48
+      ],
+      "id": "5f07f17d-cb28-4a0e-ad6a-96057373c099",
+      "name": "StreamInfo_Analyzer"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "value": "aiops-338206",
+          "mode": "list",
+          "cachedResultName": "Aiops"
+        },
+        "modelName": "={{ ($('Start').item.json.evalConfig && $('Start').item.json.evalConfig.modelName) ? $('Start').item.json.evalConfig.modelName : 'gemini-2.5-pro' }}",
+        "options": {
+          "temperature": "={{ ($('Start').item.json.evalConfig && $('Start').item.json.evalConfig.temperature!==undefined) ? Number($('Start').item.json.evalConfig.temperature) : 0.1 }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        -112
+      ],
+      "id": "3ce1b82b-8e60-4a6b-8ba8-feafc255d8e9",
+      "name": "Vertex gemini pro",
+      "credentials": {
+        "googleApi": {
+          "id": "xCxzQVNUYMaL9Cea",
+          "name": "Vertex SA"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vertex Gemini-2.5-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Event_Log_Analyzer",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Dialogue_Analyzer",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "StreamInfo_Analyzer",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Streamer_Log_Analyzer",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Streamer_Log_Analyzer": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event_Log_Analyzer": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dialogue_Analyzer": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "StreamInfo_Analyzer": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vertex gemini pro": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "aggregateData": [],
+          "evalConfig": {
+            "modelName": "gemini-3.1-pro-preview",
+            "temperature": 0.1
+          }
+        }
+      }
+    ]
+  },
+  "versionId": "f1b4b5f5-4886-4ec4-995a-1b52445dc37f",
+  "activeVersionId": null,
+  "versionCounter": 19,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-03-04T01:30:23.336Z",
+      "createdAt": "2026-03-04T01:30:23.336Z",
+      "role": "workflow:owner",
+      "workflowId": "m8VcIoclFE2lVKrl",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "updatedAt": "2025-09-12T13:49:37.549Z",
+        "createdAt": "2025-09-12T13:49:37.549Z",
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-09-12T13:49:37.549Z",
+            "createdAt": "2025-09-12T13:49:37.549Z",
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "updatedAt": "2026-06-05T02:10:04.520Z",
+              "createdAt": "2025-09-12T13:49:37.549Z",
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-06-05",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [
+    {
+      "updatedAt": "2026-02-10T03:49:05.243Z",
+      "createdAt": "2026-02-10T03:49:05.243Z",
+      "id": "u4djiusFDb0CW7Tw",
+      "name": "willy"
+    },
+    {
+      "updatedAt": "2026-03-04T01:30:26.596Z",
+      "createdAt": "2026-03-04T01:30:26.596Z",
+      "id": "IaRbAdtdfnpU2izS",
+      "name": "v2"
+    }
+  ],
+  "activeVersion": null
+}

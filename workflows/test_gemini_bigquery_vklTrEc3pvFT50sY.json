@@ -1,0 +1,173 @@
+{
+  "updatedAt": "2025-09-12T13:58:07.490Z",
+  "createdAt": "2025-09-12T13:52:06.018Z",
+  "id": "vklTrEc3pvFT50sY",
+  "name": "test_gemini_bigquery",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -304,
+        -32
+      ],
+      "id": "b05338df-d337-4eef-8923-cc44b8504c46",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "who are you "
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -32
+      ],
+      "id": "cd8f934a-971a-434e-b8e0-b42dd5934371",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gMeMxD0Uq89xl8xy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "SELECT *\nFROM media17-1119.mongodb.User\nWHERE userID IN (\n  \"\",\n  \"9740bf13-b92c-44a0-91cc-44d3d482a167\",\n  \"f35a3bf3-445a-4c1f-93e3-e9ff489a1a0e\",\n  \"bdfd778b-14bf-4607-a4ed-6a5d29afa807\",\n  \"ee2e3270-18dc-45c5-b3bd-c5c8d63d54f0\",\n  \"9e1a0ff3-01b0-4454-a08b-de57a641ebf5\",\n  \"d9be01c7-1761-4f6a-a467-a6e252cd12f9\",\n  \"c16ac159-0d2a-4849-a679-52db7c6077be\",\n  \"83266f40-648b-4821-84b6-87be3335d011\",\n  \"2796ae26-15fe-4a62-a809-aad8d4773ef9\",\n  \"db9f2b42-80f6-4441-ac74-37a999250971\",\n  \"4de58f14-02e6-478e-aca6-e6c5dad8c47b\"\n);\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        256,
+        -32
+      ],
+      "id": "af22eac4-3a23-41ea-9dee-a8e7c62541c5",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "b66f706d-a79b-44ce-8e12-89bae25880d0",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-09-12T13:52:06.018Z",
+      "createdAt": "2025-09-12T13:52:06.018Z",
+      "role": "workflow:owner",
+      "workflowId": "vklTrEc3pvFT50sY",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "updatedAt": "2025-09-12T13:49:37.549Z",
+        "createdAt": "2025-09-12T13:49:37.549Z",
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-09-12T13:49:37.549Z",
+            "createdAt": "2025-09-12T13:49:37.549Z",
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "updatedAt": "2026-06-05T02:10:04.520Z",
+              "createdAt": "2025-09-12T13:49:37.549Z",
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-06-05",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

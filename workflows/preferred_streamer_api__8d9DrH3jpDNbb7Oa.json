@@ -1,0 +1,704 @@
+{
+  "updatedAt": "2025-09-12T13:48:52.441Z",
+  "createdAt": "2025-09-11T04:38:53.052Z",
+  "id": "8d9DrH3jpDNbb7Oa",
+  "name": "preferred streamer(API)",
+  "description": null,
+  "active": false,
+  "isArchived": true,
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "select userID,deviceID from media17-1119.mongodb.User where openID='{{ $json.openID }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        -208
+      ],
+      "id": "ed1ec92f-8d50-4301-ba5d-23303c4919a6",
+      "name": "Take user ID",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/omnidan/node-emoji/master/lib/emoji.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        160,
+        -208
+      ],
+      "id": "9bf79b04-25dd-4d31-9a4c-6507d0671d5b",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst emojiMap = JSON.parse( $input.first().json.data);\n\n\nconst inputText = $('Webhook').first().json.body.openID || ''; \n\n// 用 regex 將 :emoji_name: 換成真實 emoji\nfunction replaceColonEmoji(text, map) {\n  return text.replace(/:([a-zA-Z0-9_+-]+):/g, (match, name) => {\n    return map[name] || match;\n  });\n}\n\nconst replaced = replaceColonEmoji(inputText, emojiMap);\n\nreturn [\n  {\n    json: {\n      openID: replaced\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -208
+      ],
+      "id": "7b58e7d1-5fc7-4624-b066-feff98849af4",
+      "name": "Handle Emoji"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "preferred-streamer",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -352,
+        -208
+      ],
+      "id": "bfdb167e-9eeb-4978-94dd-54b5a553f1ab",
+      "name": "Webhook",
+      "webhookId": "3afc7b7b-fb07-4060-8f9f-c1d8ebe87f0d",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "8bTlBpJsBTZNKupt",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1456,
+        -96
+      ],
+      "id": "91f0bd87-aaa4-4161-a14f-0217deff7f2b",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash-001",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash-001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=你是user對主播偏好的分析員，請給我以下報告，建議資訊不要給，原因要寫清楚一點\n\n目前最喜歡的主播：(主播名字) (投點總數)\n是否有開始轉移偏好跡象： (是或否)\n原因：(如果開始有轉移偏好的跡象，這邊寫原因)\n{{ $json.mergedText }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        1936,
+        -80
+      ],
+      "id": "c78424cd-5230-418b-8466-d8b61d974490",
+      "name": "Report",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gMeMxD0Uq89xl8xy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nlet output = '';\n\nfor (const item of $input.all()) {\n  const openID = item.json.openID;\n  const day = item.json.day;\n  const point = item.json.p;\n  output += `openID: \\`${openID}\\` IP: \\`${day}\\`  IP: \\`${point}\\`\\n`;\n}\n\nreturn [\n  {\n    json: {\n      text: output\n    }\n  }\n];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        32
+      ],
+      "id": "a6e84f59-1d8a-48e6-832d-47144397540d",
+      "name": "normalize02"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nlet output = '';\n\nfor (const item of $input.all()) {\n  const openID = item.json.openID;\n  const p = $input.first().json.p;\n  output += `openID: \\`${openID}\\`  point: \\`${p}\\`\\n`;\n}\n\nreturn [\n  {\n    json: {\n      text: output\n    }\n  }\n];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        -192
+      ],
+      "id": "35e54f6d-9745-4fa3-a820-37489b3aa9b9",
+      "name": "normalize01"
+    },
+    {
+      "parameters": {
+        "jsCode": "dnationStatistics = items[0].json.text;\ndnationStatistics = \"=========Statistics of user donations to streamers====\\n\\n\"+dnationStatistics+\"\\n\\n\\n\";\n\ndonationTrend = items[1].json.text;\ndonationTrend = \"=========Trends of user donations to streamers=====\\n\\n\"+donationTrend+\"\\n\\n\\n\";\n\n\n\nconst allText = [dnationStatistics, donationTrend].join(\"\\n\\n\\n\");\n\n// const allText = [giftText, latencyText, mysqlCpuLoading].join(\"\\n\\n\\n\");\n\nreturn [\n  {\n    json: {\n      mergedText: allText\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        -80
+      ],
+      "id": "64e0dc0c-3051-401f-8b5a-28e996db42d8",
+      "name": "merge the result of each node"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      code: \"00\",\n      message: \"====GEMINI=====\\n\\n\"+$input.first().json.content.parts[0].text\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        -80
+      ],
+      "id": "2cd0c365-3980-4792-87e6-12c78d48b66e",
+      "name": "Code",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2c7a7949-87e4-4aad-8207-450889d36273",
+              "leftValue": "={{ $json.body.openID }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        -208
+      ],
+      "id": "99d4efed-d73f-41c0-82b1-c34a28b63825",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      code: \"01\",\n      message: \"openID required\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        -16
+      ],
+      "id": "f13563f0-d162-431e-8515-ef666636acfb",
+      "name": "openID is empty"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2c7a7949-87e4-4aad-8207-450889d36273",
+              "leftValue": "={{ $json.userID }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        32
+      ],
+      "id": "1af78154-0b71-4f06-9430-41982892b0ac",
+      "name": "Check user exist"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      code: \"02\",\n      message: \"user does not exist\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        288
+      ],
+      "id": "8d065f15-03f7-4267-a8cc-c69e36726775",
+      "name": "user does not exist"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "   with raw01 as (\n    SELECT\n      receiverUserID,sum(point) as p\n    FROM\n      `media17-1119.MySQLPartition.GiftBox` \n    WHERE\n      utcTimestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 120 DAY) and senderUserID='{{ $json.userID }}' group by receiverUserID order by p desc limit 20\n  )\n  select openID,p from `media17-1119.mongodb.User` u inner join raw01 on u.userID=raw01.receiverUserID",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        928,
+        -208
+      ],
+      "id": "1fec1868-0f62-43b2-a465-01f5b13b7ec3",
+      "name": "donation statistics",
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "   with raw01 as (\n    SELECT\n      receiverUserID,DATE(utcTimestamp) AS day,sum(point) as p\n    FROM\n      `media17-1119.MySQLPartition.GiftBox` \n    WHERE\n      utcTimestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 120 DAY) and senderUserID='{{ $json.userID }}' group by receiverUserID,day order by day asc \n  )\n  select openID,day,p from `media17-1119.mongodb.User` u inner join raw01 on u.userID=raw01.receiverUserID order by day asc",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        928,
+        32
+      ],
+      "id": "16f8d06f-42b9-485d-b1fd-571ec34263b2",
+      "name": "donation trend",
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#andy_n8n",
+          "mode": "name"
+        },
+        "text": "===GEMINI==\n\n{{ $json.message }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2528,
+        -80
+      ],
+      "id": "0c293b90-7c0e-45a6-b003-90f173026398",
+      "name": "Send a message",
+      "webhookId": "6663ad5f-7e11-464e-83a8-a09638bf4f92",
+      "credentials": {
+        "slackApi": {
+          "id": "etLGk6PoOU3enmNl",
+          "name": "for test"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=你是user對主播偏好的分析員，請給我以下報告，建議資訊不要給，原因要寫清楚一點，報告以外的資訊不要給，也不要說多餘的話\n\n目前最喜歡的主播：(主播名字) (投點總數)\n是否有開始轉移偏好跡象： (是或否)\n原因：(如果開始有轉移偏好的跡象，這邊寫原因)\n{{ $json.mergedText }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1952,
+        160
+      ],
+      "id": "d98daac7-ffdf-4f42-b7f3-32eecd4412d0",
+      "name": "Report(openAI)",
+      "credentials": {
+        "openAiApi": {
+          "id": "u0dluzg5H4ADSLMo",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      code: \"00\",\n      message: $input.first().json.message.content\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        176
+      ],
+      "id": "eb2090a8-b057-4252-a833-5d4de911b046",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#andy_n8n",
+          "mode": "name"
+        },
+        "text": "====OPEN AI======\n\n{{ $json.message }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2528,
+        176
+      ],
+      "id": "282bfd79-689d-4100-9963-351048424554",
+      "name": "Send a message1",
+      "webhookId": "6663ad5f-7e11-464e-83a8-a09638bf4f92",
+      "credentials": {
+        "slackApi": {
+          "id": "etLGk6PoOU3enmNl",
+          "name": "for test"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Take user ID": {
+      "main": [
+        [
+          {
+            "node": "Check user exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Handle Emoji",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Emoji": {
+      "main": [
+        [
+          {
+            "node": "Take user ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "merge the result of each node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalize02": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "normalize01": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "merge the result of each node": {
+      "main": [
+        [
+          {
+            "node": "Report(openAI)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "openID is empty",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check user exist": {
+      "main": [
+        [
+          {
+            "node": "donation statistics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "donation trend",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "user does not exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "donation statistics": {
+      "main": [
+        [
+          {
+            "node": "normalize01",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "donation trend": {
+      "main": [
+        [
+          {
+            "node": "normalize02",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report(openAI)": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "b8617ba8-dc2e-45af-a909-a294fee781b4",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2025-09-11T04:38:53.052Z",
+      "createdAt": "2025-09-11T04:38:53.052Z",
+      "role": "workflow:owner",
+      "workflowId": "8d9DrH3jpDNbb7Oa",
+      "projectId": "qq4rQvaTmGIK2YTU",
+      "project": {
+        "updatedAt": "2025-09-09T06:12:12.399Z",
+        "createdAt": "2025-09-07T04:33:29.440Z",
+        "id": "qq4rQvaTmGIK2YTU",
+        "name": "andy tseng <andytseng@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-09-07T04:33:29.440Z",
+            "createdAt": "2025-09-07T04:33:29.440Z",
+            "userId": "53955c9a-e98a-42b5-b9d4-4eb760b2d4ea",
+            "projectId": "qq4rQvaTmGIK2YTU",
+            "user": {
+              "updatedAt": "2026-03-23T07:25:34.866Z",
+              "createdAt": "2025-09-07T04:33:28.527Z",
+              "id": "53955c9a-e98a-42b5-b9d4-4eb760b2d4ea",
+              "email": "andytseng@17.media",
+              "firstName": "andy",
+              "lastName": "tseng",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-09T06:12:15.692Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "userActivated": true,
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "LXeoIDBoDYAoj4Cl",
+                "userActivatedAt": 1757559826901
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-03-23",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

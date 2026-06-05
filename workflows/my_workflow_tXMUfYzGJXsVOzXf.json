@@ -1,0 +1,791 @@
+{
+  "updatedAt": "2025-11-27T11:08:15.383Z",
+  "createdAt": "2025-11-26T12:43:39.941Z",
+  "id": "tXMUfYzGJXsVOzXf",
+  "name": "My workflow",
+  "description": null,
+  "active": false,
+  "isArchived": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stt-result-listener",
+        "authentication": "basicAuth",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2176,
+        512
+      ],
+      "id": "46fe1a4b-b867-487f-abee-427c2dab5138",
+      "name": "Webhook",
+      "webhookId": "2b11310a-666c-4e56-8280-9fbad2c07fbb",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "8e699QSw7z2OEzw0",
+          "name": "STT callback auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $node[\"Webhook\"].json.body.webhook.context.channel}}",
+          "mode": "id"
+        },
+        "text": "=```\n{{ $json.formattedAnalysisText || JSON.stringify($json.sttInspection, null, 2) }}\n```",
+        "otherOptions": {
+          "botProfile": {
+            "imageValues": {
+              "profilePhotoType": "emoji",
+              "icon_emoji": "🤗"
+            }
+          },
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $node[\"Webhook\"].json.body.webhook.context.event_ts}}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        112,
+        272
+      ],
+      "id": "806a4027-1337-498e-b242-c527205472a7",
+      "name": "Send Analysis (Text)",
+      "webhookId": "063490fb-a182-42be-b4ae-4468903f27ec",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $node[\"Webhook\"].json.body.webhook.context.channel}}",
+          "mode": "id"
+        },
+        "ts": "={{ $node[\"Webhook\"].json.body.webhook.context.last_msg_ts}}",
+        "text": "={{ $json.uploadFile ? $json.summaryText : \"```\\n\" + JSON.stringify($json, null, 2) + \"\\n```\" }}",
+        "updateFields": {},
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        112,
+        -32
+      ],
+      "id": "a2598188-11bd-41d8-8518-e074f43436fc",
+      "name": "Update Trans Msg",
+      "webhookId": "063490fb-a182-42be-b4ae-4468903f27ec",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"language\":\"{{ $json.body.language }}\",\n  \"transcription\":\"{{ $json.body.transcription }}\"\n}\n ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1616,
+        144
+      ],
+      "id": "41c94afa-8dd7-4213-a2ba-388eccdf22be",
+      "name": "Fetch STT result data"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=你是一個專業的翻譯引擎。你的任務是將以下直播的語音轉錄文字翻譯成「繁體中文」。\n- 如果輸入的文字是**任何非繁體中文的語言**（例如：英文、日文、簡體中文），你**必須**將其翻譯成流暢的繁體中文。\n- 如果輸入的文字**已經是**通順的繁體中文，你**必須**原封不動地回傳。\n你的回傳內容**只能**是最終的文字（翻譯或原文），不要包含任何解釋。\n待處理的文字：\n---\n{{ $json.transcription }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1136,
+        96
+      ],
+      "id": "fed422b1-bf6c-413b-bcc5-8d31afa08faa",
+      "name": "STT translate",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gMeMxD0Uq89xl8xy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fb7616d4-af16-4344-80cd-cff70b6298d3",
+              "name": "language",
+              "value": "={{ $('Is zh? or translate it').item.json.language }}",
+              "type": "string"
+            },
+            {
+              "id": "a63641bb-28a1-4bb3-9870-f515417ac4f2",
+              "name": "transcription",
+              "value": "={{ $('Is zh? or translate it').item.json.transcription }}",
+              "type": "string"
+            },
+            {
+              "id": "cffba13b-789e-40c0-94d5-e83c6ccf6234",
+              "name": "translate",
+              "value": "={{ $json.content.parts[0].text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -832,
+        96
+      ],
+      "id": "7c9e1522-9ad9-4c8c-bce4-9dd6465b5361",
+      "name": "Append STT translate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "09b37600-096b-4050-9848-1dd4ac8ee895",
+              "leftValue": "={{ $json.language }}",
+              "rightValue": "zh",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1360,
+        -16
+      ],
+      "id": "e7119201-c96b-4e2f-8ae8-6788bde7b58d",
+      "name": "Is zh? or translate it"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=您是一位直播間問題分析專家。以下是主播的一段直播轉文字的記錄。您的任務是根據提供的文字記錄，識別。\n說明：\n- 根據他說話的內容，分析直播主在這段開播發生什麼問題\n- 如果他沒有提到問題相關，不進一步推測\n- 將發生的問題描述以繁體中文表示，並且標注引用原句\n- 若有提到多個問題，逐一列出\n- {\"issue\": \"問題描述\", \"ref\" : \"參照來源\"}\n輸出內容\"一定\"是json格式請參照範例:\n[{\"\"issue\"\": \"\"問題描述XXX\"\", \"\"ref\"\": \"\"參照來源XXX\"\"},\n{\"\"issue\"\": \"\"問題描述YYY\"\", \"\"ref\"\": \"\"參照來源YYY\"\"}]\n以下是直播內容：\n{{ $json.transcription }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1136,
+        272
+      ],
+      "id": "f5213d3f-6e61-4bb0-b7f7-78fd66c68e19",
+      "name": "STT analysis fine tune",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gMeMxD0Uq89xl8xy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fb7616d4-af16-4344-80cd-cff70b6298d3",
+              "name": "sttInspection",
+              "value": "={{ JSON.parse($json.content.parts[0].text)}}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -832,
+        272
+      ],
+      "id": "3b89a8cc-b7bf-4ea6-8dd7-0b707b075a02",
+      "name": "Append STT inspection"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "332b8bdc-ef9e-4f7e-9645-e65d1755430b",
+              "leftValue": "={{ $json.body.transcription }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "93c14f2f-1fc4-41ff-a65d-a233def5b750",
+              "leftValue": "={{ $json.body.transcription }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "b0119dff-499c-42c0-b591-0d2340320b98",
+              "leftValue": "={{ $json.body.language }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "68b12aef-9246-4660-9833-623e0dcb89bd",
+              "leftValue": "={{ $json.body.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1840,
+        512
+      ],
+      "id": "e5f86bef-53f9-4fb0-9175-062c4c560efa",
+      "name": "STT result verify"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $node[\"Webhook\"].json.body.webhook.context.channel}}",
+          "mode": "id"
+        },
+        "ts": "={{ $node[\"Webhook\"].json.body.webhook.context.last_msg_ts}}",
+        "text": "={{\n  $node[\"Webhook\"].json.body.statusCode != 200 \n  ? \"⚠️ Status Code: \" + $node[\"Webhook\"].json.body.statusCode + ($node[\"Webhook\"].json.body.error ? \"\\n❌ Error: \" + $node[\"Webhook\"].json.body.error : \"\")\n  : \"No transcription data\" \n}}",
+        "updateFields": {},
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -560,
+        528
+      ],
+      "id": "2d8a5aae-4a7d-46fb-8734-12d20bfbef3c",
+      "name": "Update no transcription",
+      "webhookId": "063490fb-a182-42be-b4ae-4468903f27ec",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = items[0].json;\nconst lang = input.language || 'Unknown';\nconst translate = input.translate || '';\nconst transcription = input.transcription || '';\n\n// 決定檢查長度的目標 (優先看翻譯)\nconst mainContent = translate.length > 0 ? translate : transcription;\n\n// 門檻值: 500\nif (mainContent.length > 500) {\n  let fileContent = `Language: ${lang}\\n\\n`;\n  if (translate) {\n    fileContent += `=== 繁體中文翻譯 ===\\n${translate}\\n\\n`;\n  }\n  fileContent += `=== 原始轉錄內容 ===\\n${transcription}`;\n\n  return {\n    json: {\n      ...input,\n      uploadFile: true,\n      summaryText: `⚠️ 翻譯/轉錄內容共 ${mainContent.length} 字，已轉存為附件 (stt_result.txt)。`\n    },\n    binary: {\n      data: {\n        data: Buffer.from(fileContent).toString('base64'),\n        mimeType: 'text/plain',\n        fileName: `stt_result_${Date.now()}.txt`\n      }\n    }\n  };\n} else {\n  return {\n    json: {\n      ...input,\n      uploadFile: false\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        -32
+      ],
+      "id": "9cbacb09-0659-4dc6-91a8-8eb37d31bc01",
+      "name": "Format Trans & Check"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = items[0].json;\nconst inspectionData = input.sttInspection || [];\nlet analysisText = \"\";\n\nif (Array.isArray(inspectionData)) {\n  // 將 Array 轉為易讀文字\n  analysisText = inspectionData.map((item, index) => {\n    return `[問題 ${index + 1}]\\n描述: ${item.issue}\\n引用: \"${item.ref}\"`;\n  }).join('\\n\\n----------------\\n\\n');\n} else {\n  // 防呆\n  analysisText = JSON.stringify(inspectionData, null, 2);\n}\n\n// 門檻值: 500\nif (analysisText.length > 500) {\n  const fileContent = `=== 直播問題分析報告 ===\\n\\n${analysisText}`;\n\n  return {\n    json: {\n      ...input,\n      uploadFile: true,\n      summaryText: `⚠️ 分析報告過長 (${analysisText.length} 字)，請查看附件 (stt_analysis.txt)。`\n    },\n    binary: {\n      data: {\n        data: Buffer.from(fileContent).toString('base64'),\n        mimeType: 'text/plain',\n        fileName: `stt_analysis_${Date.now()}.txt`\n      }\n    }\n  };\n} else {\n  return {\n    json: {\n      ...input,\n      uploadFile: false,\n      formattedAnalysisText: analysisText\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        272
+      ],
+      "id": "651f8f6f-e793-4422-9fc3-0f62f5b54988",
+      "name": "Format Analysis & Check"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond_upload_trans",
+              "leftValue": "={{ $json.uploadFile }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -320,
+        -32
+      ],
+      "id": "d67ddbd6-b149-49fe-9a4b-4b47a980d9f0",
+      "name": "If Trans Long"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond_upload_analysis",
+              "leftValue": "={{ $json.uploadFile }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -320,
+        272
+      ],
+      "id": "6f19c929-d057-45c9-9a87-c5af0cc6026d",
+      "name": "If Analysis Long"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "options": {
+          "threadTs": "={{ $node[\"Webhook\"].json.body.webhook.context.event_ts }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -96,
+        -176
+      ],
+      "id": "4b9127df-9ab3-45a2-a178-af00cb9c0599",
+      "name": "Upload Trans File",
+      "webhookId": "c8f87d4b-956d-481b-918a-080b835067a7",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "options": {
+          "threadTs": "={{ $node[\"Webhook\"].json.body.webhook.context.event_ts }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -96,
+        128
+      ],
+      "id": "67c3a732-6da7-4fcc-bec4-a248616d812f",
+      "name": "Upload Analysis File",
+      "webhookId": "2007965c-6e90-455a-b261-9e4819f2a585",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "STT result verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch STT result data": {
+      "main": [
+        [
+          {
+            "node": "Is zh? or translate it",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "STT analysis fine tune",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STT translate": {
+      "main": [
+        [
+          {
+            "node": "Append STT translate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append STT translate": {
+      "main": [
+        [
+          {
+            "node": "Format Trans & Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is zh? or translate it": {
+      "main": [
+        [
+          {
+            "node": "Format Trans & Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STT translate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STT analysis fine tune": {
+      "main": [
+        [
+          {
+            "node": "Append STT inspection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append STT inspection": {
+      "main": [
+        [
+          {
+            "node": "Format Analysis & Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STT result verify": {
+      "main": [
+        [
+          {
+            "node": "Fetch STT result data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update no transcription",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Trans & Check": {
+      "main": [
+        [
+          {
+            "node": "If Trans Long",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Trans Long": {
+      "main": [
+        [
+          {
+            "node": "Upload Trans File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Trans Msg",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Trans Msg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Analysis & Check": {
+      "main": [
+        [
+          {
+            "node": "If Analysis Long",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Analysis Long": {
+      "main": [
+        [
+          {
+            "node": "Upload Analysis File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Analysis (Text)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "34.170.122.177",
+            "user-agent": "Go-http-client/1.1",
+            "content-length": "147934",
+            "authorization": "Basic MTdMSVZFOlZ6Mjk4UlhmTEFFZTRvbXUzakZE",
+            "content-type": "application/json",
+            "accept-encoding": "gzip"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "statusCode": 200,
+            "language": "zh",
+            "transcription": "[00:14:06] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 戰隊成員們來支持 蒂蒂Didi 了，目前成就值戰隊加成為 500！\n[00:14:27] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我回來了\n[00:14:36] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我回來了，蒂蒂\n[00:14:44] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 😆\n[00:14:58] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 😴😴😴\n[00:15:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你可以看見我，蒂蒂\n[00:16:13] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的謝謝，蒂蒂\n[00:16:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 沒有卡住就好了，蒂蒂\n[00:17:30] [viewer] <Dj美姬🎧讓舅舅飛起來>: 晚上好\n[00:18:17] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 晚上喝太硬了🤣\n[00:18:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 很好聽喔\n[00:18:57] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 我覺得要過一下下🙈\n[00:19:16] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好聽好聽\n[00:19:37] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的\n[00:20:51] [viewer] <玲玲Ykiki🎵🧸❤️馬兒Mark🎶🐎>: 不用打扮就夠美了💕\n[00:21:41] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我剛剛已經回來了，\n[00:21:46] [viewer] <玲玲Ykiki🎵🧸❤️馬兒Mark🎶🐎>: 現在比較不容易斷勾\n[00:23:01] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的\n[00:23:18] [viewer] <林義峯蒂520>: 戰隊成員們來支持 蒂蒂Didi 了，目前成就值戰隊加成為 2500！\n[00:23:42] [viewer] <tfc66>: ᥫᩣ晩上好🌙*ﾟෆ‪‪♩\n[00:24:20] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 這是什麼歌，\n[00:24:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你的歌都不錯，蒂蒂\n[00:24:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我有睡了一點點，\n[00:24:55] [viewer] <我是_咚咚>: 我沒通知\n[00:24:56] [viewer] <玲玲Ykiki🎵🧸❤️馬兒Mark🎶🐎>: 嗯嗯 都很不錯\n[00:25:06] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 等一下我會再繼續睡，蒂蒂\n[00:25:16] [viewer] <黛爺🦄龍迪愛亂跑🦙>: 戰隊成員們來支持 蒂蒂Didi 了，目前成就值戰隊加成為 3000！\n[00:25:29] [viewer] <黛爺🦄龍迪愛亂跑🦙>: ☺️\n[00:25:33] [viewer] <黛爺🦄龍迪愛亂跑🦙>: ？？\n[00:25:43] [viewer] <玲玲Ykiki🎵🧸❤️馬兒Mark🎶🐎>: 我有哎 不重要的路人收到了！\n[00:25:43] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的謝謝蒂蒂\n[00:25:45] [viewer] <黛爺🦄龍迪愛亂跑🦙>: 我沒開\n[00:26:42] [viewer] <玲玲Ykiki🎵🧸❤️馬兒Mark🎶🐎>: 妳又看不膩🤭\n[00:27:06] [viewer] <玲玲Ykiki🎵🧸❤️馬兒Mark🎶🐎>: xDD\n[00:29:00] [viewer] <>: 我吃ㄎㄧㄤ長大的🐿 的 ♚77🐿️🐿️♛Didi蒂蒂🐷🐷 來撐你了！\n[00:29:47] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 我也真沒滑到\n[00:30:06] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我也不清楚，蒂蒂\n[00:30:10] [viewer] <我是_咚咚>: 我也沒有\n[00:30:39] [viewer] <我是_咚咚>: 人家傳給我知道\n[00:30:46] [viewer] <我是_咚咚>: 沒有\n[00:30:51] [viewer] <>: 我吃ㄎㄧㄤ長大的🐿 的 ♚77🐿️🐿️♛Didi蒂蒂🐷🐷 來撐你了！\n[00:31:09] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 沒啊\n[00:31:37] [viewer] <我是_咚咚>: 188\n[00:33:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好聽喔不錯\n[00:34:36] [viewer] <newbie_dp3rsbtdeayo>: 嗨👋 蒂蒂Didi 晚上好\n[00:34:42] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 有差嗎\n[00:34:50] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 沒錯\n[00:35:01] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 有簽到有差嗎\n[00:35:04] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 😂😂\n[00:35:14] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 沒錯沒錯\n[00:35:17] [viewer] <我是_咚咚>: 有算\n[00:35:17] [viewer] <newbie_dp3rsbtdeayo>: 我只有綠勾勾，所以其實不會很擔心斷勾😂\n[00:35:21] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那是真的\n[00:36:08] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好險現在很好，要不然就糟糕了\n[00:36:10] [viewer] <newbie_dp3rsbtdeayo>: 對～\n[00:36:15] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 黑金勾能幹嘛\n[00:36:30] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 是吧 那就沒差\n[00:36:43] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 😂\n[00:36:53] [viewer] <newbie_dp3rsbtdeayo>: 那我需要努力黑金勾\n[00:37:11] [viewer] <我是_咚咚>: 我有看我的\n[00:37:18] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 那種你丟他100萬 你看他要不要給你入群\n[00:37:22] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 😂😂😂😂\n[00:37:34] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 是吧\n[00:37:40] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 🤪🤪🤪🤪🤪\n[00:37:52] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 略略略\n[00:38:02] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我現在的勺勺還有嗎\n[00:38:06] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 我這個月都沒跑\n[00:38:13] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 不用\n[00:38:19] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 睡一整天\n[00:38:22] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 很爽\n[00:38:33] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 這個月休息一下 有點累\n[00:38:45] [viewer] <newbie_dp3rsbtdeayo>: 好的好的\n[00:39:01] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我這邊吃宵夜的，蒂蒂\n[00:39:09] [viewer] <newbie_dp3rsbtdeayo>: 我剛才沒有睡覺\n[00:39:20] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我從來不吃宵夜的，蒂蒂\n[00:39:36] [viewer] <newbie_dp3rsbtdeayo>: 我準備要吃宵夜😋\n[00:39:51] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 因為睡覺就睡覺，還要吃什麼宵夜\n[00:40:16] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 是的沒錯\n[00:40:31] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 一覺到天亮，就可以睡了\n[00:40:52] [viewer] <newbie_dp3rsbtdeayo>: 我等一下想要吃芋香饅頭、巧克力蛋糕、紅豆湯圓😋\n[00:41:17] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 吃多多東西，很厲害喔\n[00:41:21] [viewer] <ilove0323>: 🙂\n[00:41:30] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @守護蒂蒂🐿️的Taihong🐿️💕 嗨泰宏好\n[00:41:43] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 晚上好啊\n[00:41:58] [viewer] <newbie_dp3rsbtdeayo>: 所以不會吃太多，吃2個湯圓就好😀\n[00:42:22] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @我不入蒂獄⚡️誰入蒂獄🐿️ 謝謝點心完食🥳🥳🥳🥳🥳\n[00:42:30] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 他吃東西好多喔，蒂蒂\n[00:42:51] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 剛剛那一個，\n[00:43:05] [viewer] <newbie_dp3rsbtdeayo>: 紅豆湯圓一定是有陷的呀😂 就是紅豆餡\n[00:43:14] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 沒錯沒錯\n[00:43:20] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 的確是\n[00:43:40] [viewer] <newbie_dp3rsbtdeayo>: 哦～\n[00:43:49] [viewer] <newbie_dp3rsbtdeayo>: 我喝的湯是地瓜湯\n[00:43:58] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: 紅白湯圓沒有餡\n[00:43:59] [viewer] <newbie_dp3rsbtdeayo>: 那是師母自己做的\n[00:44:22] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 原來如此，蒂蒂\n[00:44:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那的確是很厲害，蒂蒂\n[00:44:58] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: 還有大湯圓，芝蔴花生都好好吃\n[00:45:04] [viewer] <newbie_dp3rsbtdeayo>: 但是今天愛筵也剛好有紅豆紫米粥，我有打包回來，所以也是可以加在紅豆湯裡面\n[00:45:08] [viewer] <我是_咚咚>: 我還有吃布丁口味的\n[00:45:28] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 東東，布丁口味很好吃喔，\n[00:45:42] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我非常喜歡吃布丁，東東\n[00:45:54] [viewer] <newbie_dp3rsbtdeayo>: 我也是不太喜歡紅豆顆粒\n[00:46:04] [viewer] <newbie_dp3rsbtdeayo>: 我大多都是撈湯回來\n[00:46:22] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @蒂蒂Didi 女生MC 來吃紅豆湯可以止痛\n[00:46:42] [viewer] <newbie_dp3rsbtdeayo>: 對😂 然後師母就問我怎麼都只有拿湯\n[00:47:25] [viewer] <我是_咚咚>: @守護蒂蒂🐿️的Taihong🐿️💕 就布丁的味道\n[00:47:42] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @我是_咚咚 很好吃喔，東東\n[00:47:55] [viewer] <我是_咚咚>: @守護蒂蒂🐿️的Taihong🐿️💕 還可以\n[00:48:07] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @我是_咚咚 我最喜歡吃的，\n[00:48:13] [viewer] <戰火無情🍻滅世修羅🐉>: 你還沒睡\n[00:48:31] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，晚上好啊\n[00:48:40] [viewer] <Daniel丹尼爾9🐿️>: 嗨👋 蒂蒂Didi 晚上好\n[00:48:46] [viewer] <我是_咚咚>: @守護蒂蒂🐿️的Taihong🐿️💕 好的\n[00:48:51] [viewer] <Daniel丹尼爾9🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 泰宏，晚上好\n[00:48:55] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @我是_咚咚 沒問題\n[00:49:05] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾9🐿️ 丹尼爾，晚上好啊\n[00:49:14] [viewer] <Daniel丹尼爾9🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 好久不見了\n[00:49:16] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @Daniel丹尼爾9🐿️ 嗨丹尼爾晚上好\n[00:49:28] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾9🐿️ 對啊，你都在上班嗎\n[00:49:35] [viewer] <Daniel丹尼爾9🐿️>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 燒仙草 晚上好🤗\n[00:49:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾9🐿️ 辛苦了\n[00:49:43] [viewer] <Daniel丹尼爾9🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 沒有耶\n[00:50:12] [viewer] <Daniel丹尼爾9🐿️>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 小比 晚上好🤗\n[00:50:25] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾9🐿️ 那好吧\n[00:50:38] [viewer] <Daniel丹尼爾9🐿️>: 原來是小比改名字了\n[00:50:44] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，我忘記了，昨天不要跟我去教堂\n[00:50:58] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @Daniel丹尼爾9🐿️ 沒有我有好多帳號\n[00:50:59] [viewer] <Daniel丹尼爾9🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 你有去教堂嗎？\n[00:51:12] [viewer] <Daniel丹尼爾9🐿️>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 原來如此😂\n[00:51:19] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾9🐿️ 有啊有啊，\n[00:51:20] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @Daniel丹尼爾9🐿️ 是的\n[00:51:26] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾9🐿️ 我總是迷迷糊糊的，\n[00:51:30] [viewer] <Daniel丹尼爾9🐿️>: 蒂蒂 辛苦了💦\n[00:52:10] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 走路都差一點搖搖晃晃\n[00:52:30] [viewer] <Daniel丹尼爾9🐿️>: 因為宿舍在進行打牆工程⚠️，非常吵雜\n[00:52:51] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好險人很多沒關係，\n[00:52:55] [viewer] <Daniel丹尼爾9🐿️>: 一大早就被工程噪音吵醒了\n[00:52:57] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @蒂蒂Didi 好扯我12：00叫外送到現在還沒有來太扯了\n[00:53:10] [viewer] <Daniel丹尼爾9🐿️>: 對呀😀\n[00:53:55] [viewer] <Daniel丹尼爾9🐿️>: 那個工程要持續到11/29\n[00:54:01] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @守護蒂蒂🐿️的Taihong🐿️💕 早上下班回家被別人撞到了\n[00:54:17] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 好的謝謝\n[00:54:22] [viewer] <Daniel丹尼爾9🐿️>: 而且施工就是打掉我的曬衣場\n[00:54:47] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @Daniel丹尼爾9🐿️ 辛苦你了\n[00:55:01] [viewer] <Daniel丹尼爾9🐿️>: 早上6點就開始施工了\n[00:55:09] [viewer] <Daniel丹尼爾9🐿️>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 🥰\n[00:55:31] [viewer] <Daniel丹尼爾9🐿️>: 好像是要打掉之後重新建造\n[00:55:47] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 6點施工，那的確是很早，我還在睡覺呢\n[00:55:57] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 曬在護理師家\n[00:56:10] [viewer] <Daniel丹尼爾9🐿️>: 所以這幾天衣服先晾在我另一個房間\n[00:56:12] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 如果正常的時候，都是在睡覺的\n[00:56:14] [viewer] <Daniel丹尼爾9🐿️>: @♚77🐿️🐿️♛Didi蒂蒂🐷🐷 😂😂😂\n[00:56:17] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @蒂蒂Didi 早上差不多八點才能施工吵到別人睡覺\n[00:56:20] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: @Daniel丹尼爾9🐿️ 😂😂😂\n[00:56:30] [viewer] <Daniel丹尼爾9🐿️>: 那個曬衣場是我一個人用的\n[00:56:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，你也是自己曬衣服嗎\n[00:56:47] [viewer] <Daniel丹尼爾9🐿️>: 對\n[00:56:57] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 那只能借住一下護理師家\n[00:57:01] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 太厲害了，丹尼爾\n[00:57:06] [viewer] <Daniel丹尼爾9🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 對呀，我自己洗衣服、晾衣服\n[00:57:11] [viewer] <Daniel丹尼爾9🐿️>: @♚77🐿️🐿️♛Didi蒂蒂🐷🐷 😂😂\n[00:57:14] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾9🐿️ 你好厲害啊\n[00:57:25] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 也不怕睡覺被吵啊\n[00:57:28] [viewer] <Daniel丹尼爾9🐿️>: 護理師都是住在我的樓上\n[00:57:29] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾9🐿️ 他要自己洗衣服，丹尼爾\n[00:57:44] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: @Daniel丹尼爾9🐿️ 那很方便\n[00:58:04] [viewer] <Daniel丹尼爾9🐿️>: 她們的曬衣場在頂樓，但是可能會淋雨\n[00:58:08] [viewer] <Daniel丹尼爾9🐿️>: @♚77🐿️🐿️♛Didi蒂蒂🐷🐷 🤣\n[00:58:36] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 77豬你要不要幫丹尼爾，洗衣服啊，開玩笑的啦\n[00:58:37] [viewer] <Daniel丹尼爾9🐿️>: 對呀\n[00:58:44] [viewer] <Daniel丹尼爾9🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 🤣\n[00:58:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾9🐿️ 對不對啊開玩笑的啦\n[00:59:27] [viewer] <Daniel丹尼爾9🐿️>: 所以我就晾在房間裡就好\n[00:59:55] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 今天你要開到5點嗎，蒂蒂\n[01:00:04] [viewer] <Daniel丹尼爾9🐿️>: 對呀\n[01:00:25] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我忘記了不好意思，蒂蒂\n[01:00:28] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: 昨天就說晚上要開播\n[01:00:36] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我的確是迷迷糊的\n[01:00:40] [viewer] <Chensui06>: 為謀\n[01:00:46] [viewer] <Daniel丹尼爾9🐿️>: 蒂蒂今晚提早開播的原因是收17紅毯同框禮嗎？\n[01:00:46] [viewer] <Chensui06>: 不放過我們\n[01:00:51] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 不好意思喔\n[01:00:59] [viewer] <Chensui06>: 可不可以放過我們\n[01:01:05] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @守護蒂蒂🐿️的Taihong🐿️💕 沒事啦！\n[01:01:11] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 好的謝謝\n[01:02:26] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的沒問題\n[01:02:27] [viewer] <Daniel丹尼爾9🐿️>: 不好意思，我剛看錯了，是因為有階段榜守榜\n[01:02:52] [viewer] <我是_咚咚>: 500\n[01:03:31] [viewer] <Daniel丹尼爾9🐿️>: 蒂蒂剛才23:59守哪一個榜？\n[01:04:04] [viewer] <>: 我吃ㄎㄧㄤ長大的🐿 的 守護蒂蒂的Plus在台北蒂蒂long🐿️ 來撐你了！\n[01:04:14] [viewer] <Daniel丹尼爾9🐿️>: 想起來了👍\n[01:04:19] [viewer] <守護蒂蒂的Plus在台北蒂蒂long🐿️>: 晚上好\n[01:04:54] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @蒂蒂Didi 他居然回我不知道怎么走耶\n[01:05:29] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 有可能地圖定位跑掉\n[01:05:35] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: 想退餐又不能退\n[01:05:39] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 像我的炸雞 現在到了\n[01:07:45] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的我知道了\n[01:07:54] [viewer] <Daniel丹尼爾7🐿️>: 對呀👍\n[01:09:29] [viewer] <Daniel丹尼爾7🐿️>: 我算起來，收17個即能前10名了\n[01:10:09] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: 太晚送來口氣好差耶！\n[01:10:16] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @嘀們屮daemon 謝謝點心完食🥳🥳🥳🥳🥳\n[01:10:32] [viewer] <Daniel丹尼爾7🐿️>: 收17個只能贏第10名120分\n[01:11:01] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: 我送20分鐘就可以到了\n[01:11:07] [viewer] <Daniel丹尼爾7🐿️>: 瞭解\n[01:12:22] [viewer] <Daniel丹尼爾7🐿️>: 我記得蒂蒂說 25 也是可以 combo 的數字\n[01:12:31] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 很好聽喔\n[01:12:35] [viewer] <Daniel丹尼爾7🐿️>: 有諧音\n[01:12:47] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @守護蒂蒂🐿️的Taihong🐿️💕 +1🥰🥰🥰🥰\n[01:12:59] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 好聽\n[01:13:05] [viewer] <Daniel丹尼爾7🐿️>: 如果 combo 25，會不會有人抗議？😂\n[01:13:29] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @Daniel丹尼爾7🐿️ 👍👍👍🥰🥰🥰\n[01:13:40] [viewer] <Daniel丹尼爾7🐿️>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 🤣\n[01:13:55] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @Daniel丹尼爾7🐿️ 誰抗議我湊他\n[01:14:16] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 什麼\n[01:14:20] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 對\n[01:14:27] [viewer] <Daniel丹尼爾7🐿️>: 那如果是 combo 1125 個，就會有人抗議了😂\n[01:14:29] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 🙈🙈🙈\n[01:14:40] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 什麼\n[01:14:44] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 如果抗議的話，你會蒂蒂一個\n[01:14:46] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 不對\n[01:14:58] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @Daniel丹尼爾7🐿️ 他會謝謝了\n[01:15:20] [viewer] <Daniel丹尼爾7🐿️>: 妳真的知道 1125 的諧音嗎？😂\n[01:15:28] [viewer] <Daniel丹尼爾7🐿️>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 😂😂\n[01:15:34] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你會第一個出來，幫他搞定\n[01:15:40] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 應該會感謝你帶走他\n[01:15:41] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 😂😂😂\n[01:15:45] [viewer] <Daniel丹尼爾7🐿️>: 蒂蒂居然知道耶😂\n[01:15:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好臭喔\n[01:15:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 直播間充滿的香氣\n[01:16:10] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 🙈🙈🙈\n[01:16:11] [viewer] <Daniel丹尼爾7🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 😂😂😂\n[01:16:18] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾7🐿️ 對不對啊\n[01:16:23] [viewer] <Daniel丹尼爾7🐿️>: @♚77🐿️🐿️♛Didi蒂蒂🐷🐷 🤣🤣🤣\n[01:16:32] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾7🐿️ 幫你搞定，蒂蒂\n[01:16:35] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: @Daniel丹尼爾7🐿️ 真的啦 不然你看他怎麼可能單身八年\n[01:16:41] [viewer] <Daniel丹尼爾7🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 好像有道理😂\n[01:16:50] [viewer] <Daniel丹尼爾7🐿️>: @♚77🐿️🐿️♛Didi蒂蒂🐷🐷 😂😂\n[01:16:51] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾7🐿️ 真的是很有道理喔\n[01:16:52] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 連環屁很好啊\n[01:17:08] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾7🐿️ 這是真的\n[01:17:10] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: @♚77🐿️🐿️♛Didi蒂蒂🐷🐷 跟開播一樣久嗎\n[01:17:17] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @♚77🐿️🐿️♛Didi蒂蒂🐷🐷 不好有人快昏倒了\n[01:17:34] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我快要暈倒了，\n[01:17:48] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 😴😴\n[01:17:52] [viewer] <Daniel丹尼爾7🐿️>: 開播是7年5個月\n[01:18:22] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @蒂蒂Didi 他要睡你\n[01:18:36] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 歐買尬🙈\n[01:19:09] [viewer] <Daniel丹尼爾7🐿️>: 😅\n[01:19:17] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 燦爛之心，還有25個喔,大家加油\n[01:19:29] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @蒂蒂Didi 睡你直播間🤣🤣🤣\n[01:19:35] [viewer] <Daniel丹尼爾7🐿️>: 我也嚇到了😂\n[01:19:43] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 有問過我們的感受嗎😂😂😂\n[01:19:50] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 可能我們都要去吐了\n[01:19:51] [viewer] <Daniel丹尼爾7🐿️>: 那是幸福掛睡😂\n[01:20:01] [viewer] <Daniel丹尼爾7🐿️>: @♚77🐿️🐿️♛Didi蒂蒂🐷🐷 😂😂\n[01:20:06] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: @Daniel丹尼爾7🐿️ sorry \n[01:20:09] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: @Daniel丹尼爾7🐿️ 😂😂😂😂\n[01:20:18] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 😴😴🤢🤢🤮🤮\n[01:20:19] [viewer] <Daniel丹尼爾7🐿️>: @甜心小芋圓💕茹Ru💫燒仙草😘😘😘 沒關係啦😂\n[01:20:23] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 以後名字改成 睡我\n[01:20:30] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 主播就會說 歡迎睡我\n[01:20:45] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 🤣🤣🤣\n[01:20:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，大家要加油\n[01:20:59] [viewer] <Daniel丹尼爾7🐿️>: 妳的PO文 有寫 睡覺是松鼠的本命🤣\n[01:21:06] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 😂😂\n[01:21:13] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 早點休息了，\n[01:23:23] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還差25個喔\n[01:23:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的\n[01:24:05] [viewer] <Sen_森.__.>: 沒錯🤣\n[01:24:21] [viewer] <甜心小芋圓💕茹Ru💫燒仙草😘😘😘>: 五萬寶寶幣\n[01:24:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，也有吃宵夜嗎\n[01:24:57] [viewer] <美紀0722>: こんばんは🤗🌟大好き愛してる(*-(　　)ﾁｭｯ♪\n[01:25:03] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 這麼多嗎，\n[01:25:08] [viewer] <Sen_森.__.>: 冬至了嗎😱\n[01:25:11] [viewer] <Daniel丹尼爾7🐿️>: 蒂蒂竟然記得我吃什麼😲😲\n[01:25:25] [viewer] <美紀0722>: 上書きお待ちしております🙇‍♀️ꉂ🤣🤣🤣\n[01:25:26] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 原來如此\n[01:25:50] [viewer] <Daniel丹尼爾7🐿️>: 冬至是12/21\n[01:25:52] [viewer] <美紀0722>: 初見ですか🔰\n[01:26:11] [viewer] <美紀0722>: 相変わらずめちゃくちゃ可愛いです\n[01:26:22] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 🤮\n[01:26:34] [viewer] <美紀0722>: 好きになっちゃた♥️\n[01:26:39] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 他是不是說相片可愛\n[01:26:56] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: @美紀0722 she is pig🐷\n[01:27:05] [viewer] <美紀0722>: @♚77🐿️🐿️♛Didi蒂蒂🐷🐷 🫶🏻💗😘\n[01:27:11] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: @美紀0722 😂\n[01:27:17] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 豚🐷\n[01:27:39] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 嘻嘻\n[01:27:52] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 要被關五天了\n[01:28:01] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 晚安翹屁屁\n[01:28:51] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 阿要睡覺不然要一直很擔心徹夜難眠\n[01:29:06] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 五天就解招了\n[01:29:18] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 特別來看你阿\n[01:29:53] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 好吧\n[01:30:12] [viewer] <人間的告白嘉許🐣微風細雨💧無一不是妳>: 晚上好\n[01:30:20] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 不用緊張啊，我也沒犯法\n[01:30:36] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 國家要我回去回憶當兵\n[01:30:44] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 我要去教召\n[01:30:58] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 是在...\n[01:31:01] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 不是偷偷\n[01:31:14] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 要會統一鎖起來\n[01:31:25] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 有開放時間\n[01:31:31] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 不用偷偷阿\n[01:31:39] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 用的時間多到靠北\n[01:31:47] [viewer] <Brendy~誠🚀👑🐿️肉幫哥~寺鼫宮翂🎤🎧🎼🥁🎲>: 中午，吃飽，晚上睡前\n[01:31:53] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 你為啥不用當兵\n[01:31:58] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我也是沒有當過兵，\n[01:32:01] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 體檢沒過喔\n[01:32:02] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 😂\n[01:32:14] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 原來你原因是這個\n[01:32:14] [viewer] <Daniel丹尼爾99🐿️>: 😂\n[01:32:16] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 很可愛的豬，\n[01:33:03] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我都是偷偷的，不用當兵\n[01:33:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 因為很久不用當了\n[01:34:28] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 現在不用了，蒂蒂\n[01:34:41] [viewer] <Daniel丹尼爾99🐿️>: 請問蒂蒂明天收同框禮的時候，會選擇哪一個活動？\n[01:34:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 沒錯\n[01:35:45] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 女神特寫，那就不用了\n[01:35:51] [viewer] <Daniel丹尼爾99🐿️>: 瞭解\n[01:36:03] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好吧\n[01:36:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的沒問題\n[01:37:22] [viewer] <Daniel丹尼爾99🐿️>: 璀璨之星 會有人combo 鑽石皇冠，但是女神特寫沒有升級禮。所以女神特寫可能更需要用同框禮來加分？\n[01:38:56] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 原來如此\n[01:39:39] [viewer] <Daniel丹尼爾99🐿️>: 有道理，因為璀璨之星有機會搜集多於1個月積分，所以需要同框禮加分\n[01:39:55] [viewer] <我是_咚咚>: 說不定人家在等同框禮\n[01:40:02] [viewer] <Daniel丹尼爾99🐿️>: 我懂了\n[01:40:48] [viewer] <我是_咚咚>: 沒能力\n[01:41:11] [viewer] <Daniel丹尼爾99🐿️>: @我是_咚咚 妳有送過同框禮👍\n[01:41:19] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 東東沒關係\n[01:41:48] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我也有想到\n[01:41:54] [viewer] <Daniel丹尼爾99🐿️>: 泰宏也有👍👍\n[01:42:03] [viewer] <Daniel丹尼爾99🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 很棒\n[01:42:11] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾99🐿️ 謝謝\n[01:42:15] [viewer] <我是_咚咚>: @Daniel丹尼爾99🐿️ 時間還沒到一直在緊張勒\n[01:42:25] [viewer] <Daniel丹尼爾99🐿️>: @我是_咚咚 😂\n[01:42:28] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那個字是富爽\n[01:42:35] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾99🐿️ 謝謝\n[01:43:32] [viewer] <Daniel丹尼爾99🐿️>: 那個 七夕星球 背景 我也很喜歡\n[01:43:41] [viewer] <我是_咚咚>: @Daniel丹尼爾99🐿️ 我第一批只能努力看看\n[01:44:09] [viewer] <Daniel丹尼爾99🐿️>: 七夕 背景 跟實體的娃娃 長得幾乎一模一樣\n[01:44:44] [viewer] <Daniel丹尼爾99🐿️>: @我是_咚咚 好的\n[01:45:16] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，還有25個，加油加油\n[01:45:21] [viewer] <Daniel丹尼爾99🐿️>: 復刻的幾乎一樣，但是實體娃娃加上更多小細節\n[01:45:58] [viewer] <Daniel丹尼爾99🐿️>: 而且是大隻的娃娃\n[01:46:46] [viewer] <Daniel丹尼爾99🐿️>: 那是哪一個活動？\n[01:46:56] [viewer] <Sen_森.__.>: 河豚🐡？\n[01:47:30] [viewer] <Daniel丹尼爾7🐿️>: 瞭解\n[01:47:34] [viewer] <我是_咚咚>: 玩家20萬\n[01:48:01] [viewer] <Daniel丹尼爾99🐿️>: 如果用大帳號、小帳號都送，是不是增加抽到的機率？\n[01:49:09] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 機率也是很多，但是要看自己，\n[01:50:31] [viewer] <Daniel丹尼爾99🐿️>: 請問蒂蒂星期二晚上會提早開播嗎？\n[01:50:33] [viewer] <>: 我吃ㄎㄧㄤ長大的🐿 的 🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️ 來撐你了！\n[01:51:21] [viewer] <🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️>: 打暈蒂蒂 晚上好\n[01:51:43] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 5點半過後嗎，星期三\n[01:51:49] [viewer] <🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️>: 捏 沒框了\n[01:51:59] [viewer] <Daniel丹尼爾7🐿️>: 就是 星期三 5:00 AM 之後\n[01:52:13] [viewer] <舞王兔兔>: 好久不見\n[01:52:24] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，是不是啊，應星期三嗎\n[01:52:35] [viewer] <舞王兔兔>: 哈哈\n[01:52:47] [viewer] <Daniel丹尼爾7🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 對呀\n[01:52:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾7🐿️ 好的謝謝，\n[01:52:57] [viewer] <舞王兔兔>: 我就是dance rabbit \n[01:53:35] [viewer] <舞王兔兔>: Danceingrabbit \n[01:54:03] [viewer] <Daniel丹尼爾7🐿️>: 我好像有依稀的印象\n[01:54:10] [viewer] <舞王兔兔>: 我之前都是用小號daningrabbit\n[01:54:15] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有6分鐘，2點整\n[01:54:25] [viewer] <>: 我吃ㄎㄧㄤ長大的🐿 的 🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️ 來撐你了！\n[01:54:34] [viewer] <舞王兔兔>: dancing rabbit \n[01:54:51] [viewer] <舞王兔兔>: 難得是看妳這樣播\n[01:55:01] [viewer] <🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️>: 喵喵喵喵喵喵\n[01:55:16] [viewer] <舞王兔兔>: 之前都是看妳本人直播\n[01:55:32] [viewer] <🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️>: 那就打暈吧！\n[01:55:36] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有4分鐘，蒂蒂\n[01:55:51] [viewer] <舞王兔兔>: 今天看7-11班表才發現已經7-11上晚班九個月了\n[01:56:00] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我也是一樣，蒂蒂\n[01:56:02] [viewer] <舞王兔兔>: 時間過好快\n[01:56:05] [viewer] <🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️>: 妳今天忙啥？\n[01:56:17] [viewer] <舞王兔兔>: 今天天氣很熱\n[01:56:33] [viewer] <🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️>: 我知道\n[01:56:41] [viewer] <🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️>: 唷！\n[01:56:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我昨天也是有去教堂啊，蒂蒂\n[01:57:14] [viewer] <Daniel丹尼爾99🐿️>: 連續 21、22、23都是23:30早開播\n[01:57:28] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的\n[01:57:47] [viewer] <Daniel丹尼爾99🐿️>: 21也是有開2場呀\n[01:57:50] [viewer] <🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️>: 唷唷唷\n[01:58:14] [viewer] <firecanon1live>: didi in my language big sister\n[01:58:14] [viewer] <🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️>: 睡覺\n[01:58:26] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，我都有去喔，\n[01:58:55] [viewer] <Daniel丹尼爾99🐿️>: 因為我21早上那場沒有跟到，所以印象很深刻\n[01:59:04] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好臭喔\n[01:59:06] [viewer] <🐿️Didi魔羯愛上全世界的大鎚子🔨阿盛💞🐿️>: 😆😆😆😆😆😅\n[01:59:09] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 太臭了啦\n[01:59:17] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 直播間充滿著香氣\n[01:59:51] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 反正我都有去的，\n[02:01:03] [viewer] <Daniel丹尼爾99🐿️>: 😂\n[02:01:30] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好臭喔，\n[02:01:37] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我快要暈倒了\n[02:01:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 真的快暈倒了，\n[02:02:16] [viewer] <>: League mate Daniel丹尼爾🐿️蒂蒂Didiの丹丹 from 我吃ㄎㄧㄤ長大的🐿 is here\n[02:02:41] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 阿勝打暈的比較快\n[02:02:48] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 嗨👋 蒂蒂Didi 晚上好\n[02:03:02] [viewer] <舞王兔兔>: 明天又要變冷了\n[02:03:14] [viewer] <紡泉Fang_Quan>: 人消失去哪了\n[02:03:24] [viewer] <紡泉Fang_Quan>: yes\n[02:03:35] [viewer] <舞王兔兔>: 感覺工作以後都會覺得時間過好快\n[02:03:50] [viewer] <紡泉Fang_Quan>: 卸妝嗎\n[02:03:58] [viewer] <舞王兔兔>: 這個看板好看\n[02:04:20] [viewer] <舞王兔兔>: 這樣的感覺也很棒\n[02:04:22] [viewer] <紡泉Fang_Quan>: 怎麼不是比基尼\n[02:04:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，還有25個，大家加油\n[02:05:03] [viewer] <甜心0521比比>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 嗨你好\n[02:05:05] [viewer] <紡泉Fang_Quan>: 蟋蟀的（蟀）🤣😂\n[02:05:11] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我看到小比的帳號了😀\n[02:05:23] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @甜心0521比比 小比 晚上好🤗\n[02:05:49] [viewer] <舞王兔兔>: 妳今天很像我最近看得陸劇很想很想你裡面的直播方式\n[02:06:19] [viewer] <舞王兔兔>: 內地很多這樣聲播的\n[02:06:49] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 這首歌好聽\n[02:06:55] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 有的平台也是單純只有聲播的\n[02:07:08] [viewer] <女神Angel萌萌♥️甜心小芋圓💕Ru💫の戀愛粉>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹嗨你好 \n[02:07:21] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @女神Angel萌萌♥️甜心小芋圓💕Ru💫の戀愛粉 晚上好🤗\n[02:07:27] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 真的嗎，丹尼爾\n[02:07:27] [viewer] <舞王兔兔>: 但是那樣的感覺也很棒\n[02:07:31] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @女神Angel萌萌♥️甜心小芋圓💕Ru💫の戀愛粉 真的好多👍\n[02:07:32] [viewer] <女神Angel萌萌♥️甜心小芋圓💕Ru💫の戀愛粉>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 我是小比\n[02:07:41] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @女神Angel萌萌♥️甜心小芋圓💕Ru💫の戀愛粉 我知道😂\n[02:08:18] [viewer] <舞王兔兔>: 但是我有追蹤的只有妳與小雪會這樣聲播\n[02:08:20] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我舉一反三了😂\n[02:08:26] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我們都知道是他，蒂蒂\n[02:08:36] [viewer] <圓圓寶寶_baby>: 是我\n[02:08:55] [viewer] <圓圓寶寶_baby>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 嗨你好\n[02:08:56] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的\n[02:09:03] [viewer] <舞王兔兔>: 這樣的感覺好像在語音直播間的感覺\n[02:09:08] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @圓圓寶寶_baby 這也是嗎？😂\n[02:09:17] [viewer] <圓圓寶寶_baby>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 是呀\n[02:09:40] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @圓圓寶寶_baby 妳這些都有手機號碼認證嗎？\n[02:09:48] [viewer] <圓圓寶寶_baby>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 有\n[02:09:59] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @圓圓寶寶_baby 厲害👍\n[02:10:04] [viewer] <甄哶_宏文>: 😘\n[02:10:09] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 沒有🙈🙈\n[02:10:18] [viewer] <圓圓寶寶_baby>: @守護蒂蒂🐿️的Taihong🐿️💕 謝謝點心完食🥳🥳🥳🥳🥳\n[02:10:22] [viewer] <newbie_dp3rsbtdeayo>: 我也想知道如何手機認證\n[02:10:29] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 回個訊息就一直跳掉🤣\n[02:10:31] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @圓圓寶寶_baby \n[02:10:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @圓圓寶寶_baby 謝謝\n[02:10:58] [viewer] <newbie_dp3rsbtdeayo>: 那蠻複雜的\n[02:11:49] [viewer] <妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕>: @Daniel丹尼爾7🐿️ 這個也是\n[02:12:05] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕 這是最大的帳號嗎？\n[02:12:14] [viewer] <舞王兔兔>: 我是下午午休到晚上十點\n[02:12:23] [viewer] <舞王兔兔>: 現在精神很好\n[02:12:38] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 在討論桃園店的公事🙈上班朋友越來越少了🥲\n[02:13:03] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我也是耶，如果隔天沒有早八的課，我都會晚睡😂\n[02:13:14] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 為了錢都是奔波\n[02:13:15] [viewer] <妮霓🌶❤️7月5號生日快樂🎂戀愛粉二號>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 這個才是\n[02:13:16] [viewer] <我是_咚咚>: 我早班的還沒睡著\n[02:13:22] [viewer] <舞王兔兔>: 我以前大學只有翹課過一次\n[02:13:31] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @妮霓🌶❤️7月5號生日快樂🎂戀愛粉二號 原來如此😂👍\n[02:13:31] [viewer] <舞王兔兔>: 而且是體育課\n[02:13:41] [viewer] <妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕>: @我是_咚咚 嗨咚咚好\n[02:13:50] [viewer] <舞王兔兔>: 那時候是同房的室友\n[02:13:59] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我都給他們下班，我才上班了\n[02:14:05] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 所以我今天不能太晚睡\n[02:14:19] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，那你要好好睡喔\n[02:14:20] [viewer] <JianBin_0707>: 沒空\n[02:14:24] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 對方應該睡覺了😴😴 我也看到想睡了😴😴 進來提神回血😎😎\n[02:14:25] [viewer] <舞王兔兔>: 我手機認証的號碼認証在之前萊的帳號\n[02:14:29] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @守護蒂蒂🐿️的Taihong🐿️💕 好的好的\n[02:14:36] [viewer] <妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 快去休息一下吧！別太累了吧\n[02:14:41] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 沒問題，丹尼爾\n[02:14:47] [viewer] <舞王兔兔>: 現在只能幫忙分享\n[02:14:48] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我今天很晚才回到家\n[02:14:58] [viewer] <妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 辛苦了\n[02:15:06] [viewer] <舞王兔兔>: 昨天晚上放縱吃了宵夜\n[02:15:09] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕 好的👌😀\n[02:15:12] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 目前還沒有 12/6就要開了 我要躁鬱症了😇\n[02:15:29] [viewer] <舞王兔兔>: 今天馬上體重變67\n[02:15:37] [viewer] <我是_咚咚>: @妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕 嗨\n[02:15:40] [viewer] <妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕>: @🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️ 開什麼\n[02:15:41] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 對呀 公司通常只給前一天整理東西\n[02:15:41] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 到時候我們要SOS，怎麼辦，開玩笑的啦\n[02:15:42] [viewer] <JianBin_0707>: 桃園歡迎您\n[02:15:46] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 12/6 是星期六耶\n[02:16:01] [viewer] <妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕>: @JianBin_0707 +1\n[02:16:12] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 但是有些收納的箱子 我需要更早去看 然後下訂\n[02:16:28] [viewer] <JianBin_0707>: @妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕 👍👍\n[02:16:36] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 瞭解\n[02:16:43] [viewer] <妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕>: @🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️ 在那裏我女兒愛吃拉麵\n[02:16:48] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 桃園，可以坐飛機出去玩\n[02:16:54] [viewer] <我是_咚咚>: 沒空\n[02:17:28] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 脆皮，所以我不會去的\n[02:17:41] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 搬家比較不急 我就帶上班衣服先住家裡這樣\n[02:18:34] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 前女友台北的店有人突然離職 本來要一起在桃園租 結果她變成台北桃園兩邊跑了\n[02:18:56] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，還有25個，大家加油\n[02:19:07] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 我們公司還有人台南台北兩邊跑\n[02:19:20] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 只能說勤奮的牛\n[02:19:25] [viewer] <林義峯蒂520>: 戰隊成員們來支持 蒂蒂Didi 了，目前成就值戰隊加成為 5000！\n[02:19:27] [viewer] <我是_咚咚>: 不是有捷運嗎？\n[02:19:46] [viewer] <妮霓🌶❤️7月5號生日快樂🎂戀愛粉二號>: @我是_咚咚 有\n[02:19:49] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: @我是_咚咚 還是要一小段時間🙈\n[02:20:09] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 沒坐到直達車的話 屁股會坐到開花呦\n[02:20:14] [viewer] <妮霓🌶️❤️Angel❤️萌萌愛你好多小比💕💕💕>: 高鐵比較快\n[02:20:18] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 🤣🤣🤣\n[02:21:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 等一下還要帶小布去遛狗\n[02:22:07] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 沒錯\n[02:22:34] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 有看到兩個蒂蒂\n[02:22:41] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 小布 下次一定\n[02:22:47] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 開玩笑的啦\n[02:23:17] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 這次的休息是為了更期待下一次\n[02:23:40] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 所以已\n[02:23:50] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 所以還要繼續累積🤣\n[02:26:15] [viewer] <我是_咚咚>: @🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️ 抱歉，我不是北部人，所以不知道\n[02:26:24] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 請問蒂蒂除了12/6之外，還有哪幾天有女神整點呢？\n[02:26:42] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 瞭解👍\n[02:26:59] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: @我是_咚咚 沒關係 我大一的時候桃園台北通車 坐到懷疑認\n[02:27:05] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 懷疑人生🤣\n[02:27:26] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 坐捷運\n[02:27:35] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我很喜歡去桃園，\n[02:27:49] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 這樣就可以坐飛機出去玩，\n[02:27:53] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 捷運能坐到桃園嗎？\n[02:28:16] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 對了對啊\n[02:28:32] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 有的 機場捷運線 \n[02:28:33] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 原來如此，我現在才知道桃園有捷運😅\n[02:28:45] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️ 👍👍瞭解\n[02:28:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 第三個捷運站，\n[02:29:06] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 因為我不是北部人，所以不知道😅\n[02:29:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我也是住在台北，\n[02:30:02] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我上次在台北車站差一點迷路找不到捷運淡水線😅\n[02:30:27] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 高雄的我知道有捷運🚝👍\n[02:30:42] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 都沒\n[02:30:53] [viewer] <我是_咚咚>: @🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️ 我有聽過朋友講過桃捷\n[02:30:56] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，下一次我帶你去喔，台北\n[02:31:09] [viewer] <舞王兔兔>: 就算在台北很久都有可能在台北車站迷路\n[02:31:18] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @守護蒂蒂🐿️的Taihong🐿️💕 你要接待我嗎？😂\n[02:31:28] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 是的\n[02:31:42] [viewer] <守護蒂蒂的Plus在台北蒂蒂long🐿️>: 三鐵\n[02:31:43] [viewer] <我是_咚咚>: 高雄比較簡單\n[02:32:00] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我就一直走到台北車站的美食廣場，找不到捷運😂\n[02:32:29] [viewer] <我是_咚咚>: 快了，要好幾年後\n[02:32:30] [viewer] <舞王兔兔>: 以前因為常去台北車站的救國團終身學習中心上韓風MV舞蹈課程\n[02:32:36] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 問了車站的保全，我才知道我走過頭了😂\n[02:32:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 歡迎你來玩，丹尼爾\n[02:32:48] [viewer] <舞王兔兔>: 所以就比較不會迷路\n[02:33:03] [viewer] <舞王兔兔>: 因為台北車站是迷宮\n[02:33:08] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 真的😂 要不然開會都要遲到了\n[02:33:25] [viewer] <舞王兔兔>: 而且台北車站還有地下街\n[02:33:55] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 2點半了\n[02:33:55] [viewer] <我是_咚咚>: 有標誌\n[02:33:56] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 問了才知道捷運淡水線是要搭電扶梯往下走\n[02:34:15] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 已經過去了2點半\n[02:34:31] [viewer] <舞王兔兔>: 因為現在捷運路線有分太多顏色了\n[02:34:32] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 🙈🙈🙈\n[02:34:52] [viewer] <舞王兔兔>: 以前捷運路線顏色沒那麼多\n[02:34:57] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @我是_咚咚 那個標誌也會誤導我😅\n[02:34:58] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 北車迷宮\n[02:35:13] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我們要加油\n[02:35:14] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 看不出來標誌是往下走\n[02:35:27] [viewer] <舞王兔兔>: 台北車站真的是一個大迷宮\n[02:35:42] [viewer] <舞王兔兔>: 除非很熟悉的路\n[02:35:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，加油加油\n[02:35:59] [viewer] <舞王兔兔>: 不然一定迷路\n[02:36:18] [viewer] <我是_咚咚>: 淡水線我摸索坐，只是不知道有分2種車\n[02:36:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 台北到淡水，也是很近的\n[02:37:01] [viewer] <舞王兔兔>: 以後還會出現環狀線\n[02:37:07] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 坐捷運比較快，\n[02:37:15] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @守護蒂蒂🐿️的Taihong🐿️💕 泰宏住台北嗎？\n[02:37:29] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 就是真的，\n[02:37:35] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @守護蒂蒂🐿️的Taihong🐿️💕 👍👍\n[02:37:45] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 是真的喔\n[02:38:01] [viewer] <舞王兔兔>: 我上次要去全家總公司門市面試才第一次去坐環狀線\n[02:38:05] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 30分鐘吧丹尼爾\n[02:38:06] [viewer] <lianghunghsu>: 早安\n[02:38:12] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 許亮宏\n[02:38:22] [viewer] <舞王兔兔>: 但後來面試沒過\n[02:38:37] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 😂 我猜錯了😅\n[02:38:47] [viewer] <舞王兔兔>: 就去7-11面試了\n[02:39:00] [viewer] <lianghunghsu>: 嗯，你看得懂我的名字啊\n[02:39:33] [viewer] <我是_咚咚>: 找朋友，順便在那邊待2天，還遇到突然風大下雨，傘開花變落湯雞，丟臉死了\n[02:39:39] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我能理解😂\n[02:39:44] [viewer] <lianghunghsu>: 有17的時候都是英文的啊\n[02:39:53] [viewer] <lianghunghsu>: 名字\n[02:40:03] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 哈哈，怎麼會造成落湯雞了\n[02:40:05] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我上次去台北也是落湯雞😅\n[02:40:32] [viewer] <lianghunghsu>: 早點睡，早點睡\n[02:40:38] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我太趕了，忘記帶傘\n[02:40:49] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我們都是在工廠比較多，\n[02:41:09] [viewer] <我是_咚咚>: 媽祖生日那2天假日\n[02:42:17] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 水上\n[02:43:52] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我又卡住了不好意思\n[02:44:16] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，大家加油\n[02:44:33] [viewer] <我是_咚咚>: 碰巧遇到第一次淡水媽祖可以鑽轎底\n[02:44:49] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 哇😲😲😲\n[02:44:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 23\n[02:44:58] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 23\n[02:44:59] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 53\n[02:45:07] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 😂😂\n[02:45:07] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 23\n[02:45:25] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 對呀\n[02:45:25] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 要不然就糟糕了，丹尼爾\n[02:45:52] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: SOS，\n[02:46:22] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 😴😴😴\n[02:46:39] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 上一次的SOS 是10月22日星期三下午😂\n[02:46:52] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 對呀\n[02:47:05] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，你都有算了，好厲害呀\n[02:47:26] [viewer] <我是_咚咚>: 我還考慮下下禮拜日去岡山做我該做的事\n[02:47:27] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 而且是下午我已經下班之後的時間😅\n[02:47:56] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我當時真的嚇到\n[02:48:04] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我有幾次想說都想說，後來就不敢說了\n[02:48:32] [viewer] <我是_咚咚>: 坐捷運再走路過去\n[02:48:40] [viewer] <JianBin_0707>: 可以退休了\n[02:48:49] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 🤣\n[02:49:10] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 因為我想到，他是我們的大神，我就沒有說了\n[02:49:20] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 後盾不能消失😂\n[02:49:27] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @守護蒂蒂🐿️的Taihong🐿️💕 🤣\n[02:49:41] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 你是我們的大神，所以就沒說了\n[02:49:44] [viewer] <JianBin_0707>: 🤪\n[02:49:53] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @守護蒂蒂🐿️的Taihong🐿️💕 真的嗎？🤣\n[02:50:04] [viewer] <我是_咚咚>: 有我可以消失\n[02:50:04] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 是真的不會說謊的\n[02:50:24] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @我是_咚咚 妳不可以消失\n[02:50:49] [viewer] <我是_咚咚>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 我幫不了什麼\n[02:51:14] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @我是_咚咚 妳是蒂蒂的暖咚\n[02:51:50] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 這是妳以前說過的呀😂\n[02:51:51] [viewer] <我是_咚咚>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 我要怎麼接話\n[02:51:52] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 還在🫥🫥🫥\n[02:51:55] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有9分鐘蒂蒂\n[02:52:09] [viewer] <taka17126121>: こんばんは\n[02:52:13] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @我是_咚咚 妳就說「對呀」😂\n[02:52:23] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有9分鐘，3點整\n[02:52:49] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 對，妳就是說「貼心暖咚」\n[02:53:15] [viewer] <我是_咚咚>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 我詞窮\n[02:53:21] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 人呢\n[02:53:33] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 東東，你不會的啦\n[02:53:43] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 今天真美\n[02:53:48] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @我是_咚咚 沒關係，詞窮 但是人不窮\n[02:53:54] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 美到讓人無法自拔\n[02:54:00] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 🤣\n[02:54:18] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 恩嘛\n[02:54:20] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 其實 我不善言詞😂\n[02:54:23] [viewer] <我是_咚咚>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 我很窮\n[02:54:31] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 沒事\n[02:54:38] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 忘了那首歌沒關係\n[02:54:43] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 不要忘記我就好了\n[02:54:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 東東，你不會的啦\n[02:54:50] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @我是_咚咚 心靈富足 才是真實的\n[02:55:13] [viewer] <我是_咚咚>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 不一定喔\n[02:55:17] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 慢慢走回家\n[02:55:38] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 不太喜歡這個回答\n[02:55:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有4分鐘\n[02:55:40] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 明天要新人開早 她是要去桃園店的 焦慮\n[02:55:43] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 你要說\n[02:55:58] [viewer] <secondken>: 早安🙇‍♂\n[02:55:59] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 學習狀況不是很好😭還需要加油\n[02:55:59] [viewer] <蒂蒂Didi🐿️---Faker🥇>: Faker快快回家\n[02:56:08] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 不然等等被女生追\n[02:56:13] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 就不好了\n[02:56:19] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 資深的不夠人了\n[02:56:46] [viewer] <蒂蒂Didi🐿️---Faker🥇>: ？\n[02:56:58] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 你傻眼的表情也是數一數二的美\n[02:57:16] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 星期一教她 星期三我看她開早 星期四她要自己開了\n[02:57:20] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我想像的到\n[02:57:43] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 她壓力應該會很大🙈\n[02:58:25] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 沒騙妳\n[02:58:42] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 至少我今天還沒騙妳\n[02:58:47] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 😳😳😳\n[02:58:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 加油加油\n[02:59:14] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 那我先睡了\n[02:59:25] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 工作蠻瑣碎的 只有一個小時的時間開早 所以比較吃臨場的判斷能力\n[02:59:34] [viewer] <Daniel丹尼爾9🐿️>: 🍰\n[02:59:37] [viewer] <Daniel丹尼爾9🐿️>: 🍰\n[02:59:39] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 哪個急哪個不急這樣\n[02:59:40] [viewer] <Daniel丹尼爾9🐿️>: 🍰\n[02:59:51] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 所以我現在騙你了🤣🤣🤣\n[03:00:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你是第七名\n[03:00:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 第七名喔\n[03:01:33] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，搶紅包喔\n[03:01:49] [viewer] <Daniel丹尼爾9🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 好的🧧\n[03:01:49] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好臭喔\n[03:01:59] [viewer] <我是_咚咚>: 我不應該讓妳重開用聲播\n[03:02:03] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾9🐿️ 好的搶紅包\n[03:02:11] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我快要暈倒了，\n[03:02:25] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @守護蒂蒂🐿️的Taihong🐿️💕 謝謝泰宏幫我搶紅包🧧\n[03:02:33] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 謝謝蒂蒂\n[03:02:37] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 好的沒問題\n[03:02:50] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 直播間充滿的香氣，太臭了\n[03:03:36] [viewer] <JianBin_0707>: 伏蒂屁\n[03:04:03] [viewer] <secondken>: 謝謝🙇‍♂\n[03:04:05] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我也不知道什麼意思，\n[03:04:11] [viewer] <JianBin_0707>: 伏蒂魔放的屁\n[03:04:26] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有6包\n[03:04:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 哈哈有道理\n[03:04:57] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 給妳猜一個謎語：李白的粉絲是什麼？\n[03:05:19] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那是什麼丹尼爾\n[03:05:23] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 你有叫我嗎\n[03:05:37] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 叫白粉\n[03:05:43] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 哦哦那我繼續忙了\n[03:05:57] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 有事別叫我\n[03:05:57] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 是「太白粉」，因為李白 字太白\n[03:06:23] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 太白粉\n[03:06:24] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 所以我跟你說\n[03:06:28] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 有事別叫我\n[03:06:35] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我都不清楚，蒂蒂\n[03:06:38] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 🤣\n[03:06:55] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 8\n[03:07:01] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 就像有妹子來，就可以叫我看\n[03:07:09] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 阿其他的先不用考慮我沒關係\n[03:07:15] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我都懂\n[03:07:19] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 國語能力超強的，丹尼爾\n[03:07:28] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有五包紅包\n[03:07:39] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我以為看仙女就好了🤣\n[03:08:13] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 孔子的字是 仲尼\n[03:08:15] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 水性楊花不是這樣用的...\n[03:08:30] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，要加油\n[03:08:30] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 可惜妳不是妹了\n[03:08:42] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 有沒有人是字 丈\n[03:08:57] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 😂😂😂\n[03:09:00] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 不然我一定天天看你\n[03:09:11] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你是我們的小福星蒂蒂\n[03:09:18] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 什麼仙女（醒了\n[03:09:36] [viewer] <蒂蒂Didi🐿️---Faker🥇>: @🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️ 我未來老婆\n[03:09:41] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我是第一號\n[03:09:44] [viewer] <norrismorris>: 89ありがとうございました 😊\n[03:09:44] [viewer] <蒂蒂Didi🐿️---Faker🥇>: ？\n[03:09:49] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: @蒂蒂Didi🐿️---Faker🥇 原來如此\n[03:09:50] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 你是仙姑\n[03:09:52] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 0\n[03:09:54] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 不可能\n[03:10:01] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我是第一個\n[03:10:11] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我知道仙女叫什麼名字\n[03:10:12] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有4包紅包\n[03:10:19] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 他叫F仙女\n[03:10:26] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 冠夫姓\n[03:10:35] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 因為我的名字第一個是F\n[03:10:36] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我要「蒂」一名 😂\n[03:10:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 然後我是第二名喔，\n[03:11:11] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 好吧我攤牌了\n[03:11:13] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 沒有看過仙女照片\n[03:11:21] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的\n[03:11:31] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 那我就當妳的唯一\n[03:11:35] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 唯一妹夫\n[03:11:42] [viewer] <蒂蒂Didi🐿️---Faker🥇>: ？\n[03:11:45] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 蒂蒂 獨一無二，沒有「蒂」二😂\n[03:11:48] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我是打妳的\n[03:12:23] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 她現在還單身嗎\n[03:12:28] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 光頭也可以\n[03:12:30] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，有道理喔\n[03:12:33] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 那就好\n[03:12:41] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 好險我現在也單身\n[03:12:49] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 😂\n[03:12:52] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 我沒有偏好 但光頭不行🙈\n[03:12:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 一點都沒錯\n[03:12:55] [viewer] <♚77🐿️🐿️♛Didi蒂蒂🐷🐷>: 摩羯座沒在看外表的 但不能太醜\n[03:13:01] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 自從知道仙女以後\n[03:13:11] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 在某一次的直播聽到她的歌聲\n[03:13:18] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有三包紅包\n[03:13:21] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 就深深的無法自拔\n[03:13:30] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 愛上了她\n[03:13:43] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我就斬斷所有的桃花了\n[03:13:51] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有三包紅包\n[03:13:53] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 哇😲\n[03:14:05] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 去酒店，妹子要過來\n[03:14:08] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 🤣🤣\n[03:14:20] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我都拿出手機給他們看，我有喜歡的人了\n[03:14:22] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 仙女是這邊的真台主嗎（誤\n[03:14:24] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 叫他們滾\n[03:14:30] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 😍😍😳\n[03:14:49] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 是不是拿仙女的照片？😂\n[03:14:57] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 雖然我沒有仙女的照片\n[03:14:59] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 但是\n[03:15:05] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我拿白鹿的照片\n[03:15:24] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: @蒂蒂Didi🐿️---Faker🥇 跟白鹿一樣嗎\n[03:15:25] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 一樣都很仙\n[03:15:29] [viewer] <蒂蒂Didi🐿️---Faker🥇>: @🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️ 差不多\n[03:15:30] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 白鹿是誰？\n[03:15:35] [viewer] <蒂蒂Didi🐿️---Faker🥇>: @🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️ 比白鹿好一點\n[03:15:39] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 777\n[03:15:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我終於全到一包了\n[03:15:43] [viewer] <蒂蒂Didi🐿️---Faker🥇>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 一個中國女明星\n[03:15:45] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那是給我自己的\n[03:15:52] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @蒂蒂Didi🐿️---Faker🥇 原來如此👍\n[03:15:55] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 一個演古裝劇的正妹\n[03:16:13] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有兩包紅包\n[03:16:25] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 就像我剛剛被抓去酒店\n[03:16:32] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我也是這樣跟小姐說的\n[03:16:47] [viewer] <蒂蒂Didi🐿️---Faker🥇>: ：）\n[03:16:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有兩包喔\n[03:17:05] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: @蒂蒂Didi🐿️---Faker🥇 癡情男子漢\n[03:17:29] [viewer] <蒂蒂Didi🐿️---Faker🥇>: ？？\n[03:17:37] [viewer] <taka17126121>: 宜しくお願いします\n[03:17:41] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我哪有趴\n[03:17:47] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我都遠離他們\n[03:17:51] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 快要3點20\n[03:17:55] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 他們都說我不跟他們聊天\n[03:17:59] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我也不知道\n[03:18:17] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我還拿了100塊買了兩瓶易開罐的可樂\n[03:18:25] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 貴死\n[03:18:34] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我朋友要喝啊\n[03:18:36] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 很貴欸\n[03:18:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 8\n[03:18:42] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 那下次我賣你\n[03:18:48] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 一瓶330ml\n[03:18:51] [viewer] <taka17126121>: 有り難う御座います\n[03:18:51] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 沒有去過酒店\n[03:18:57] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 剩下最後一包紅包\n[03:19:03] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 酒吧沒那麼貴\n[03:19:11] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我今天第一攤才去酒吧\n[03:19:25] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我昨天宵夜有喝可樂\n[03:19:32] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 算了反正我也沒出錢\n[03:19:38] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 但是我還是覺得很貴\n[03:19:44] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 可樂非常好喝喔，蒂蒂\n[03:19:51] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我一樣很好睡😂\n[03:19:54] [viewer] <守護蒂蒂的Plus在台北蒂蒂long🐿️>: 有糖份\n[03:20:08] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 反正我是沒跟小姐互動啦\n[03:20:12] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 要睡覺就睡覺，喝可樂也是無所謂\n[03:20:21] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 但是我朋友倒是玩得很開心\n[03:20:29] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 每個人左擁右抱\n[03:20:56] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 心裡已經有歸屬了 出淤泥而不染\n[03:20:59] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我也是被抓著走的\n[03:21:03] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 兩個說要去\n[03:21:09] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 有一個說我不去她就不去\n[03:21:19] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 然後另外兩個就叫我一起去\n[03:21:26] [viewer] <oozz112000>: ❤️\n[03:21:32] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 紅包沒有了，已經搶光了\n[03:21:33] [viewer] <oozz112000>: 謝謝紅包❤️\n[03:22:24] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我等一下也是要休息了，蒂蒂\n[03:22:33] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那你去吧我幫你看\n[03:22:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 去吧去吧\n[03:22:58] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 可以貼一張仙女的照片在上面ㄇ\n[03:23:01] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 小心的去喔，不要跌倒喔\n[03:23:05] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 🤣🤣🤣\n[03:23:20] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 好奇寶寶\n[03:23:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 趕快去吧\n[03:23:43] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 好的🙈\n[03:23:54] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我也沒看過仙女\n[03:23:57] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 😂\n[03:24:01] [viewer] <我是_咚咚>: 尊重本人\n[03:24:06] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我只看過她的背影\n[03:24:07] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 沒事\n[03:24:15] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 過年賣得了\n[03:24:16] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 墾丁那次\n[03:24:19] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 蛤\n[03:24:23] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 直播上\n[03:24:27] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 對\n[03:24:27] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 丹尼爾沒去過聚會嗎\n[03:24:39] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @蒂蒂Didi🐿️---Faker🥇 還沒有😂\n[03:24:42] [viewer] <蒂蒂Didi🐿️---Faker🥇>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 沒事\n[03:24:46] [viewer] <蒂蒂Didi🐿️---Faker🥇>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 我也還沒有\n[03:24:48] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 小心的去吧，不要跌倒喔\n[03:25:00] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 不要在馬桶上睡著喔\n[03:25:03] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 去吧去吧\n[03:25:09] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 回頭再說吧\n[03:25:16] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我入群的時候，剛好是你們上次剛辦完群聚的時候\n[03:25:27] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的好的\n[03:25:36] [viewer] <蒂蒂Didi🐿️---Faker🥇>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 沒事明年快到了\n[03:25:48] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @蒂蒂Didi🐿️---Faker🥇 😂😂\n[03:26:04] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我在\n[03:26:11] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的\n[03:27:22] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 這首歌好好聽喔\n[03:27:31] [viewer] <>: League mate Daniel丹尼爾🐿️蒂蒂Didiの丹丹 from 我吃ㄎㄧㄤ長大的🐿 is here\n[03:27:51] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: ▄▀▀▄\n█    █ 　TOILETTE\n█    █　　NOW  \n▀▄   ▀▀▀▀▀▀▀\n  █  ▀▄▄    ▄▄▀\n█▄▄▄▄▄▄▄█\n[03:34:29] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你回來了嗎，裝水了嗎\n[03:34:33] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 因為我看不到你\n[03:34:42] [viewer] <我是_咚咚>: 我掛著睡一下\n[03:34:47] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的回來就好了\n[03:35:09] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 晚安\n[03:35:18] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 東東，快點去睡吧\n[03:35:51] [viewer] <蒂蒂Didi🐿️---Faker🥇>: ？\n[03:35:56] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 已經3點35\n[03:36:01] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我在跟咚咚說\n[03:36:03] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 沒有\n[03:36:14] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 難得現在沒什麼睡意\n[03:36:25] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 想多聽一點妳的聲音\n[03:36:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 很好聽喔\n[03:37:16] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 這些歌都是不錯的\n[03:37:29] [viewer] <0984251830>: 晚上好\n[03:38:53] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 哇😲😲\n[03:38:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 21\n[03:38:59] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 21\n[03:39:16] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 蒂蒂辛苦了🙈\n[03:39:30] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有21個喔，加油\n[03:40:21] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 需要什麼 抱勸沒聽清楚🥹\n[03:40:46] [viewer] <kit_kit_飛飛天下>: Hi~~~\n[03:41:03] [viewer] <kit_kit_飛飛天下>: 早\n[03:41:23] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 如果開早沒開好 後面整天的進度可能都會亂掉🤣\n[03:41:55] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 就變成12.上班的人要救她了\n[03:41:59] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 沒錯\n[03:42:13] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 為什麼沒有鏡頭\n[03:42:16] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 50晚上好啊\n[03:42:41] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我也是一樣，蒂蒂\n[03:43:00] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 先掛睡了😴\n[03:43:11] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: 各位晚安🙈\n[03:43:23] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 脆皮晚安\n[03:43:33] [viewer] <我夾起來>: @🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️ 晚安\n[03:43:35] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你先睡喔脆皮，\n[03:43:50] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 脆皮晚上見\n[03:43:56] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 好的晚安~\n[03:44:04] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: @我夾起來 晚安~\n[03:44:04] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️ 好的晚安\n[03:44:24] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我沒有看到丹尼爾\n[03:44:37] [viewer] <蒂蒂Didi🐿️---Faker🥇>: @🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️ 晚安\n[03:45:05] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 有人說過你的歌聲會讓人著迷嗎\n[03:45:18] [viewer] <蒂蒂Didi🐿️---Faker🥇>: ...\n[03:45:30] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 你要說沒有欸\n[03:45:33] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 你是第一個\n[03:45:44] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，還有21個，大家加油，\n[03:45:50] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 好吧\n[03:45:56] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 那這一定是第一個\n[03:46:24] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 有帥哥說妳聲播的時候比開播的時候還令人著迷嗎\n[03:46:26] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 也是有道理蒂蒂\n[03:46:36] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>:  #想陪你到 老\n[03:46:45] [viewer] <蒂蒂Didi🐿️---Faker🥇>: ？？\n[03:47:00] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 金城武，以前也是很帥啊，\n[03:47:03] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 你還有改名嗎\n[03:47:14] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我忽然看我名字前面幾個字有點不太舒服了\n[03:47:15] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 對\n[03:47:29] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我唱的\n[03:47:39] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我覺得我應該只能留我的本名了\n[03:47:50] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 搞得好像我唱歌不好聽\n[03:48:00] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 不服打我啊\n[03:48:11] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有12分鐘，4點整\n[03:48:50] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有21個喔\n[03:48:56] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 加油\n[03:49:12] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 沒有\n[03:49:27] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 沒有這麼多\n[03:49:52] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我懶得出門\n[03:50:09] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 50你想要去哪裡\n[03:50:18] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我連續兩天去市區煮飯\n[03:50:28] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 早上好，沒有要去哪\n[03:50:30] [viewer] <傑米小哥>: 早安安\n[03:50:37] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️ 好吧\n[03:50:50] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️ 早上好50\n[03:50:58] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我最近很常去刺青館\n[03:51:14] [viewer] <🐿️⪩蒂蒂bossの脆皮咖啡⪨🐿️>: ♥️\n[03:51:20] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 20\n[03:51:25] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 20\n[03:51:36] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 欸都我剛內除而已\n[03:51:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 19\n[03:51:43] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 19\n[03:51:45] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我應該在晚一點的\n[03:52:03] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 在廁所蹲聽到差一個\n[03:52:13] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 直接330塊比較快\n[03:52:16] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我剛看成剛內射而已\n[03:52:29] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 哈哈內射\n[03:52:35] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 不好吧\n[03:52:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 怎麼可以這樣，\n[03:52:49] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 主播沒那個福氣\n[03:52:55] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 蒂蒂，你看50都這樣\n[03:52:57] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 這樣我會很委屈\n[03:53:33] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 😳😳🤣🤣\n[03:53:45] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 害得我都不敢說，\n[03:53:59] [viewer] <蒂蒂Didi🐿️---Faker🥇>: ？？是妳\n[03:54:04] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 好處都給你了\n[03:54:12] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我不委屈嗎\n[03:54:23] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 是不用\n[03:54:39] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 給我一個改名卷讓我浪跡天涯就好了\n[03:54:44] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 不用對我負責的\n[03:54:47] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有6分鐘，4點整\n[03:54:48] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 我都懂\n[03:54:59] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 🤣🤣🤣🤣\n[03:55:39] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 放我走~~~\n[03:56:03] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 和差19個喔，加油加油\n[03:56:06] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 那你說說為什麼不\n[03:56:16] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 這樣我們就可以下班了，蒂蒂\n[03:56:16] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我要繼續睡了\n[03:56:20] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 厲害了吧反問在反問\n[03:56:28] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 希望早上起來還看得到你\n[03:56:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 50晚安\n[03:56:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 50晚上見囉\n[03:57:16] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 就愛你沒腦袋\n[03:57:28] [viewer] <蒂蒂Didi🐿️---Faker🥇>: 豬腦\n[03:57:32] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有3分鐘\n[03:57:32] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我晚上要上班\n[03:57:54] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 開車掛通話\n[03:58:31] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我現在都晚上上班然後直接跑到隔天中午或下午沒睡覺這樣\n[03:58:53] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 所以我都會跟朋友掛通話講幹話講整晚\n[03:58:59] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，還有19個，2000點的，大家加油，\n[03:59:18] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 有啊，他們也都跑夜車\n[03:59:41] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 他們一個禮拜回家一天\n[04:00:21] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有1分鐘\n[04:00:36] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我也差不多要像他們看齊了\n[04:00:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你是第三名\n[04:00:45] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 第三名喔\n[04:01:22] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的\n[04:01:29] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那我先幫他搶紅包\n[04:01:48] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 沒有\n[04:02:08] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 後來業務上有調整時間，所以都有在回家\n[04:02:40] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 對啊\n[04:02:46] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 滑倒\n[04:03:19] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的謝謝蒂蒂\n[04:03:45] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 8\n[04:03:46] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>:  #善後\n[04:03:55] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 又是掌心\n[04:04:08] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 靠邀，又忘記紅包了\n[04:04:19] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 是手心\n[04:04:28] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 你的\n[04:04:37] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 不好意思打錯了\n[04:04:56] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 狗師傅的\n[04:05:26] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 噢噢噢！是馬師傅\n[04:05:36] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好聽\n[04:05:58] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 拍謝拍謝\n[04:06:02] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 沒錯\n[04:06:11] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 想說名字怎麼怪怪的\n[04:06:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 8\n[04:06:41] [viewer] <にこ推しpeace>: 89謝謝\n[04:06:50] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有五包紅包，\n[04:06:51] [viewer] <正能量>: 223\n[04:06:55] [viewer] <正能量>: 8\n[04:06:57] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有五包紅包\n[04:07:23] [viewer] <正能量>: 8\n[04:07:52] [viewer] <正能量>: 2\n[04:07:57] [viewer] <正能量>: 8\n[04:07:59] [viewer] <正能量>: 8\n[04:08:03] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 今天你要出\n[04:08:05] [viewer] <正能量>: 2\n[04:08:08] [viewer] <正能量>: 8\n[04:08:22] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 今天你要多今天你搓搓嗎\n[04:08:29] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 出櫃\n[04:08:35] [viewer] <正能量>: 2\n[04:08:49] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那好吧\n[04:08:49] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 早上見\n[04:09:43] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 不好意思，我都迷迷糊糊的，會打錯字\n[04:10:16] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 沒關係，老蒂懂\n[04:10:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 很好聽喔，蒂蒂\n[04:10:48] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好棒好棒\n[04:11:34] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 早餐吃什麼！\n[04:12:32] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 8\n[04:12:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有三包紅包\n[04:12:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 恭喜丹尼爾\n[04:13:25] [viewer] <tfc66>: ᡣ𐭩早安啊ᥫᩣෆ‪‪\n[04:13:29] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @守護蒂蒂🐿️的Taihong🐿️💕 謝謝泰宏\n[04:13:37] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 沒問題喔\n[04:13:39] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 麥當勞要跑去火車站太遠\n[04:13:46] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 我剛才在刷牙還有綁橡皮筋\n[04:14:03] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 昨天吃了\n[04:14:07] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 有😂👍👍\n[04:14:20] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 認真\n[04:14:21] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 就是說嘛\n[04:14:26] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 燒餅太乾\n[04:14:37] [viewer] <💎浪者🦖緊蹦宏👀>: 姊姊好久不見\n[04:14:42] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 吃稀飯也不錯啊，\n[04:14:43] [viewer] <💎浪者🦖緊蹦宏👀>: 還記得我嗎\n[04:15:00] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 不知道稀飯哪裡買\n[04:15:09] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好久沒有吃到了蔥油餅加蛋\n[04:15:19] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 8\n[04:15:28] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 那些都不想吃\n[04:15:30] [viewer] <💎浪者🦖緊蹦宏👀>: 姊姊我們這麼久不見姊姊你是唯一一七還記得我的第二個主播\n[04:15:37] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 一年沒有吃到了，蔥油餅加蛋\n[04:15:43] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 恭喜丹尼爾\n[04:15:43] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我也在想\n[04:16:02] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 謝謝蒂蒂的紅包🧧\n[04:16:09] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好久沒有吃到了，\n[04:16:13] [viewer] <正能量>: 2\n[04:16:15] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @守護蒂蒂🐿️的Taihong🐿️💕 這包89是給泰宏的\n[04:16:18] [viewer] <正能量>: 8\n[04:16:24] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 肉圓加魚丸湯\n[04:16:25] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 真的嗎好啊好啊\n[04:16:46] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 油飯加雞腿\n[04:16:56] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那蒂蒂可以下班\n[04:17:06] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 鍋燒一面\n[04:17:09] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 意麵\n[04:17:26] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 蒂蒂 晚安\n[04:17:34] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 可是大社沒有好吃的鍋燒\n[04:17:41] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 對呀\n[04:18:00] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，晚安晚安\n[04:18:05] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 需要花蠻多時間的\n[04:18:15] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 早上見\n[04:18:16] [viewer] <たきさんtaki7>: 謝謝🙇‍♂️\n[04:18:20] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 丹尼爾，晚上見囉\n[04:18:43] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @守護蒂蒂🐿️的Taihong🐿️💕 泰宏，下次見👋\n[04:18:46] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 其實我也不知道鍋燒怎樣叫難吃\n[04:18:52] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @守護蒂蒂🐿️的Taihong🐿️💕 晚安\n[04:18:59] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 好的下次見，丹尼爾\n[04:19:13] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 對😂 妳居然看穿我的意思\n[04:19:18] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 好的晚安丹尼爾\n[04:19:29] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 不敢說是今晚😅\n[04:19:44] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 好😀 我盡力\n[04:20:05] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 晚安💤🌙⭐️\n[04:20:13] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 啊我們有默契嗎？\n[04:20:16] [viewer] <甜心0521比比>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 晚安\n[04:20:24] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @甜心0521比比 小比 晚安💤\n[04:20:36] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 所以我們要加油，19個喔\n[04:21:02] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 不難猜好不\n[04:21:12] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 紅包沒有了已經搶光了\n[04:21:25] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 謝謝蒂蒂的紅包🧧\n[04:21:35] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 這包也給泰宏😀\n[04:21:35] [viewer] <甜心0521比比>: @Daniel丹尼爾🐿️蒂蒂Didiの丹丹 恭喜恭喜恭喜🥳🥳🥳🥳🥳\n[04:21:37] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 認識都知道我只休假日\n[04:21:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 恭喜丹尼爾\n[04:21:44] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: @甜心0521比比 謝謝😀\n[04:21:47] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好啊好啊謝謝你，丹尼爾\n[04:21:51] [viewer] <Daniel丹尼爾🐿️蒂蒂Didiの丹丹>: 晚安💤🌙\n[04:22:00] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 那個不算\n[04:22:03] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 不給過\n[04:22:47] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我的善後\n[04:23:08] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我沒有急，我只是提醒\n[04:23:13] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 你金魚腦\n[04:23:52] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 你嚇到還是時間嚇到？\n[04:24:13] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 喔是你嚇到\n[04:24:22] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那趕快，那下班蒂蒂，只差19個加油\n[04:24:42] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 19個靠你了泰宏\n[04:24:57] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 泰宏加油\n[04:24:57] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️ 我前天都花光了，52099\n[04:25:10] [viewer] <312_burukou>: おはようございます\n[04:25:20] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️ 五萬點的\n[04:25:28] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 👍👍👍\n[04:25:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️ 謝謝你\n[04:26:03] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我在繼續廢下去，總榜泰宏就追過我了\n[04:26:33] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 哈哈沒有啦，50\n[04:27:25] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 昨天是不是有說要點一首歌\n[04:27:34] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 幹\n[04:27:38] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 你記得\n[04:27:50] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 很棒\n[04:28:07] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我說我很棒\n[04:28:28] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 現在這首是什麼歌\n[04:28:44] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我好像聽過\n[04:28:58] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我知道\n[04:29:24] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 沒差，有緣就會再聽到\n[04:30:45] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我都沒有看到，4點半了\n[04:31:16] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 肚子餓ㄌ\n[04:31:35] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 沒結果\n[04:31:59] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 應該還有在賣，燒肉粽\n[04:32:30] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我附近新開了一間全家\n[04:32:33] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 因為今天就不會賣了，\n[04:32:40] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 來回不用5分鐘\n[04:33:27] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我去7-ELEVEN，去買燒賣\n[04:33:51] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 大亨堡你在吃的\n[04:34:09] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 你沒得吃\n[04:34:33] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 什麼\n[04:34:38] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 你發現了什麼？\n[04:34:43] [viewer] <BoBo💜諾諾🐈‍⬛亞ㄦ💛橘咪🧡菜菜子🧚‍♀️Allen♐️>: 早上好\n[04:35:01] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 你沒得吃啊\n[04:35:06] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 沒毛病\n[04:35:35] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 超近啊\n[04:35:52] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 出去轉兩個彎就到\n[04:35:55] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有25分鐘，5點整\n[04:36:14] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 可是我要搬走了\n[04:36:45] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 搬回家啊\n[04:36:55] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 現在租房子浪費錢\n[04:37:04] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 又沒什麼在租屋處\n[04:37:09] [viewer] <甜心0521比比>: @❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️ 沒錯沒錯\n[04:37:26] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 一萬塊拿來養小三多好\n[04:37:35] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 七七豬，他又送外賣了嗎\n[04:37:59] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 也要有小三可以養欸\n[04:38:02] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 原來是這樣\n[04:38:36] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 沒那門閒工夫\n[04:38:55] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 生吃都不夠了還曬乾\n[04:39:00] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我都不敢正言看小三\n[04:39:07] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 因為我都沒有錢，\n[04:39:34] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的\n[04:39:37] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我也沒錢\n[04:39:50] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 所以老婆還寄養在別人那\n[04:40:13] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 妳笑成這樣是怎樣\n[04:40:16] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 50，蒂蒂比較好\n[04:40:54] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 阿就還沒出現不就是寄養在人家那\n[04:41:01] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 50蒂蒂比較好\n[04:41:21] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我也都是快睡著了，蒂蒂\n[04:41:36] [viewer] <甜心0521比比>: 我\n[04:41:56] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 幹，手殘\n[04:41:58] [viewer] <甜心0521比比>: 睡一覺醒了\n[04:42:37] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 50，又說髒話了\n[04:42:49] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 那個不是\n[04:42:55] [viewer] <正能量>: 2\n[04:42:58] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️ 那好吧了解\n[04:43:02] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 那個叫語助詞\n[04:43:12] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️ 原來如此沒問題\n[04:43:33] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️ 好的\n[04:44:01] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 哈哈\n[04:44:37] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 只有那個幹才有辦法襯托出我想要表達的手殘\n[04:44:56] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的我知道了，50\n[04:45:25] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 哈哈\n[04:45:49] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 非常厲害喔與助詞都不懂\n[04:46:03] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 知道就好，所以要讓你想表達的前面加個幹會更生動\n[04:46:13] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️ 好的沒有問題\n[04:46:42] [viewer] <甜心0521比比>: @蒂蒂Didi 昨天早上下班被別人撞腳和腰超痛的\n[04:46:42] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 要五點了\n[04:47:11] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有13分鐘，5點\n[04:47:20] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 想哭哭不出來好像是一首歌\n[04:48:03] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 照片可不可以換一張\n[04:48:16] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 你是真的想把這張放到最後是嗎\n[04:48:29] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 現在這張照片，也是很好看喔，蒂蒂\n[04:48:31] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 這張真的很像告別式\n[04:48:51] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我覺得這張比較好，蒂蒂\n[04:49:18] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我找人批圖批成告別式你在看看像不像\n[04:49:56] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 這張真的很像\n[04:50:15] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 有10分鐘，\n[04:50:30] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 要吃什麼\n[04:50:52] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 妳爽啥\n[04:51:04] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 大亨堡你在爽啥\n[04:51:21] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 你吃才爽\n[04:51:24] [viewer] <⚾️ひで☆彡-hide->: ٩(*´︶`*)۶早安❣️\n[04:51:46] [viewer] <ヤスベー>: おはようございます\n[04:52:24] [viewer] <不假外出>: 安安！\n[04:52:25] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，還有19個，請大家加油，2000點的，一起努力\n[04:53:07] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有7分鐘，\n[04:55:15] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 等一下小鳥出來叫了\n[04:55:52] [viewer] <satoshi_13>: good morning！\n[04:56:30] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 50又去哪裡了，買早餐了嗎\n[04:56:51] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的\n[04:57:44] [viewer] <Boss1221>: 早安蒂蒂寶貝\n[04:57:48] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有3分鐘\n[04:58:34] [viewer] <Boss1221>: 11月嗎？\n[04:59:38] [viewer] <我是_咚咚>: 餓了\n[04:59:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有1分鐘喔\n[05:00:13] [viewer] <我是_咚咚>: 沒那麼早\n[05:00:19] [viewer] <我是_咚咚>: 解任務\n[05:00:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 應該會是要時榜吧\n[05:00:50] [viewer] <嗶Mの偉>: 早安\n[05:00:56] [viewer] <Boss1221>: 已經過了\n[05:01:34] [viewer] <Boss1221>: 對不起，我不知道\n[05:01:49] [viewer] <cng2352>: 早安\n[05:02:02] [viewer] <我是_咚咚>: 妳可以掛任務解背包禮\n[05:02:04] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 有沒有小時榜\n[05:02:26] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那沒關係\n[05:02:40] [viewer] <austin930125>: 熬早\n[05:02:44] [viewer] <austin930125>: 超級正姊姊\n[05:03:04] [viewer] <圓夢團隊長🐑宇神同行☀️富察紅羽>: 台北天氣如何？\n[05:03:20] [viewer] <圓夢團隊長🐑宇神同行☀️富察紅羽>: 對吼\n[05:03:22] [viewer] <tfc66>: 好\n[05:03:31] [viewer] <圓夢團隊長🐑宇神同行☀️富察紅羽>: 妳在風城\n[05:03:31] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 台北的天氣還好，\n[05:03:41] [viewer] <圓夢團隊長🐑宇神同行☀️富察紅羽>: 收到\n[05:03:53] [viewer] <圓夢團隊長🐑宇神同行☀️富察紅羽>: 今天要進台北城\n[05:04:18] [viewer] <tfc66>: 哦\n[05:04:26] [viewer] <圓夢團隊長🐑宇神同行☀️富察紅羽>: 去聽ㄧ場很重要的招商說明會\n[05:04:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，還有19個，請大家加油\n[05:05:01] [viewer] <圓夢團隊長🐑宇神同行☀️富察紅羽>: 重要不是去\n[05:05:14] [viewer] <圓夢團隊長🐑宇神同行☀️富察紅羽>: 危險是回\n[05:05:32] [viewer] <圓夢團隊長🐑宇神同行☀️富察紅羽>: 我要趕高鐵\n[05:05:39] [viewer] <我是_咚咚>: 妳開子母畫面，一個掛女主播一個掛寵物台，一個掛瞇劇\n[05:05:47] [viewer] <圓夢團隊長🐑宇神同行☀️富察紅羽>: 活動是19:30～2100\n[05:07:25] [viewer] <antoine_bebe>: 早上好\n[05:07:53] [viewer] <newbie_c4keufp52uio>: 122\n[05:07:53] [viewer] <antoine_bebe>: 🍰\n[05:07:55] [viewer] <newbie_c4keufp52uio>: 223\n[05:07:57] [viewer] <newbie_c4keufp52uio>: 233\n[05:07:58] [viewer] <antoine_bebe>: 🍰\n[05:08:01] [viewer] <antoine_bebe>: 🍰\n[05:08:03] [viewer] <newbie_c4keufp52uio>: 222\n[05:08:04] [viewer] <antoine_bebe>: 🍰\n[05:08:04] [viewer] <newbie_c4keufp52uio>: 23\n[05:08:08] [viewer] <newbie_c4keufp52uio>: 23\n[05:08:08] [viewer] <antoine_bebe>: 🍰\n[05:08:09] [viewer] <newbie_c4keufp52uio>: 233\n[05:08:12] [viewer] <antoine_bebe>: 🍰\n[05:08:12] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我又卡住了\n[05:08:12] [viewer] <newbie_c4keufp52uio>: 223\n[05:08:16] [viewer] <antoine_bebe>: 🍰\n[05:08:17] [viewer] <newbie_c4keufp52uio>: 223\n[05:08:19] [viewer] <newbie_c4keufp52uio>: 233\n[05:08:20] [viewer] <antoine_bebe>: 🍰\n[05:08:23] [viewer] <newbie_c4keufp52uio>: 233\n[05:08:26] [viewer] <antoine_bebe>: 🍰\n[05:10:00] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，我們要加油\n[05:11:24] [viewer] <tfc66>: 习\n[05:13:52] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 已經天亮了，蒂蒂\n[05:15:29] [viewer] <newbie_dvbro7ywr30g>: Hi \n[05:16:05] [viewer] <tfc66>: 完了\n[05:17:27] [viewer] <newbie_c4keufp52uio>: 233\n[05:17:36] [viewer] <newbie_c4keufp52uio>: 233\n[05:17:58] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好聽\n[05:18:26] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 這首好聽啊\n[05:19:34] [viewer] <tfc66>: ᥫᩣ♪̊̈♪̆̈.･*’’*･.♬\n[05:20:57] [viewer] <gordam77>: 早安\n[05:21:35] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有19個喔，大家要加油\n[05:23:13] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那好吧\n[05:23:36] [viewer] <Bubblyvene的肉骨茶>: 歐嗨唷~\n[05:23:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 要不然怎麼辦啊，\n[05:23:55] [viewer] <a0963234389>: 早安\n[05:24:29] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 沒錯我也是一樣蒂蒂\n[05:26:31] [viewer] <🪆𝙼𝙰𝚂𝙰𝙺𝙾🐵🍎🍟>: おはようございます😊\n[05:27:25] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 豆皮來了\n[05:30:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我還在這裡，\n[05:30:49] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我還在這裡啊，蒂蒂\n[05:31:59] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，還有19個，請大家加油\n[05:33:17] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 養滿跟蛋糕差不多嗎\n[05:33:34] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 17蛋糕\n[05:33:44] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 嘿\n[05:33:48] [viewer] <newbie_djzneg4mja4g>: 對\n[05:34:02] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 17塊的蛋糕\n[05:34:06] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 好\n[05:34:10] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 17塊的蛋糕\n[05:34:20] [viewer] <newbie_djzneg4mja4g>: 6000下\n[05:34:36] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 沒關係妳沒辦法回答了我明白😆\n[05:34:49] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 沒有關係\n[05:35:14] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有19個加油\n[05:35:20] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 加油\n[05:35:47] [viewer] <shopee_mr.dope>: 🫩🫩🫩\n[05:36:14] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 😆\n[05:36:42] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 甚至人已經累成這樣😆\n[05:37:05] [viewer] <不假外出>: 妳今天怎么要開聲播啊\n[05:37:36] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我又卡住了對不起喔\n[05:37:39] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 設定\n[05:37:55] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 😆\n[05:38:05] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 哪裡可以去看更新🤣🤣🤣🤣\n[05:38:47] [viewer] <newbie_djzneg4mja4g>: 18.7.2\n[05:39:23] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 你可能沒容量了好不好\n[05:39:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 20分鐘，6點整\n[05:40:00] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 難怪更新要去哪更都忘了😆\n[05:40:12] [viewer] <我是_咚咚>: 不敢用26的\n[05:40:29] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 東東，你起床了嗎\n[05:40:56] [viewer] <我是_咚咚>: 聽說整個介面好像會換\n[05:41:12] [viewer] <我是_咚咚>: @守護蒂蒂🐿️的Taihong🐿️💕 我好像沒什麼睡\n[05:41:27] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @我是_咚咚 那好吧\n[05:41:29] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 😆😆😆😆\n[05:41:49] [viewer] <我是_咚咚>: 我覺得卡卡的會去看一下系統更新的\n[05:42:23] [viewer] <shopee_mr.dope>: 蛤\n[05:42:25] [viewer] <我是_咚咚>: 我忘了\n[05:42:40] [viewer] <shopee_mr.dope>: 那三小\n[05:42:42] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 很疲憊的一個臉\n[05:42:45] [viewer] <傅仕明>: 早\n[05:42:47] [viewer] <傅仕明>: 上\n[05:42:51] [viewer] <傅仕明>: 好\n[05:42:52] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有18分鐘，6點整\n[05:42:55] [viewer] <傅仕明>: 安\n[05:42:55] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 看得到啊\n[05:42:59] [viewer] <傅仕明>: 安\n[05:43:12] [viewer] <傅仕明>:  .\n[05:43:15] [viewer] <傅仕明>: .\n[05:43:15] [viewer] <我是_咚咚>: 我不知道那個表情叫什麼\n[05:43:19] [viewer] <傅仕明>:  .\n[05:43:21] [viewer] <傅仕明>: .\n[05:43:23] [viewer] <傅仕明>: .\n[05:43:34] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 他那個更新不是要連Wi-Fi嗎？\n[05:43:47] [viewer] <我是_咚咚>: 不一定\n[05:44:02] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 因為我每次都是連Wi-Fi他才會跑通知出來可以更新\n[05:44:11] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有16分鐘，\n[05:44:29] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 妳12月再更😆\n[05:44:33] [viewer] <我是_咚咚>: 自己的網路可以下載更新，只是會跑很慢\n[05:46:06] [viewer] <買香水加IG找Dope>: 啃\n[05:46:15] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 買香水找豆皮\n[05:47:00] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 豆皮的香水很不錯\n[05:47:22] [viewer] <買香水加IG找Dope>: .\n[05:47:55] [viewer] <怕沁狗內>: 啊哈哈哈哈哈\n[05:48:27] [viewer] <我是_咚咚>: 剛剛播的那個瞇劇好看耶！只是沒從第一集開始看\n[05:50:32] [viewer] <怕沁狗內>: 小錢啦\n[05:50:53] [viewer] <xlarge16>: 美女 早安 🙋‍♂️🙋‍♂️\n[05:50:58] [viewer] <怕沁狗內>: 狗內狗內狗內\n[05:51:09] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那差多少，\n[05:51:23] [viewer] <怕沁狗內>: 1\n[05:51:25] [viewer] <怕沁狗內>: 2\n[05:51:27] [viewer] <怕沁狗內>: 3\n[05:51:29] [viewer] <怕沁狗內>: 4\n[05:51:31] [viewer] <怕沁狗內>: 5\n[05:51:38] [viewer] <我是_咚咚>: 改過名字\n[05:52:10] [viewer] <我是_咚咚>: 豆皮\n[05:52:29] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 是不是要減掉6個\n[05:52:57] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的我知道了謝謝\n[05:54:18] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 剩下的10個等一下再說嗎，\n[05:54:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那好吧\n[05:54:50] [viewer] <マハル様>: 早上好(*ˊᵕˋ*)੭ ੈ🌸✨\n[05:55:11] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 大家要加油，只差三個了\n[05:55:41] [viewer] <マハル様>: You are so beautiful✨\n[05:56:16] [viewer] <マハル様>: You're welcome.🤗\n[05:56:23] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 😆\n[05:56:46] [viewer] <マハル様>: Seeing you made me feel better 😄\n[05:56:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 大家加油，只差三個喔\n[05:57:09] [viewer] <我是_咚咚>: 他是豆皮\n[05:57:30] [viewer] <我是_咚咚>: 自介\n[05:57:46] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 豆皮，我認識很久了\n[05:58:40] [viewer] <マハル様>: Have you just woken up?\n[05:58:50] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 加油加油\n[05:59:05] [viewer] <マハル様>: \\/\\/Ww𐤔ʷ 🤣ّ ʷ𐤔wW \\/\\/\n[05:59:08] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 已經6點鐘了，\n[06:00:13] [viewer] <lavelleの肉骨茶>: 歐嗨唷~\n[06:01:25] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我幫丹尼爾，搶紅包\n[06:01:52] [viewer] <大仏prin>: 早上好\n[06:03:37] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你今天亮了，蒂蒂\n[06:03:52] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 8\n[06:03:54] [viewer] <我是_咚咚>: 謝謝89\n[06:04:01] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 恭喜東東\n[06:04:10] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我今天都是8點\n[06:05:44] [viewer] <我是_咚咚>: @守護蒂蒂🐿️的Taihong🐿️💕 謝謝\n[06:05:50] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @我是_咚咚 沒問題\n[06:05:57] [viewer] <我是_咚咚>: 妳確定要收完嗎？\n[06:06:14] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 東東，我們只差三個\n[06:07:05] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有5包紅包\n[06:07:11] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 又是女神媽媽，\n[06:07:27] [viewer] <wang_15>: 早上好\n[06:07:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有五包紅包\n[06:09:00] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 璀璨之星，還有三個喔，大家加油\n[06:09:47] [viewer] <JianBin_0707>: 😁\n[06:10:07] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有4包紅包\n[06:11:40] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>:  早安\n[06:11:47] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 早上見了欸\n[06:11:56] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 50你起床了\n[06:12:08] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我不小心睡著\n[06:12:22] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我已經都迷迷糊了，\n[06:12:30] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 天亮了\n[06:12:40] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 去休息嗎\n[06:12:40] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我又想到一包了\n[06:12:44] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 晚上再收\n[06:12:45] [viewer] <正能量>: 2\n[06:12:45] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那是給丹尼爾\n[06:12:53] [viewer] <Terayan>: おはようございます٩(*´꒳`*)۶\n[06:12:59] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 你就都這樣\n[06:13:08] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有三包紅包\n[06:13:40] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: 前功盡棄？\n[06:13:48] [viewer] <正能量>: 2\n[06:13:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: good morning\n[06:14:02] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 老師早上好喔\n[06:14:15] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 早上好啊老師\n[06:14:17] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 7點見\n[06:14:22] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我繼續睡\n[06:14:31] [viewer] <a甘霖老師>: @守護蒂蒂🐿️的Taihong🐿️💕 泰宏早安\n[06:14:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 那就可以下班了，蒂蒂\n[06:14:41] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 沒要出門\n[06:14:48] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 我要一直睡到彎身\n[06:14:51] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 晚上\n[06:15:05] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @a甘霖老師 老師好啊\n[06:15:36] [viewer] <Terayan>: 謝謝89\n[06:15:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 老師你有睡飽嗎，\n[06:15:38] [viewer] <a甘霖老師>: @守護蒂蒂🐿️的Taihong🐿️💕 早上好\n[06:15:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @a甘霖老師 早上好啊老師\n[06:16:11] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有兩包紅包，\n[06:16:50] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 沒有\n[06:17:06] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 可以下班回家了，蒂蒂\n[06:17:16] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 是三個\n[06:17:22] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 還有10個\n[06:17:23] [viewer] <甜心0521比比>: @守護蒂蒂🐿️的Taihong🐿️💕 辛苦了\n[06:17:23] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 是三個喔，蒂蒂\n[06:17:30] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @甜心0521比比 好的你也是\n[06:17:44] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 蒂蒂，你可以下班了\n[06:17:45] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 喔\n[06:17:48] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 好吧\n[06:17:57] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你也辛苦了，蒂蒂\n[06:18:06] [viewer] <甜心0521比比>: @蒂蒂Didi 下班準備回家了\n[06:18:14] [viewer] <我是_咚咚>: 還有嗎\n[06:18:17] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 要好好睡喔，蒂蒂\n[06:18:29] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 睡不著了\n[06:18:47] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 所以才起來找你陪我\n[06:18:59] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 又是女神媽媽，搶了兩包\n[06:19:04] [viewer] <甜心0521比比>: @女神媽咪_mom 恭喜恭喜恭喜🥳🥳🥳🥳🥳\n[06:19:09] [viewer] <a甘霖老師>: @守護蒂蒂🐿️的Taihong🐿️💕 對啊\n[06:19:18] [viewer] <我是_咚咚>: 結束了嗎？\n[06:19:21] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @a甘霖老師 對不對啊\n[06:19:23] [viewer] <女神媽咪_mom>: @甜心0521比比 早安\n[06:19:27] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @a甘霖老師 真的是\n[06:19:38] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 還有一包喔，\n[06:20:10] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 沒有啊\n[06:20:12] [viewer] <roox9316>: 早安😊\n[06:20:13] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 東東，我們可以先結束喔\n[06:20:30] [viewer] <我是_咚咚>: @守護蒂蒂🐿️的Taihong🐿️💕 好\n[06:20:30] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 東東，蒂蒂要睡覺了\n[06:20:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @我是_咚咚 好的沒問題\n[06:20:51] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 那10個晚上再說吧\n[06:21:29] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 紅包搶完了真的可以睡覺了，蒂蒂\n[06:21:35] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你也辛苦了，蒂蒂\n[06:21:58] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 幹嘛？\n[06:22:24] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 搶啥\n[06:22:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我們要秒睡喔，蒂蒂\n[06:23:05] [viewer] <甜心0521比比>: @dd01驀然回首恭喜恭喜恭喜🥳🥳🥳🥳🥳\n[06:23:13] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 恩\n[06:24:06] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 你先趕快去睡覺吧\n[06:24:20] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 我們要秒睡喔，蒂蒂\n[06:24:39] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 去吃大亨堡\n[06:24:42] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 你也辛苦了\n[06:24:43] [viewer] <甜心0521比比>: @蒂蒂Didi 你開播辛苦了\n[06:25:08] [viewer] <甜心0521比比>: 追起來 @莉涵🍀Lihan 追起來 @莉涵🍀Lihan 追起來 @莉涵🍀Lihan 追起來 @莉涵🍀Lihan 追起來 @莉涵🍀Lihan 追起來 @莉涵🍀Lihan 追起來 @莉涵🍀Lihan 追起來 @莉涵🍀Lihan \n[06:25:13] [viewer] <優質帥寶best>: ❤️\n[06:25:57] [viewer] <優質帥寶best>: ❤️\n[06:26:00] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 一萬二住鳳梨欸👍\n[06:26:17] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 好的\n[06:26:26] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 幹手走在殘\n[06:26:34] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 又在殘\n[06:26:53] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 祝你有一個好夢，\n[06:27:02] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 不接受不答應 \n[06:27:08] [viewer] <守護蒂蒂的Plus在台北蒂蒂long🐿️>: 晚安安💙💙\n[06:27:14] [viewer] <a甘霖老師>: 不答雁不接受\n[06:27:15] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 蒂蒂，回頭再聊喔\n[06:27:18] [viewer] <甜心0521比比>: @守護蒂蒂的Plus在台北蒂蒂long🐿️ 晚安\n[06:27:18] [viewer] <JianBin_0707>: 晚安\n[06:27:24] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 地獄，晚安\n[06:27:24] [viewer] <JianBin_0707>: 不答應不接受\n[06:27:25] [viewer] <Terayan>: 晚安\n[06:27:26] [viewer] <甜心0521比比>: @❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️ 晚安\n[06:27:32] [viewer] <我不入蒂獄⚡️誰入蒂獄🐿️>: @守護蒂蒂🐿️的Taihong🐿️💕 晚安💤\n[06:27:33] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: @甜心0521比比 晚安\n[06:27:35] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 蒂蒂，晚安\n[06:27:39] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 起床吃早餐\n[06:27:39] [viewer] <JianBin_0707>: 有緣再見\n[06:27:40] [viewer] <優質帥寶best>: ❤️\n[06:27:41] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @我不入蒂獄⚡️誰入蒂獄🐿️ 好的晚安\n[06:27:46] [viewer] <a甘霖老師>: 晚安\n[06:27:49] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 肉燥飯❤️\n[06:27:50] [viewer] <JianBin_0707>: 有緣再說\n[06:28:03] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 要好好睡覺喔，蒂蒂\n[06:28:04] [viewer] <甜心0521比比>: @JianBin_0707 晚安\n[06:28:07] [viewer] <JianBin_0707>: 明年我生日在上來看妳\n[06:28:09] [viewer] <JianBin_0707>: @甜心0521比比 晚安\n[06:28:10] [viewer] <我是_咚咚>: 不知道會不會在\n[06:28:14] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 老師晚安\n[06:28:19] [viewer] <a甘霖老師>: @守護蒂蒂🐿️的Taihong🐿️💕 睡不著\n[06:28:21] [viewer] <甜心0521比比>: @我是_咚咚 晚安\n[06:28:28] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @a甘霖老師 真的嗎\n[06:28:28] [viewer] <我是_咚咚>: @甜心0521比比 晚安\n[06:28:29] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 快滾去睡\n[06:28:39] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @a甘霖老師 我要先睡了\n[06:28:45] [viewer] <a甘霖老師>: @守護蒂蒂🐿️的Taihong🐿️💕 👌\n[06:28:49] [viewer] <JianBin_0707>: 快下啦\n[06:28:52] [viewer] <我是_咚咚>: 我要去梳洗了\n[06:28:54] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: @a甘霖老師 好的沒問題\n[06:28:58] [viewer] <a甘霖老師>: 88\n[06:28:59] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 不下要丟了\n[06:29:05] [viewer] <❤️鍾愛🐿️蒂蒂🐷Boss 一生の斌郎武石🐿️>: 都不要下\n[06:29:12] [viewer] <Terayan>: 拜拜\n[06:29:20] [viewer] <守護蒂蒂🐿️的Taihong🐿️💕>: 哈哈\n",
+            "webhook": {
+              "context": {
+                "channel": "C09F0SYG57D",
+                "client_msg_id": "39561752-1295-4777-b9e1-09d8999c9341",
+                "event_ts": "1764130637.276209",
+                "last_msg_ts": "1764130638.658489",
+                "routeKey": "stt:stream",
+                "ts": "1764130637.276209"
+              }
+            }
+          },
+          "webhookUrl": "https://34.170.122.177/webhook/stt-result-listener",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "f03dc20a-c3d9-465c-a932-07208af809f9",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-11-26T12:43:39.941Z",
+      "createdAt": "2025-11-26T12:43:39.941Z",
+      "role": "workflow:owner",
+      "workflowId": "tXMUfYzGJXsVOzXf",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "updatedAt": "2025-09-12T13:49:37.549Z",
+        "createdAt": "2025-09-12T13:49:37.549Z",
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-09-12T13:49:37.549Z",
+            "createdAt": "2025-09-12T13:49:37.549Z",
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "updatedAt": "2026-06-05T02:10:04.520Z",
+              "createdAt": "2025-09-12T13:49:37.549Z",
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-06-05",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

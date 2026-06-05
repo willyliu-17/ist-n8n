@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>n8n Git-Centric 架構與開發流程 (SPEC)</title>
+  <style>:root {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --panel: #ffffff;
+  --blue: #2563eb;
+  --blue-hover: #1d4ed8;
+  --cyan: #0891b2;
+  --yellow: #ca8a04;
+  --green: #16a34a;
+  --red: #dc2626;
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.6;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr) minmax(18rem, 24rem);
+  gap: 1.5rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  min-height: 100vh;
+}
+
+.sidebar,
+.focus-panel,
+.content {
+  min-width: 0;
+}
+
+.sidebar,
+.focus-panel {
+  position: sticky;
+  top: 1.5rem;
+  align-self: start;
+  max-height: calc(100vh - 3rem);
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-sm);
+  padding: 1.25rem;
+}
+
+.sidebar h1,
+.focus-panel h2 {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  color: #475569;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.sidebar a::before {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  flex-shrink: 0;
+}
+
+.sidebar a.is-reviewed::before {
+  background: var(--green);
+}
+.sidebar a.is-reviewed {
+  opacity: 0.7;
+}
+
+.sidebar a:hover,
+.sidebar a:focus {
+  background: #f1f5f9;
+  color: var(--ink);
+}
+
+.sidebar a strong {
+  color: #334155;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.content {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.document-title {
+  margin: 0;
+  padding: 1.5rem;
+  background: #1e293b;
+  color: white;
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.hai-block {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.hai-block.is-reviewed {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+.hai-block.is-reviewed .block-header h2 {
+  color: #475569;
+}
+
+.block-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.header-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.kicker-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.block-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.block-kicker {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.review-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  background: #f1f5f9;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  transition: all 0.2s;
+}
+
+.review-toggle:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.review-toggle input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.hai-block.is-reviewed .review-toggle {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.375rem;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  text-transform: capitalize;
+}
+
+.badge-type {
+  background: #e0f2fe;
+  color: #155e75;
+}
+.block-decision .badge-type { background: #dbeafe; color: #1e40af; }
+.block-risk .badge-type { background: #fee2e2; color: #991b1b; }
+.block-editable .badge-type { background: #dcfce7; color: #166534; }
+
+.block-body {
+  color: #334155;
+}
+.block-body p:first-child { margin-top: 0; }
+.block-body p:last-child { margin-bottom: 0; }
+
+.list-item {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+  position: relative;
+}
+
+.list-item::before {
+  content: "";
+  position: absolute;
+  left: 0.25rem;
+  top: 0.6em;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.block-controls {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.option-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0.5rem 0;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option-row:hover {
+  background: #f1f5f9;
+}
+
+.option-row:has(input:checked) {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 5rem;
+  margin-top: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  color: var(--ink);
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 0.875rem;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.editable-text {
+  min-height: 10rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.code-block {
+  overflow: auto;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.875rem;
+}
+
+.copy-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: var(--blue);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+  margin-bottom: 1.5rem;
+}
+
+.copy-button:hover {
+  background: var(--blue-hover);
+  box-shadow: var(--shadow);
+}
+
+.focus-section {
+  margin-bottom: 1.5rem;
+}
+
+.focus-section h3 {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+}
+
+.focus-card {
+  margin: 0 0 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  font-size: 0.875rem;
+}
+
+.focus-card strong {
+  display: block;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+}
+
+.focus-card span {
+  display: block;
+  color: var(--muted);
+}
+
+.focus-empty {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  font-style: italic;
+  margin: 0;
+}
+
+.progress-bar-container {
+  height: 0.5rem;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--green);
+  transition: width 0.3s ease;
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+  .sidebar, .focus-panel {
+    position: static;
+    max-height: none;
+  }
+}</style>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="sidebar" aria-label="Document outline">
+      <h1>n8n Git-Centric 架構與開發流程 (SPEC)</h1>
+      <a href="#spec.architecture"><strong>decision</strong> 決策：架構設計原則</a>
+<a href="#spec.scripts"><strong>decision</strong> 決策：自動化腳本功能定義</a>
+<a href="#spec.audit"><strong>decision</strong> 決策：部署審核機制 (Deploy Audit)</a>
+<a href="#spec.agents"><strong>decision</strong> 決策：AGENTS.md 規範內容</a>
+<a href="#auto-detected:heading:n8n-git-centric-spec"><strong>summary</strong> n8n Git-Centric 架構與開發流程 (SPEC)</a>
+    </nav>
+    <main class="content">
+      <h1 class="document-title">n8n Git-Centric 架構與開發流程 (SPEC)</h1>
+      <section class="hai-block block-decision" id="spec.architecture" data-block-id="spec.architecture" data-block-type="decision">
+  <div class="block-header">
+    <div class="header-content">
+      <div class="kicker-row">
+        <p class="block-kicker">spec.architecture</p>
+        <label class="review-toggle" aria-label="Mark as reviewed">
+          <input type="checkbox" class="status-toggle" data-block-id="spec.architecture">
+          <span class="toggle-label">Reviewed</span>
+        </label>
+      </div>
+      <h2>決策：架構設計原則</h2>
+    </div>
+    <div class="badges"><span class="badge">Structured</span>
+<span class="badge badge-type">decision</span></div>
+  </div>
+  <div class="block-body"><blockquote>推薦：確立 Git 作為唯一真相來源 (Source of Truth)</blockquote></div>
+  <div class="block-controls"><label class="option-row"><input type="checkbox" name="decision-spec.architecture" value="source_of_truth" data-block-id="spec.architecture" checked><span>**Git as Source of Truth**：`workflows/` 目錄內的 JSON 檔案永遠代表 Production (Remote) 的預期狀態。</span></label>
+<label class="option-row"><input type="checkbox" name="decision-spec.architecture" value="local_sandbox" data-block-id="spec.architecture" checked><span>**Local Sandboxed AI**：Opencode (`opencode.json`) 內的 `n8n-mcp` 永遠只連線 `http://localhost:5678`。AI 不具備直接修改 Remote 系統的權限。</span></label>
+<label class="option-row"><input type="checkbox" name="decision-spec.architecture" value="script_bridge" data-block-id="spec.architecture" checked><span>**自動化橋樑**：透過獨立的 `scripts/sync.js` 與 `scripts/deploy.js` 來進行 Local Git 目錄與 Remote n8n 之間的狀態同步。</span></label>
+<textarea data-feedback="reason" data-block-id="spec.architecture" aria-label="Reason for 決策：架構設計原則" placeholder="Reason, concerns, or extra context"></textarea></div>
+</section>
+<section class="hai-block block-decision" id="spec.scripts" data-block-id="spec.scripts" data-block-type="decision">
+  <div class="block-header">
+    <div class="header-content">
+      <div class="kicker-row">
+        <p class="block-kicker">spec.scripts</p>
+        <label class="review-toggle" aria-label="Mark as reviewed">
+          <input type="checkbox" class="status-toggle" data-block-id="spec.scripts">
+          <span class="toggle-label">Reviewed</span>
+        </label>
+      </div>
+      <h2>決策：自動化腳本功能定義</h2>
+    </div>
+    <div class="badges"><span class="badge">Structured</span>
+<span class="badge badge-type">decision</span></div>
+  </div>
+  <div class="block-body"><blockquote>推薦：定義同步與部署腳本的行為準則</blockquote></div>
+  <div class="block-controls"><label class="option-row"><input type="checkbox" name="decision-spec.scripts" value="sync_logic" data-block-id="spec.scripts" checked><span>**`sync.js` 邏輯**：連線至 Remote n8n，下載所有 `active` 或非 `archived` 的 workflows，覆寫至 `workflows/` 目錄。若有變更，提示使用者 Commit。</span></label>
+<label class="option-row"><input type="checkbox" name="decision-spec.scripts" value="deploy_logic" data-block-id="spec.scripts" checked><span>**`deploy.js` 邏輯**：讀取 `workflows/` 下指定的 JSON 檔案，連線至 Remote n8n 進行更新 (Update) 或建立 (Create)。</span></label>
+<label class="option-row"><input type="checkbox" name="decision-spec.scripts" value="secret_management" data-block-id="spec.scripts" checked><span>**機密管理**：腳本所需之 Remote API Key 將透過環境變數或獨立的 `.env` / `opencode.remote.json` 讀取，絕對不進入版本控制。</span></label>
+<textarea data-feedback="reason" data-block-id="spec.scripts" aria-label="Reason for 決策：自動化腳本功能定義" placeholder="Reason, concerns, or extra context"></textarea></div>
+</section>
+<section class="hai-block block-decision" id="spec.audit" data-block-id="spec.audit" data-block-type="decision">
+  <div class="block-header">
+    <div class="header-content">
+      <div class="kicker-row">
+        <p class="block-kicker">spec.audit</p>
+        <label class="review-toggle" aria-label="Mark as reviewed">
+          <input type="checkbox" class="status-toggle" data-block-id="spec.audit">
+          <span class="toggle-label">Reviewed</span>
+        </label>
+      </div>
+      <h2>決策：部署審核機制 (Deploy Audit)</h2>
+    </div>
+    <div class="badges"><span class="badge">Structured</span>
+<span class="badge badge-type">decision</span></div>
+  </div>
+  <div class="block-body"><blockquote>推薦：將 Diff 視覺化整合入 HAI 流程</blockquote></div>
+  <div class="block-controls"><label class="option-row"><input type="checkbox" name="decision-spec.audit" value="hai_diff" data-block-id="spec.audit" checked><span>**互動式 Diff 審查**：當 AI 在 Local 修改完畢，準備將更新寫入 `workflows/` 準備部署時，AI 必須產生變更摘要，並透過 HAI HTML 介面呈現 (例如在 Comment 中附上主要修改邏輯)。</span></label>
+<label class="option-row"><input type="checkbox" name="decision-spec.audit" value="explicit_approval" data-block-id="spec.audit" checked><span>**明確授權**：使用者透過 HAI 回傳 `action=update` 且帶有確認 Comment 後，AI 才能執行 `git commit` 以及呼叫 `deploy.js` 將變更推送到 Remote。</span></label>
+<textarea data-feedback="reason" data-block-id="spec.audit" aria-label="Reason for 決策：部署審核機制 (Deploy Audit)" placeholder="Reason, concerns, or extra context"></textarea></div>
+</section>
+<section class="hai-block block-decision" id="spec.agents" data-block-id="spec.agents" data-block-type="decision">
+  <div class="block-header">
+    <div class="header-content">
+      <div class="kicker-row">
+        <p class="block-kicker">spec.agents</p>
+        <label class="review-toggle" aria-label="Mark as reviewed">
+          <input type="checkbox" class="status-toggle" data-block-id="spec.agents">
+          <span class="toggle-label">Reviewed</span>
+        </label>
+      </div>
+      <h2>決策：AGENTS.md 規範內容</h2>
+    </div>
+    <div class="badges"><span class="badge">Structured</span>
+<span class="badge badge-type">decision</span></div>
+  </div>
+  <div class="block-body"><blockquote>推薦：制定 AI 行為準則</blockquote></div>
+  <div class="block-controls"><label class="option-row"><input type="checkbox" name="decision-spec.agents" value="define_roles" data-block-id="spec.agents" checked><span>明確定義 AI 的職責僅限於 Local 開發與測試。</span></label>
+<label class="option-row"><input type="checkbox" name="decision-spec.agents" value="enforce_sop" data-block-id="spec.agents" checked><span>強制 AI 在修改 workflow 前先進行 Context 探索 (Explore)，修改後必須先在 Local 測試通過。</span></label>
+<label class="option-row"><input type="checkbox" name="decision-spec.agents" value="enforce_hai" data-block-id="spec.agents" checked><span>強制 AI 在任何觸及 `workflows/` 目錄更新與呼叫 `deploy.js` 前，必須經過 HAI 授權流程。</span></label>
+<textarea data-feedback="reason" data-block-id="spec.agents" aria-label="Reason for 決策：AGENTS.md 規範內容" placeholder="Reason, concerns, or extra context"></textarea></div>
+</section>
+<section class="hai-block block-summary" id="auto-detected:heading:n8n-git-centric-spec" data-block-id="auto-detected:heading:n8n-git-centric-spec" data-block-type="summary">
+  <div class="block-header">
+    <div class="header-content">
+      <div class="kicker-row">
+        <p class="block-kicker">auto-detected:heading:n8n-git-centric-spec</p>
+        <label class="review-toggle" aria-label="Mark as reviewed">
+          <input type="checkbox" class="status-toggle" data-block-id="auto-detected:heading:n8n-git-centric-spec">
+          <span class="toggle-label">Reviewed</span>
+        </label>
+      </div>
+      <h2>n8n Git-Centric 架構與開發流程 (SPEC)</h2>
+    </div>
+    <div class="badges"><span class="badge">Auto detected</span>
+<span class="badge badge-type">summary</span></div>
+  </div>
+  <div class="block-body"></div>
+  <div class="block-controls"><textarea data-feedback="comment" data-block-id="auto-detected:heading:n8n-git-centric-spec" aria-label="Comment for n8n Git-Centric 架構與開發流程 (SPEC)" placeholder="Comment for the agent"></textarea></div>
+</section>
+    </main>
+    <aside class="focus-panel" id="focus-summary" aria-label="Focus panel">
+      <button id="copy-feedback" class="copy-button" type="button">Copy Feedback</button>
+      <h2>Review Dashboard</h2>
+      <div id="focus-list"></div>
+    </aside>
+  </div>
+  <script>const HAI_DATA = {"title":"n8n Git-Centric 架構與開發流程 (SPEC)","docId":"4935cfb6250817f1fe08c8ba4fa4a9e9dad11fc73d25c385e926966ac12ba7d0","blocks":[{"type":"decision","id":"spec.architecture","title":"決策：架構設計原則","source":"structured","mode":"multi","recommended":["source_of_truth","local_sandbox","script_bridge"],"options":[{"id":"source_of_truth","label":"**Git as Source of Truth**：`workflows/` 目錄內的 JSON 檔案永遠代表 Production (Remote) 的預期狀態。"},{"id":"local_sandbox","label":"**Local Sandboxed AI**：Opencode (`opencode.json`) 內的 `n8n-mcp` 永遠只連線 `http://localhost:5678`。AI 不具備直接修改 Remote 系統的權限。"},{"id":"script_bridge","label":"**自動化橋樑**：透過獨立的 `scripts/sync.js` 與 `scripts/deploy.js` 來進行 Local Git 目錄與 Remote n8n 之間的狀態同步。"}]},{"type":"decision","id":"spec.scripts","title":"決策：自動化腳本功能定義","source":"structured","mode":"multi","recommended":["sync_logic","deploy_logic","secret_management"],"options":[{"id":"sync_logic","label":"**`sync.js` 邏輯**：連線至 Remote n8n，下載所有 `active` 或非 `archived` 的 workflows，覆寫至 `workflows/` 目錄。若有變更，提示使用者 Commit。"},{"id":"deploy_logic","label":"**`deploy.js` 邏輯**：讀取 `workflows/` 下指定的 JSON 檔案，連線至 Remote n8n 進行更新 (Update) 或建立 (Create)。"},{"id":"secret_management","label":"**機密管理**：腳本所需之 Remote API Key 將透過環境變數或獨立的 `.env` / `opencode.remote.json` 讀取，絕對不進入版本控制。"}]},{"type":"decision","id":"spec.audit","title":"決策：部署審核機制 (Deploy Audit)","source":"structured","mode":"multi","recommended":["hai_diff","explicit_approval"],"options":[{"id":"hai_diff","label":"**互動式 Diff 審查**：當 AI 在 Local 修改完畢，準備將更新寫入 `workflows/` 準備部署時，AI 必須產生變更摘要，並透過 HAI HTML 介面呈現 (例如在 Comment 中附上主要修改邏輯)。"},{"id":"explicit_approval","label":"**明確授權**：使用者透過 HAI 回傳 `action=update` 且帶有確認 Comment 後，AI 才能執行 `git commit` 以及呼叫 `deploy.js` 將變更推送到 Remote。"}]},{"type":"decision","id":"spec.agents","title":"決策：AGENTS.md 規範內容","source":"structured","mode":"multi","recommended":["define_roles","enforce_sop","enforce_hai"],"options":[{"id":"define_roles","label":"明確定義 AI 的職責僅限於 Local 開發與測試。"},{"id":"enforce_sop","label":"強制 AI 在修改 workflow 前先進行 Context 探索 (Explore)，修改後必須先在 Local 測試通過。"},{"id":"enforce_hai","label":"強制 AI 在任何觸及 `workflows/` 目錄更新與呼叫 `deploy.js` 前，必須經過 HAI 授權流程。"}]},{"type":"summary","id":"auto-detected:heading:n8n-git-centric-spec","title":"n8n Git-Centric 架構與開發流程 (SPEC)","source":"auto-detected","mode":"","recommended":[],"options":[]}]};
+const HAI_DOC_ID = "4935cfb6250817f1fe08c8ba4fa4a9e9dad11fc73d25c385e926966ac12ba7d0";
+const HAI_EXPIRES_DAYS = 30;
+const STORAGE_KEY = "hai-draft:" + HAI_DOC_ID;
+
+function escapeAttr(str) {
+  return String(str).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function draftIsFresh(draft) {
+  if (!draft || !draft.savedAt) return false;
+  const maxAge = HAI_EXPIRES_DAYS * 24 * 60 * 60 * 1000;
+  return Date.now() - draft.savedAt <= maxAge;
+}
+
+function updateBlockVisuals(blockId, isReviewed) {
+  const block = document.querySelector('.hai-block[data-block-id="' + escapeAttr(blockId) + '"]');
+  if (block) {
+    block.classList.toggle('is-reviewed', isReviewed);
+    const cb = block.querySelector('.status-toggle');
+    if (cb) cb.checked = isReviewed;
+  }
+  const navItem = document.querySelector('.sidebar a[href="#' + escapeAttr(blockId) + '"]');
+  if (navItem) {
+    navItem.classList.toggle('is-reviewed', isReviewed);
+  }
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    if (!draftIsFresh(draft)) {
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      return;
+    }
+    const values = draft.values || {};
+    Object.keys(values).forEach((key) => {
+      const entry = values[key];
+      if (entry.kind === "textarea") {
+        const field = document.querySelector('[data-block-id="' + escapeAttr(entry.blockId) + '"][data-feedback="' + escapeAttr(entry.feedback) + '"]');
+        if (field) field.value = entry.value || "";
+      }
+      if (entry.kind === "input") {
+        document.querySelectorAll('input[data-block-id="' + escapeAttr(entry.blockId) + '"]').forEach((input) => {
+          input.checked = (entry.values || []).indexOf(input.value) !== -1;
+        });
+      }
+    });
+    
+    const status = draft.status || {};
+    Object.keys(status).forEach(blockId => {
+      updateBlockVisuals(blockId, status[blockId]);
+    });
+  } catch (error) {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+  }
+}
+
+function saveDraft() {
+  const values = {};
+  const status = {};
+  
+  document.querySelectorAll('textarea[data-block-id]').forEach((field) => {
+    values[field.dataset.blockId + ':' + field.dataset.feedback] = {
+      kind: "textarea",
+      blockId: field.dataset.blockId,
+      feedback: field.dataset.feedback,
+      value: field.value
+    };
+  });
+  
+  HAI_DATA.blocks.filter((b) => b.type === "decision").forEach((b) => {
+    const selected = Array.from(document.querySelectorAll('input[type="radio"][data-block-id="' + escapeAttr(b.id) + '"]:checked, input[type="checkbox"][data-block-id="' + escapeAttr(b.id) + '"]:checked:not(.status-toggle)')).map((i) => i.value);
+    values[b.id + ':decision'] = { kind: "input", blockId: b.id, values: selected };
+  });
+
+  document.querySelectorAll('.status-toggle').forEach(cb => {
+    status[cb.dataset.blockId] = cb.checked;
+  });
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ savedAt: Date.now(), values: values, status: status }));
+  } catch (error) {}
+}
+
+function markAsReviewed(blockId) {
+  const cb = document.querySelector('.status-toggle[data-block-id="' + escapeAttr(blockId) + '"]');
+  if (cb && !cb.checked) {
+    updateBlockVisuals(blockId, true);
+  }
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"": "&quot;"})[c]);
+}
+
+function markdownHeadingText(value) {
+  return String(value || "Feedback").replace(/[\n\r]+/g, " ").trim() || "Feedback";
+}
+
+function markdownBody(value) {
+  return String(value || "").replace(/\s+$/g, "");
+}
+
+function selectedChecklist(block, selected) {
+  const selectedSet = new Set(selected);
+  return (block.options || []).map((option) => {
+    const id = String(option.id || "");
+    return "- [" + (selectedSet.has(id) ? "x" : " ") + "] " + id;
+  }).join("\n");
+}
+
+function feedbackTarget(block) {
+  return String(block.id).replace(/["\n\r]/g, "_");
+}
+
+function collectFeedback() {
+  const chunks = [];
+  HAI_DATA.blocks.forEach((block) => {
+    if (block.type === "decision") {
+      const selected = Array.from(document.querySelectorAll('input[data-block-id="' + escapeAttr(block.id) + '"]:checked:not(.status-toggle)')).map((i) => i.value);
+      const reasonField = document.querySelector('textarea[data-block-id="' + escapeAttr(block.id) + '"][data-feedback="reason"]');
+      const reason = reasonField ? reasonField.value : "";
+      if (selected.length || reason.trim()) {
+        const selectedText = selectedChecklist(block, selected);
+        const reasonText = markdownBody(reason);
+        chunks.push('## Feedback: ' + markdownHeadingText(block.title || block.id) + '\n<!-- HAI-FEEDBACK: decision #' + feedbackTarget(block) + ' action=update -->\n\n### Selected\n\n' + selectedText + (reasonText ? "\n\n### Reason\n\n" + reasonText : ""));
+      }
+      return;
+    }
+
+    if (block.type === "editable") {
+      const field = document.querySelector('textarea[data-block-id="' + escapeAttr(block.id) + '"][data-feedback="replacement"]');
+      const value = field ? field.value : "";
+      const original = field ? field.defaultValue : "";
+      if (field && value !== original) {
+        chunks.push('## Feedback: ' + markdownHeadingText(block.title || block.id) + '\n<!-- HAI-FEEDBACK: editable #' + feedbackTarget(block) + ' action=replace -->\n\n### Replacement\n\n' + markdownBody(value));
+      }
+      return;
+    }
+
+    const comment = document.querySelector('textarea[data-block-id="' + escapeAttr(block.id) + '"][data-feedback="comment"]');
+    const value = comment ? comment.value : "";
+    if (value.trim()) {
+      const confidence = String(block.id).startsWith("auto-detected:") ? " confidence=low" : "";
+      chunks.push('## Feedback: ' + markdownHeadingText(block.title || block.id) + '\n<!-- HAI-FEEDBACK: ' + block.type + ' #' + feedbackTarget(block) + ' action=comment' + confidence + ' -->\n\n### Comment\n\n' + markdownBody(value));
+    }
+  });
+  return chunks.join("\n\n");
+}
+
+function renderFocusPanel() {
+  const panel = document.getElementById("focus-list");
+  if (!panel) return;
+  
+  let reviewedCount = 0;
+  document.querySelectorAll('.status-toggle').forEach(cb => {
+    if (cb.checked) reviewedCount++;
+  });
+  
+  const totalCount = HAI_DATA.blocks.length;
+  const percent = totalCount === 0 ? 0 : Math.round((reviewedCount / totalCount) * 100);
+
+  const decisions = HAI_DATA.blocks.filter((b) => b.type === "decision");
+  const pendingDecisions = decisions.filter((b) => {
+    const cb = document.querySelector('.status-toggle[data-block-id="' + escapeAttr(b.id) + '"]');
+    return cb && !cb.checked;
+  });
+  const riskBlocks = HAI_DATA.blocks.filter((b) => b.type === "risk" && !document.querySelector('.status-toggle[data-block-id="' + escapeAttr(b.id) + '"]').checked);
+  
+  const section = (title, blocks, empty) => '<div class="focus-section"><h3>' + title + '</h3>' + (blocks.length ? blocks.map((b) => '<div class="focus-card"><strong>' + escapeHtml(b.title || b.id) + '</strong><span>' + escapeHtml(b.type) + ' · ' + escapeHtml(b.id) + '</span></div>').join("") : '<p class="focus-empty">' + empty + '</p>') + '</div>';
+  
+  panel.innerHTML = [
+    '<div class="focus-card" style="margin-bottom: 1.5rem"><strong>Review Progress</strong>',
+    '<span>' + reviewedCount + ' of ' + totalCount + ' blocks reviewed (' + percent + '%)</span>',
+    '<div class="progress-bar-container"><div class="progress-bar-fill" style="width: ' + percent + '%"></div></div></div>',
+    section('Pending Decisions', pendingDecisions, 'All decisions reviewed'),
+    section('Pending Risks', riskBlocks, 'All risks reviewed')
+  ].join("");
+}
+
+function copyFeedback() {
+  const markdown = collectFeedback();
+  saveDraft();
+  
+  const btn = document.getElementById("copy-feedback");
+  const originalText = btn.innerText;
+
+  const performCopy = (text) => {
+    // Fallback for file:// protocol where navigator.clipboard is undefined
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-999999px";
+    textArea.style.top = "-999999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      btn.innerText = "Copied!";
+      btn.style.background = "var(--green)";
+      setTimeout(() => {
+        btn.innerText = originalText;
+        btn.style.background = "";
+      }, 2000);
+    } catch (err) {
+      alert("Failed to copy. Please run a local server (e.g., python3 -m http.server) to enable clipboard access.");
+    } finally {
+      textArea.remove();
+    }
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(markdown).then(() => {
+      btn.innerText = "Copied!";
+      btn.style.background = "var(--green)";
+      setTimeout(() => {
+        btn.innerText = originalText;
+        btn.style.background = "";
+      }, 2000);
+    }).catch(() => performCopy(markdown));
+  } else {
+    performCopy(markdown);
+  }
+}
+
+// Remove DOMContentLoaded to avoid origin check issues entirely, execute immediately since script is at bottom of body
+loadDraft();
+renderFocusPanel();
+
+document.getElementById("copy-feedback").addEventListener("click", copyFeedback);
+
+document.addEventListener("input", (e) => {
+  if (e.target.classList.contains('status-toggle')) return;
+  if (e.target.dataset.blockId) {
+    markAsReviewed(e.target.dataset.blockId);
+    saveDraft();
+    renderFocusPanel();
+  }
+});
+
+document.addEventListener("change", (e) => {
+  if (e.target.classList.contains('status-toggle')) {
+    updateBlockVisuals(e.target.dataset.blockId, e.target.checked);
+    saveDraft();
+    renderFocusPanel();
+  } else if (e.target.dataset.blockId) {
+    markAsReviewed(e.target.dataset.blockId);
+    saveDraft();
+    renderFocusPanel();
+  }
+});</script>
+</body>
+</html>
