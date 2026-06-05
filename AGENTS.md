@@ -32,3 +32,8 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
 4. **Deploy**:
    - Run `node --env-file=.env scripts/deploy.js workflows/<file>.json` (you can specify multiple files) to push the changes to Production.
    - Commit the changes to Git.
+
+## Rules for AI Agents
+
+- **NEVER** commit any temporary files, log files, or debugging output (e.g., `*.txt`, `*.log`, `temp/`) to the repository.
+- Always run `git status` before committing to verify the list of files being staged.
