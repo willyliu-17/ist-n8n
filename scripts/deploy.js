@@ -38,13 +38,20 @@ async function deployWorkflows() {
             const method = checkRes.ok ? 'PUT' : 'POST';
             const endpoint = checkRes.ok ? `${apiUrl}/api/v1/workflows/${wfId}` : `${apiUrl}/api/v1/workflows`;
 
+            const payload = {
+                name: wfData.name,
+                nodes: wfData.nodes,
+                connections: wfData.connections,
+                settings: wfData.settings
+            };
+
             const res = await fetch(endpoint, {
                 method: method,
                 headers: { 
                     'X-N8N-API-KEY': apiKey,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(wfData)
+                body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
