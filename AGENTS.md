@@ -30,9 +30,10 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
    - Ask the AI to build or modify workflows via MCP. The AI operates safely on your **Local n8n** sandbox.
    - Test your logic locally.
 
-4. **Deploy Audit (HAI)**:
+4. **Deploy Audit**:
    - Once local testing is verified, the AI saves the final workflow JSON to the `workflows/` directory.
-   - The AI must present a summary and run a `git diff` for human review using the Human Agent Interface (HAI) HTML mechanism.
+   - The AI must present a summary and run a `git diff` for human review.
+   - *(Optional)* If the `human-agent-interface` skill is available, the AI is encouraged to use its HTML mechanism for a better review experience.
    - The AI must ask for explicit approval before proceeding to deployment.
 
 5. **Deploy (Git to Remote)**:
