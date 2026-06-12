@@ -1,6 +1,4 @@
 {
-  "updatedAt": "2026-04-10T04:41:55.035Z",
-  "createdAt": "2025-12-17T11:25:09.633Z",
   "id": "sOSbXSfXFcMLeIfr",
   "name": "AI SUMMARY",
   "description": null,
@@ -9059,20 +9057,14 @@
       }
     ]
   },
-  "versionId": "bdec919f-69e6-4ba4-8189-8ca8991e9c85",
   "activeVersionId": null,
-  "versionCounter": 100,
   "triggerCount": 0,
   "shared": [
     {
-      "updatedAt": "2025-12-17T11:25:09.633Z",
-      "createdAt": "2025-12-17T11:25:09.633Z",
       "role": "workflow:owner",
       "workflowId": "sOSbXSfXFcMLeIfr",
       "projectId": "T2eF9Qj9h6MeNqHW",
       "project": {
-        "updatedAt": "2025-09-12T13:49:37.549Z",
-        "createdAt": "2025-09-12T13:49:37.549Z",
         "id": "T2eF9Qj9h6MeNqHW",
         "name": "<ist@17.media>",
         "type": "personal",
@@ -9080,13 +9072,9 @@
         "description": null,
         "projectRelations": [
           {
-            "updatedAt": "2025-09-12T13:49:37.549Z",
-            "createdAt": "2025-09-12T13:49:37.549Z",
             "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
             "projectId": "T2eF9Qj9h6MeNqHW",
             "user": {
-              "updatedAt": "2026-06-05T02:10:04.520Z",
-              "createdAt": "2025-09-12T13:49:37.549Z",
               "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
               "email": "ist@17.media",
               "firstName": null,
@@ -9108,7 +9096,6 @@
               },
               "disabled": false,
               "mfaEnabled": false,
-              "lastActiveAt": "2026-06-05",
               "isPending": false
             }
           }

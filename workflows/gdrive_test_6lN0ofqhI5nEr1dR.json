@@ -1,6 +1,4 @@
 {
-  "updatedAt": "2026-02-10T03:49:06.641Z",
-  "createdAt": "2025-12-11T16:42:25.155Z",
   "id": "6lN0ofqhI5nEr1dR",
   "name": "Gdrive test",
   "description": null,
@@ -130,20 +128,14 @@
   "staticData": null,
   "meta": null,
   "pinData": {},
-  "versionId": "a0f94173-c958-4d31-a757-c7a78f472905",
   "activeVersionId": null,
-  "versionCounter": 2,
   "triggerCount": 0,
   "shared": [
     {
-      "updatedAt": "2025-12-11T16:42:25.155Z",
-      "createdAt": "2025-12-11T16:42:25.155Z",
       "role": "workflow:owner",
       "workflowId": "6lN0ofqhI5nEr1dR",
       "projectId": "T2eF9Qj9h6MeNqHW",
       "project": {
-        "updatedAt": "2025-09-12T13:49:37.549Z",
-        "createdAt": "2025-09-12T13:49:37.549Z",
         "id": "T2eF9Qj9h6MeNqHW",
         "name": "<ist@17.media>",
         "type": "personal",
@@ -151,13 +143,9 @@
         "description": null,
         "projectRelations": [
           {
-            "updatedAt": "2025-09-12T13:49:37.549Z",
-            "createdAt": "2025-09-12T13:49:37.549Z",
             "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
             "projectId": "T2eF9Qj9h6MeNqHW",
             "user": {
-              "updatedAt": "2026-06-05T02:10:04.520Z",
-              "createdAt": "2025-09-12T13:49:37.549Z",
               "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
               "email": "ist@17.media",
               "firstName": null,
@@ -179,7 +167,6 @@
               },
               "disabled": false,
               "mfaEnabled": false,
-              "lastActiveAt": "2026-06-05",
               "isPending": false
             }
           }

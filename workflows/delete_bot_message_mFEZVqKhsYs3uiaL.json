@@ -1,6 +1,4 @@
 {
-  "updatedAt": "2026-03-05T10:03:50.175Z",
-  "createdAt": "2025-12-23T02:29:29.128Z",
   "id": "mFEZVqKhsYs3uiaL",
   "name": "Delete bot message",
   "description": null,
@@ -330,20 +328,14 @@
     "templateCredsSetupCompleted": true
   },
   "pinData": {},
-  "versionId": "0efd6cca-90fd-49f2-9ced-9b2b051d0658",
   "activeVersionId": null,
-  "versionCounter": 5,
   "triggerCount": 0,
   "shared": [
     {
-      "updatedAt": "2025-12-23T02:29:29.128Z",
-      "createdAt": "2025-12-23T02:29:29.128Z",
       "role": "workflow:owner",
       "workflowId": "mFEZVqKhsYs3uiaL",
       "projectId": "T2eF9Qj9h6MeNqHW",
       "project": {
-        "updatedAt": "2025-09-12T13:49:37.549Z",
-        "createdAt": "2025-09-12T13:49:37.549Z",
         "id": "T2eF9Qj9h6MeNqHW",
         "name": "<ist@17.media>",
         "type": "personal",
@@ -351,13 +343,9 @@
         "description": null,
         "projectRelations": [
           {
-            "updatedAt": "2025-09-12T13:49:37.549Z",
-            "createdAt": "2025-09-12T13:49:37.549Z",
             "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
             "projectId": "T2eF9Qj9h6MeNqHW",
             "user": {
-              "updatedAt": "2026-06-05T02:10:04.520Z",
-              "createdAt": "2025-09-12T13:49:37.549Z",
               "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
               "email": "ist@17.media",
               "firstName": null,
@@ -379,7 +367,6 @@
               },
               "disabled": false,
               "mfaEnabled": false,
-              "lastActiveAt": "2026-06-05",
               "isPending": false
             }
           }

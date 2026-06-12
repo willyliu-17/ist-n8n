@@ -1,6 +1,4 @@
 {
-  "updatedAt": "2026-05-08T08:06:03.411Z",
-  "createdAt": "2025-11-19T02:34:00.227Z",
   "id": "TwSY9mJNgYpHEzYw",
   "name": "Query Steam Logs",
   "description": null,
@@ -5093,20 +5091,14 @@
       }
     ]
   },
-  "versionId": "33f48f31-1d1f-4875-9a2e-21a561d5ff9f",
   "activeVersionId": null,
-  "versionCounter": 8,
   "triggerCount": 0,
   "shared": [
     {
-      "updatedAt": "2025-11-19T02:34:00.227Z",
-      "createdAt": "2025-11-19T02:34:00.227Z",
       "role": "workflow:owner",
       "workflowId": "TwSY9mJNgYpHEzYw",
       "projectId": "T2eF9Qj9h6MeNqHW",
       "project": {
-        "updatedAt": "2025-09-12T13:49:37.549Z",
-        "createdAt": "2025-09-12T13:49:37.549Z",
         "id": "T2eF9Qj9h6MeNqHW",
         "name": "<ist@17.media>",
         "type": "personal",
@@ -5114,13 +5106,9 @@
         "description": null,
         "projectRelations": [
           {
-            "updatedAt": "2025-09-12T13:49:37.549Z",
-            "createdAt": "2025-09-12T13:49:37.549Z",
             "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
             "projectId": "T2eF9Qj9h6MeNqHW",
             "user": {
-              "updatedAt": "2026-06-05T02:10:04.520Z",
-              "createdAt": "2025-09-12T13:49:37.549Z",
               "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
               "email": "ist@17.media",
               "firstName": null,
@@ -5142,7 +5130,6 @@
               },
               "disabled": false,
               "mfaEnabled": false,
-              "lastActiveAt": "2026-06-05",
               "isPending": false
             }
           }

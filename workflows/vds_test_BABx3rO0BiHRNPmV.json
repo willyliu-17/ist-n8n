@@ -1,6 +1,4 @@
 {
-  "updatedAt": "2025-09-12T14:15:02.304Z",
-  "createdAt": "2025-09-12T14:13:07.924Z",
   "id": "BABx3rO0BiHRNPmV",
   "name": "vds-test",
   "description": null,
@@ -96,20 +94,14 @@
     "templateCredsSetupCompleted": true
   },
   "pinData": {},
-  "versionId": "1032c488-f3c7-4e8e-a753-b1ae0cadf780",
   "activeVersionId": null,
-  "versionCounter": 1,
   "triggerCount": 0,
   "shared": [
     {
-      "updatedAt": "2025-09-12T14:13:07.924Z",
-      "createdAt": "2025-09-12T14:13:07.924Z",
       "role": "workflow:owner",
       "workflowId": "BABx3rO0BiHRNPmV",
       "projectId": "T2eF9Qj9h6MeNqHW",
       "project": {
-        "updatedAt": "2025-09-12T13:49:37.549Z",
-        "createdAt": "2025-09-12T13:49:37.549Z",
         "id": "T2eF9Qj9h6MeNqHW",
         "name": "<ist@17.media>",
         "type": "personal",
@@ -117,13 +109,9 @@
         "description": null,
         "projectRelations": [
           {
-            "updatedAt": "2025-09-12T13:49:37.549Z",
-            "createdAt": "2025-09-12T13:49:37.549Z",
             "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
             "projectId": "T2eF9Qj9h6MeNqHW",
             "user": {
-              "updatedAt": "2026-06-05T02:10:04.520Z",
-              "createdAt": "2025-09-12T13:49:37.549Z",
               "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
               "email": "ist@17.media",
               "firstName": null,
@@ -145,7 +133,6 @@
               },
               "disabled": false,
               "mfaEnabled": false,
-              "lastActiveAt": "2026-06-05",
               "isPending": false
             }
           }

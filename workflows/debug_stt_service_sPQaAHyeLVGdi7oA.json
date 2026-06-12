@@ -1,6 +1,4 @@
 {
-  "updatedAt": "2026-02-10T03:46:44.386Z",
-  "createdAt": "2025-10-31T00:43:11.203Z",
   "id": "sPQaAHyeLVGdi7oA",
   "name": "Debug STT service",
   "description": null,
@@ -79,20 +77,14 @@
   "staticData": null,
   "meta": null,
   "pinData": {},
-  "versionId": "1aca452d-999b-446f-a8b1-ceba53cc0741",
   "activeVersionId": null,
-  "versionCounter": 2,
   "triggerCount": 0,
   "shared": [
     {
-      "updatedAt": "2025-10-31T00:43:11.203Z",
-      "createdAt": "2025-10-31T00:43:11.203Z",
       "role": "workflow:owner",
       "workflowId": "sPQaAHyeLVGdi7oA",
       "projectId": "T2eF9Qj9h6MeNqHW",
       "project": {
-        "updatedAt": "2025-09-12T13:49:37.549Z",
-        "createdAt": "2025-09-12T13:49:37.549Z",
         "id": "T2eF9Qj9h6MeNqHW",
         "name": "<ist@17.media>",
         "type": "personal",
@@ -100,13 +92,9 @@
         "description": null,
         "projectRelations": [
           {
-            "updatedAt": "2025-09-12T13:49:37.549Z",
-            "createdAt": "2025-09-12T13:49:37.549Z",
             "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
             "projectId": "T2eF9Qj9h6MeNqHW",
             "user": {
-              "updatedAt": "2026-06-05T02:10:04.520Z",
-              "createdAt": "2025-09-12T13:49:37.549Z",
               "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
               "email": "ist@17.media",
               "firstName": null,
@@ -128,7 +116,6 @@
               },
               "disabled": false,
               "mfaEnabled": false,
-              "lastActiveAt": "2026-06-05",
               "isPending": false
             }
           }

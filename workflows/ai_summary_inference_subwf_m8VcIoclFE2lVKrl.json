@@ -1,6 +1,4 @@
 {
-  "updatedAt": "2026-04-08T05:46:21.119Z",
-  "createdAt": "2026-03-04T01:30:23.336Z",
   "id": "m8VcIoclFE2lVKrl",
   "name": "AI SUMMARY Inference SubWF",
   "description": null,
@@ -354,20 +352,14 @@
       }
     ]
   },
-  "versionId": "f1b4b5f5-4886-4ec4-995a-1b52445dc37f",
   "activeVersionId": null,
-  "versionCounter": 19,
   "triggerCount": 0,
   "shared": [
     {
-      "updatedAt": "2026-03-04T01:30:23.336Z",
-      "createdAt": "2026-03-04T01:30:23.336Z",
       "role": "workflow:owner",
       "workflowId": "m8VcIoclFE2lVKrl",
       "projectId": "T2eF9Qj9h6MeNqHW",
       "project": {
-        "updatedAt": "2025-09-12T13:49:37.549Z",
-        "createdAt": "2025-09-12T13:49:37.549Z",
         "id": "T2eF9Qj9h6MeNqHW",
         "name": "<ist@17.media>",
         "type": "personal",
@@ -375,13 +367,9 @@
         "description": null,
         "projectRelations": [
           {
-            "updatedAt": "2025-09-12T13:49:37.549Z",
-            "createdAt": "2025-09-12T13:49:37.549Z",
             "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
             "projectId": "T2eF9Qj9h6MeNqHW",
             "user": {
-              "updatedAt": "2026-06-05T02:10:04.520Z",
-              "createdAt": "2025-09-12T13:49:37.549Z",
               "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
               "email": "ist@17.media",
               "firstName": null,
@@ -403,7 +391,6 @@
               },
               "disabled": false,
               "mfaEnabled": false,
-              "lastActiveAt": "2026-06-05",
               "isPending": false
             }
           }

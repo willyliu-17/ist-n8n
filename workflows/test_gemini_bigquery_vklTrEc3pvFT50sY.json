@@ -1,6 +1,4 @@
 {
-  "updatedAt": "2025-09-12T13:58:07.490Z",
-  "createdAt": "2025-09-12T13:52:06.018Z",
   "id": "vklTrEc3pvFT50sY",
   "name": "test_gemini_bigquery",
   "description": null,
@@ -111,20 +109,14 @@
     "templateCredsSetupCompleted": true
   },
   "pinData": {},
-  "versionId": "b66f706d-a79b-44ce-8e12-89bae25880d0",
   "activeVersionId": null,
-  "versionCounter": 1,
   "triggerCount": 0,
   "shared": [
     {
-      "updatedAt": "2025-09-12T13:52:06.018Z",
-      "createdAt": "2025-09-12T13:52:06.018Z",
       "role": "workflow:owner",
       "workflowId": "vklTrEc3pvFT50sY",
       "projectId": "T2eF9Qj9h6MeNqHW",
       "project": {
-        "updatedAt": "2025-09-12T13:49:37.549Z",
-        "createdAt": "2025-09-12T13:49:37.549Z",
         "id": "T2eF9Qj9h6MeNqHW",
         "name": "<ist@17.media>",
         "type": "personal",
@@ -132,13 +124,9 @@
         "description": null,
         "projectRelations": [
           {
-            "updatedAt": "2025-09-12T13:49:37.549Z",
-            "createdAt": "2025-09-12T13:49:37.549Z",
             "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
             "projectId": "T2eF9Qj9h6MeNqHW",
             "user": {
-              "updatedAt": "2026-06-05T02:10:04.520Z",
-              "createdAt": "2025-09-12T13:49:37.549Z",
               "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
               "email": "ist@17.media",
               "firstName": null,
@@ -160,7 +148,6 @@
               },
               "disabled": false,
               "mfaEnabled": false,
-              "lastActiveAt": "2026-06-05",
               "isPending": false
             }
           }
