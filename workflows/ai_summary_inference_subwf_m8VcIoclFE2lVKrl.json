@@ -400,16 +400,16 @@
   ],
   "tags": [
     {
-      "updatedAt": "2026-02-10T03:49:05.243Z",
-      "createdAt": "2026-02-10T03:49:05.243Z",
-      "id": "u4djiusFDb0CW7Tw",
-      "name": "willy"
-    },
-    {
       "updatedAt": "2026-03-04T01:30:26.596Z",
       "createdAt": "2026-03-04T01:30:26.596Z",
       "id": "IaRbAdtdfnpU2izS",
       "name": "v2"
+    },
+    {
+      "updatedAt": "2025-10-31T00:33:05.881Z",
+      "createdAt": "2025-10-31T00:33:05.881Z",
+      "id": "boreCiHZYpl3eDGl",
+      "name": "ist-bot"
     }
   ],
   "activeVersion": null

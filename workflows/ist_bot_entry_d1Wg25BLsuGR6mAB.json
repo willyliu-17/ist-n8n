@@ -476,7 +476,8 @@
         368
       ],
       "name": "Call summary",
-      "id": "7148c00a-f687-459f-9ae0-a2c2db239597"
+      "id": "7148c00a-f687-459f-9ae0-a2c2db239597",
+      "disabled": true
     },
     {
       "parameters": {
@@ -683,7 +684,7 @@
       }
     ]
   },
-  "activeVersionId": "fe171582-46cc-4a6b-95ee-a6b536122106",
+  "activeVersionId": "b11be484-df3a-4f6e-9347-70324c2de373",
   "triggerCount": 1,
   "shared": [
     {
@@ -738,9 +739,9 @@
     }
   ],
   "activeVersion": {
-    "updatedAt": "2026-04-29T08:22:43.629Z",
-    "createdAt": "2026-04-29T08:22:43.629Z",
-    "versionId": "fe171582-46cc-4a6b-95ee-a6b536122106",
+    "updatedAt": "2026-06-15T07:54:59.594Z",
+    "createdAt": "2026-06-15T07:54:59.594Z",
+    "versionId": "b11be484-df3a-4f6e-9347-70324c2de373",
     "workflowId": "d1Wg25BLsuGR6mAB",
     "nodes": [
       {
@@ -1214,7 +1215,8 @@
           368
         ],
         "name": "Call summary",
-        "id": "7148c00a-f687-459f-9ae0-a2c2db239597"
+        "id": "7148c00a-f687-459f-9ae0-a2c2db239597",
+        "disabled": true
       },
       {
         "parameters": {
