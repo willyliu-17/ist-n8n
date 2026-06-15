@@ -44,3 +44,4 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
 
 - **NEVER** commit any temporary files, log files, or debugging output (e.g., `*.txt`, `*.log`, `temp/`) to the repository.
 - Always run `git status` before committing to verify the list of files being staged.
+- **n8n Skill Requirement**: AI agents MUST utilize relevant n8n skills (e.g., `n8n-node-configuration`, `n8n-expression-syntax`, `n8n-workflow-patterns`, `n8n-mcp-tools-expert`, `n8n-code-javascript`, `n8n-validation-expert`) for all development, configuration, and debugging of n8n workflows.
