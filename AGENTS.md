@@ -8,6 +8,9 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
 2. **Staging Environment**: A local Docker-based n8n instance acting as the staging environment.
 3. **Local Sandboxed AI**: Opencode (`opencode.json`) is strictly bound to the **Local n8n** (`http://localhost:5678`). AI agents **do not** have access to the Remote or Staging environments via MCP.
 4. **Automated Scripts**: `scripts/sync.js` and `scripts/deploy.js` bridge the gap between Git and the target n8n environments.
+5. **Workflow Structure**: To facilitate clean version control and code reviews, workflows are stored as directories under `workflows/` rather than flat JSON files.
+   - `sync.js` unpacks exported JSONs, extracting code nodes (like JavaScript) into separate files (e.g., `nodes/<node-name>/jsCode.js`) and replacing them with `__EXTERNAL_FILE__://` references in a central `workflow.json`.
+   - `deploy.js` and local tooling use `scripts/utils.js` to reassemble these references back into a native n8n JSON payload before deployment.
 
 ## Secrets Management
 
@@ -34,7 +37,7 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
    - Test your logic thoroughly in the local sandbox before proceeding.
 
 4. **Deploy Audit**:
-   - Once local testing is verified, the AI saves the final workflow JSON to the `workflows/` directory.
+   - Once local testing is verified, the AI ensures the `workflows/` directory structure (code files and `workflow.json`) is correct. If editing manually, ensure code is properly externalized or re-run `sync.js` to unpack.
    - The AI must present a summary and run a `git diff` for human review.
    - *(Optional)* If the `human-agent-interface` skill is available, the AI is encouraged to use its HTML mechanism for a better review experience.
    - The AI must ask for explicit approval before proceeding to deployment.
@@ -50,3 +53,4 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
 - **NEVER** commit any temporary files, log files, or debugging output (e.g., `*.txt`, `*.log`, `temp/`) to the repository.
 - Always run `git status` before committing to verify the list of files being staged.
 - **n8n Skill Requirement**: AI agents MUST utilize relevant n8n skills (e.g., `n8n-node-configuration`, `n8n-expression-syntax`, `n8n-workflow-patterns`, `n8n-mcp-tools-expert`, `n8n-code-javascript`, `n8n-validation-expert`) for all development, configuration, and debugging of n8n workflows.
+- **Workflow Directory Structure**: Be aware that workflows are stored as unpacked directories. When reading or modifying workflow code manually, interact with the extracted files under `workflows/<workflow_name>/nodes/`.
