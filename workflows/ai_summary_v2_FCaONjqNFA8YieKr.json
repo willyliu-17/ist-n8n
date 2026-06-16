@@ -22,13 +22,13 @@
           ]
         }
       },
-      "id": "5a415670-d7ba-481b-98c2-3c1d9e299c88",
+      "id": "5fbb943e-09d9-41ee-a68a-c8de4c0891a8",
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -1664,
-        544
+        1680,
+        2544
       ]
     },
     {
@@ -39,10 +39,10 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        -1392,
-        544
+        1952,
+        2544
       ],
-      "id": "93d9eec7-8d1c-49de-af82-30b30d5a9e10",
+      "id": "1fd9fc29-42d7-4795-89e7-484f028284f5",
       "name": "Split Out"
     },
     {
@@ -61,10 +61,10 @@
       "type": "n8n-nodes-base.googleBigQuery",
       "typeVersion": 2.1,
       "position": [
-        160,
-        544
+        3504,
+        2544
       ],
-      "id": "c1acf7fe-0a18-4f0f-8c16-0797fbe71bcd",
+      "id": "f22d9570-9c7b-42b2-bad0-12e35e0869a1",
       "name": "StreamerLog",
       "notesInFlow": false,
       "alwaysOutputData": true,
@@ -91,10 +91,10 @@
       "type": "n8n-nodes-base.googleBigQuery",
       "typeVersion": 2.1,
       "position": [
-        160,
-        704
+        3504,
+        2704
       ],
-      "id": "bc247a6a-228a-4d99-9c70-fe2d91b3dbfa",
+      "id": "b876af57-48ce-47e0-abdb-dac8f895e851",
       "name": "StreamerEventLog",
       "alwaysOutputData": true,
       "credentials": {
@@ -111,10 +111,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        384,
-        704
+        3728,
+        2704
       ],
-      "id": "ae1943a4-76fe-458c-8f9b-4f6a38231cd4",
+      "id": "29b3568e-b721-44f3-8fc1-272babae9d9c",
       "name": "Append Condition-SEL"
     },
     {
@@ -124,10 +124,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        384,
-        544
+        3728,
+        2544
       ],
-      "id": "9c188f9c-95d5-4ce0-ac85-073c43647cab",
+      "id": "60ab5906-57fb-4e62-928c-c859c1f12e9e",
       "name": "Append Condition-SL"
     },
     {
@@ -146,10 +146,10 @@
       "type": "n8n-nodes-base.googleBigQuery",
       "typeVersion": 2.1,
       "position": [
-        -736,
-        656
+        2608,
+        2656
       ],
-      "id": "6a8c9772-b8dc-4741-94e7-d94321d7206b",
+      "id": "180ab2ae-7bde-40b2-90e8-77468ee7234b",
       "name": "query stream info",
       "alwaysOutputData": true,
       "credentials": {
@@ -166,10 +166,10 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -1120,
-        544
+        2224,
+        2544
       ],
-      "id": "4ee178bf-c21b-4b8d-a086-48d149d40d4b",
+      "id": "376526af-270f-4abe-b26b-ccc955bef0f9",
       "name": "Loop Over Items"
     },
     {
@@ -180,10 +180,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        608,
-        544
+        3952,
+        2544
       ],
-      "id": "260da0f4-b6bf-4043-a973-c8ff47520a68",
+      "id": "690a3635-7b49-4ebc-9f61-408aa8210180",
       "name": "checker(SL)",
       "alwaysOutputData": true,
       "notesInFlow": false,
@@ -198,10 +198,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        608,
-        704
+        3952,
+        2704
       ],
-      "id": "570ab60f-41f6-45cf-a271-408a5345af32",
+      "id": "2d4635e0-93a4-4a85-a572-b1108894bf99",
       "name": "checker(SEL)",
       "alwaysOutputData": true,
       "notesInFlow": false,
@@ -215,10 +215,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1024,
-        768
+        4368,
+        2768
       ],
-      "id": "5938f4ed-0b59-41c6-b1e4-40ee19dbd0ff",
+      "id": "a939383c-82e0-4f9c-96ef-c942f03bd49e",
       "name": "Merge",
       "executeOnce": false
     },
@@ -234,10 +234,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        512,
-        400
+        3856,
+        2400
       ],
-      "id": "23187e61-8215-479c-b8be-c2024fb33191",
+      "id": "8456ab7f-9838-4ccc-9d5f-6db965fa5f92",
       "name": "Wait",
       "webhookId": "71b50e53-e657-4a91-87ca-39e85a854c33"
     },
@@ -270,10 +270,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        720,
-        400
+        4064,
+        2400
       ],
-      "id": "d621aff2-1a56-4a92-9446-906153dad50a",
+      "id": "ffeb9f6d-68e9-4f46-993a-89afff62e10d",
       "name": "Edit Fields1"
     },
     {
@@ -283,10 +283,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -272,
-        96
+        3072,
+        2096
       ],
-      "id": "010bb6b8-9eb6-4e19-8976-73c7f9de4175",
+      "id": "89718d8f-f034-48d9-99aa-17b1f056e106",
       "name": "group streamID"
     },
     {
@@ -298,10 +298,10 @@
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
       "position": [
-        -64,
-        96
+        3280,
+        2096
       ],
-      "id": "eb2aef33-8d64-4318-86b2-bd8020c506d8",
+      "id": "8813ea93-8078-4a34-8e35-2407f682b138",
       "name": "Aggregate"
     },
     {
@@ -348,10 +348,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        192,
-        96
+        3536,
+        2096
       ],
-      "id": "d0aca837-69b0-43fb-af41-8f1cb7a12e47",
+      "id": "cc5a5f70-d933-44e3-a80e-2ac0b1ee8e50",
       "name": "Call AI Summary Inference SubWF"
     },
     {
@@ -382,10 +382,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -752,
-        352
+        2592,
+        2352
       ],
-      "id": "a3df00c4-576f-42fb-84b6-198167d0babd",
+      "id": "05037da5-fb84-418e-8d2e-734959c32e0d",
       "name": "If"
     },
     {
@@ -409,10 +409,10 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        1472,
-        96
+        4816,
+        2096
       ],
-      "id": "74ca9d58-0ded-4613-bf21-1b3f37b1af0d",
+      "id": "5a68c120-0c25-4fb9-be20-d43a84a61a9e",
       "name": "Send a message",
       "webhookId": "b1a0ef68-92df-4fc3-bf6d-7e4057617682",
       "credentials": {
@@ -452,23 +452,23 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        752,
-        96
+        4096,
+        2096
       ],
-      "id": "3c30a93e-7d3b-436a-99c2-ad78a25c84a7",
+      "id": "20eb17f2-01dd-4ad7-9325-1063f7f00468",
       "name": "Normalize AI Output"
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\n\n// --- 1. 定義計費相關常數與函數 ---\nconst USD_TO_TWD = 32.5;\n\nfunction getGemini3ProRate(promptTokens) {\n  if (promptTokens <= 200000) {\n    return { input: 2.00, output: 12.00 };\n  } else {\n    return { input: 4.00, output: 18.00 };\n  }\n}\n\nconst pricingTable = {\n  \"gemini-3-flash-preview\": { input: 0.50, output: 3.00 },\n  \"gemini-1.5-pro\": { input: 3.50, output: 10.50 },\n  \"gemini-2.5-pro\": { input: 3.50, output: 10.50 },\n  \"gemini-1.5-flash\": { input: 0.075, output: 0.30 },\n  \"default\": { input: 0.50, output: 3.00 } \n};\n\nreturn items.map(item => {\n  let data = item.json.summary || {};\n  const metadata = item.json.usageMetadata || {};\n  const model = item.json.modelVersion || \"gemini-3-flash-preview\"; \n  \n  const promptTokens = metadata.promptTokenCount || 0;\n  const candidatesTokens = metadata.candidatesTokenCount || 0;\n  const thoughtsTokens = metadata.thoughtsTokenCount || 0;\n  const totalOutputTokens = candidatesTokens + thoughtsTokens;\n\n  // --- 2. 計算費用邏輯 ---\n  let rate;\n  if (model.includes(\"gemini-3-pro\")) {\n    rate = getGemini3ProRate(promptTokens);\n  } else if (model.includes(\"gemini-2.5-pro\")) {\n    rate = pricingTable[\"gemini-2.5-pro\"];\n  } else {\n    rate = pricingTable[model] || pricingTable[\"default\"];\n  }\n\n  const inputCostUSD = (promptTokens / 1000000) * rate.input;\n  const outputCostUSD = (totalOutputTokens / 1000000) * rate.output;\n  const totalCostUSD = inputCostUSD + outputCostUSD;\n  const totalCostTWD = totalCostUSD * USD_TO_TWD;\n  const pricingTier = model.includes(\"gemini-3-pro\") ? (promptTokens <= 200000 ? \"<= 200k\" : \"> 200k\") : \"Standard\";\n\n  // --- 3. Markdown 渲染邏輯 ---\n\n  // 根據使用者提供的新翻譯內容更新對照表\n  const labelMap = {\n    'subjective_motivation': '【主觀動機與時間軸】',\n    'timeline_overview': '時間軸概覽',\n    'subjective_description': '主觀描述',\n    'recovery_status': '修復狀態',\n    'sl_analysis': '【Streamer Log 分析】',\n    'sel_analysis': '【Stream Event Log 分析】',\n    'summary': '【結論】',\n    'fact_check': '事實查核', \n    'claimed_issue': '主播主觀判定的問題',\n    'data_evidence': '證據支持',\n    'is_valid_issue': '資料可靠',\n    'responsibility_category': '責任歸屬類別',\n    'responsibility_category_enum': '責任歸屬類別enum',\n    'causal_summary': '因果總結',\n    'exclusion_reasoning': '【排除與判定邏輯】',\n    'level_1': 'Level 1 判定/排除依據',\n    'level_2': 'Level 2 判定/排除依據'\n  };\n\n  /**\n   * 格式化內容：確保星號保留，處理物件與陣列\n   */\n  const formatContent = (val, indent = \"\") => {\n    if (Array.isArray(val)) {\n      return val.map(v => `\\n${indent}- ${formatContent(v, indent + \"  \")}`).join('');\n    }\n    if (typeof val === 'object' && val !== null) {\n      let subText = \"\";\n      for (const k in val) {\n        const title = labelMap[k] || k;\n        subText += `\\n${indent}- **${title}**：${formatContent(val[k], indent + \"  \")}`;\n      }\n      return subText;\n    }\n    // 這裡不做任何正則替換，完全保留模型輸出的所有格式（含 ** 與 `）\n    return String(val).trim();\n  };\n\n  try {\n    if (typeof data === 'string') data = JSON.parse(data);\n    \n    mdContent = `# AI SUMMARY\\n`;\n\n    for (const key in data) {\n      // 渲染大章節標題 (例如：#### 【主觀動機與時間軸】)\n      mdContent += `#### ${labelMap[key] || key}\\n\\n`;\n      \n      const sectionData = data[key];\n      \n      if (typeof sectionData === 'object' && sectionData !== null) {\n        for (const subKey in sectionData) {\n          const title = labelMap[subKey] || subKey;\n          const content = formatContent(sectionData[subKey]);\n          \n          // 強制將子項標題加粗，內容緊隨其後\n          mdContent += `**${title}**：${content}\\n\\n`;\n        }\n      } else {\n        mdContent += `${formatContent(sectionData)}\\n\\n`;\n      }\n      mdContent += `---\\n\\n`;\n    }\n  } catch (e) {\n    mdContent = `# 報告解析失敗\\n\\n${e.message}`;\n  }\n\n  // --- 4. 費用資訊顯示 ---\n  mdContent += `#### ⚙️ 計費分析\\n`;\n  mdContent += `\\`\\`\\`text\\n`;\n  mdContent += `[ 模型資訊 ]\\n`;\n  mdContent += `model: ${model}\\n`;\n  mdContent += `計費等級: ${pricingTier}\\n\\n`;\n  mdContent += `[ Token 消耗 ]\\n`;\n  mdContent += `Prompt Tokens:    ${promptTokens.toLocaleString()}\\n`;\n  mdContent += `Output Tokens:    ${candidatesTokens.toLocaleString()} (回答)\\n`;\n  if (thoughtsTokens > 0) mdContent += `Thought Tokens:   ${thoughtsTokens.toLocaleString()} (思維鏈)\\n`;\n  mdContent += `Total Tokens:     ${(promptTokens + totalOutputTokens).toLocaleString()}\\n\\n`;\n  mdContent += `[ 預估費用 ]\\n`;\n  mdContent += `美金總計: $${totalCostUSD.toFixed(6)} USD\\n`;\n  mdContent += `台幣總計: $${totalCostTWD.toFixed(4)} TWD (匯率 ${USD_TO_TWD})\\n`;\n  mdContent += `\\`\\`\\``;\n\n  return {\n    json: { ...item.json },\n    binary: {\n      data: {\n        data: Buffer.from(mdContent, 'utf-8').toString('base64'),\n        fileName: `Live_Analysis_Report.md`, \n        fileExtension: 'md',\n        mimeType: 'text/markdown',\n      }\n    }\n  };\n});"
+        "jsCode": "const items = $input.all();\n\n// --- 1. 定義計費相關常數與函數 ---\nconst USD_TO_TWD = 32.5;\n\nfunction getGemini3ProRate(promptTokens) {\n  if (promptTokens <= 200000) {\n    return { input: 2.00, output: 12.00 };\n  } else {\n    return { input: 4.00, output: 18.00 };\n  }\n}\n\nconst pricingTable = {\n  \"gemini-3-flash-preview\": { input: 0.50, output: 3.00 },\n  \"gemini-1.5-pro\": { input: 3.50, output: 10.50 },\n  \"gemini-2.5-pro\": { input: 3.50, output: 10.50 },\n  \"gemini-1.5-flash\": { input: 0.075, output: 0.30 },\n  \"default\": { input: 0.50, output: 3.00 } \n};\n\nreturn items.map(item => {\n  let data = item.json.summary || {};\n  const metadata = item.json.usageMetadata || {};\n  const model = item.json.modelVersion || \"gemini-3-flash-preview\"; \n  \n  const promptTokens = metadata.promptTokenCount || 0;\n  const candidatesTokens = metadata.candidatesTokenCount || 0;\n  const thoughtsTokens = metadata.thoughtsTokenCount || 0;\n  const totalOutputTokens = candidatesTokens + thoughtsTokens;\n\n  // --- 2. 計算費用邏輯 ---\n  let rate;\n  if (model.includes(\"gemini-3-pro\")) {\n    rate = getGemini3ProRate(promptTokens);\n  } else if (model.includes(\"gemini-2.5-pro\")) {\n    rate = pricingTable[\"gemini-2.5-pro\"];\n  } else {\n    rate = pricingTable[model] || pricingTable[\"default\"];\n  }\n\n  const inputCostUSD = (promptTokens / 1000000) * rate.input;\n  const outputCostUSD = (totalOutputTokens / 1000000) * rate.output;\n  const totalCostUSD = inputCostUSD + outputCostUSD;\n  const totalCostTWD = totalCostUSD * USD_TO_TWD;\n  const pricingTier = model.includes(\"gemini-3-pro\") ? (promptTokens <= 200000 ? \"<= 200k\" : \"> 200k\") : \"Standard\";\n\n  // --- 3. Markdown 渲染邏輯 ---\n\n  // 根據使用者提供的新翻譯內容更新對照表\n  const labelMap = {\n    'subjective_motivation': '【主觀動機與時間軸】',\n    'timeline_overview': '時間軸概覽',\n    'subjective_description': '主觀描述',\n    'recovery_status': '修復狀態',\n    'sl_analysis': '【Streamer Log 分析】',\n    'sel_analysis': '【Stream Event Log 分析】',\n    'summary': '【結論】',\n    'fact_check': '事實查核', \n    'claimed_issue': '主播主觀判定的問題',\n    'data_evidence': '證據支持',\n    'is_valid_issue': '資料可靠',\n    'responsibility_category': '責任歸屬類別',\n    'responsibility_category_enum': '責任歸屬類別enum',\n    'causal_summary': '因果總結',\n    'exclusion_reasoning': '【排除與判定邏輯】',\n    'level_1': 'Level 1 判定/排除依據',\n    'level_2': 'Level 2 判定/排除依據'\n  };\n\n  /**\n   * 格式化內容：確保星號保留，處理物件與陣列\n   */\n  const formatContent = (val, indent = \"\") => {\n    if (Array.isArray(val)) {\n      return val.map(v => `\\n${indent}- ${formatContent(v, indent + \"  \")}`).join('');\n    }\n    if (typeof val === 'object' && val !== null) {\n      let subText = \"\";\n      for (const k in val) {\n        const title = labelMap[k] || k;\n        subText += `\\n${indent}- **${title}**：${formatContent(val[k], indent + \"  \")}`;\n      }\n      return subText;\n    }\n    // 這裡不做任何正則替換，完全保留模型輸出的所有格式（含 ** 與 `）\n    return String(val).trim();\n  };\n\n  try {\n    if (typeof data === 'string') data = JSON.parse(data);\n    \n    let streamInfo = {};\n    try {\n      const streamInfoItems = $('query stream info').all();\n      if (streamInfoItems && streamInfoItems.length > 0 && streamInfoItems[0].json) {\n        streamInfo = streamInfoItems[0].json;\n      }\n    } catch(e) {}\n    \n    const deviceName = streamInfo.deviceName || streamInfo.deviceModel || 'Unknown';\n    const osVersion = streamInfo.OSVersion || streamInfo.version || 'Unknown';\n\n    mdContent = `# AI SUMMARY\\n`;\n    mdContent += `#### 基礎資訊\\n\\n`;\n    mdContent += `- **裝置型號**：${deviceName}\\n`;\n    mdContent += `- **作業系統版本**：${osVersion}\\n\\n`;\n    mdContent += `---\\n\\n`;\n\n    for (const key in data) {\n      // 渲染大章節標題 (例如：#### 【主觀動機與時間軸】)\n      mdContent += `#### ${labelMap[key] || key}\\n\\n`;\n      \n      const sectionData = data[key];\n      \n      if (typeof sectionData === 'object' && sectionData !== null) {\n        for (const subKey in sectionData) {\n          const title = labelMap[subKey] || subKey;\n          const content = formatContent(sectionData[subKey]);\n          \n          // 強制將子項標題加粗，內容緊隨其後\n          mdContent += `**${title}**：${content}\\n\\n`;\n        }\n      } else {\n        mdContent += `${formatContent(sectionData)}\\n\\n`;\n      }\n      mdContent += `---\\n\\n`;\n    }\n  } catch (e) {\n    mdContent = `# 報告解析失敗\\n\\n${e.message}`;\n  }\n\n  // --- 4. 費用資訊顯示 ---\n  mdContent += `#### ⚙️ 計費分析\\n`;\n  mdContent += `\\`\\`\\`text\\n`;\n  mdContent += `[ 模型資訊 ]\\n`;\n  mdContent += `model: ${model}\\n`;\n  mdContent += `計費等級: ${pricingTier}\\n\\n`;\n  mdContent += `[ Token 消耗 ]\\n`;\n  mdContent += `Prompt Tokens:    ${promptTokens.toLocaleString()}\\n`;\n  mdContent += `Output Tokens:    ${candidatesTokens.toLocaleString()} (回答)\\n`;\n  if (thoughtsTokens > 0) mdContent += `Thought Tokens:   ${thoughtsTokens.toLocaleString()} (思維鏈)\\n`;\n  mdContent += `Total Tokens:     ${(promptTokens + totalOutputTokens).toLocaleString()}\\n\\n`;\n  mdContent += `[ 預估費用 ]\\n`;\n  mdContent += `美金總計: $${totalCostUSD.toFixed(6)} USD\\n`;\n  mdContent += `台幣總計: $${totalCostTWD.toFixed(4)} TWD (匯率 ${USD_TO_TWD})\\n`;\n  mdContent += `\\`\\`\\``;\n\n  return {\n    json: { ...item.json },\n    binary: {\n      data: {\n        data: Buffer.from(mdContent, 'utf-8').toString('base64'),\n        fileName: `Live_Analysis_Report.md`, \n        fileExtension: 'md',\n        mimeType: 'text/markdown',\n      }\n    }\n  };\n});"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        976,
-        96
+        4320,
+        2096
       ],
-      "id": "d16af729-73f2-48d0-bbb6-17254b076021",
+      "id": "63607067-7ace-43dc-9482-0e87aa14b35a",
       "name": "Render Summary Markdown"
     },
     {
@@ -485,10 +485,10 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        1904,
-        96
+        5248,
+        2096
       ],
-      "id": "5bbdefee-9fbd-45b8-8c04-34f24e9dca41",
+      "id": "a927e701-9f96-41d9-835c-8f8e57c5da8a",
       "name": "Add a reaction",
       "webhookId": "aeccb871-e6a8-4d68-a32e-3ed7fcacbca4",
       "credentials": {
@@ -496,7 +496,8 @@
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "parameters": {
@@ -505,10 +506,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        160,
-        864
+        3504,
+        2864
       ],
-      "id": "75d3e470-9c19-4bb3-97ee-93591af52364",
+      "id": "077e4d51-ac40-4b8c-bbd9-5463fb142da0",
       "name": "stream info"
     },
     {
@@ -538,10 +539,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -528,
-        656
+        2816,
+        2656
       ],
-      "id": "5eb762bb-a5c2-4fc9-8e73-323f28ea6ad7",
+      "id": "0843fb01-505b-4810-af67-2abe5fc229ee",
       "name": "If not OBS"
     },
     {
@@ -551,11 +552,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1680,
-        96
+        5024,
+        2096
       ],
-      "id": "8ee10d37-f7d7-4855-83f9-0976bbe387fc",
-      "name": "map emoji"
+      "id": "6b8dac35-75a0-4132-8553-4ea758bec970",
+      "name": "map emoji",
+      "disabled": true
     },
     {
       "parameters": {
@@ -571,10 +573,10 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        -144,
-        1120
+        3200,
+        3120
       ],
-      "id": "05bf0512-df1d-4b23-8b2f-6b69a6036402",
+      "id": "3ab86a2f-55e9-4bf3-87cb-a6682b42e467",
       "name": "Add a reaction1",
       "webhookId": "aeccb871-e6a8-4d68-a32e-3ed7fcacbca4",
       "credentials": {
@@ -592,10 +594,10 @@
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
       "position": [
-        896,
-        1120
+        4240,
+        3120
       ],
-      "id": "ca23f515-50bc-486d-b231-87a14ead61d8",
+      "id": "28dca541-d360-4d0c-aaa6-9e92233071a1",
       "name": "Stop and Error",
       "disabled": true
     },
@@ -613,10 +615,10 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        272,
-        1120
+        3616,
+        3120
       ],
-      "id": "faa03279-87ee-4672-a532-58b2c6384441",
+      "id": "b828f68a-f7f6-47c3-8a7c-2345333d4ce9",
       "name": "Add a reaction2",
       "webhookId": "aeccb871-e6a8-4d68-a32e-3ed7fcacbca4",
       "credentials": {
@@ -641,10 +643,10 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        704,
-        1120
+        4048,
+        3120
       ],
-      "id": "0eac077a-4a35-42c8-93fc-8eb32724bdc8",
+      "id": "7f783cdb-4bb1-4900-8b45-277aa0ccd1a3",
       "name": "Add a reaction3",
       "webhookId": "aeccb871-e6a8-4d68-a32e-3ed7fcacbca4",
       "credentials": {
@@ -662,10 +664,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        64,
-        1120
+        3408,
+        3120
       ],
-      "id": "170bb3b4-8161-408b-8094-4607875ae7ee",
+      "id": "67b1e7e9-8df3-423e-b8e6-0f08538fc603",
       "name": "Wait1",
       "webhookId": "7e158299-1a6a-4cec-aa9b-021ab53cc7d1",
       "disabled": true
@@ -677,10 +679,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        480,
-        1120
+        3824,
+        3120
       ],
-      "id": "6cf37c3d-77b7-4c49-b907-3ef4c033bf4e",
+      "id": "3dff7699-28e0-45af-8773-15bb5148ec8a",
       "name": "Wait2",
       "webhookId": "0aa96cba-12b6-4470-b825-45f4ebc3a2b2",
       "disabled": true
@@ -690,10 +692,10 @@
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -256,
-        -368
+        3088,
+        1632
       ],
-      "id": "b5884e30-b80c-47b2-8b37-e2aac3a0dda1",
+      "id": "e2d38500-9f6e-4ef9-b14e-a9def22910b3",
       "name": "When clicking ‘Execute workflow’"
     },
     {
@@ -706,10 +708,10 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        1264,
-        96
+        4608,
+        2096
       ],
-      "id": "9e1b6de2-2b4b-4d77-a1ea-b737945bff5a",
+      "id": "cec91864-ef37-4bae-aacc-f38af88b8fe2",
       "name": "Upload Summary File",
       "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
       "credentials": {
@@ -809,10 +811,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
       "position": [
-        976,
-        -112
+        4320,
+        1888
       ],
-      "id": "b8cdd9d2-c607-468d-bc67-a5b736819ee5",
+      "id": "76e1c203-2a92-40e9-9048-08d61cf76dce",
       "name": "Insert row",
       "onError": "continueRegularOutput"
     },
@@ -825,10 +827,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        80,
-        400
+        3424,
+        2400
       ],
-      "id": "188775b9-ec71-4824-ae44-aff89cd35c30",
+      "id": "ead4dfa0-f984-474f-b21f-ef1d457de5d5",
       "name": "compose input"
     },
     {
@@ -855,10 +857,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        304,
-        400
+        3648,
+        2400
       ],
-      "id": "e2a1e52c-e666-42fb-8d4f-9873491d2f4a",
+      "id": "4b965fb2-7b94-408f-b2f2-c51dfe9c1143",
       "name": "req STT service",
       "credentials": {
         "httpHeaderAuth": {
@@ -900,10 +902,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -144,
-        400
+        3200,
+        2400
       ],
-      "id": "287bceeb-9629-429e-bd65-d8cc5f52a7f5",
+      "id": "245a64a9-04b4-4f36-a0e1-b3c15084a483",
       "name": "Normalize Inputs"
     }
   ],
