@@ -1,7 +1,17 @@
 // 1. 抓取資料
 const categoryList = $('Normalize AI Output').first().json.summary.report.summary.responsibility_category_list;
-const deviceModel = $('Aggregate').first().json.data[0].details[3].deviceModel
-const deviceType =$('Aggregate').first().json.data[0].details[3].type
+
+const aggregateData = $('Aggregate').first().json.aggregateData || [];
+let deviceModel = '';
+let deviceType = '';
+
+if (aggregateData.length > 0 && aggregateData[0].details) {
+  const streamInfoDetail = aggregateData[0].details.find(d => d.type === 'streamInfo');
+  if (streamInfoDetail && streamInfoDetail.streamInfo && streamInfoDetail.streamInfo[0]) {
+    deviceModel = streamInfoDetail.streamInfo[0].deviceModel || '';
+    deviceType = streamInfoDetail.streamInfo[0].type || '';
+  }
+}
 // 2. 定義對照表
 const emojiMap = {
   "0": "zero",

@@ -496,8 +496,7 @@
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      },
-      "disabled": true
+      }
     },
     {
       "parameters": {
@@ -556,8 +555,7 @@
         2096
       ],
       "id": "6b8dac35-75a0-4132-8553-4ea758bec970",
-      "name": "map emoji",
-      "disabled": true
+      "name": "map emoji"
     },
     {
       "parameters": {
