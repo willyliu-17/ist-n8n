@@ -4,6 +4,7 @@ const path = require('path');
 const apiUrl = process.env.REMOTE_N8N_API_URL;
 const apiKey = process.env.REMOTE_N8N_API_KEY;
 const includeArchived = process.argv.includes('--include-archived');
+const noUnpack = process.argv.includes('--no-unpack');
 
 if (!apiUrl || !apiKey) {
     console.error("Missing REMOTE_N8N_API_URL or REMOTE_N8N_API_KEY in .env");
@@ -66,7 +67,6 @@ async function syncWorkflows() {
 
         for (const wf of workflows) {
             const baseFilename = wf.name.replace(/[^a-z0-9_]/gi, '_').toLowerCase() + `_${wf.id}`;
-            const wfDir = path.join(workflowsDir, baseFilename);
             
             const wfResponse = await fetch(`${apiUrl}/api/v1/workflows/${wf.id}`, {
                 headers: { 'X-N8N-API-KEY': apiKey }
@@ -76,41 +76,48 @@ async function syncWorkflows() {
             // 在存檔前進行過濾
             sanitizeWorkflow(fullWf);
             
-            if (!fs.existsSync(wfDir)) {
-                fs.mkdirSync(wfDir, { recursive: true });
-            }
+            if (noUnpack) {
+                const workflowJsonPath = path.join(workflowsDir, `${baseFilename}.json`);
+                fs.writeFileSync(workflowJsonPath, JSON.stringify(fullWf, null, 2));
+                console.log(`Synced: ${baseFilename}.json`);
+            } else {
+                const wfDir = path.join(workflowsDir, baseFilename);
+                if (!fs.existsSync(wfDir)) {
+                    fs.mkdirSync(wfDir, { recursive: true });
+                }
 
-            // Extract code from nodes
-            if (fullWf.nodes && Array.isArray(fullWf.nodes)) {
-                for (const node of fullWf.nodes) {
-                    if (!node.parameters) continue;
-                    
-                    const codeFields = [
-                        { key: 'jsCode', ext: 'js' },
-                        { key: 'pythonCode', ext: 'py' }
-                    ];
+                // Extract code from nodes
+                if (fullWf.nodes && Array.isArray(fullWf.nodes)) {
+                    for (const node of fullWf.nodes) {
+                        if (!node.parameters) continue;
+                        
+                        const codeFields = [
+                            { key: 'jsCode', ext: 'js' },
+                            { key: 'pythonCode', ext: 'py' }
+                        ];
 
-                    for (const field of codeFields) {
-                        if (node.parameters[field.key]) {
-                            const safeNodeName = node.name.replace(/[^a-z0-9_]/gi, '_');
-                            const nodeDir = path.join(wfDir, 'nodes', safeNodeName);
-                            if (!fs.existsSync(nodeDir)) {
-                                fs.mkdirSync(nodeDir, { recursive: true });
+                        for (const field of codeFields) {
+                            if (node.parameters[field.key]) {
+                                const safeNodeName = node.name.replace(/[^a-z0-9_]/gi, '_');
+                                const nodeDir = path.join(wfDir, 'nodes', safeNodeName);
+                                if (!fs.existsSync(nodeDir)) {
+                                    fs.mkdirSync(nodeDir, { recursive: true });
+                                }
+                                
+                                const codeFilePath = path.join(nodeDir, `${field.key}.${field.ext}`);
+                                fs.writeFileSync(codeFilePath, node.parameters[field.key]);
+                                
+                                // Replace with pointer
+                                node.parameters[field.key] = `__EXTERNAL_FILE__://nodes/${safeNodeName}/${field.key}.${field.ext}`;
                             }
-                            
-                            const codeFilePath = path.join(nodeDir, `${field.key}.${field.ext}`);
-                            fs.writeFileSync(codeFilePath, node.parameters[field.key]);
-                            
-                            // Replace with pointer
-                            node.parameters[field.key] = `__EXTERNAL_FILE__://nodes/${safeNodeName}/${field.key}.${field.ext}`;
                         }
                     }
                 }
-            }
 
-            const workflowJsonPath = path.join(wfDir, 'workflow.json');
-            fs.writeFileSync(workflowJsonPath, JSON.stringify(fullWf, null, 2));
-            console.log(`Synced and extracted: ${baseFilename}/workflow.json`);
+                const workflowJsonPath = path.join(wfDir, 'workflow.json');
+                fs.writeFileSync(workflowJsonPath, JSON.stringify(fullWf, null, 2));
+                console.log(`Synced and extracted: ${baseFilename}/workflow.json`);
+            }
         }
         console.log("Sync complete!");
     } catch (err) {
