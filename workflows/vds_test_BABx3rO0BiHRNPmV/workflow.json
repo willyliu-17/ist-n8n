@@ -1,0 +1,145 @@
+{
+  "id": "BABx3rO0BiHRNPmV",
+  "name": "vds-test",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -704,
+        -96
+      ],
+      "id": "a057e87a-e1c3-4417-973e-80e4731e416a",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=prompt: “You are a streaming content integration assistant. Your ABSOLUTE task is to analyze streamer transcripts and identify DISTINCT feedback items that are DIRECTLY related to the platform’s functionality, design, and operations. You MUST categorize each unique feedback item exclusively using the provided tags. If a unique piece of feedback relates to multiple defined tags, you MUST include all relevant tags as a list. Any unique feedback item that cannot be classified under any of the existing tags MUST be placed under the `#Others` tag. You MUST IGNORE emotional expressions, personal issues, or any discussions that are not a direct critique, suggestion, or question about the platform’s features or policies.Follow these rigorous steps:Step 1: Thoroughly review the entire streamer’s speech.Step 2: For each statement or closely related set of statements expressing feedback about the platform, extract the core issue or sentiment.Step 3: Compare the currently identified feedback with any previously identified feedback. If the core issue and sentiment are substantially the same, consider them as a single feedback item. Focus on the meaning, not the exact wording.Step 4: For each DISTINCT and UNIQUE feedback item about the platform, meticulously evaluate its relevance to the following conceptual categories, using the provided hashtag definitions as the ONLY classification criteria:* **Event and Reward Mechanism Issues:** Concerns the platform’s event reward system, gifting mechanisms, event rules, and participation experience. Focus on fairness, participation difficulty, and reward distribution.* **Interface and User Experience Issues:** Concerns the platform interface layout, feature placement, and user flow. Focus on ease of use, operational efficiency, and consistency.* **Technical Issues:** Pertains to the platform’s technical performance, including stream lag, platform stability, server latency, and other system malfunctions.* **Rules and Policy Issues:** Addresses platform rules, moderation mechanisms, or content policies, including concerns about user behavior handling, moderation fairness, and violation clarity.Step 5: Apply the provided hashtags EXCLUSIVELY based on the following definitions. DO NOT invent new tags or combine existing tags into new ones. If a UNIQUE feedback item clearly aligns with one or more of these definitions, include all applicable tags in a list.* `#SystemNotification`: DISTINCT feedback explicitly mentioning ‘SystemNotification,’ ‘NotificationSystem,’ ‘APP Notification,’ ‘PushNotification,’ or other direct references to system-generated notifications, focusing on the core complaint, suggestion, or question.* `#LuckyBag`: DISTINCT complaints, suggestions, or questions specifically mentioning ‘RandomGift,’, ‘SupriseGift,’, ‘Limit Gift’, ‘LuckyBag.’ or ‘hard to win the biggest prize’.* `#Requirement`: DISTINCT suggestions for new features, improvements to existing ones, or criticism of poorly designed features.* `#Compliment`: DISTINCT positive feedback related to platform features or services or specific user interface.* `#Gambling`: DISTINCT negative feedback related to gambling games in streaming room, include but not limit the speech about ‘percentage too low’, ‘hard to win’, ‘Game cannot be launched’.* `#Game`: DISTINCT negative feedback related to game features, include but not lime the speech about’cannot control the screen’, ‘cellphone is getting hot during playing game’,‘Game cannot be launched’.* `#Event`: DISTINCT negative feedback related to events or campaigns, including descriptions of the event flow, or questions about them.* `#StreamingQuality`: DISTINCT negative feedback related to streaming quality, including stream delay, jitter, audio/video desync.* `#UserExperience`: DISTINCT negative feedback related to the user interface, including UI truncation, small font sizes, difficulty finding features.* `#Others`: Any DISTINCT feedback item that CANNOT be definitively classified under any of the above tags.Step 6: For each UNIQUE piece of platform-related feedback, provide a detailed description that summarizes the core issue, the FIRST specific quote from the streamer expressing that issue (to represent the feedback), and the classification tag(s). If a unique feedback item aligns with multiple tags, the `tag` field MUST be a list of those tags. If a unique feedback item cannot be classified under any specific tag, the `tag` MUST be `#Others`.Step 7: ABSOLUTELY IGNORE any streamer speech that reflects personal feelings, off-topic discussions, or general chat unrelated to a specific platform feature or policy (e.g., I’m not feeling well today,No one is talking to me in the chat,What are you guys doing?). Focus ONLY on direct feedback about the platform itself.Step 8: Output the analysis as an array of JSON objects. Each object MUST contain the `description`, `quote` (the first instance of the feedback), and `tag`. Ensure that the `tag` field is either a single string (for `#Others`) or a list of strings (for one or more applicable tags). If no relevant and unique platform-related issues are found, output an empty array: `[]`. You can leverage the following predefined hashtags and hashtag definitions:\\n\\t\\t{hashtag}\\n\\n\\tOtherwise, please strictly follow the response example format below:\\n\\n\\tExample:\\n\\t\\t[{example}]”\nhashtags:\n“#SystemNotification”: “DISTINCT feedback specifically mentioning ‘SystemNotification,’ ‘NotificationSystem,’ ‘APP Notification,’ ‘PushNotification,’ or other explicit references to system-generated notifications, focusing on the core complaint.”\n“#LuckyBag”: “DISTINCT complaints specifically mentioning ‘RandomGift,’ ‘SupriseGift,’ or ‘LuckyBag.’”\n“#Requirement”: “DISTINCT suggestions for new features, improvements to existing ones, or criticism of poorly designed features.”\n“#Compliment”: “DISTINCT positive feedback related to platform features or services.”\n“#Gambling”: “DISTINCT negative feedback related to gambling games.”\n“#Game”: “DISTINCT negative feedback related to game features.”\n“#Event”: “DISTINCT negative feedback related to events or campaigns, including descriptions of the event flow.”\n“#StreamingQuality”: “DISTINCT negative feedback related to streaming quality, including stream delay, jitter, audio/video desync.”\n“#UserExperience”: “DISTINCT negative feedback related to the user interface, including UI truncation, small font sizes, difficulty finding features.”\n“#Others”: “Any DISTINCT feedback that cannot be clearly classified under any of the above tags.”\nexample:\n- {‘description’: ‘Complaint about XXX’, ‘ref’: ‘Reference content from original transcript’, ‘time’: ‘xx:xx:xx.xxx’, ‘hashtags’: [‘#SystemNotification’, ‘#Requirement’]}\n- {‘description’: ‘Complaint about YYY’, ‘ref’: ‘Reference content from original transcript’, ‘time’: ‘xx:xx:xx.xxx’, ‘hashtags’: [‘#LuckyBag’, ‘#Requirement’]}\n- {‘description’: ‘Complaint about ZZZ’, ‘ref’: ‘Reference content from original transcript’, ‘time’: ‘xx:xx:xx.xxx’, ‘hashtags’: [‘#Compliment’]}\nchinese_translation_prompt: “翻譯下列內容為繁體中文：”\n\n{{ $json.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -96
+      ],
+      "id": "03913064-2dba-4be2-8028-8e7ccf74e547",
+      "name": "Current VDS prompt",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gMeMxD0Uq89xl8xy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/mock_data/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        -96
+      ],
+      "id": "d15372ab-03dc-4e72-a0ee-56da828aa2b5",
+      "name": "mock data"
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "mock data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mock data": {
+      "main": [
+        [
+          {
+            "node": "Current VDS prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "BABx3rO0BiHRNPmV",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

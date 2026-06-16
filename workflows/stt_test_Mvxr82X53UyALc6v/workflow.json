@@ -1,0 +1,186 @@
+{
+  "id": "Mvxr82X53UyALc6v",
+  "name": "STT test",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Stream_STT/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        32
+      ],
+      "id": "0e45b7ae-bb03-403e-8c59-3e5e1c64aee5",
+      "name": "Stream STT"
+    },
+    {
+      "parameters": {
+        "method": "={{ $json.method }}",
+        "url": "=http://{{$json.sttDomain }}{{ $json.urlPath }}?{{ $json.param }}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        64,
+        32
+      ],
+      "id": "451143e1-fc4b-465b-9e56-f9b37af79f2f",
+      "name": "STT req"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=prompt: “以下的 json 文本為手機直播主，在遇到問題後，下次開播說話的內容轉成文字，請幫我根據他說話的內容，分析直播主可能遇到什麼問題。如果他沒有提到問題相關，也請不用臆測”\n\n{{ $json.transcription }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        304,
+        160
+      ],
+      "id": "78117c65-8349-4319-adea-ab658d0eb6a0",
+      "name": "STT analysis",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gMeMxD0Uq89xl8xy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Stream STT": {
+      "main": [
+        [
+          {
+            "node": "STT req",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STT req": {
+      "main": [
+        [
+          {
+            "node": "STT analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {
+    "Stream STT": [
+      {
+        "json": {
+          "routeKey": "stt:stream",
+          "group": "stt",
+          "action": "stream",
+          "streamid": "213105592",
+          "mode": "first",
+          "mins": 5,
+          "param": "first_mins=5",
+          "query": {
+            "first_mins": 5
+          },
+          "urlPath": "/stream/213105592/stt",
+          "method": "GET",
+          "sttDomain": "35.206.206.41"
+        }
+      }
+    ],
+    "STT req": [
+      {
+        "json": {
+          "language": "ja",
+          "transcription": "7おかえり いいねあれ 落ちた 俺の携帯よくこれがあるんよ あ ポンタもおかえり みんなおかえり おかえり ありがとう よく俺は落ちるんよ急に 申し訳ない ごめんなさい みんな帰ってきてくれるかな 春町帰ってきてくれるかな ニャールも帰ってこんかな ポンタ7 ありがとね ポンタは後半通るもんね 7 壁の目標は何位? 3位以内 トップ? だから春町帰ってこん こんな壁は虹も達成してからやめた あー なるほど ぬいぐるみでやめたんか なるほど それ大事やね あー もうキープ入ってね あのー ギフトストップやね 3位ね いや狙えるよ 7なら え それはみんな言っとんやろ 3位って いや ポンタも頑まっとるけんね あ ひでた おかえり いやいや まだ 無理なわけないよ 7 5位におるんやけん 5位と3位の差は いくらかはちょっと知らんけど ちょっとみんな誰か 春町呼んできて いや 7なら行ける 7なら行ける なんか罪悪感 ひでた なんで? なんで? なんで? なんで罪悪感ある? なんか悪いことした? リスナーさんのとこ ことを考えたら 順位のこと あー 春町おかえり 春町ごめん 落ちた 落ちた 俺なぁ急に落ちるんよ おかえり春町まっとったよ いや なんなその気持ちわかるんやけど わかるんやけど ギフト投げてもらおうな 順位上がらんし 収入にならん でもちろんあの まあ なんでよ コケットクゲシャのとこ ギフトのコインする マジか それはひでたか投げてないけん なんかあった なんかあったってこと? クゲシャのとこで 今2位の人 急にギフターついた うおー まあねギフターついてあるな ひでたか投げてないけんか まあでも それはひでたが悪いんじゃなくてや まあ 罪悪感というか まあ あの枠のトップギフターやけん まあひでたか投げんかったら伸びないもん これはしゃあないよね でこれ7はね なんていうん あのね 実際によって もちろん当たり前やけど 収入がちゃうんやね 収入が ってことは 投げれるコインもちゃうんよね てか応援めちゃくちゃできる人もおるけん おるけん まあ 投げてっていうのも ええと思うよ俺は で投げれん人ももう投げんし 投げれる人はめっちゃ投げれるし てか応援してね 最後になりたい 投げていうのも全然ありと思うよ いい いい いい いい いい",
+          "translate": "7，歡迎回來。嗯，我的手機掉了，這種情況經常發生。啊，Ponta也回來了。大家歡迎回來。歡迎回來，謝謝。我經常突然斷線，非常抱歉，對不起。大家會回來嗎？春町會回來嗎？Nyaru會回來嗎？Ponta7，謝謝你。Ponta後半段會通過的吧。7，目標是第幾名？前三名？還是第一名？所以春町沒回來。這種目標，虹也是達成後就放棄了。啊，原來如此。是因為玩偶才放棄的嗎？原來如此，那很重要呢。啊，已經保持住了呢。那個，禮物停止了呢。第三名呢。不，可以爭取的。如果是7的話。欸，大家都在說第三名吧？不，Ponta也很努力呢。啊，Hideta，歡迎回來。不不不，還沒到不可能的地步。7現在在第五名呢。第五名和第三名的差距是多少我不太清楚。大家誰去把春町叫回來。不，如果是7的話可以的。如果是7的話可以的。有點罪惡感。Hideta，為什麼？為什麼？為什麼？為什麼會有罪惡感？做了什麼壞事嗎？考慮到觀眾們的事情，關於排名。啊，春町歡迎回來。春町對不起，我掉了。我掉了。我啊，經常突然斷線。歡迎回來春町，我一直在等你。不，那種心情我懂，我懂。如果沒有人送禮物，排名就不會上升，也沒有收入。然後當然，那個，為什麼呢？在Kokettokugesha那裡送禮物硬幣。真的嗎？那是因為Hideta沒有送禮物。發生了什麼事？是發生了什麼事嗎？在Kugesha那裡，現在第二名的人突然有了送禮者。哇！嗯，確實有送禮者呢。是因為Hideta沒有送禮物嗎？不過，那也不是Hideta的錯。嗯，與其說是罪惡感。嗯，他是那個直播間的頂級送禮者，所以如果Hideta不送禮物，就不會成長。這也是沒辦法的事吧。然後這個7呢，怎麼說呢，那個，根據實際情況。當然是理所當然的，收入會不同呢。收入不同，也就是說。能送的硬幣也不同呢。而且也有很多人能非常支持。嗯，我覺得說「請送禮物」也沒關係。而不能送禮物的人就不會送。能送禮物的人會送很多。而且，請支持我，我想成為最後一個。我覺得說「請送禮物」也完全可以。好，好，好，好，好。"
+        }
+      }
+    ]
+  },
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "Mvxr82X53UyALc6v",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}
