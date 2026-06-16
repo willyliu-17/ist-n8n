@@ -38,4 +38,4 @@ if (require.main === module) {
     }
 }
 
-module.exports = { buildWorkflow };
+module.exports = { buildWorkflow, resolveExternalFiles };

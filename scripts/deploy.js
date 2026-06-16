@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { buildWorkflow } = require('./utils');
+const { buildWorkflow, resolveExternalFiles } = require('./utils');
 
 const apiUrl = process.env.REMOTE_N8N_API_URL;
 const apiKey = process.env.REMOTE_N8N_API_KEY;
@@ -34,7 +34,7 @@ async function deployWorkflows() {
                 continue;
             }
         } else {
-            wfData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            wfData = resolveExternalFiles(JSON.parse(fs.readFileSync(filePath, 'utf8')), path.dirname(filePath));
         }
         const wfId = wfData.id;
         if (!wfId) { console.error('Workflow ID is missing'); continue; }

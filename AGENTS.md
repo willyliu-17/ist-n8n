@@ -23,7 +23,7 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
 2. **Import (Git to Local)**:
    To populate your Local n8n with the synced workflows, override the environment variables and use the deploy script:
    ```bash
-   REMOTE_N8N_API_URL="http://localhost:5678" REMOTE_N8N_API_KEY="<your_local_key>" node scripts/deploy.js workflows/*.json
+   REMOTE_N8N_API_URL="http://localhost:5678" REMOTE_N8N_API_KEY="<your_local_key>" node scripts/deploy.js workflows/*
    ```
 
 3. **Develop & Test (Local-First)**:
@@ -37,7 +37,7 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
    - The AI must ask for explicit approval before proceeding to deployment.
 
 5. **Deploy (Git to Remote)**:
-   - Run `node --env-file=.env scripts/deploy.js workflows/<file>.json` (you can specify multiple files) to push the changes to Production.
+   - Run `node --env-file=.env scripts/deploy.js workflows/<folder>` (you can specify multiple files) to push the changes to Production.
    - Commit the changes to Git.
 
 ## Rules for AI Agents
