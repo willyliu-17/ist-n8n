@@ -42,13 +42,28 @@ async function deployWorkflows() {
         console.log(`Deploying ${wfData.name} (ID: ${wfId}) to ${apiUrl}...`);
         
         try {
-            // First check if it exists
-            const checkRes = await fetch(`${apiUrl}/api/v1/workflows/${wfId}`, {
+            // First check if it exists by name to handle cross-environment deployment correctly
+            const nameQuery = encodeURIComponent(wfData.name);
+            const checkRes = await fetch(`${apiUrl}/api/v1/workflows?name=${nameQuery}`, {
                 headers: { 'X-N8N-API-KEY': apiKey }
             });
 
-            const method = checkRes.ok ? 'PUT' : 'POST';
-            const endpoint = checkRes.ok ? `${apiUrl}/api/v1/workflows/${wfId}` : `${apiUrl}/api/v1/workflows`;
+            if (!checkRes.ok) {
+                console.error(`Failed to fetch workflows from server to check for existence`);
+                continue;
+            }
+
+            const checkData = await checkRes.json();
+            const matchingWorkflows = (checkData.data || []).filter(w => w.name === wfData.name);
+
+            if (matchingWorkflows.length > 1) {
+                console.error(`Error: Found ${matchingWorkflows.length} workflows exactly named "${wfData.name}" on the target server.`);
+                console.error(`Aborting to prevent unintended overwrites. Please manually resolve the duplicates (IDs: ${matchingWorkflows.map(w => w.id).join(', ')}) on the target server.`);
+                continue;
+            }
+
+            const method = matchingWorkflows.length === 1 ? 'PUT' : 'POST';
+            const endpoint = matchingWorkflows.length === 1 ? `${apiUrl}/api/v1/workflows/${matchingWorkflows[0].id}` : `${apiUrl}/api/v1/workflows`;
 
             const payload = {
                 name: wfData.name,
