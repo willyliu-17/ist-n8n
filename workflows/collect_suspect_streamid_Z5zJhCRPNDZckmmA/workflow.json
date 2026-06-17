@@ -950,6 +950,7 @@
       ],
       "id": "50f8428f-c096-4b80-b71a-861820c72d4b",
       "name": "Exec AI SUMMARY",
+      "disabled": true,
       "onError": "continueRegularOutput"
     },
     {
@@ -1461,7 +1462,7 @@
       }
     ]
   },
-  "activeVersionId": "c43aa2df-95f2-4fbf-bc62-54699c648734",
+  "activeVersionId": "c9a9cb02-dd72-4d25-bf01-81caa0d7ae9b",
   "triggerCount": 1,
   "shared": [
     {
@@ -1516,9 +1517,9 @@
     }
   ],
   "activeVersion": {
-    "updatedAt": "2026-04-02T01:57:12.603Z",
-    "createdAt": "2026-04-02T01:57:12.603Z",
-    "versionId": "c43aa2df-95f2-4fbf-bc62-54699c648734",
+    "updatedAt": "2026-06-17T03:30:35.314Z",
+    "createdAt": "2026-06-17T03:30:35.314Z",
+    "versionId": "c9a9cb02-dd72-4d25-bf01-81caa0d7ae9b",
     "workflowId": "Z5zJhCRPNDZckmmA",
     "nodes": [
       {
@@ -2466,6 +2467,7 @@
         ],
         "id": "50f8428f-c096-4b80-b71a-861820c72d4b",
         "name": "Exec AI SUMMARY",
+        "disabled": true,
         "onError": "continueRegularOutput"
       },
       {

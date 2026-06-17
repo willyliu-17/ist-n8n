@@ -582,8 +582,7 @@
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      },
-      "disabled": true
+      }
     },
     {
       "parameters": {
@@ -596,8 +595,7 @@
         3120
       ],
       "id": "28dca541-d360-4d0c-aaa6-9e92233071a1",
-      "name": "Stop and Error",
-      "disabled": true
+      "name": "Stop and Error"
     },
     {
       "parameters": {
@@ -624,8 +622,7 @@
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      },
-      "disabled": true
+      }
     },
     {
       "parameters": {
@@ -652,8 +649,7 @@
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      },
-      "disabled": true
+      }
     },
     {
       "parameters": {
@@ -667,8 +663,7 @@
       ],
       "id": "67b1e7e9-8df3-423e-b8e6-0f08538fc603",
       "name": "Wait1",
-      "webhookId": "7e158299-1a6a-4cec-aa9b-021ab53cc7d1",
-      "disabled": true
+      "webhookId": "7e158299-1a6a-4cec-aa9b-021ab53cc7d1"
     },
     {
       "parameters": {
@@ -682,8 +677,7 @@
       ],
       "id": "3dff7699-28e0-45af-8773-15bb5148ec8a",
       "name": "Wait2",
-      "webhookId": "0aa96cba-12b6-4470-b825-45f4ebc3a2b2",
-      "disabled": true
+      "webhookId": "0aa96cba-12b6-4470-b825-45f4ebc3a2b2"
     },
     {
       "parameters": {},
@@ -1307,7 +1301,9 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
   "staticData": null,
   "meta": {
@@ -9195,10 +9191,10 @@
   ],
   "tags": [
     {
-      "updatedAt": "2025-10-31T00:33:05.881Z",
-      "createdAt": "2025-10-31T00:33:05.881Z",
-      "id": "boreCiHZYpl3eDGl",
-      "name": "ist-bot"
+      "updatedAt": "2026-03-04T01:30:26.596Z",
+      "createdAt": "2026-03-04T01:30:26.596Z",
+      "id": "IaRbAdtdfnpU2izS",
+      "name": "v2"
     },
     {
       "updatedAt": "2026-02-10T03:47:07.984Z",
@@ -9207,10 +9203,10 @@
       "name": "experiment"
     },
     {
-      "updatedAt": "2026-03-04T01:30:26.596Z",
-      "createdAt": "2026-03-04T01:30:26.596Z",
-      "id": "IaRbAdtdfnpU2izS",
-      "name": "v2"
+      "updatedAt": "2025-10-31T00:33:05.881Z",
+      "createdAt": "2025-10-31T00:33:05.881Z",
+      "id": "boreCiHZYpl3eDGl",
+      "name": "ist-bot"
     }
   ],
   "activeVersion": null

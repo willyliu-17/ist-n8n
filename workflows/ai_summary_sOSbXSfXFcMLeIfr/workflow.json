@@ -575,7 +575,8 @@
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "parameters": {
@@ -634,7 +635,8 @@
         208
       ],
       "id": "49b0c1e8-c321-49ff-95d9-52709db69634",
-      "name": "map emoji"
+      "name": "map emoji",
+      "disabled": true
     },
     {
       "parameters": {
@@ -661,7 +663,8 @@
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "parameters": {
@@ -674,7 +677,8 @@
         1184
       ],
       "id": "22c7fc84-4bec-47d6-8aee-eac313497956",
-      "name": "Stop and Error"
+      "name": "Stop and Error",
+      "disabled": true
     },
     {
       "parameters": {
@@ -701,7 +705,8 @@
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "parameters": {
@@ -728,7 +733,8 @@
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "parameters": {
@@ -742,7 +748,8 @@
       ],
       "id": "a30ff7cb-a6b7-40cf-9afa-2873d54ada99",
       "name": "Wait1",
-      "webhookId": "7e158299-1a6a-4cec-aa9b-021ab53cc7d1"
+      "webhookId": "7e158299-1a6a-4cec-aa9b-021ab53cc7d1",
+      "disabled": true
     },
     {
       "parameters": {
@@ -756,7 +763,8 @@
       ],
       "id": "c20a04ac-05ae-4864-aab7-e2811bd5dfdb",
       "name": "Wait2",
-      "webhookId": "0aa96cba-12b6-4470-b825-45f4ebc3a2b2"
+      "webhookId": "0aa96cba-12b6-4470-b825-45f4ebc3a2b2",
+      "disabled": true
     },
     {
       "parameters": {
