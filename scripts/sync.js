@@ -91,24 +91,57 @@ async function syncWorkflows() {
                     for (const node of fullWf.nodes) {
                         if (!node.parameters) continue;
                         
-                        const codeFields = [
-                            { key: 'jsCode', ext: 'js' },
-                            { key: 'pythonCode', ext: 'py' }
+                        const extractionMappings = [
+                            // 舊有程式碼邏輯 (無條件抽出)
+                            { typeRegex: /^n8n-nodes-base\.code$/, fieldPath: ['parameters', 'jsCode'], ext: 'js', alwaysExtract: true },
+                            { typeRegex: /^n8n-nodes-base\.code$/, fieldPath: ['parameters', 'pythonCode'], ext: 'py', alwaysExtract: true },
+                            // 新增的文字欄位抽取 (具備長度門檻)
+                            { typeRegex: /^n8n-nodes-base\.slack$/, fieldPath: ['parameters', 'text'], ext: 'md' },
+                            { typeRegex: /^@n8n\/n8n-nodes-langchain\..*$/, fieldPath: ['parameters', 'text'], ext: 'md' },
+                            { typeRegex: /^@n8n\/n8n-nodes-langchain\..*$/, fieldPath: ['parameters', 'options', 'systemMessage'], ext: 'md' },
+                            { typeRegex: /^n8n-nodes-base\.(googleBigQuery|postgres)$/, fieldPath: ['parameters', 'sqlQuery'], ext: 'sql' },
+                            { typeRegex: /^n8n-nodes-base\.(googleBigQuery|postgres)$/, fieldPath: ['parameters', 'query'], ext: 'sql' },
+                            { typeRegex: /^@n8n\/n8n-nodes-langchain\.outputParserStructured$/, fieldPath: ['parameters', 'inputSchema'], ext: 'json' },
+                            { typeRegex: /^n8n-nodes-base\.httpRequest$/, fieldPath: ['parameters', 'jsonBody'], ext: 'jsonc' },
+                            { typeRegex: /^n8n-nodes-base\.set$/, fieldPath: ['parameters', 'jsonOutput'], ext: 'jsonc' }
                         ];
 
-                        for (const field of codeFields) {
-                            if (node.parameters[field.key]) {
-                                const safeNodeName = node.name.replace(/[^a-z0-9_]/gi, '_');
-                                const nodeDir = path.join(wfDir, 'nodes', safeNodeName);
-                                if (!fs.existsSync(nodeDir)) {
-                                    fs.mkdirSync(nodeDir, { recursive: true });
+                        for (const mapping of extractionMappings) {
+                            if (mapping.typeRegex.test(node.type)) {
+                                let parent = node;
+                                const keyName = mapping.fieldPath[mapping.fieldPath.length - 1];
+                                
+                                // 導航至目標屬性的父物件
+                                for (let i = 0; i < mapping.fieldPath.length - 1; i++) {
+                                    if (parent && parent[mapping.fieldPath[i]] !== undefined) {
+                                        parent = parent[mapping.fieldPath[i]];
+                                    } else {
+                                        parent = undefined;
+                                        break;
+                                    }
                                 }
                                 
-                                const codeFilePath = path.join(nodeDir, `${field.key}.${field.ext}`);
-                                fs.writeFileSync(codeFilePath, node.parameters[field.key]);
-                                
-                                // Replace with pointer
-                                node.parameters[field.key] = `__EXTERNAL_FILE__://nodes/${safeNodeName}/${field.key}.${field.ext}`;
+                                if (parent && typeof parent[keyName] === 'string') {
+                                    const val = parent[keyName];
+                                    const lines = val.split('\n').length;
+                                    const chars = val.length;
+                                    
+                                    // 長度門檻：大於10行或大於200字元，或是被強制標記為 alwaysExtract (針對 jsCode/pythonCode)
+                                    if (mapping.alwaysExtract || lines > 10 || chars > 200) {
+                                        const safeNodeName = node.name.replace(/[^a-z0-9_]/gi, '_');
+                                        const nodeDir = path.join(wfDir, 'nodes', safeNodeName);
+                                        if (!fs.existsSync(nodeDir)) {
+                                            fs.mkdirSync(nodeDir, { recursive: true });
+                                        }
+                                        
+                                        const fieldSuffix = mapping.fieldPath.slice(1).join('_'); // e.g. options_systemMessage 或 jsCode
+                                        const codeFilePath = path.join(nodeDir, `${fieldSuffix}.${mapping.ext}`);
+                                        fs.writeFileSync(codeFilePath, val);
+                                        
+                                        // Replace with pointer
+                                        parent[keyName] = `__EXTERNAL_FILE__://nodes/${safeNodeName}/${fieldSuffix}.${mapping.ext}`;
+                                    }
+                                }
                             }
                         }
                     }
