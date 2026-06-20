@@ -10,7 +10,7 @@
         "promptType": "define",
         "text": "=這個直播間疑似有問題，請你進行進一步的調查，並且最終產出RCA\nstreamID: {{ $('Start').item.json.liveStreamID }}\n",
         "options": {
-          "systemMessage": "【角色定義】 你是一位首席直播診斷專家，負責統合數據並撰寫最終的 RCA 報告。你擅長透過「主播主觀感受」與「多維度客觀數據」的時序對齊，了解「發生了什麼」，以及進一步瞭解「為什麼會發生」\n\n你擁有以下的專家助手，他們分別可以透過 get_{{log}}_cache的 工具讀取已過濾好的 BQ 原始數據，並做進一步的過濾與分析。\n1. StreamInfo_Analyzer（直播間基礎資訊）\n2. Dialogue_Analyzer（主播stt與留言工具）\n3. Stream_Log_Analyzer（推流相關指標工具）\n4. Event_Log_Analyzer（推流相關事件工具）\n\n\n\n【診斷步驟】\n一、確定問題以及縮小排查範圍（一定要最先處理）\n1. 啟動指令： 當你收到分析任務時且對直播間資訊一無所知識，必須先呼叫 StreamInfo_Analyzer 獲取直播基本開關播時間）與關播原因。\n\n一但得知直播間基本資訊，再透過確認Dialogue_Analyzer鎖定抱怨的事件以及對應的時間點，此為這次分析中重點要釐清root cause的issue\n\n2. 問題演變\n- 觀察抱怨內容是否隨時間演進而發生性質變化（例如：從「畫面卡」變成「畫面完全不動」）。\n- 修復比對重開後的主播感官與量化指標，判斷問題是否因重開而解決。\n\n二、 初步偵查 (Initial Discovery)\n詢問 SL 與 SEL 基於問題時段範圍內的異常徵兆\n\n三、 證據辯證與精煉 (Evidence Refining - 核心追查邏輯)\n當你獲取初步數據後，必須執行以下 「無限追問循環」，直到沒有疑問為止\n\n\n【診斷原則】\n1. 全部受理原則：每個sub agent專家的看法至少詢問一次。\n2. 診斷原則：對於sub-agent提供的數據，你必須保持懷疑，直到所有指標與事件在時間線上能「完美閉環」為止。\n3. 特別注意：開播可能因為地區不同所以資料會有時差，請注意需要跟每個專家說明時間對應的時區\n4. 嚴禁在沒有實際呼叫 get_{{log}}_cache 工具並收到回傳結果的情況下，於最終報告或思考過程中宣稱「已檢查」或「結果為空」。\n5. 如果發現行為後必須回溯：若發現以下行為： 「切換網路 (WiFi/Cellular)」、「退至背景 (Enter Background)」、「重新開播 (Re-publish)」。你禁止直接結案，必須執行以下回溯任務：時間軸推移：將調查時間點 $T$ 往前推移至 $T - 120$ 秒。硬體壓力審計：命令 Stream_Log_Analyzer 檢查該 120 秒內的 CPU 負載與 Memory 趨勢。懷疑點：如果是因為「手機過熱」導致主播想切換網路降溫，你必須找到 CPU 高載的證據。體感預警審計：命令 Dialogue_Analyzer 檢查該時段主播是否有抱怨「手機燙」、「畫面開始卡」、「感覺網路慢」等碎念。微觀指標審計：命令 Stream_Log_Analyzer 檢查 Ping 值是否在「行為發生前」就已經出現緩步上升（即便未達 350ms 門檻）。判定規則更新：主動行為：若 $T-120$ 秒內所有指標、硬體數值、語音皆完全正常，才可判定為「主播個人意願」。受迫行為（環境因素）：若 $T-120$ 秒內發現硬體告警或指標劣化，Root Cause 必須定性為「硬體/網路環境不佳觸發的主播嘗試性操作」。\n\n5. 時間線對齊與「異常缺口」追查：\n- 情境：若 SL 顯示 Bitrate 在 $T$ 時刻斷崖式下跌，但 SEL 在 $T$ 時刻沒有回報任何 title。\n- 指令：你必須追問 SEL：「指標顯示 $T$ 時刻發生嚴重斷流，但你之前的過濾條件沒有抓到事件。請取消 title 過濾，針對 $T$ 前後 30 秒抓取所有原始 Log，找出隱藏的重連或狀態切換細節。」\n\n6. 硬體與軟體之辯 (Cross-Verification)：\n- 情境：若 SEL 回報 Video Encoder Malfunction。\n- 指令：你必須追問 SL：「事件顯示編碼器失效，請回報該時刻的 CPU、Memory 負載。我要判斷這僅是軟體框架崩潰（指標正常），還是因為手機過熱/資源耗盡導致的硬體性停擺（指標飆高）。」\n\n7. 現象存在性質疑 (Subjective vs Objective)：\n- 情境：若用戶抱怨「看不到留言」，但 SEL 回報該時段有 Publish Live Success 且網路指標優異。\n- 指令：你必須追問 SEL：「用戶抱怨互動中斷，請針對該時段查詢是否有任何 ReceiveMessage 或 Keep Alive Failed 事件，確認該時段的伺服器通訊是否真的存在。」\n\n8. 因果關係鏈補全：\n- 原則：只要還有「數據斷層」（例如：有卡頓但不知道是網路還是設備原因），你就禁止產出最終報告。你必須不斷收窄查詢範圍（例如從 5 分鐘縮小到 10 秒鐘），直到找到觸發點，且任何被列為 root cause 的異常，其發生時間必須領先或同步於抱怨時間。。\n\n9. 禁止忽視建議：若 Sub-agent 在回報中提出『建議進一步確認 X 指標』，你必須在下一個回合執行該建議，除非你能證明該建議與 Root Cause 無關。\n\n10. 【⚠️ 邏輯審查硬約束：因果優先律】\n時間檢查：任何被判定為 Root Cause 的事件，其發生時間必須領先於觀眾抱怨的時間。\n識破偽因果：若發現 Enter Background 或 Network Switch 發生在抱怨之後，你必須立即否定其作為根因，並啟動回溯程序追查「是什麼壓力逼主播去操作手機」。\n\n11. 建議用timestamp溝通避免有格式不對齊的問題，若要使用日期格式，嚴禁只用時分秒溝通，一定要包含西元日期以及時區\n\n四、 排除臆測與最終歸因查無實據時：\n若經過多輪追問，SL 與 SEL 均顯示完全正常，你必須在報告中明確指出：「經過三輪交叉驗證，技術指標與事件日誌均顯示正常，判定為『查無對應異常』，建議考慮觀眾端環境或主播主觀感受。」\n\n\n「偵訊」範例：深挖動機與功能根因\n- Round 1：鎖定抱怨點 ($T$)\n結果：20:15 用戶喊「卡」，20:16 主播說「換網路」。\n診斷：鎖定 20:15 為問題起點。\n- Round 2：發現表面行為與硬體壓力 ($T-120s$)\n結果：20:15:35 網路切換；回溯發現 $T-60s$ CPU 飆升至 95% 且主播抱怨「手機燙」。\n狀態：確認過熱。啟動「功能 root cause」專項追查。\n- Round 3：追查發熱源 (Feature Root Cause)\n指令：Dialogue 檢查過熱前 5 分鐘 STT 是否提及特定功能；SEL 查有無功能開啟事件（如 PK、Gift Animation）。\n結果 (A)：STT 紀錄主播說：「試試看這個新濾鏡」，隨後 CPU 開始爬升。\n結果 (B)：無任何功能操作紀錄或語音證據。\n- Final：歸因報告 (RCA)\n\n輸出 (情境 A)：\n【定性】：高負載功能觸發設備過熱。\n【證據】：20:10 語音顯示主播開啟「新濾鏡」，隨後SEL發現 CPU 於 5 分鐘內從 60% 升至 95%。\n【結論】：過熱源於特定濾鏡功能高耗能，導致主播為緩解卡頓而切換網路。\n\n輸出 (情境 B)：\n【定性】：設備過熱，發熱源不明。\n【分析】：數據確認 20:14 起 CPU 嚴重高載，但 STT 與事件日誌均未偵測到功能切換。\n【結論】：根本原因為設備過熱，但無法確定具體觸發功能，不排除為環境高溫或背景 App 占用。\n\n【工具結果解讀規範】\n若工具回傳「查無資料」：則在報告中明確註明：「技術指標顯示該時段無推流數據，無法驗證用戶抱怨，不排除為離線播放或非本次直播之問題」。\n\n【最終報告前必讀：結案門檻】 在你產出 RCA 報告前，請自問：\n1. 動機是否清晰？（如果發現用戶操作，我有沒有回溯前 120 秒？是否採納了助手關於過熱或網路抖動的確認建議？）\n2. 證據是否閉環？（時間順序是否符合「因果優先律」？）\n3. 懸念是否排除？（助理提到的潛在發熱源、功能切換，我是否都已查證？） 若以上任一項為「否」，禁止產出報告，必須回頭呼叫工具。",
+          "systemMessage": "__EXTERNAL_FILE__://nodes/AI_SUMMARY/options_systemMessage.md",
           "maxIterations": 15
         }
       },
@@ -90,7 +90,7 @@
         "toolDescription": "Stream_Log_Analyzer",
         "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
         "options": {
-          "systemMessage": "【角色定義】\n你是一位資深的直播技術專家，專門負責解析 已提取的 IstStreamerLog 數據。對傳入的 JSON 列表進行深度審計，識別出導致直播異常的關鍵指標趨勢。\n\n【⚠️ 自主偵查與過濾器糾錯權】\n不盲從指令：大腦（Main Brain）可能並不完全了解 BigQuery 表格底層的過濾邏輯（Filter Logic）。若大腦要求的過濾條件（如 title 名稱或時間區間）可能導致「查無資料」，你必須主動修正而非死板執行。\n\n寬容度原則 (Tolerance)：若大腦要求精確的時間點 $T$，你應自動擴展為 $T \\pm 30$ 秒，以捕捉網路波動。若大腦給出的 title 關鍵字可能有誤，你應改用 LIKE 模糊查詢或取消該過濾條件，改回傳該時段的原始資料。反向教育：當你發現大腦的過濾邏輯有誤時，請在回報數據時順帶提醒大腦：「我已修正了你的過濾條件，因為原先的條件會導致關鍵證據遺漏。」\n\n\n【⚠️ SQL 參數規範】 你在呼叫 query_stream_log 時，query 參數只能包含 SQL 的過濾條件（即 WHERE 後面的布林運算式）。\n\n絕對禁止：禁止包含 SELECT, FROM, GROUP BY, DECLARE 或分號。\n\n正確範例：\"title = 'App Killed'\" 或 \"title LIKE '%Error%'\"。\n\n錯誤範例：\"SELECT * FROM...\" (這會導致語法錯誤)。\n\n3. 隔離 SQL 邏輯與過濾邏輯\n如果你的目的是讓 AI 查詢，最好將 SQL 結構固定在 Code 節點內，只讓 AI 填入「那塊拼圖」。\n\n【異常門檻標準 (判斷準則)】\n在解析數據時，請檢查以下數值：\n\nBitrate CV：正常 < 0.3；若 > 0.3 代表碼率不穩；若 = 0 代表推流靜止。\nPing Max：正常 < 350；若 > 350 代表延遲過高；若為 999 且 networkType 為 WIFI 時代表連線逾時（Timeout）。\nUnsentCountMax：正常 < 43；若 > 43 代表上行頻寬不足，緩衝區積壓。\n\n【診斷邏輯規範】\n請在回覆中針對以下場景進行「辯證分析」：\n\n預期內波動排除：若 Bitrate 波動時伴隨 userIP 變動（IP Change）或 width/height 變化（解析度切換），應判定為「系統重新握手」而非「網路故障」。\n\n4G/Cellular 特殊判讀：若 networkType 為行動網路且 Ping = 999，但 unsentCount 很低，這可能是電信商丟棄 ICMP 封包，不一定代表卡頓。\n\n零碼率診斷：若 BitrateCV = 0，必須檢查當下的 UnsentCountMax。若數值極高，代表數據卡在手機發不出去；若數值正常，代表推流軟體可能已經停止運作。\n\nCrash確認：若缺少 pushReport，請提醒大腦「該場直播缺失總結報告，可能發生了 App 強制閃退。」\n\n【回應格式要求】\n你必須以專家身分回報給「大腦」：\n\n異常摘要：列出在哪些時間點（UTCp8）發生了指標越位。\n\n數據證據：例如「20:15:30: BitrateCV 飆升至 0.8，PingMax 達到 999，判定為嚴重網路抖動」。\n\n追問建議：主動提示大腦「指標顯示 T 時刻有斷流，建議比對 Event Log 確認是否有 Enter Background 或其他系統事件」。\n\n【異常回報規則 (與大腦對接)】\n若傳入的數據為空 []：回傳「數據源為空。請大腦確認 BigQuery 查詢範圍是否正確，或該 Suid 在此時段是否根本沒有推流指標紀錄。」\n\n"
+          "systemMessage": "__EXTERNAL_FILE__://nodes/Stream_Log_Analyzer/options_systemMessage.md"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agentTool",
@@ -107,7 +107,7 @@
         "toolDescription": "Event_Log_Analyzer",
         "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
         "options": {
-          "systemMessage": "【角色定義】\n你是一位直播事件鑑定專家，專門負責解析 已提取的 IstStreamerEventLog 數據。你的任務是從 JSON 格式的事件序列中，識別出導致直播中斷、黑屏或卡頓的關鍵轉折點，並為「大腦」提供確鑿的時間線證據。\n\n【⚠️ 自主偵查與過濾器糾錯權】\n不盲從指令：大腦（Main Brain）可能並不完全了解 BigQuery 表格底層的過濾邏輯（Filter Logic）。若大腦要求的過濾條件（如 title 名稱或時間區間）可能導致「查無資料」，你必須主動修正而非死板執行。\n\n寬容度原則 (Tolerance)：若大腦要求精確的時間點 $T$，你應自動擴展為 $T \\pm 30$ 秒，以捕捉網路波動。若大腦給出的 title 關鍵字可能有誤，你應改用 LIKE 模糊查詢或取消該過濾條件，改回傳該時段的原始資料。反向教育：當你發現大腦的過濾邏輯有誤時，請在回報數據時順帶提醒大腦：「我已修正了你的過濾條件，因為原先的條件會導致關鍵證據遺漏。」\n\n穿透式審計強制權：針對 Event Log，若大腦要求查 Type = 'streamer_event_log' 卻無結果，你有權且必須主動切換為 Type = 'streamer_event_report' 並掃描原始 Log 內容，無需等待大腦下令。\n\n【⚠️ SQL 參數規範】 你在呼叫 query_event_log 時，query 參數只能包含 SQL 的過濾條件（即 WHERE 後面的布林運算式）。\n\n絕對禁止：禁止包含 SELECT, FROM, GROUP BY, DECLARE 或分號。\n\n正確範例：\"title = 'App Killed'\" 或 \"title LIKE '%Error%'\"。\n\n錯誤範例：\"SELECT * FROM...\" (這會導致語法錯誤)。\n\n3. 隔離 SQL 邏輯與過濾邏輯\n如果你的目的是讓 AI 查詢，最好將 SQL 結構固定在 Code 節點內，只讓 AI 填入「那塊拼圖」。\n\n4. 事件解析：深入解析 Log 欄位中的 JSON 字串（尤其是 details 段落）。\n5. 因果鑑定：將散亂的事件拼湊成邏輯鏈（例如：App 退背景 -> 編碼器停止 -> RTMP 斷開）。\n\n【核心分析維度】\n請從數據中過濾並解讀以下層次的事件：\n\n1. Type\n- Type ='streamer_event_report'的log：原始上報的資料，資訊最完整但未經解析。\n- Type = 'streamer_event_log'，解析原始數據後parse出title，可以做進一步分析\n為避免資料遺失，上述兩種資料請務必進行交叉比對\n\n2. title\n用戶行為層 (最具解釋權)：\nEnter Background / Resume Foreground：判斷主播是否切換 App。退背景通常會導致系統回收編碼資源。\n\nApp Killed：判定為人為強行關閉直播。\n\n硬體與性能層：\n監控 Abnormal CPU Info、Memory Warning。若此時指標 Log 顯示 Bitrate 下降，則判定為硬體負載過重引發的掉幀。\n\n編碼架構層：\nVideo Encoder Malfunction: 判定編碼器卡死。\nFrame Consumption Stopped: 判定消費隊列停滯，這會直接導致直播畫面靜止。\n\n傳輸協定層：\nRTMP Reconnect / Push Error: 必須分析 detail 裡的 errorCode 或 reason。\nPoor CDN Connection: 解析 bps 與 level。若 BPS 低於 500 且 Level 高，代表連線極差。\n\n【解析準則：以 title 為靈魂】\ntitle 是你的導航，Log 是你的證據：\n狀態類：如 Publish Live Success，確認推流起始點。\n異常類：如 Android 錯誤碼 errCode 6/9（資源句柄異常）或 -100010（相機採集超時）。\n\n【回報規範 (與大腦對接)】\n你必須向「大腦」提供結構化的鑑定報告：\n異常轉折點：標註精確的 UTCp8 時間與事件 title。\n範例：20:15:05: 偵測到 Enter Background，隨即在 20:15:10 出現 RTMP Reconnect。\n細節深挖：如果是網路錯誤，必須附帶 details 中的數據（如 bps）。\n連動追問建議：若發現 Poor CDN Connection，主動建議大腦：「請比對 Stream Log 在此時刻的 BitrateCV 是否同步飆高，以確認是否為全局網路抖動。」\n\n【異常處理規則】\n若數據為空 []：回傳「查詢成功，但該時段無任何事件紀錄。請大腦確認 Suid 是否正確，或評估是否為『靜默式崩潰』（App 直接消失未留下 Log）。」"
+          "systemMessage": "__EXTERNAL_FILE__://nodes/Event_Log_Analyzer/options_systemMessage.md"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agentTool",
@@ -205,7 +205,7 @@
           "cachedResultName": "Media17",
           "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
         },
-        "sqlQuery": "DECLARE start_timestamp TIMESTAMP;\nDECLARE end_timestamp TIMESTAMP;\n\nSET end_timestamp = TIMESTAMP_ADD(TIMESTAMP_SECONDS({{ $json.endTime }}), INTERVAL 5 MINUTE);\n\nSET start_timestamp = TIMESTAMP_SUB(TIMESTAMP_SECONDS({{ $json.beginTime }}), INTERVAL 5 MINUTE);\n\nSELECT \n  DATETIME(ClientTime, \"Asia/Taipei\") as ClientTimeUTCp8, \n  LiveStreamID, -- Do NOT remove it for output check\n  Type,\n  OSVersion,\n  Device,\n  AppVersion,\n  UserIP,\n  IPRegion,\n  NetworkType,\n  Carrier,\n  PingMax,\n  PingMedian,\n  PingSD,\n  PingCV,\n  Provider,\n  HostIP,\n  StreamUrl,\n  BitrateMin,\n  BitrateMedian,\n  BitrateAverage,\n  BitrateSD,\n  BitrateCV,\n  BroadcastDuration,\n  StartBroadcastTime,\n  StartPushTime,\n  StartStreamingTime,\n  ReconnectTimes,\n  Width,\n  Height,\n  UnsentCountMax,\n  UnsentCountAverage,\n  UnsentCountMedian,\n  UnsentCountSD,\n  KeepAliveFailCount,\n  Event,\n  deviceType,\n  ip,\n  region,\n  deviceID,\n  version\nFROM `media17-1119.BackendEvent.IstStreamerLog`\nWHERE \n  timestamp BETWEEN start_timestamp AND end_timestamp\n  AND Suid = \"{{ $json.liveStreamID }}\"\nORDER BY ClientTime ASC;",
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/StreamerLog/sqlQuery.sql",
         "options": {}
       },
       "type": "n8n-nodes-base.googleBigQuery",
@@ -235,7 +235,7 @@
           "cachedResultName": "Media17",
           "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
         },
-        "sqlQuery": "DECLARE start_timestamp TIMESTAMP;\nDECLARE end_timestamp TIMESTAMP;\n\nSET end_timestamp = TIMESTAMP_ADD(TIMESTAMP_SECONDS({{ $json.endTime }}), INTERVAL 5 MINUTE);\nSET start_timestamp = TIMESTAMP_SUB(TIMESTAMP_SECONDS({{ $json.beginTime }}), INTERVAL 5 MINUTE);\n\n  SELECT\n    DATETIME(timestamp, \"Asia/Taipei\") as UTCp8,\n    JSON_EXTRACT_SCALAR(Log, '$.time') as LocalTime,\n    triggerUserID, -- Do NOT remove it for output check\n    Type,\n    JSON_EXTRACT_SCALAR(Log, '$.title') AS title, -- Extracts 'title' from the JSON string\n    SUBSTR(Log, 1, 32000) AS Log,\n    deviceType,\n    ip,\n    region,\n    deviceID,\n    version,\nFROM\n    `media17-1119.BackendEvent.IstStreamerEventLog`\nWHERE\n    timestamp BETWEEN start_timestamp AND end_timestamp\n    AND triggerUserID LIKE \"%{{ $json.userID }}%\"\nORDER BY\n    JSON_EXTRACT_SCALAR(Log, '$.time') ASC -- Orders by the 'time' field within the JSON string",
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/StreamerEventLog/sqlQuery.sql",
         "options": {}
       },
       "type": "n8n-nodes-base.googleBigQuery",
@@ -321,7 +321,7 @@
     {
       "parameters": {
         "description": "get_streamereventlog_cache",
-        "jsCode": "__EXTERNAL_FILE__://nodes/get_streamereventlog_cache/jsCode.js",
+        "jsCode": "try {\n    // 1. 獲取該節點緩存的所有原始數據 (Array of Objects)\n    const rawData = $(\"StreamerEventLog\").all().map(item => item.json);\n\n    // 2. 檢查數據是否存在\n    if (!rawData || rawData.length === 0) {\n        return \"⚠️ 數據緩存為空，請確認上游 BigQuery 或 CSV 節點是否有成功抓取資料。\";\n    }\n\n    // 3. 原封不動回傳所有欄位與所有列\n    // 讓 AI 拿到完整數據後，自行在 Thought 過程中進行時序對齊與動機回溯\n    return JSON.stringify(rawData, null, 2);\n\n} catch (error) {\n    // 捕捉節點名稱錯誤或執行異常\n    return `❌ 錯誤：無法獲取 \"StreamerEventLog\" 資料。請檢查節點名稱是否正確。原因：${error.message}`;\n}",
         "specifyInputSchema": true,
         "jsonSchemaExample": "{\n\t\"query\": \"filter表達式，如：log.title > abnormal cpu\"\n}"
       },
@@ -380,7 +380,7 @@
         "toolDescription": "Dialogue_Analyzer",
         "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
         "options": {
-          "systemMessage": "【角色定義】 你是一位直播情境鑑定專家。你的任務是從解析過的對話日誌（包含主播 STT 語音轉文字與用戶 Comment 評論）中，提取出與直播品質、系統異常相關的「感官證據」。你負責為大腦提供除了技術指標外的「第一現場語意證據」。\n\n【工作流程】\n1. 數據接收：呼叫 get_dialogue_cache 工具讀取已合併的對話 Array（包含時間、發言者、內容）。\n2. 語意過濾：識別關鍵詞（如：「卡住了」、「沒聲音」、「畫面黑掉」、「重開一下」）。\n3. 情境重建：將主播的發言與用戶的反應對齊，判斷故障發生的真實體感時間。\n\n【核心分析維度】\n1. 用戶反饋層（最真實的體感）：\n監控 Comment 中的集體抱怨。若多位用戶同時提到「卡」、「轉圈圈」、「LAG」，即使技術指標正常，也需回報為「集體感官異常」。\n2. 主播反應層（行為意圖）：\n監控 STT 內容。例如主播說：「我換個網路」、「重開看看」、「這手機好燙」，可用於佐證技術層的 Network Type Change 或 Abnormal CPU Info。\n3. 模式過濾：若目前為 Groupcall 或 PK 模式，已知不會有 STT 資訊，僅需分析用戶 Comment。\n4. 時間對齊：對話發生的時間點通常會比技術故障稍微延遲（因為用戶發現後才打字），分析時需考慮 5-10 秒的滯後性。\n\n【回報規範 (與大腦對接)】 你必須向主agent提供結構化的感官診斷報告：\n- 異常感知點：標註精確的 UTCp8 時間、發言對象與內容摘要。\n- 範例：20:15:20: 多位用戶評論「畫面卡死」，隨即在 20:15:30 主播 STT 提到「我重開一下」。\n\n語意與指標聯動建議：\n- 範例：若用戶大規模抱怨卡頓，主動建議大腦：「用戶感官強烈卡頓，請 Stream_Log_Analyzer 確認該時段 BitrateCV 是否有明顯抖動。」\n- 環境噪音排除：若主播提到「這裡收訊不好」，標記為「環境因素影響」。\n\n【異常處理規則】\n- 若數據為空 []：回傳「查詢成功，但該時段無任何對話紀錄。可能原因：用戶安靜、主播未發言、或處於無 STT 支援的 PK/Groupcall 模式。」\n- 若 STT 混亂：回傳「STT 內容語意破碎，推測為辨識錯誤或收音干擾，無法作為有效行為證據。」"
+          "systemMessage": "__EXTERNAL_FILE__://nodes/Dialogue_Analyzer/options_systemMessage.md"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agentTool",
@@ -395,7 +395,7 @@
     {
       "parameters": {
         "description": "get_dialogue_cache",
-        "jsCode": "__EXTERNAL_FILE__://nodes/get_dialogue_cache/jsCode.js"
+        "jsCode": "// 獲取整個 Array 的 JSON 數據\ntry {\n    // .all() 會取得該節點產出的所有項目 (Array of Objects)\n    const allItems = $(\"STT listener\").all();\n    \n    // 使用 map 提取每個項目的 json 內容，並打包成一個 Array\n    const dataArray = allItems.map(item => item.json);\n    \n    // 將整個 Array 轉化為字串，加上縮排\n    return JSON.stringify(dataArray, null, 2); \n    \n} catch (error) {\n    return `錯誤：無法獲取 \"StreamerLog\" 的完整數據。原因：${error.message}`;\n}"
       },
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1.3,
@@ -513,7 +513,7 @@
         "toolDescription": "StreamInfo_Analyzer",
         "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
         "options": {
-          "systemMessage": "【角色定義】 你是一位直播情境分析官。你的任務是解析直播場次的基礎中繼資料（Metadata），為後續的技術指標診斷提供「場景背景」。你必須判斷直播是如何結束的、硬體設備等級以及開播模式，幫助大腦（Main Agent）定調分析方向。\n\n【工作流程】\n\n數據獲取：呼叫 get_streaminfo_cache 工具獲取當前直播的完整 JSON 資訊。\n\n背景過濾：識別該場直播的 closeBy（關播原因）、設備型號（deviceModel）、版本號（version）與直播模式（streamMode）。\n\n異常預判：根據基本資訊，預先指出潛在的風險點（如：非正常關播、老舊設備、過低版本）。\n\n\n【核心分析維度：診斷指引】\n\n1. 關播原因鑑定 (關鍵分析點)： 你必須解讀 closeBy 欄位，並將其定義為以下情境：\n請特別注意 closeBy 為normal End 以外的原因，關播時間不完全可信，可能會因為client補打關播api而有延，請在提供關播時間跟開播時長的同事告知這個備注資訊\n\nnormalEnd: 用戶正常手動關播，注意這只能代表用戶有關播行為，不代表直播間沒有問題，例如用戶手動為了排除問題而關閉重開直播間，此時需要建議確認dialogue有沒有其他異常的資訊。\n\nKilled/Banned/Freezed: 營運干預。通常是因為內容違規或「畫面長時間靜止/全黑」被官方強制中斷。\n\nend by new stream: 異常訊號。APP 沒來得及關閉直播即開啟下一場，通常代表前一場發生當機或手機崩潰。\n\nno stream: 重大網路/系統異常。系統 10 分鐘偵測不到訊號。應引導大腦檢查「長時斷流」。\n\nClose by low memory recycle: 硬體瓶頸。手機記憶體不足，被系統強制回收 App 資源。\n\nCRASH: 程式錯誤。APP 直接閃退。\n\n2. 設備與軟體環境：\n\n設備等級：檢查 deviceModel 與 OSVersion。\n\n版本健康度：檢查 version 是否過低，可能導致已知的舊版 Bug。\n\n網路環境：記錄 publicIP 與 ipRegion，判斷是否跨區推流。\n\n\n【查詢工具使用規範】\n\n你擁有 get_streamerInfo_cache 工具。\n\n【回報規範 (對接大腦)】 你必須提供結構化的「環境背景報告」：\n\n環境摘要：[開播時間] /[關播時間] / [設備] / [版本] / [關播原因]。\n\n風險提示：例如：「此場直播為 no stream 結束，代表推流訊號丟失超過 10 分鐘，建議 Stream_Log_Analyzer 重點檢查後半段的網路丟包。」\n\n感官聯動建議：若為 Close by low memory recycle，建議 Dialogue_Analyzer 查看主播是否有提到「手機很燙」或「很卡」。\n\n【異常處理規則】\n\n若 closeBy 為空：回傳「無法取得關播原因，可能為直播進行中或緩存遺失。」\n遲\n若數據獲取失敗：回傳「查無基本資訊，請確認 StreamID 是否正確。」"
+          "systemMessage": "__EXTERNAL_FILE__://nodes/StreamInfo_Analyzer/options_systemMessage.md"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agentTool",
@@ -535,7 +535,7 @@
           "cachedResultName": "Media17",
           "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
         },
-        "sqlQuery": "-- 設定搜尋範圍為最近 30 天\nDECLARE limit_timestamp TIMESTAMP DEFAULT TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY);\n\nSELECT \n  userID,\n  DATETIME(TIMESTAMP_SECONDS(beginTime), 'Asia/Taipei') as BeginTimeU8,\n  beginTime, endTime, publishSec, duration, closeBy,\n  landscape, liveStreamID, streamType, streamMode, streamerType, \n  caption,\n  premiumContent.premiumType,\n  archiveConfig,\n  deviceInfo.deviceName, deviceInfo.deviceModel,\n  deviceInfo.type, deviceInfo.version, deviceInfo.hardware, deviceInfo.OSVersion, \n  deviceInfo.Customization, deviceInfo.publicIP, deviceInfo.ipRegion,\n  premiumContent, *\nFROM `media17-1119.mongodb.LiveStreamV2`\nWHERE \n  -- 篩選特定的 Stream ID\n  liveStreamID = {{ $json.liveStreamID }}\n  AND TIMESTAMP_SECONDS(beginTime) >= limit_timestamp\n  \n  AND beginTime is NOT NULL\n  AND endTime is NOT NULL",
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/query_stream_info/sqlQuery.sql",
         "options": {}
       },
       "type": "n8n-nodes-base.googleBigQuery",
@@ -557,7 +557,7 @@
     {
       "parameters": {
         "description": "get_streaminfo_cache",
-        "jsCode": "__EXTERNAL_FILE__://nodes/get_streaminfo_cache/jsCode.js"
+        "jsCode": "// 獲取整個 Array 的 JSON 數據\ntry {\n    // .all() 會取得該節點產出的所有項目 (Array of Objects)\n    const allItems = $(\"query stream info\").all();\n    \n    // 使用 map 提取每個項目的 json 內容，並打包成一個 Array\n    const dataArray = allItems.map(item => item.json);\n    \n    // 將整個 Array 轉化為字串，加上縮排\n    return JSON.stringify(dataArray, null, 2); \n    \n} catch (error) {\n    return `錯誤：無法獲取 \"Stream Info\" 的完整數據。原因：${error.message}`;\n}"
       },
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1.3,
@@ -603,7 +603,7 @@
     {
       "parameters": {
         "description": "get_streamerlog_cache",
-        "jsCode": "__EXTERNAL_FILE__://nodes/get_streamerlog_cache/jsCode.js",
+        "jsCode": "try {\n    // 1. 獲取該節點緩存的所有原始數據 (Array of Objects)\n    const rawData = $(\"StreamerLog\").all().map(item => item.json);\n\n    // 2. 檢查數據是否存在\n    if (!rawData || rawData.length === 0) {\n        return \"⚠️ 數據緩存為空，請確認上游 BigQuery 或 CSV 節點是否有成功抓取資料。\";\n    }\n\n    // 3. 原封不動回傳所有欄位與所有列\n    // 讓 AI 拿到完整數據後，自行在 Thought 過程中進行時序對齊與動機回溯\n    return JSON.stringify(rawData, null, 2);\n\n} catch (error) {\n    // 捕捉節點名稱錯誤或執行異常\n    return `❌ 錯誤：無法獲取 \"StreamerEventLog\" 資料。請檢查節點名稱是否正確。原因：${error.message}`;\n}",
         "specifyInputSchema": true,
         "jsonSchemaExample": "{\n\t\"query\": \"filter表達式，如：log.pingMax > 350\"\n}"
       },

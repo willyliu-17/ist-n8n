@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Keyword Eval",
+  "type": "object",
+  "properties": {
+    "keyword_hit": {
+      "type": "integer",
+      "enum": [0, 1]
+    },
+    "hit_keywords": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "keyword_hit",
+    "hit_keywords"
+  ],
+  "additionalProperties": false
+}

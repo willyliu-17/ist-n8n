@@ -103,7 +103,7 @@
           "cachedResultName": "Media17",
           "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
         },
-        "sqlQuery": "DECLARE start_timestamp TIMESTAMP;\nDECLARE end_timestamp TIMESTAMP;\n\nSET end_timestamp = TIMESTAMP_ADD(TIMESTAMP_SECONDS({{ $json.endTime }}), INTERVAL 5 MINUTE);\n\nSET start_timestamp = TIMESTAMP_SUB(TIMESTAMP_SECONDS({{ $json.beginTime }}), INTERVAL 5 MINUTE);\n\nSELECT \n  DATETIME(ClientTime, \"Asia/Taipei\") as ClientTimeUTCp8, \n  LiveStreamID, -- Do NOT remove it for output check\n  Type,\n  OSVersion,\n  Device,\n  AppVersion,\n  UserIP,\n  IPRegion,\n  NetworkType,\n  Carrier,\n  PingMax,\n  PingMedian,\n  PingSD,\n  PingCV,\n  Provider,\n  HostIP,\n  StreamUrl,\n  BitrateMin,\n  BitrateMedian,\n  BitrateAverage,\n  BitrateSD,\n  BitrateCV,\n  BroadcastDuration,\n  StartBroadcastTime,\n  StartPushTime,\n  StartStreamingTime,\n  ReconnectTimes,\n  Width,\n  Height,\n  UnsentCountMax,\n  UnsentCountAverage,\n  UnsentCountMedian,\n  UnsentCountSD,\n  KeepAliveFailCount,\n  Event,\n  deviceType,\n  ip,\n  region,\n  deviceID,\n  version\nFROM `media17-1119.BackendEvent.IstStreamerLog`\nWHERE \n  timestamp BETWEEN start_timestamp AND end_timestamp\n  AND Suid = \"{{ $json.liveStreamID }}\"\nORDER BY ClientTime ASC;",
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/StreamerLog/sqlQuery.sql",
         "options": {}
       },
       "type": "n8n-nodes-base.googleBigQuery",
@@ -133,7 +133,7 @@
           "cachedResultName": "Media17",
           "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
         },
-        "sqlQuery": "DECLARE start_timestamp TIMESTAMP;\nDECLARE end_timestamp TIMESTAMP;\n\nSET end_timestamp = TIMESTAMP_ADD(TIMESTAMP_SECONDS({{ $json.endTime }}), INTERVAL 5 MINUTE);\nSET start_timestamp = TIMESTAMP_SUB(TIMESTAMP_SECONDS({{ $json.beginTime }}), INTERVAL 5 MINUTE);\n\n  SELECT\n    DATETIME(timestamp, \"Asia/Taipei\") as UTCp8,\n    JSON_EXTRACT_SCALAR(Log, '$.time') as LocalTime,\n    triggerUserID, -- Do NOT remove it for output check\n    Type,\n    JSON_EXTRACT_SCALAR(Log, '$.title') AS title, -- Extracts 'title' from the JSON string\n    SUBSTR(Log, 1, 32000) AS Log,\n    deviceType,\n    ip,\n    region,\n    deviceID,\n    version,\nFROM\n    `media17-1119.BackendEvent.IstStreamerEventLog`\nWHERE\n    timestamp BETWEEN start_timestamp AND end_timestamp\n    AND triggerUserID LIKE \"%{{ $json.userID }}%\"\nORDER BY\n    JSON_EXTRACT_SCALAR(Log, '$.time') ASC -- Orders by the 'time' field within the JSON string",
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/StreamerEventLog/sqlQuery.sql",
         "options": {}
       },
       "type": "n8n-nodes-base.googleBigQuery",
@@ -188,7 +188,7 @@
           "cachedResultName": "Media17",
           "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
         },
-        "sqlQuery": "-- 設定搜尋範圍為最近 30 天\nDECLARE limit_timestamp TIMESTAMP DEFAULT TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY);\n\nSELECT \n  userID,\n  DATETIME(TIMESTAMP_SECONDS(beginTime), 'Asia/Taipei') as BeginTimeU8,\n  beginTime, endTime, publishSec, duration, closeBy,\n  landscape, liveStreamID, streamType, streamMode, streamerType, \n  caption,\n  premiumContent.premiumType,\n  archiveConfig,\n  deviceInfo.deviceName, deviceInfo.deviceModel,\n  deviceInfo.type, deviceInfo.version, deviceInfo.hardware, deviceInfo.OSVersion, \n  deviceInfo.Customization, deviceInfo.publicIP, deviceInfo.ipRegion,\n  premiumContent, *\nFROM `media17-1119.mongodb.LiveStreamV2`\nWHERE \n  -- 篩選特定的 Stream ID\n  liveStreamID = {{ $json.liveStreamID }}\n  AND TIMESTAMP_SECONDS(beginTime) >= limit_timestamp\n  \n  AND beginTime is NOT NULL\n  AND endTime is NOT NULL",
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/query_stream_info/sqlQuery.sql",
         "options": {}
       },
       "type": "n8n-nodes-base.googleBigQuery",
@@ -439,7 +439,7 @@
           "value": "={{ $('Start').first().json.channelID }}",
           "mode": "id"
         },
-        "text": "=:speech_balloon: *AI SUMMARY* :speech_balloon:\n{{ $('Edit Fields').item.json.summary.report.summary.responsibility_category.replace(/\\[(.*?)\\]/g, \"`$1` \")  }}\n\n{{ $('Edit Fields').item.json.summary.report.summary.causal_summary }}\n- file: {{ $json.permalink }}",
+        "text": "__EXTERNAL_FILE__://nodes/Send_a_message/text.md",
         "otherOptions": {
           "link_names": false,
           "thread_ts": {
@@ -769,7 +769,7 @@
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={\n  \"userID\": \"{{ $('query stream info').item.json.userID }}\",\n  \"openID\": \"{{ $('query stream info').item.json.caption.split(' 正在開播')[0] }}\",\n  \"streamID\": \"{{ $('query stream info').item.json.liveStreamID }}\",\n  \"region\": \"{{ $('query stream info').item.json.region }}\",\n  \"sttModel\": \"whisper-large-v3\",\n  \"language\": \"\",\n  \"createdTime\": {{ Number($('query stream info').item.json.beginTime) }},\n  \"endTime\": {{ Number($('query stream info').item.json.endTime) }},\n  \"duration\": {{ Number($('query stream info').item.json.duration) }},\n  \"scheduledAt\": {{ Date.now() }},\n  \"contractType\": 1,\n  \"vliverModel\": {{ Number($('query stream info').item.json.vliverModel) }},\n  \"appVersion\": \"{{ $('query stream info').item.json.version }}\",\n  \"deviceType\": \"{{ $('query stream info').item.json.type }}\",\n  \"streamSegment\": {\n    \"mode\": \"{{ ({ \"first\": \"fromStart\", \"last\": \"fromEnd\" })[$('Normalize Inputs').item.json.mode_input] || \"fromEnd\" }}\",\n    \"durationMinutes\": 5\n  },\n  \"webhookConfiguration\": {\n    \"url\": \"{{$execution.resumeUrl}}\",\n    \"context\": {\n      \"mode_input\": \"{{ $('Normalize Inputs').item.json.mode_input }}\",\n      \"mins_input\": \"{{ $('Normalize Inputs').item.json.mins_input }}\",\n    }\n  }\n}",
+        "jsonOutput": "__EXTERNAL_FILE__://nodes/compose_input/jsonOutput.jsonc",
         "options": {}
       },
       "type": "n8n-nodes-base.set",

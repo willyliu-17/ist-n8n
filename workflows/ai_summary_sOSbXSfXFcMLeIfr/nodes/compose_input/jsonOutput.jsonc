@@ -1,0 +1,27 @@
+={
+  "userID": "{{ $('query stream info').item.json.userID }}",
+  "openID": "{{ $('query stream info').item.json.caption.split(' 正在開播')[0] }}",
+  "streamID": "{{ $('query stream info').item.json.liveStreamID }}",
+  "region": "{{ $('query stream info').item.json.region }}",
+  "sttModel": "whisper-large-v3",
+  "language": "",
+  "createdTime": {{ Number($('query stream info').item.json.beginTime) }},
+  "endTime": {{ Number($('query stream info').item.json.endTime) }},
+  "duration": {{ Number($('query stream info').item.json.duration) }},
+  "scheduledAt": {{ Date.now() }},
+  "contractType": 1,
+  "vliverModel": {{ Number($('query stream info').item.json.vliverModel) }},
+  "appVersion": "{{ $('query stream info').item.json.version }}",
+  "deviceType": "{{ $('query stream info').item.json.type }}",
+  "streamSegment": {
+    "mode": "{{ ({ "first": "fromStart", "last": "fromEnd" })[$('Normalize Inputs').item.json.mode_input] || "fromEnd" }}",
+    "durationMinutes": 5
+  },
+  "webhookConfiguration": {
+    "url": "{{$execution.resumeUrl}}",
+    "context": {
+      "mode_input": "{{ $('Normalize Inputs').item.json.mode_input }}",
+      "mins_input": "{{ $('Normalize Inputs').item.json.mins_input }}",
+    }
+  }
+}

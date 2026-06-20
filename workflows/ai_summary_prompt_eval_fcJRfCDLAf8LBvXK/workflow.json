@@ -306,7 +306,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=請比對下列摘要與關鍵字是否語意命中。\n\nexpected_keywords: {{ JSON.stringify($json.expected_keywords || []) }}\ncausal_summary: {{ JSON.stringify(($json.summary && $json.summary.report && $json.summary.report.summary && $json.summary.report.summary.causal_summary) ? $json.summary.report.summary.causal_summary : '') }}",
+        "text": "__EXTERNAL_FILE__://nodes/AI_Keyword_Evaluator/text.md",
         "hasOutputParser": true,
         "options": {
           "systemMessage": "你是語意比對評估器。任務：判斷 causal_summary 是否語意命中 expected_keywords。規則：1) 以語意為準，不要求字面完全一致。2) 命中至少一個 keyword 時 keyword_hit=1，否則 0。3) hit_keywords 只能填寫 expected_keywords 內實際命中的詞。4) 嚴格輸出指定 JSON。",
@@ -325,7 +325,7 @@
     {
       "parameters": {
         "schemaType": "manual",
-        "inputSchema": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"title\": \"Keyword Eval\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"keyword_hit\": {\n      \"type\": \"integer\",\n      \"enum\": [0, 1]\n    },\n    \"hit_keywords\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"required\": [\n    \"keyword_hit\",\n    \"hit_keywords\"\n  ],\n  \"additionalProperties\": false\n}",
+        "inputSchema": "__EXTERNAL_FILE__://nodes/Keyword_Eval_Output_Parser/inputSchema.json",
         "autoFix": true
       },
       "id": "df1f03c3-42e8-41bd-9c0d-a322b9c6ca8b",

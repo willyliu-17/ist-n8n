@@ -291,7 +291,7 @@
           "mode": "id"
         },
         "ts": "={{ $node[\"Webhook\"].json.body.webhook.context.last_msg_ts}}",
-        "text": "=Stream: `{{ $node[\"Webhook\"].json.body.webhook.context.streamid_input }}`\n{{\n  $node[\"Webhook\"].json.body.statusCode != 200 \n  ? \"⚠️ Status Code: \" + $node[\"Webhook\"].json.body.statusCode + ($node[\"Webhook\"].json.body.error ? \"\\n❌ Error: \" + $node[\"Webhook\"].json.body.error : \"\")\n  : \"No transcription data\" \n}}",
+        "text": "__EXTERNAL_FILE__://nodes/Update_no_transcription/text.md",
         "updateFields": {},
         "otherOptions": {}
       },
@@ -339,7 +339,7 @@
           "mode": "id"
         },
         "ts": "={{ $node[\"Webhook\"].json.body.webhook.context.last_msg_ts}}",
-        "text": "=🤖 STT Done\nStream: `{{ $node[\"Webhook\"].json.body.webhook.context.streamid_input }}`\nMode: `{{  $node[\"Webhook\"].json.body.webhook.context.mode_input }}` {{  $node[\"Webhook\"].json.body.webhook.context.mins_input }}m",
+        "text": "__EXTERNAL_FILE__://nodes/Update_Processing_Msg/text.md",
         "updateFields": {},
         "otherOptions": {}
       },

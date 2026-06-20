@@ -206,7 +206,7 @@
           "cachedResultName": "Media17",
           "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
         },
-        "sqlQuery": "-- 設定搜尋範圍為最近 30 天\nDECLARE limit_timestamp TIMESTAMP DEFAULT TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY);\n\nSELECT \n  userID,\n  DATETIME(TIMESTAMP_SECONDS(beginTime), 'Asia/Taipei') as BeginTimeU8,\n  beginTime, endTime, publishSec, duration, closeBy,\n  landscape, liveStreamID, streamType, streamMode, streamerType, \n  caption,\n  premiumContent.premiumType,\n  archiveConfig,\n  deviceInfo.deviceName, deviceInfo.deviceModel,\n  deviceInfo.type, deviceInfo.version, deviceInfo.hardware, deviceInfo.OSVersion, \n  deviceInfo.Customization, deviceInfo.publicIP, deviceInfo.ipRegion,\n  premiumContent, *\nFROM `media17-1119.mongodb.LiveStreamV2`\nWHERE \n  -- 篩選特定的 Stream ID\n  liveStreamID = {{ $('Normalize Inputs').item.json.streamid_input}}\n  AND TIMESTAMP_SECONDS(beginTime) >= limit_timestamp\n  \n  AND beginTime is NOT NULL\n  AND endTime is NOT NULL",
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/query_stream_info/sqlQuery.sql",
         "options": {}
       },
       "type": "n8n-nodes-base.googleBigQuery",
@@ -228,7 +228,7 @@
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={\n  \"userID\": \"{{ $json.userID }}\",\n  \"openID\": \"{{ $json.caption.split(' 正在開播')[0] }}\",\n  \"streamID\": \"{{ $json.liveStreamID }}\",\n  \"region\": \"{{ $json.region }}\",\n  \"sttModel\": \"whisper-large-v3\",\n  \"language\": \"\",\n  \"createdTime\": {{ Number($json.beginTime) }},\n  \"endTime\": {{ Number($json.endTime) }},\n  \"duration\": {{ Number($json.duration) }},\n  \"scheduledAt\": {{ Date.now() }},\n  \"contractType\": 1,\n  \"vliverModel\": {{ Number($json.vliverModel) }},\n  \"appVersion\": \"{{ $json.version }}\",\n  \"deviceType\": \"{{ $json.type }}\",\n  \"streamSegment\": {\n    \"mode\": \"{{ ({ \"first\": \"fromStart\", \"last\": \"fromEnd\" })[$('Start').item.json.mode] || \"fromEnd\" }}\",\n    \"durationMinutes\": {{ $('Normalize Inputs').item.json.mins_input }}\n  },\n  \"webhookConfiguration\": {\n    \"url\": \"{{$execution.resumeUrl}}\",\n    \"context\": {\n      \"last_msg_ts\": \"{{ $('Send a message1').item.json.message.ts }}\", \n      \"event_ts\": \"{{ $('Normalize Inputs').item.json.thread_ts_input }}\",\n      \"channel\": \"{{ $('Normalize Inputs').item.json.channel_input }}\",\n      \"ts\": \"{{ $('Normalize Inputs').item.json.ts }}\",\n      \"mode_input\": \"{{ $('Normalize Inputs').item.json.mode_input }}\",\n      \"mins_input\": \"{{ $('Normalize Inputs').item.json.mins_input }}\",\n      \"streamid_input\": \"{{ $('Normalize Inputs').item.json.streamid_input }}\",\n    }\n  }\n}",
+        "jsonOutput": "__EXTERNAL_FILE__://nodes/compose_input/jsonOutput.jsonc",
         "options": {}
       },
       "type": "n8n-nodes-base.set",
