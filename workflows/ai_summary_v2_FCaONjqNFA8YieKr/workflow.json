@@ -352,7 +352,8 @@
         2096
       ],
       "id": "cc5a5f70-d933-44e3-a80e-2ac0b1ee8e50",
-      "name": "Call AI Summary Inference SubWF"
+      "name": "Call AI Summary Inference SubWF",
+      "retryOnFail": true
     },
     {
       "parameters": {

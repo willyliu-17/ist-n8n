@@ -98,7 +98,7 @@ return items.map(item => {
       }
     } catch(e) {}
     
-    const deviceName = streamInfo.deviceName || streamInfo.deviceModel || 'Unknown';
+    const deviceName = streamInfo.deviceModel || streamInfo.hardware || streamInfo.deviceName || 'Unknown';
     const osVersion = streamInfo.OSVersion || streamInfo.version || 'Unknown';
 
     mdContent = `# AI SUMMARY\n`;
