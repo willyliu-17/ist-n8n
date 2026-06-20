@@ -23,7 +23,14 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
 ## Developer SOP
 
 1. **Sync (Remote to Git)**:
-   Run `node --env-file=.env scripts/sync.js` (for Production) or `node --env-file=.env.stag scripts/sync.js` (for Staging) to download the latest workflows into the `workflows/` directory. By default, it ignores archived workflows. To include them, append `--include-archived`.
+   Run `node --env-file=.env scripts/sync.js [workflow_name_or_path]` (for Production) or `node --env-file=.env.stag scripts/sync.js [workflow_name_or_path]` (for Staging) to download workflows into the `workflows/` directory. By default, it ignores archived workflows. To include them, append `--include-archived`.
+   - **Selective Syncing**: You can sync a specific workflow by passing its name in quotes (e.g., `"My Workflow"`) or its local path (e.g., `workflows/my_workflow_123`). If omitted, it syncs all workflows.
+   - **Conflict Resolution**: The script provides interactive CLI prompts for conflicts:
+     - If multiple remote workflows share the exact same name, you will be prompted to select the correct target ID.
+     - If a local directory exists with the same name but a different ID (e.g., pulling from Staging but the local folder has a Prod ID), you can choose to:
+       - **[O] Overwrite**: Overwrites the local directory and forces the `workflow.json` ID back to the existing local ID. This is the standard path for cleanly pulling Staging changes back into the main Git repo.
+       - **[N] New**: Creates a separate new directory with the new remote ID for isolated testing.
+       - **[S] Skip**: Skips syncing the workflow.
    **Important**: Always explicitly confirm the target environment before running this command.
 
 2. **Import (Git to Local)**:
