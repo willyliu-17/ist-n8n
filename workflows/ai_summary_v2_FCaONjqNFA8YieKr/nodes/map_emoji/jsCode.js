@@ -14,10 +14,18 @@ if (aggregateData.length > 0 && aggregateData[0].details) {
 }
 // 2. 定義對照表
 const emojiMap = {
-  "0": "zero",
-  "1": "one",
-  "2": "two",
-  "0-b": "low_battery",
+  "1-a": "thermometer",
+  "1-b": "movie_camera",
+  "1-c": "memory",
+  "1-d": "boom",
+  "1-e": "cop",
+  "1-f": "internet-problems",
+  "1-g": "user",
+  "2-a": "low_battery",
+  "2-b": "gift",
+  "2-c": "signal_strength",
+  "2-d": "no_entry",
+  "2-e": "question",
 };
 
 const results = [];
@@ -36,16 +44,19 @@ if (deviceType.toLowerCase() === 'android') {
 
 // 4. 處理分類邏輯 (大類先出，小項緊跟其後)
 categoryList.forEach(rawId => {
-  const mainId = rawId.split('-')[0];
+  const match = rawId.match(/\[(.*?)\]/);
+  if (!match) return;
+  const idStr = match[1];
+  const mainId = idStr.split('-')[0];
 
-  // A. 大類 (例如 "0")
+  // A. 大類 (例如 "1")
   if (emojiMap[mainId]) {
     results.push(emojiMap[mainId]);
   }
   
-  // B. 細項 (例如 "0-b")
-  if (rawId.includes('-') && emojiMap[rawId]) {
-    results.push(emojiMap[rawId]);
+  // B. 細項 (例如 "1-a")
+  if (idStr.includes('-') && emojiMap[idStr]) {
+    results.push(emojiMap[idStr]);
   }
 });
 

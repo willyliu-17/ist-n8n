@@ -73,7 +73,21 @@
               "type": "array",
               "description": "responsibility_category欄位的enum list [array of string )[<level enum>] ,eg [1-a] enum請參考[Issue 定義]，只關注直播間異關播的root cause",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "[1-a] High CPU/Overheating",
+                  "[1-b] Encoder Issue",
+                  "[1-c] Low Memory",
+                  "[1-d] App Crash",
+                  "[1-e] OP Killed",
+                  "[1-f] Network Lag",
+                  "[1-g] User Interaction Issue",
+                  "[2-a] Battery issue",
+                  "[2-b] Event Gift Specific",
+                  "[2-c] Streaming Env",
+                  "[2-d] Policy Violation",
+                  "[2-e] Unknown"
+                ]
               }
             },
             "causal_summary": {
