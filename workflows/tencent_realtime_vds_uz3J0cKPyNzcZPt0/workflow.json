@@ -1,0 +1,1061 @@
+{
+  "id": "uz3J0cKPyNzcZPt0",
+  "name": "tencent realtime vds",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "streamID"
+            },
+            {
+              "name": "channel"
+            },
+            {
+              "name": "target_thread_ts"
+            },
+            {
+              "name": "playback"
+            },
+            {
+              "name": "playbacks",
+              "type": "array"
+            },
+            {
+              "name": "startSec",
+              "type": "number"
+            },
+            {
+              "name": "durationSec",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "3d5e9189-a5b7-4c39-9d84-b0726792c586",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -2896,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "18f5d023-3b1a-4632-84b2-034876212501",
+              "name": "streamID",
+              "value": "={{ $json.streamID ? $json.streamID : $node[\"Start\"].json.positionals[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "9f76238b-1809-4623-8321-765187219803",
+              "name": "channelId",
+              "value": "={{ $json.channel ? $json.channel : $node[\"Start\"].json.channel }}",
+              "type": "string"
+            },
+            {
+              "id": "abc12345-6789-4012-3456-789012345678",
+              "name": "threadTs",
+              "value": "={{ $json.target_thread_ts ? $json.target_thread_ts : $node[\"Start\"].json.event_ts }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2688,
+        -16
+      ],
+      "id": "d5645343-0797-4591-8299-92682bcb5ca8",
+      "name": "Normalize Input"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/steamID_beginTime_and_endTime1/sqlQuery.sql",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2512,
+        -16
+      ],
+      "id": "97600d37-9352-4297-9624-989c6090737d",
+      "name": "steamID beginTime and endTime1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ec500057-8829-4b71-8159-2992e0f01019",
+              "leftValue": "={{ $json.liveStreamID }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2320,
+        -16
+      ],
+      "id": "cfd673b8-06e2-430c-aee0-660e60139369",
+      "name": "If streamID exist1"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/Stream_comments/sqlQuery.sql",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -1904,
+        320
+      ],
+      "id": "a4ee23ae-1b8d-47d3-9f27-1e2c72441514",
+      "name": "Stream comments",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -240,
+        -48
+      ],
+      "id": "240643f4-2c06-4835-9d94-9965fa89e068",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/get_dialogue/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1072,
+        -544
+      ],
+      "id": "f469425d-34e8-49cc-8263-9c93d8bf5e47",
+      "name": "get dialogue"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "__EXTERNAL_FILE__://nodes/AI_Agent/text.md",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        432,
+        -48
+      ],
+      "id": "2f9f11a1-8e6d-45dc-8c1b-eef643b93671",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "SELECT openID FROM `media17-1119.mongodb.User`  WHERE userID = \"{{ $json.userID }}\" LIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2112,
+        -32
+      ],
+      "id": "7bdd5fc8-db67-4e1a-b06a-8f1a21d35614",
+      "name": "get openID",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        432,
+        192
+      ],
+      "id": "feb1cb89-4652-4286-beb9-e3f1d744ff02",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gMeMxD0Uq89xl8xy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/decode/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        -48
+      ],
+      "id": "8bb19633-fb2a-47b4-890c-1494824288d4",
+      "name": "decode"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f34fdf65-ea99-42d4-bf86-1aa9c24f7276",
+              "name": "text",
+              "value": "={\"type\":\"streamer\",\"startedAt\":1783287046.12,\"content\":\"OK OK OK OK OK プー。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287048.262018,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 2500 上がりました！\",\"speaker\":\"🥁ひまわり_RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287048.428678,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 500 上がりました！\",\"speaker\":\"momo_chan08🍡\"}\n{\"type\":\"viewer\",\"startedAt\":1783287048.874495,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 7500 上がりました！\",\"speaker\":\"🥁shiho1028🩰︎💕︎RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287048.895104,\"content\":\"【6月】最高峰最強気味 の 🥁ひまわり_RWG🥁 が配信ルームにきました！\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287049.288399,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 8000 上がりました！\",\"speaker\":\"うる_Uluru\"}\n{\"type\":\"viewer\",\"startedAt\":1783287049.32046,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 12500 上がりました！\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287049.764959,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 29000 上がりました！\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287049.777645,\"content\":\"【6月】最高峰最強気味 の showa🥁no🥁owari が配信ルームにきました！\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287049.82874,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 10000 上がりました！\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287049.983761,\"content\":\"【6月】最高峰最強気味 の 🥁ななきき🐉REWGY🥁 が配信ルームにきました！\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287050.0096,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 13000 上がりました！\",\"speaker\":\"ちえ🐘S.Dragon-Er🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287050.028081,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 23500 上がりました！\",\"speaker\":\"ぽよみん🥁S.Dragon🐈\"}\n{\"type\":\"viewer\",\"startedAt\":1783287050.028081,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 28500 上がりました！\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287050.179822,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 13500 上がりました！\",\"speaker\":\"Palu\"}\n{\"type\":\"viewer\",\"startedAt\":1783287050.619229,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 10500 上がりました！\",\"speaker\":\"🥁ななきき🐉REWGY🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287050.863086,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 31500 上がりました！\",\"speaker\":\"Ken🌴Cambodia🥥🐒\"}\n{\"type\":\"viewer\",\"startedAt\":1783287051.585306,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 31000 上がりました！\",\"speaker\":\"ひろたん_RWG🥁☀️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287051.629652,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 35500 上がりました！\",\"speaker\":\"ひろたん_RWG🥁☀️\"}\n{\"type\":\"streamer\",\"startedAt\":1783287051.81,\"content\":\"すげすげすっぷ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287052.044411,\"content\":\"【6月】最高峰最強気味 の 🥁あつよ_Bs⚾️ が配信ルームにきました！\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287052.409418,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 33500 上がりました！\",\"speaker\":\"Kasumin🥁J\"}\n{\"type\":\"viewer\",\"startedAt\":1783287052.409418,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 36000 上がりました！\",\"speaker\":\"びっける💎🎨🔥ART\"}\n{\"type\":\"viewer\",\"startedAt\":1783287052.746705,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 38500 上がりました！\",\"speaker\":\"🥁あつよ_Bs⚾️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287052.774945,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 36500 上がりました！\",\"speaker\":\"ゆき🥁m͙i͙m͙i͙🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287053.53,\"content\":\"うん。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287053.539028,\"content\":\"おはようございます😊\",\"speaker\":\"momo_chan08🍡\"}\n{\"type\":\"viewer\",\"startedAt\":1783287054.060048,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 39000 上がりました！\",\"speaker\":\"れいこchocΩ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287055.154512,\"content\":\"( ﾟдﾟ)ﾊｯ!\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287055.7,\"content\":\"いつも女に\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287056.853471,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 44000 上がりました！\",\"speaker\":\"🥁ᵧₘₖ🤤ゆみこ🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287058.358864,\"content\":\"おはようございま〜す\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"streamer\",\"startedAt\":1783287059.52,\"content\":\"お世話してます。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287059.947203,\"content\":\"おはようございます\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287059.947203,\"content\":\"🤣\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287060.53041,\"content\":\"おはようございます😊\",\"speaker\":\"🥁あつよ_Bs⚾️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287060.53041,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 46500 上がりました！\",\"speaker\":\"meiji_no_owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287060.569448,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 46000 上がりました！\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287063.184852,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 47000 上がりました！\",\"speaker\":\"🥁🍙ももたん🍑🌸\"}\n{\"type\":\"streamer\",\"startedAt\":1783287063.72,\"content\":\"やってまいりました、皆さん。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287063.962221,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287064.004844,\"content\":\"めずらしや\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287066.302157,\"content\":\"おはようございます❀.(*´▽`*)❀.\",\"speaker\":\"Kasumin🥁J\"}\n{\"type\":\"viewer\",\"startedAt\":1783287067.072394,\"content\":\"おはようございます\",\"speaker\":\"🥁🍙ももたん🍑🌸\"}\n{\"type\":\"streamer\",\"startedAt\":1783287067.2,\"content\":\"月曜日は残酷でございます。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287067.605967,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 57000 上がりました！\",\"speaker\":\"🥁annie_アニー🍬\"}\n{\"type\":\"viewer\",\"startedAt\":1783287067.956791,\"content\":\"おはようございます😊\",\"speaker\":\"aiko_wish\"}\n{\"type\":\"viewer\",\"startedAt\":1783287069.291138,\"content\":\"🧡𓂂𓏸︎︎ᰔᩚꕤ︎︎·͜·ごきげんよう♪̊̈🤎✨🍃💠 𓂃𓈒𓏸︎︎︎︎⁡ ͛.*\",\"speaker\":\"⿻🧚🏻‍♀️ᩚなさﾁｬ✧Ym🍷🍇ྀི\"}\n{\"type\":\"viewer\",\"startedAt\":1783287070.143198,\"content\":\"🤣🤣🤣🤣🤣🤣🤣🤣\",\"speaker\":\"ぽよみん🥁S.Dragon🐈\"}\n{\"type\":\"viewer\",\"startedAt\":1783287070.83262,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 58000 上がりました！\",\"speaker\":\"まゆみ1029\"}\n{\"type\":\"viewer\",\"startedAt\":1783287070.983966,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 57500 上がりました！\",\"speaker\":\"ルミ.runrun𓃬🐾\"}\n{\"type\":\"viewer\",\"startedAt\":1783287071.55966,\"content\":\"👏👏👏👏👏\",\"speaker\":\"ap_5017947852\"}\n{\"type\":\"viewer\",\"startedAt\":1783287072.44333,\"content\":\"うわ、\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287072.705526,\"content\":\":ohazuma::ohazuma:\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287073.893212,\"content\":\"👏👏👏👏👏\",\"speaker\":\"ap_5017947852\"}\n{\"type\":\"streamer\",\"startedAt\":1783287074.08,\"content\":\"おはようございます。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287074.400679,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 58500 上がりました！\",\"speaker\":\"ちかMartin🎀🤍\"}\n{\"type\":\"viewer\",\"startedAt\":1783287075.750631,\"content\":\"🤣🤣🤣🤣🤣🤣\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287076.553535,\"content\":\"おはよーございまーす♪\",\"speaker\":\"yuki.ko\"}\n{\"type\":\"viewer\",\"startedAt\":1783287076.76917,\"content\":\"おはようございます\",\"speaker\":\"あやや12\"}\n{\"type\":\"viewer\",\"startedAt\":1783287076.907357,\"content\":\"おはようございます\",\"speaker\":\"🍊🌻ナノシノ🍖💟\"}\n{\"type\":\"viewer\",\"startedAt\":1783287076.911911,\"content\":\"なんの歌！？\",\"speaker\":\"🥁shiho1028🩰︎💕︎RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287077.509299,\"content\":\"オンタイム👀\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287077.659873,\"content\":\"👏👏👏👏👏\",\"speaker\":\"ap_5017947852\"}\n{\"type\":\"viewer\",\"startedAt\":1783287077.99358,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 59000 上がりました！\",\"speaker\":\"Brazil🤤たっちゃん🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287078.833908,\"content\":\"おはようございます😊\",\"speaker\":\"あみじょう🎻🌸🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287080.065326,\"content\":\"おはようございます😌\",\"speaker\":\"🥁ᵧₘₖ🤤ゆみこ🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287080.581654,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 59500 上がりました！\",\"speaker\":\"ラブmelo💓🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287080.643933,\"content\":\"げつあさ\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287081.804118,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 60000 上がりました！\",\"speaker\":\"breda.\"}\n{\"type\":\"streamer\",\"startedAt\":1783287082.51,\"content\":\"あれなんか。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287083.965782,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 62000 上がりました！\",\"speaker\":\"大仏kun💫sento🐾☘️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287085.213646,\"content\":\"おはよーございます\",\"speaker\":\"しのピー_baby\"}\n{\"type\":\"viewer\",\"startedAt\":1783287085.482733,\"content\":\"珍しくオンタイム\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287085.482733,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 62500 上がりました！\",\"speaker\":\"ひでママ🥁🐶🐾\"}\n{\"type\":\"viewer\",\"startedAt\":1783287085.49795,\"content\":\"おはようございます🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287085.67,\"content\":\"出てきた出てきた。\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287087.62,\"content\":\"おい。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287088.636505,\"content\":\"おはようございます😊💓\",\"speaker\":\"オリメン\"}\n{\"type\":\"viewer\",\"startedAt\":1783287089.053972,\"content\":\"おはようございま〜す☺️🫶\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287089.818064,\"content\":\"おはようございます\",\"speaker\":\"marinsha_ku\"}\n{\"type\":\"streamer\",\"startedAt\":1783287090.11,\"content\":\"Everybody GOOD Morning。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287090.288266,\"content\":\"げつあさー\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287091.992688,\"content\":\"おはようございます💐\",\"speaker\":\"逸美1226\"}\n{\"type\":\"viewer\",\"startedAt\":1783287092.936978,\"content\":\":ohazuma:\",\"speaker\":\"🥁🍙ももたん🍑🌸\"}\n{\"type\":\"streamer\",\"startedAt\":1783287092.97,\"content\":\"いらっしゃいませ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287092.994474,\"content\":\"おはようございます😊\",\"speaker\":\"Brazil🤤たっちゃん🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287097.862095,\"content\":\"【6月】最高峰最強気味 の Alice🥁RWG🥁 が配信ルームにきました！\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287097.95522,\"content\":\":martin:\",\"speaker\":\"🥁🍙ももたん🍑🌸\"}\n{\"type\":\"streamer\",\"startedAt\":1783287098.11,\"content\":\"おはよう。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287098.492661,\"content\":\"(｡ﾟωﾟ)ﾉﾓｰﾆﾝ\",\"speaker\":\"countdown711\"}\n{\"type\":\"viewer\",\"startedAt\":1783287100.482661,\"content\":\"絶対つかんおもたのに\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287102.527046,\"content\":\"おはようございます😊\",\"speaker\":\"😽🐕ྀིPhoenix🧸🍒︎💕︎\"}\n{\"type\":\"viewer\",\"startedAt\":1783287103.252932,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 64500 上がりました！\",\"speaker\":\"🥁えみ🐕🐾\"}\n{\"type\":\"streamer\",\"startedAt\":1783287104.36,\"content\":\"おはようございます。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287104.765375,\"content\":\"🤣🤣🤣\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287105.713325,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287105.727138,\"content\":\"一括ポークキターー🐷\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287105.77936,\"content\":\"おはようございます\",\"speaker\":\"takako_0814\"}\n{\"type\":\"viewer\",\"startedAt\":1783287106.054749,\"content\":\"おはようございます☺️\",\"speaker\":\"ひおhio\"}\n{\"type\":\"viewer\",\"startedAt\":1783287106.309589,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287106.989262,\"content\":\"おはようございます🍑\",\"speaker\":\"momo_chan08🍡\"}\n{\"type\":\"viewer\",\"startedAt\":1783287107.350927,\"content\":\"おはようございます❀.(*´▽`*)❀.\",\"speaker\":\"Kasumin🥁J\"}\n{\"type\":\"viewer\",\"startedAt\":1783287107.350927,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 74500 上がりました！\",\"speaker\":\"🥁annie_アニー🍬\"}\n{\"type\":\"streamer\",\"startedAt\":1783287109.16,\"content\":\"さあ、ということでやってまいりました。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287110.382069,\"content\":\"おはようございます😊\",\"speaker\":\"ひでママ🥁🐶🐾\"}\n{\"type\":\"streamer\",\"startedAt\":1783287111.5,\"content\":\"とさあ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287112.320158,\"content\":\"ざいます\",\"speaker\":\"ちかMartin🎀🤍\"}\n{\"type\":\"viewer\",\"startedAt\":1783287113.46995,\"content\":\"☺️\",\"speaker\":\"ひおhio\"}\n{\"type\":\"viewer\",\"startedAt\":1783287113.646869,\"content\":\"おはようございます\",\"speaker\":\"newbie_9pt3gwn1h81s\"}\n{\"type\":\"viewer\",\"startedAt\":1783287114.385349,\"content\":\"おはようございます😊\",\"speaker\":\"💙🥁kanarin🥁💙\"}\n{\"type\":\"streamer\",\"startedAt\":1783287114.7,\"content\":\"月曜日朝でございます。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287117.397048,\"content\":\"おはようございます☀\",\"speaker\":\"のんchan_ocarina\"}\n{\"type\":\"viewer\",\"startedAt\":1783287117.983588,\"content\":\"☺️\",\"speaker\":\"ひおhio\"}\n{\"type\":\"viewer\",\"startedAt\":1783287118.008,\"content\":\"☀️𝐺𝑜𝑜𝑑 𝑚𝑜𝑟𝑛𝑖𝑛𝑔☀️\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287118.03,\"content\":\"今日はですね。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287118.232774,\"content\":\"7:30？\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287120.25,\"content\":\"ガットを作ろうということで。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287120.39923,\"content\":\"おはようございます\",\"speaker\":\"Palu\"}\n{\"type\":\"viewer\",\"startedAt\":1783287120.697149,\"content\":\"おはよう🎶\",\"speaker\":\"🥁shiho1028🩰︎💕︎RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287120.819614,\"content\":\"おはようございます🤩\",\"speaker\":\"sumie38333833\"}\n{\"type\":\"viewer\",\"startedAt\":1783287120.971863,\"content\":\"あれっ\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287121.740037,\"content\":\"おはようございます✨😊\",\"speaker\":\"tdm202hm\"}\n{\"type\":\"viewer\",\"startedAt\":1783287122.563037,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 75000 上がりました！\",\"speaker\":\"りまの🤍\"}\n{\"type\":\"streamer\",\"startedAt\":1783287122.89,\"content\":\"一旦通常配信から。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287123.010283,\"content\":\"😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287123.018428,\"content\":\"🤍ྀིおはよう〜⸜(*ˊᗜˋ*)⸝💎💕\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287123.572073,\"content\":\"おはようございます(*^^*)\",\"speaker\":\"☕️なっつん🌸⁷³⁸🧀\"}\n{\"type\":\"viewer\",\"startedAt\":1783287123.851213,\"content\":\"おはようございます☺️\",\"speaker\":\"ルミ.runrun𓃬🐾\"}\n{\"type\":\"viewer\",\"startedAt\":1783287125.485234,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287125.721223,\"content\":\"おはようございます😄\",\"speaker\":\"minako.\"}\n{\"type\":\"streamer\",\"startedAt\":1783287125.73,\"content\":\"やってまいりました。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287125.892121,\"content\":\"げっあさ\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287126.334041,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 75500 上がりました！\",\"speaker\":\"🤶🎄ノエルnoel🎄🎅\"}\n{\"type\":\"viewer\",\"startedAt\":1783287127.083394,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287127.64,\"content\":\"オンジュース。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287127.663417,\"content\":\"👏👏👏👏\",\"speaker\":\"Palu\"}\n{\"type\":\"viewer\",\"startedAt\":1783287128.2278,\"content\":\"(^, ,^) (^. .^)ｳﾝｳﾝ\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287128.424995,\"content\":\"はーい\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287130.373451,\"content\":\"🥁〜🥁〜🥁〜🥁\",\"speaker\":\"takako_0814\"}\n{\"type\":\"streamer\",\"startedAt\":1783287130.52,\"content\":\"皆さん、ぜひとも。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287130.743835,\"content\":\"😆😆😆😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287132.15,\"content\":\"無料ギフトで応援いただけたら、めっちゃ嬉しいです。それです。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287133.010391,\"content\":\"つくれるん\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287133.478751,\"content\":\"はーい٩(ˊᗜˋ*)و\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287134.063251,\"content\":\"おはようございます😊\",\"speaker\":\"おけんす🌺7777🎨\"}\n{\"type\":\"viewer\",\"startedAt\":1783287134.832726,\"content\":\"ガトー🤩\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287135.877904,\"content\":\"おはようございます☺️☀️\",\"speaker\":\"🥁えみ🐕🐾\"}\n{\"type\":\"viewer\",\"startedAt\":1783287136.471669,\"content\":\"ぱじさん☺️\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287136.889991,\"content\":\"おはようございます(*^^*)\",\"speaker\":\"🌼れお＝あゆ🐻‍❄️🐱\"}\n{\"type\":\"viewer\",\"startedAt\":1783287137.353426,\"content\":\"😊☺️\",\"speaker\":\"🥁annie_アニー🍬\"}\n{\"type\":\"streamer\",\"startedAt\":1783287138.2,\"content\":\"また、現在、あの先着\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287138.958868,\"content\":\"🥁〜🥁〜🥁〜🥁\",\"speaker\":\"takako_0814\"}\n{\"type\":\"viewer\",\"startedAt\":1783287140.520582,\"content\":\"ｷｬ─(*ᵒ̴̶̷͈᷄ᗨᵒ̴̶̷͈᷅)─🤍\",\"speaker\":\"Palu\"}\n{\"type\":\"streamer\",\"startedAt\":1783287140.97,\"content\":\"米\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287142.387133,\"content\":\"☀️🌱\",\"speaker\":\"⿻🧚🏻‍♀️ᩚなさﾁｬ✧Ym🍷🍇ྀི\"}\n{\"type\":\"streamer\",\"startedAt\":1783287142.49,\"content\":\"ゲットピス。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287142.702821,\"content\":\"7:30と思ってたー\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287143.204536,\"content\":\"☺️\",\"speaker\":\"🥁annie_アニー🍬\"}\n{\"type\":\"streamer\",\"startedAt\":1783287144.01,\"content\":\"やっております。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287144.573998,\"content\":\"おはようございます·͜·❤︎‬\",\"speaker\":\"びっける💎🎨🔥ART\"}\n{\"type\":\"viewer\",\"startedAt\":1783287146.312564,\"content\":\"おはようございます\",\"speaker\":\"aya_07\"}\n{\"type\":\"viewer\",\"startedAt\":1783287146.523077,\"content\":\"おはようございます😊\",\"speaker\":\"りまの🤍\"}\n{\"type\":\"viewer\",\"startedAt\":1783287146.796067,\"content\":\"早安🍑\",\"speaker\":\"momo_chan08🍡\"}\n{\"type\":\"streamer\",\"startedAt\":1783287147.1,\"content\":\"押し上げればチャレンジを。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287147.467389,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 76000 上がりました！\",\"speaker\":\"yuyukuma\"}\n{\"type\":\"viewer\",\"startedAt\":1783287148.070948,\"content\":\"☺️\",\"speaker\":\"🥁annie_アニー🍬\"}\n{\"type\":\"streamer\",\"startedAt\":1783287150.28,\"content\":\"してみて。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287152.558765,\"content\":\"(｡ﾟωﾟ)ﾉﾓｰﾆﾝ\",\"speaker\":\"しゅがー711\"}\n{\"type\":\"streamer\",\"startedAt\":1783287152.63,\"content\":\"ゲットしましょう。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287154.529966,\"content\":\"おはようございます\",\"speaker\":\"ミルラ0726\"}\n{\"type\":\"viewer\",\"startedAt\":1783287154.543882,\"content\":\"なんそれ\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287154.896697,\"content\":\"当たりのかな？\",\"speaker\":\"れいこchocΩ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287155.2,\"content\":\"よし。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287156.567247,\"content\":\"はーい٩(ˊᗜˋ*)و\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287156.86,\"content\":\"起きよう。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287158.579674,\"content\":\"おはようございます😊\",\"speaker\":\"ako_maru\"}\n{\"type\":\"viewer\",\"startedAt\":1783287159.751851,\"content\":\"おはようございます\",\"speaker\":\"みえこ2976\"}\n{\"type\":\"viewer\",\"startedAt\":1783287161.254878,\"content\":\"おはようございます😊\",\"speaker\":\"かちゅえ.🎵💕kachue\"}\n{\"type\":\"viewer\",\"startedAt\":1783287161.316516,\"content\":\"😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287163.173999,\"content\":\"なんの\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287163.45,\"content\":\"絶対に起きれるはず。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287165.901702,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 78000 上がりました！\",\"speaker\":\"momolights♥🎀\"}\n{\"type\":\"streamer\",\"startedAt\":1783287167.57,\"content\":\"ん。鉄オキ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287169.621189,\"content\":\":ohazuma:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287171.378884,\"content\":\"おはようございます(*´▽｀*)ﾉ))\",\"speaker\":\"🧸🥨mo.to.ki🥞🍂\"}\n{\"type\":\"viewer\",\"startedAt\":1783287172.097524,\"content\":\"あは\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287172.41,\"content\":\"絶絶オキオキ絶脈。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287175.759186,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287176.029882,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 78500 上がりました！\",\"speaker\":\"タッコ.⚜️🏆souls\"}\n{\"type\":\"viewer\",\"startedAt\":1783287178.043128,\"content\":\"🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287179.42,\"content\":\"おきおきえつえつおきっぷ\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287180.336841,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287180.678025,\"content\":\"おはようございます🥰\",\"speaker\":\"かげうた\"}\n{\"type\":\"viewer\",\"startedAt\":1783287183.588489,\"content\":\"🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287184.737419,\"content\":\"おやすみなさい🤣\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287184.77479,\"content\":\"起きれるーーー\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287187.081299,\"content\":\"起きてー\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287188.33,\"content\":\"起きれないかな。無料ギターありがとって出ます\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287188.50329,\"content\":\"😪\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287189.307381,\"content\":\"🥁🥁🥁\",\"speaker\":\"かげうた\"}\n{\"type\":\"viewer\",\"startedAt\":1783287190.983519,\"content\":\"おはようございます🌈\",\"speaker\":\"いずみ🌙1104🌈🎧\"}\n{\"type\":\"viewer\",\"startedAt\":1783287191.256795,\"content\":\"起きてー\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287192.86,\"content\":\"絶対起きれる。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287193.778513,\"content\":\"😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287193.778513,\"content\":\"🥁\",\"speaker\":\"かげうた\"}\n{\"type\":\"viewer\",\"startedAt\":1783287195.597058,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 79000 上がりました！\",\"speaker\":\"moon_07.16\"}\n{\"type\":\"streamer\",\"startedAt\":1783287196.48,\"content\":\"まずはレンズを。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287197.630466,\"content\":\"加油🍑 加油🍑\",\"speaker\":\"momo_chan08🍡\"}\n{\"type\":\"viewer\",\"startedAt\":1783287198.221568,\"content\":\"(｡ﾟωﾟ)ﾉﾓｰﾆﾝ\",\"speaker\":\"tasarincho\"}\n{\"type\":\"viewer\",\"startedAt\":1783287199.695076,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287201.485928,\"content\":\"ぷぷっぷーーー\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287202.413887,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"streamer\",\"startedAt\":1783287202.57,\"content\":\"来た。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287203.051099,\"content\":\"😆\",\"speaker\":\"いずみ🌙1104🌈🎧\"}\n{\"type\":\"viewer\",\"startedAt\":1783287203.820472,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 79500 上がりました！\",\"speaker\":\"🦄柳瀬莉緒🥁tf63🦄\"}\n{\"type\":\"viewer\",\"startedAt\":1783287205.462068,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287205.462068,\"content\":\"🤭\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287205.665392,\"content\":\"🤣🤣\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287205.97,\"content\":\"おはようございます。\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287208.6,\"content\":\"なんか\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287209.22,\"content\":\"ギフト次第でたまに見えるという。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287210.75186,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287211.885103,\"content\":\"🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287212.111507,\"content\":\"まずはぱんつを\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287212.942675,\"content\":\"👀\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287216.630046,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287217.236715,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287217.579796,\"content\":\"みえたー\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287218.06,\"content\":\"朝からか。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287218.951682,\"content\":\"おはようございます\",\"speaker\":\"まゆま7188\"}\n{\"type\":\"viewer\",\"startedAt\":1783287219.351022,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287219.424989,\"content\":\"🤣\",\"speaker\":\"Kasumin🥁J\"}\n{\"type\":\"streamer\",\"startedAt\":1783287220.48,\"content\":\"うっすらと。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287221.406383,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287221.406383,\"content\":\"🤣🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287221.994831,\"content\":\"うっすら🤣\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287222.0,\"content\":\"朝7時かも。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287222.197743,\"content\":\"ꉂ🤣𐤔ꉂ🤣𐤔ꉂ🤣𐤔\",\"speaker\":\"🥁あつよ_Bs⚾️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287223.545022,\"content\":\"😂😂😂\",\"speaker\":\"おけんす🌺7777🎨\"}\n{\"type\":\"viewer\",\"startedAt\":1783287224.017396,\"content\":\"おはヨーグルトꕀ⋆(˶ᐢᗜᐢ˶)✨\",\"speaker\":\"arichan_1223\"}\n{\"type\":\"viewer\",\"startedAt\":1783287224.342409,\"content\":\"🤣❤︎🤣❤︎🤣❤︎\",\"speaker\":\"タッコ.⚜️🏆souls\"}\n{\"type\":\"viewer\",\"startedAt\":1783287225.013316,\"content\":\"あやしい\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287225.060216,\"content\":\"🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287225.754584,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287227.62,\"content\":\"朝なってしまったのかい。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287228.026303,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 89000 上がりました！\",\"speaker\":\"🥁annie_アニー🍬\"}\n{\"type\":\"viewer\",\"startedAt\":1783287228.711933,\"content\":\"😂😂\",\"speaker\":\"aya_07\"}\n{\"type\":\"viewer\",\"startedAt\":1783287228.769568,\"content\":\"😂😂\",\"speaker\":\"えりんぎchan\"}\n{\"type\":\"streamer\",\"startedAt\":1783287230.17,\"content\":\"おやすみおやすみ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287231.221014,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287231.31543,\"content\":\"🤭\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287232.439677,\"content\":\"😂😂😂\",\"speaker\":\"aya_07\"}\n{\"type\":\"viewer\",\"startedAt\":1783287232.54165,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287233.802188,\"content\":\"うすりじ\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287234.81,\"content\":\"朝だね。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287236.668707,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287237.041297,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287237.46,\"content\":\"夜やでってこと。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287238.157795,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 89500 上がりました！\",\"speaker\":\"優菜🦄໒꒱ゅな🍀*゜\"}\n{\"type\":\"viewer\",\"startedAt\":1783287238.66689,\"content\":\"よるやで\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287238.9,\"content\":\"ホンマに。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287239.02789,\"content\":\"(^, ,^) (^. .^)ｳﾝｳﾝ\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287240.01,\"content\":\"寝ていいな、これじゃあ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287241.501112,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287242.568115,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 91500 上がりました！\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"streamer\",\"startedAt\":1783287242.9,\"content\":\"じゃあ、あれです。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287243.599771,\"content\":\"おはようございます(⋆ᴗ͈ˬᴗ͈)”\",\"speaker\":\"優菜🦄໒꒱ゅな🍀*゜\"}\n{\"type\":\"viewer\",\"startedAt\":1783287243.727606,\"content\":\"まだ夜\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287244.515376,\"content\":\"いたーーーーーーーうっすら✨\",\"speaker\":\"よーこ泉\"}\n{\"type\":\"streamer\",\"startedAt\":1783287244.56,\"content\":\"ありがとうございます。良い人\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287245.600407,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287246.149171,\"content\":\":izama:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287246.613523,\"content\":\"あさだよー\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287247.24,\"content\":\"よし。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287248.885855,\"content\":\"くらいで\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287249.03,\"content\":\"なんか目痛。\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287250.74,\"content\":\"はいや。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287250.931561,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 93500 上がりました！\",\"speaker\":\"ひろりん🐈🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287251.342092,\"content\":\"いいよーーー\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287251.342092,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287251.585517,\"content\":\"つけぱでねて\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287252.978912,\"content\":\"えーの！\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287253.820485,\"content\":\":ohazuma:\",\"speaker\":\"momolights♥🎀\"}\n{\"type\":\"streamer\",\"startedAt\":1783287254.75,\"content\":\"まずは、\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287255.135454,\"content\":\"ガトーショコラ作ろ\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287255.638009,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287256.644304,\"content\":\"よーし\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287257.074555,\"content\":\"😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287257.88,\"content\":\"店頭\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287259.038216,\"content\":\"おはようございます(๑'ᴗ'๑)/\",\"speaker\":\"ひろりん🐈🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287260.689647,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287260.9,\"content\":\"焼酎の逆。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287262.618562,\"content\":\"寝ちゃう！？\",\"speaker\":\"🥁shiho1028🩰︎💕︎RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287263.147781,\"content\":\"眠いですよね😪\",\"speaker\":\"優菜🦄໒꒱ゅな🍀*゜\"}\n{\"type\":\"viewer\",\"startedAt\":1783287264.000854,\"content\":\"😍\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287264.099596,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287267.092089,\"content\":\"🤣🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287267.479418,\"content\":\"動画だれかと間違えてたで🤣🤣🤣\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287268.239247,\"content\":\"おはようございます😊\",\"speaker\":\"🧸なす🍡🍵ぴ🍫\"}\n{\"type\":\"viewer\",\"startedAt\":1783287268.995269,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287271.4814,\"content\":\"🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287272.092684,\"content\":\"わああああ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287272.147602,\"content\":\"お顔が光ってる🤣🤣\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"streamer\",\"startedAt\":1783287273.45,\"content\":\"マブ\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287275.723177,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287275.757679,\"content\":\"スクショタイム\",\"speaker\":\"れいこchocΩ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287276.238366,\"content\":\"おはようございます😊\",\"speaker\":\"🥁あつよ_Bs⚾️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287276.566078,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287278.5291,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287278.797125,\"content\":\"🤣❤︎🤣❤︎🤣❤︎\",\"speaker\":\"タッコ.⚜️🏆souls\"}\n{\"type\":\"viewer\",\"startedAt\":1783287280.745306,\"content\":\"🤭\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287280.958774,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287281.445689,\"content\":\"眩しそう🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287282.19,\"content\":\"マブ\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287283.997348,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 94000 上がりました！\",\"speaker\":\"ぷりこ💗Puriko🐤ᩚ໒꒱\"}\n{\"type\":\"viewer\",\"startedAt\":1783287284.288592,\"content\":\"🤣🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287285.665118,\"content\":\"まぶそう\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287286.63973,\"content\":\"わああああ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287286.751358,\"content\":\"🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287287.921426,\"content\":\"亀梨くんかおもた\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287287.95045,\"content\":\"おはよぉ( ¯꒳​¯ )ᐝ\",\"speaker\":\"おけんす🌺7777🎨\"}\n{\"type\":\"viewer\",\"startedAt\":1783287288.729382,\"content\":\"まぶ………\",\"speaker\":\"aya_07\"}\n{\"type\":\"viewer\",\"startedAt\":1783287290.091574,\"content\":\"🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287290.178118,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287290.628617,\"content\":\"☺️☺️\",\"speaker\":\"えりんぎchan\"}\n{\"type\":\"viewer\",\"startedAt\":1783287292.378278,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287292.48,\"content\":\"小腸\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287294.879729,\"content\":\"オッハヨー☀️ᵍ ᵒ ᵒ ᵈ ᵐ ᵒ ʳ ᐢ ⁱ ᐢ ᵍ 🔅\",\"speaker\":\"⿻🧚🏻‍♀️ᩚなさﾁｬ✧Ym🍷🍇ྀི\"}\n{\"type\":\"viewer\",\"startedAt\":1783287295.382571,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287295.382571,\"content\":\"🤣🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287297.041533,\"content\":\"おはようございます\",\"speaker\":\"まゆみ7188\"}\n{\"type\":\"viewer\",\"startedAt\":1783287297.041533,\"content\":\"おはようございます😊\",\"speaker\":\"あやっぺ🎷💕\"}\n{\"type\":\"streamer\",\"startedAt\":1783287297.26,\"content\":\"マブマブッ\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287297.757726,\"content\":\"ダメだこりゃ\",\"speaker\":\"🍒NARI🎙🦋💎🐹🌺\"}\n{\"type\":\"viewer\",\"startedAt\":1783287298.769331,\"content\":\"わああああ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287299.244416,\"content\":\"寝起きみたい🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287300.804963,\"content\":\"そりゃ、まぶいよ\",\"speaker\":\"🥁shiho1028🩰︎💕︎RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287301.47,\"content\":\"マブマブ\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287301.500603,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287302.111749,\"content\":\"🤣\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287302.55,\"content\":\"2\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287302.866543,\"content\":\"🤣🤣🤣🤣\",\"speaker\":\"aya_07\"}\n{\"type\":\"viewer\",\"startedAt\":1783287302.981623,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287302.981623,\"content\":\"🤣🤣🤣🤣🤣🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287303.158187,\"content\":\"まだ寝てていいよ\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287303.287218,\"content\":\"ぶは\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287304.66,\"content\":\"いつも。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287305.105309,\"content\":\"😂😂\",\"speaker\":\"えりんぎchan\"}\n{\"type\":\"streamer\",\"startedAt\":1783287306.74,\"content\":\"兄\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287307.566215,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287307.814361,\"content\":\"💛✩*⋆¸¸.•*¨*\\\\(๑•ᴗ•๑)/*¨*•.¸¸⋆*✩💚✩*⋆¸¸.•*¨*\\\\(๑•ᴗ•๑)/*¨*•.¸¸⋆*✩💛\",\"speaker\":\"arichan_1223\"}\n{\"type\":\"viewer\",\"startedAt\":1783287307.944015,\"content\":\"🤣🤣🤣🤣\",\"speaker\":\"ぽよみん🥁S.Dragon🐈\"}\n{\"type\":\"viewer\",\"startedAt\":1783287308.445851,\"content\":\"消したー\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287308.69,\"content\":\"どこまでも。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287308.991771,\"content\":\"(｣´□`)｣ ｵﾊﾖｰｺﾞｻﾞｲﾏｽｯｯｯ!!!!!\",\"speaker\":\"ワタッコ_jr.\"}\n{\"type\":\"viewer\",\"startedAt\":1783287308.991771,\"content\":\"え🤣🤣🤣\",\"speaker\":\"🥁あつよ_Bs⚾️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287309.578293,\"content\":\"消灯🤣\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287309.915179,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287310.119484,\"content\":\"😂\",\"speaker\":\"かちゅえ.🎵💕kachue\"}\n{\"type\":\"viewer\",\"startedAt\":1783287310.780206,\"content\":\"まぶまぶ😂\",\"speaker\":\"こむー🐹🥟\"}\n{\"type\":\"viewer\",\"startedAt\":1783287310.963095,\"content\":\"わああああ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287312.61,\"content\":\"マブ\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287313.32,\"content\":\"Tom of Pooh。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287313.826002,\"content\":\"🤣🤣🤣\",\"speaker\":\"🥁えみ🐕🐾\"}\n{\"type\":\"viewer\",\"startedAt\":1783287314.084169,\"content\":\"動画だれの🤣🤣🤣\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287314.782583,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287316.08,\"content\":\"マブマブプー\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287316.432651,\"content\":\"🤣🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287316.957557,\"content\":\"🤍ྀིおはよう〜⸜(*ˊᗜˋ*)⸝💎💕\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287317.986166,\"content\":\"🤣❤︎🤣❤︎🤣❤︎\",\"speaker\":\"タッコ.⚜️🏆souls\"}\n{\"type\":\"viewer\",\"startedAt\":1783287318.441678,\"content\":\"寝てまう🤣\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287318.441678,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287319.523773,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287320.811494,\"content\":\"🤣🤣🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287322.813719,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287322.813719,\"content\":\"🍓✧🍓۠𖥦̟ ˖໋༷🍓✧🍓۠𖥦̟ ˖໋༷🍓✧🍓۠𖥦̟ ˖໋༷ 𝐺𝑜𝑜𝑑 𝑚𝑜𝑟𝑛𝑖𝑛𝑔︎ ☕️🍃☀️ ✱･ω･*)ﾉ𝐆𝐨𝐨𝐝 𝐦𝐨𝐫𝐧𝐢𝐧𝐠 ● ̖́- 🍓✧🍓۠𖥦̟ ˖໋༷🍓✧🍓۠𖥦̟ ˖໋༷🍓✧🍓۠𖥦̟ ˖໋༷\",\"speaker\":\"⿻🧚🏻‍♀️ᩚなさﾁｬ✧Ym🍷🍇ྀི\"}\n{\"type\":\"viewer\",\"startedAt\":1783287322.96193,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287323.72032,\"content\":\"わああああ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287324.698346,\"content\":\"まぶりじ\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287325.20272,\"content\":\"おはよーございます\",\"speaker\":\"井野文太\"}\n{\"type\":\"viewer\",\"startedAt\":1783287326.738552,\"content\":\"🤣🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287327.690556,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287329.14,\"content\":\"よし。\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287331.0,\"content\":\"今日は。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287331.433237,\"content\":\"暗いと寝てまう\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287332.846625,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287333.130027,\"content\":\"まぶりじ\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287333.856838,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 94500 上がりました！\",\"speaker\":\"🦄柳瀬莉緒🥁tf63🦄\"}\n{\"type\":\"viewer\",\"startedAt\":1783287334.37118,\"content\":\"😳😳😳😳😳\",\"speaker\":\"ワタッコ_jr.\"}\n{\"type\":\"viewer\",\"startedAt\":1783287334.578787,\"content\":\"起きてー\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287335.35,\"content\":\"使命があるんです。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287336.094484,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287337.460934,\"content\":\"わああああ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287337.460934,\"content\":\"🌈🌼☀̤̣̈̇⛱🌼☀̤̣̈̇⛱🌼ː̗̀☀̤̣̈̇ː̖́⛱🌼☀̤̣̈̇⛱🌈 𝐺𝑜𝑜𝑑 𝑚𝑜𝑟𝑛𝑖𝑛𝑔︎ ☕️🍃☀️⸜(*´꒳`*)⸝𝐺𝑜𝑜𝑑 𝑚𝑜𝑟𝑛𝑖𝑛𝑔︎ ☕️🍃☀︎𝙶𝚘𝚘𝚍 𝚖𝚘𝚛𝚗𝚒𝚗𝚐☀︎☀️ 🌈🌼☀̤̣̈̇⛱🌼☀̤̣̈̇⛱🌼ː̗̀☀̤̣̈̇ː̖́⛱🌼☀̤̣̈̇⛱🌈\",\"speaker\":\"⿻🧚🏻‍♀️ᩚなさﾁｬ✧Ym🍷🍇ྀི\"}\n{\"type\":\"streamer\",\"startedAt\":1783287338.61,\"content\":\"やらなきゃならね。\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287340.69,\"content\":\"ことがある。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287341.074528,\"content\":\"みえた🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287341.144986,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287343.795436,\"content\":\"🤭\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287344.11065,\"content\":\"おはようございます\",\"speaker\":\"ひろたん_RWG🥁☀️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287344.354005,\"content\":\"( ∵ )ﾎｰ\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287346.159502,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287348.078927,\"content\":\"ガトー\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287348.08,\"content\":\"おちゃんでありがとう。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287348.583823,\"content\":\"おはようございます\",\"speaker\":\"ぷりこ💗Puriko🐤ᩚ໒꒱\"}\n{\"type\":\"viewer\",\"startedAt\":1783287349.613868,\"content\":\"わああああ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287349.613891,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 95000 上がりました！\",\"speaker\":\"yukky.1108\"}\n{\"type\":\"viewer\",\"startedAt\":1783287350.39584,\"content\":\"🤣❤︎🤣❤︎🤣❤︎\",\"speaker\":\"タッコ.⚜️🏆souls\"}\n{\"type\":\"viewer\",\"startedAt\":1783287352.411851,\"content\":\"ガトーショコラ\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287352.619785,\"content\":\"氏名がある🤔\",\"speaker\":\"ワタッコ_jr.\"}\n{\"type\":\"streamer\",\"startedAt\":1783287354.0,\"content\":\"早い。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287354.179469,\"content\":\"😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287354.944225,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287356.816833,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287357.934192,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 97000 上がりました！\",\"speaker\":\"#𝑵𝒂𝒐𝒑.🐒🩵\"}\n{\"type\":\"viewer\",\"startedAt\":1783287358.293792,\"content\":\"ういんく\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287358.36,\"content\":\"なんかちょっと右目が痛い。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287358.876639,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287360.196271,\"content\":\"おはようございます\",\"speaker\":\"🦄柳瀬莉緒🥁tf63🦄\"}\n{\"type\":\"viewer\",\"startedAt\":1783287360.196271,\"content\":\"👀\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287361.73,\"content\":\"なただです。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287362.5705,\"content\":\"わああああ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287364.0,\"content\":\"だいちゃ\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287365.7,\"content\":\"いや、まずお墓参りからだな。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287366.629366,\"content\":\"近っ😂\",\"speaker\":\"えりんぎchan\"}\n{\"type\":\"viewer\",\"startedAt\":1783287367.080502,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 97500 上がりました！\",\"speaker\":\"えむち🎮🎧𝕞𝕔𝕙𝕚🍰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287367.099992,\"content\":\"おはようございます🐈🐾\",\"speaker\":\"Mayumie_まゆみぃ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287367.099992,\"content\":\"はやい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287368.755495,\"content\":\"えー\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287368.977133,\"content\":\"おはようございます😊\",\"speaker\":\"yukky.1108\"}\n{\"type\":\"streamer\",\"startedAt\":1783287369.18,\"content\":\"お墓参り行きましょうか。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287370.769792,\"content\":\"おはようございます\",\"speaker\":\"まゆみん7188\"}\n{\"type\":\"viewer\",\"startedAt\":1783287372.68127,\"content\":\"ねむい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287373.09,\"content\":\"固めで追い切れるか。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287373.355732,\"content\":\"🥁おはようございます👋😆✨☀️\",\"speaker\":\"mamatsu\"}\n{\"type\":\"viewer\",\"startedAt\":1783287374.897656,\"content\":\"右目開いてない\",\"speaker\":\"ひろたん_RWG🥁☀️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287375.685784,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287376.833695,\"content\":\"風呂上がり\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287377.138325,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287377.19041,\"content\":\"わああああ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287377.747461,\"content\":\"おはようございます☀\",\"speaker\":\"こむー🐹🥟\"}\n{\"type\":\"streamer\",\"startedAt\":1783287377.97,\"content\":\"うん。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287378.726277,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287378.815806,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287378.934826,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287379.4,\"content\":\"なんだこのい-痛さ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287379.51443,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287380.541778,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287380.664271,\"content\":\"おはようございます🐈🐈‍⬛🐈🐾\",\"speaker\":\"まゆまゆ_MAYUMAYU\"}\n{\"type\":\"viewer\",\"startedAt\":1783287381.718777,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287381.718777,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287382.419666,\"content\":\"おはようございます😊\",\"speaker\":\"🥁あつよ_Bs⚾️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287382.496597,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287382.777591,\"content\":\"おはようございます\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287383.2863,\"content\":\"おはりじ\",\"speaker\":\"🥁shiho1028🩰︎💕︎RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287383.728953,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287383.888218,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287383.977185,\"content\":\"まつ毛長ッ\",\"speaker\":\"🌈ー✂️いっさ✂️ー🌈\"}\n{\"type\":\"viewer\",\"startedAt\":1783287385.894303,\"content\":\"おはようございます•ᴗ•\",\"speaker\":\"ღNATTUN🌸🐨🧀₇₃₈\"}\n{\"type\":\"viewer\",\"startedAt\":1783287385.894303,\"content\":\"👀👀\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287385.92114,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287386.025304,\"content\":\"🤍ྀིおはよう〜⸜(*ˊᗜˋ*)⸝💎💕\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287386.03615,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287386.68332,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287387.664668,\"content\":\":rewgy2:おはようございます:ohazuma::martin:\",\"speaker\":\"momolights♥🎀\"}\n{\"type\":\"streamer\",\"startedAt\":1783287387.77,\"content\":\"おはようございます。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287388.099001,\"content\":\"充血してる\",\"speaker\":\"ひろたん_RWG🥁☀️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287388.134922,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287389.548573,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287389.548573,\"content\":\"@鈴木龍二🥁Martin🥁 おはようございます🍑🍑\",\"speaker\":\"momo_chan08🍡\"}\n{\"type\":\"viewer\",\"startedAt\":1783287389.548573,\"content\":\"何を(๑¯ㅁ¯๑)なにお？やらなきゃいけないの❓\",\"speaker\":\"⿻🧚🏻‍♀️ᩚなさﾁｬ✧Ym🍷🍇ྀི\"}\n{\"type\":\"viewer\",\"startedAt\":1783287390.857743,\"content\":\"👀👀\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287391.910606,\"content\":\"おはようございます☀\",\"speaker\":\"あやっぺ🎷💕\"}\n{\"type\":\"viewer\",\"startedAt\":1783287391.925814,\"content\":\"たまにあるよ\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287392.019116,\"content\":\"‎🤍🌷︎おはようございます(◜ᴗ◝)🌷‎🤍\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287394.914879,\"content\":\"おはようございます😊\",\"speaker\":\"かちゅえ.🎵💕kachue\"}\n{\"type\":\"viewer\",\"startedAt\":1783287395.137615,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287395.137615,\"content\":\"おはようございます😊\",\"speaker\":\"あみじょう🎻🌸🌷\"}\n{\"type\":\"streamer\",\"startedAt\":1783287395.81,\"content\":\"さあ、いけるか。ナナキキちゃんを味方につけたか。書いてやこう見。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287395.94025,\"content\":\"おはようございます☺️☀️\",\"speaker\":\"えりんぎchan\"}\n{\"type\":\"viewer\",\"startedAt\":1783287396.003977,\"content\":\"おはようございます\",\"speaker\":\"c_chieko\"}\n{\"type\":\"viewer\",\"startedAt\":1783287396.066922,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287396.066922,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287397.135863,\"content\":\"かにさされた\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287397.266848,\"content\":\"おはようございます☀\",\"speaker\":\"こむー🐹🥟\"}\n{\"type\":\"viewer\",\"startedAt\":1783287397.266848,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287397.758907,\"content\":\"おはようございます\",\"speaker\":\"大仏kun💫sento🐾☘️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287397.910403,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287397.910403,\"content\":\"おはようございます😊\",\"speaker\":\"🥁あつよ_Bs⚾️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287398.03828,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287399.049942,\"content\":\"@鈴木龍二🥁Martin🥁 おはよう🎶\",\"speaker\":\"🥁shiho1028🩰︎💕︎RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287399.050897,\"content\":\"@鈴木龍二🥁Martin🥁 おはようございます(*^^*)\",\"speaker\":\"🥁ななきき🐉REWGY🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287399.263351,\"content\":\"おはようございます😊\",\"speaker\":\"タッコ.⚜️🏆souls\"}\n{\"type\":\"viewer\",\"startedAt\":1783287399.790803,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287400.166168,\"content\":\"充血\",\"speaker\":\"ひろたん_RWG🥁☀️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287400.219616,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287400.36,\"content\":\"ダメだ。肩ダメだ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287400.410848,\"content\":\"𝔾𝕠𝕠𝕕 𝕄𝕠𝕣𝕟𝕚𝕟𝕘 ☀︎*.｡\",\"speaker\":\"saukrakaoru\"}\n{\"type\":\"viewer\",\"startedAt\":1783287400.76843,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287401.941086,\"content\":\"🌈🌼☀̤̣̈̇⛱🌼☀̤̣̈̇⛱🌼ː̗̀☀̤̣̈̇ː̖́⛱🌼☀̤̣̈̇⛱🌈 𝐺𝑜𝑜𝑑 𝑚𝑜𝑟𝑛𝑖𝑛𝑔︎ ☕️🍃☀️⸜(*´꒳`*)⸝𝐺𝑜𝑜𝑑 𝑚𝑜𝑟𝑛𝑖𝑛𝑔︎ ☕️🍃☀︎𝙶𝚘𝚘𝚍 𝚖𝚘𝚛𝚗𝚒𝚗𝚐☀︎☀️ 🌈🌼☀̤̣̈̇⛱🌼☀̤̣̈̇⛱🌼ː̗̀☀̤̣̈̇ː̖́⛱🌼☀̤̣̈̇⛱🌈\",\"speaker\":\"⿻🧚🏻‍♀️ᩚなさﾁｬ✧Ym🍷🍇ྀི\"}\n{\"type\":\"viewer\",\"startedAt\":1783287402.098817,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287402.098817,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287402.098817,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287402.163621,\"content\":\"おはようございます☺️☀️\",\"speaker\":\"🥁えみ🐕🐾\"}\n{\"type\":\"streamer\",\"startedAt\":1783287403.66,\"content\":\"サウディ\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287404.073822,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287404.33,\"content\":\"イルリチャアビジョーチャ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287404.45101,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287406.099008,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287406.3,\"content\":\"寝落ちるじゃん。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287406.714029,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287406.714029,\"content\":\"おはようございます\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287406.720855,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287407.045841,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287407.590305,\"content\":\"おはようございます😊\",\"speaker\":\"🥁あつよ_Bs⚾️\"}\n{\"type\":\"streamer\",\"startedAt\":1783287407.7,\"content\":\"お疲れ様。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287407.87893,\"content\":\"おはようございまーす♪\",\"speaker\":\"yuki.ko\"}\n{\"type\":\"viewer\",\"startedAt\":1783287408.282427,\"content\":\"おはようございます😊\",\"speaker\":\"aiko_wish\"}\n{\"type\":\"streamer\",\"startedAt\":1783287408.85,\"content\":\"しまったった。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287409.441214,\"content\":\":ohazuma:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287409.4681,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"streamer\",\"startedAt\":1783287409.99,\"content\":\"はなち茶わだっこじりや茶お茶。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287410.82989,\"content\":\"٩(๑´0`๑)۶♬おっはよー♬\",\"speaker\":\"qooqoo0529\"}\n{\"type\":\"viewer\",\"startedAt\":1783287412.047327,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287412.29,\"content\":\"わかります。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287412.612301,\"content\":\"|ｮ'ω'〃)おはようございます♪\",\"speaker\":\"ワタッコ_jr.\"}\n{\"type\":\"viewer\",\"startedAt\":1783287413.689336,\"content\":\"😆😆😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287414.62,\"content\":\"サウディ\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287414.88956,\"content\":\"一括ポークキターー🐷\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287414.934308,\"content\":\"‎🤍🌷︎おはようございます(◜ᴗ◝)🌷‎🤍\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287415.439243,\"content\":\"@鈴木龍二🥁Martin🥁 風呂キャンおはよ\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287415.780067,\"content\":\":ohazuma:\",\"speaker\":\"かちゅえ.🎵💕kachue\"}\n{\"type\":\"viewer\",\"startedAt\":1783287415.813971,\"content\":\"☺️☺️\",\"speaker\":\"えりんぎchan\"}\n{\"type\":\"viewer\",\"startedAt\":1783287415.918561,\"content\":\":ohazuma:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287415.918561,\"content\":\"おはようございます\",\"speaker\":\"🦄柳瀬莉緒🥁tf63🦄\"}\n{\"type\":\"streamer\",\"startedAt\":1783287415.95,\"content\":\"なな\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287416.058081,\"content\":\"@鈴木龍二🥁Martin🥁 おはようお\",\"speaker\":\"🥁shiho1028🩰︎💕︎RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287416.058081,\"content\":\"おはようございます·͜·❤︎‬\",\"speaker\":\"びっける💎🎨🔥ART\"}\n{\"type\":\"viewer\",\"startedAt\":1783287416.155202,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287416.67,\"content\":\"ナビちゃん\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287416.891885,\"content\":\"おはようございます😊\",\"speaker\":\"🥁あつよ_Bs⚾️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287416.914427,\"content\":\"おめめ、痛そう\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287416.965497,\"content\":\"龍龍 早安😊\",\"speaker\":\"🥁annie_アニー🍬\"}\n{\"type\":\"viewer\",\"startedAt\":1783287417.371103,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287418.041412,\"content\":\"おはようございます\",\"speaker\":\"newbie_cwz5s3avu8zk\"}\n{\"type\":\"viewer\",\"startedAt\":1783287418.041412,\"content\":\"おはようございます😊\",\"speaker\":\"🥁ひまわり_RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287418.05,\"content\":\"もう一回。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287418.210068,\"content\":\"おはようございます😊\",\"speaker\":\"Brazil🤤たっちゃん🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287418.582657,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287418.941688,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287419.042035,\"content\":\":rewgy2:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287419.042035,\"content\":\"おはようございます(^-^)\",\"speaker\":\"yukky.1108\"}\n{\"type\":\"viewer\",\"startedAt\":1783287419.058856,\"content\":\":martin::izama:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287419.27,\"content\":\"れいこちゃん、おとりちゃん。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287419.344407,\"content\":\"おはようございます\",\"speaker\":\"まゆみ1029\"}\n{\"type\":\"viewer\",\"startedAt\":1783287419.831971,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287420.112175,\"content\":\"🍓✧🍓۠𖥦̟ ˖໋༷🍓✧🍓۠𖥦̟ ˖໋༷🍓✧🍓۠𖥦̟ ˖໋༷ 𝐺𝑜𝑜𝑑 𝑚𝑜𝑟𝑛𝑖𝑛𝑔︎ ☕️🍃☀️ ✱･ω･*)ﾉ𝐆𝐨𝐨𝐝 𝐦𝐨𝐫𝐧𝐢𝐧𝐠 ● ̖́- 🍓✧🍓۠𖥦̟ ˖໋༷🍓✧🍓۠𖥦̟ ˖໋༷🍓✧🍓۠𖥦̟ ˖໋༷\",\"speaker\":\"⿻🧚🏻‍♀️ᩚなさﾁｬ✧Ym🍷🍇ྀི\"}\n{\"type\":\"viewer\",\"startedAt\":1783287420.701631,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287421.54865,\"content\":\"おはようございます☀️😺\",\"speaker\":\"ゆき🥁m͙i͙m͙i͙🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287421.83,\"content\":\"ダメだ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287422.183549,\"content\":\"おはようございます\",\"speaker\":\"newbie_cwz5s3avu8zk\"}\n{\"type\":\"viewer\",\"startedAt\":1783287422.85662,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287423.111623,\"content\":\":izama::es:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287423.7,\"content\":\"両目じゃないと追いきれない。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287424.39987,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287424.888835,\"content\":\":rewgy2::es:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287426.051162,\"content\":\"@鈴木龍二🥁Martin🥁 早安🍑🍑\",\"speaker\":\"momo_chan08🍡\"}\n{\"type\":\"viewer\",\"startedAt\":1783287426.099931,\"content\":\"おはようございます\",\"speaker\":\"newbie_cwz5s3avu8zk\"}\n{\"type\":\"viewer\",\"startedAt\":1783287426.495943,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287426.55,\"content\":\"いやちゃれおちゃ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287426.879983,\"content\":\"おはようございます💕\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287427.004549,\"content\":\":nanonii:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287427.072068,\"content\":\"おはようございます😊\",\"speaker\":\"ひでママ🥁🐶🐾\"}\n{\"type\":\"viewer\",\"startedAt\":1783287427.350206,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287427.565905,\"content\":\"おはようございます(⋆ᴗ͈ˬᴗ͈)”\",\"speaker\":\"優菜🦄໒꒱ゅな🍀*゜\"}\n{\"type\":\"streamer\",\"startedAt\":1783287428.08,\"content\":\"Yes\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287428.240014,\"content\":\"おはようございます😊\",\"speaker\":\"🥁あつよ_Bs⚾️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287428.779768,\"content\":\"@鈴木龍二🥁Martin🥁 さん✨おはようございます🐈🐾‪💕︎︎\",\"speaker\":\"🌼れお＝あゆ🐻‍❄️🐱\"}\n{\"type\":\"streamer\",\"startedAt\":1783287428.89,\"content\":\"お疲れ様。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287429.991396,\"content\":\":choma:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287430.03,\"content\":\"頑張る。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287430.112988,\"content\":\"@鈴木龍二🥁Martin🥁 おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287430.112988,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287430.464956,\"content\":\"おはようございます😊\",\"speaker\":\"やすしISHIZAWA\"}\n{\"type\":\"viewer\",\"startedAt\":1783287430.793663,\"content\":\"あは\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287430.793663,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287431.460153,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287432.01,\"content\":\"じゃあじゃあ、けいこちゃん、了解でーす。はい、真理ちゃんに、里奈ちゃんに。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287432.641686,\"content\":\"😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287434.870742,\"content\":\"おっはよう☀️.°ございま〜す\",\"speaker\":\"のんchan_ocarina\"}\n{\"type\":\"viewer\",\"startedAt\":1783287435.087561,\"content\":\"😂😂\",\"speaker\":\"えりんぎchan\"}\n{\"type\":\"viewer\",\"startedAt\":1783287435.166959,\"content\":\"おはようございます😊\",\"speaker\":\"Kasumin🥁J\"}\n{\"type\":\"viewer\",\"startedAt\":1783287435.306418,\"content\":\"👀\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287435.45,\"content\":\"行ってくるわよ。待ってね。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287436.298245,\"content\":\"おはよう*｡٩(ˊᗜˋ*)و*｡\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287436.298245,\"content\":\"👀👀\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287436.69104,\"content\":\"おはようございます(⋆ᴗ͈ˬᴗ͈)”\",\"speaker\":\"優菜🦄໒꒱ゅな🍀*゜\"}\n{\"type\":\"viewer\",\"startedAt\":1783287436.862352,\"content\":\"おはようございます☀️😺\",\"speaker\":\"ゆき🥁m͙i͙m͙i͙🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287437.35,\"content\":\"ウィケルチャリーオダルチャリータタツヤセタヤスイシ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287437.794863,\"content\":\"龍龍 早安😊\",\"speaker\":\"🥁annie_アニー🍬\"}\n{\"type\":\"viewer\",\"startedAt\":1783287437.794863,\"content\":\"🤍ྀིおはよう〜⸜(*ˊᗜˋ*)⸝💎💕\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287438.339969,\"content\":\":martin:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287438.339969,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287438.960143,\"content\":\"老眼鏡いる？\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287439.390031,\"content\":\"おはようございます😊\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287439.670309,\"content\":\"おはようございます·͜·❤︎‬\",\"speaker\":\"びっける💎🎨🔥ART\"}\n{\"type\":\"viewer\",\"startedAt\":1783287440.194215,\"content\":\":rewgy2:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287440.461427,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287441.102524,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287441.49,\"content\":\"やすしさん\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287442.789944,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287442.967203,\"content\":\":tsuchi:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287443.34932,\"content\":\":ohazuma:\",\"speaker\":\"みろり🥁901🥒🐰\"}\n{\"type\":\"viewer\",\"startedAt\":1783287443.552641,\"content\":\"おはよーございます\",\"speaker\":\"🌈ー✂️いっさ✂️ー🌈\"}\n{\"type\":\"viewer\",\"startedAt\":1783287444.173986,\"content\":\"早安😊\",\"speaker\":\"🥁annie_アニー🍬\"}\n{\"type\":\"viewer\",\"startedAt\":1783287444.274895,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287444.41,\"content\":\"よし。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287444.842651,\"content\":\"🤣\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287445.292483,\"content\":\"😆🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287446.056579,\"content\":\"😨😨😨\",\"speaker\":\"meiji_no_owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287446.108894,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287447.52,\"content\":\"行くぞ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287447.551076,\"content\":\"😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287447.687451,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287448.544345,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287448.799323,\"content\":\"おはようございます☺️💛\",\"speaker\":\"ルミ.runrun𓃬🐾\"}\n{\"type\":\"viewer\",\"startedAt\":1783287449.905306,\"content\":\"ぴす\",\"speaker\":\"meiji_no_owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287450.054896,\"content\":\":rewgy2:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287451.104927,\"content\":\"🤍ྀིおはよう〜⸜(*ˊᗜˋ*)⸝💎💕\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287451.419467,\"content\":\"おはようございます\",\"speaker\":\"🦄柳瀬莉緒🥁tf63🦄\"}\n{\"type\":\"streamer\",\"startedAt\":1783287451.57,\"content\":\"おはようございます。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287451.983554,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287452.139493,\"content\":\"😆😆😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287452.169187,\"content\":\"ꉂ(ˊᗜˋ )ʬʬʬ\",\"speaker\":\"ひろたん_RWG🥁☀️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287452.730094,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287454.26,\"content\":\"目赤\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287454.441807,\"content\":\":martin:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287454.441807,\"content\":\"おはよーございます😊\",\"speaker\":\"99.81_kuku\"}\n{\"type\":\"streamer\",\"startedAt\":1783287455.77,\"content\":\"えっ、なになに。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287455.836385,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287455.929391,\"content\":\"おはようございます✨\",\"speaker\":\"tkomm\"}\n{\"type\":\"viewer\",\"startedAt\":1783287456.152433,\"content\":\"ᐕ)ﾉ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287456.214349,\"content\":\":rewgy2:\",\"speaker\":\"あみじょう🎻🌸🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287456.983155,\"content\":\"おはようございます😊\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287457.769732,\"content\":\"🤍ྀིおはよう〜⸜(*ˊᗜˋ*)⸝💎💕\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287459.195229,\"content\":\"😆😆😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287459.451649,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287460.08,\"content\":\"ここは赤い。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287460.269825,\"content\":\"ᐕ)ﾉ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287461.143104,\"content\":\":martin:\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287461.894553,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287462.82,\"content\":\"こわっ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287463.425552,\"content\":\"ᐕ)ﾉ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287463.564801,\"content\":\"あかっ\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287464.468339,\"content\":\"充血\",\"speaker\":\"ひろたん_RWG🥁☀️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287466.02381,\"content\":\"(⸝⸝⸝¯👅¯⸝⸝⸝)\",\"speaker\":\"Life_style01\"}\n{\"type\":\"viewer\",\"startedAt\":1783287466.110247,\"content\":\"🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287466.49,\"content\":\"なになに。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287467.224756,\"content\":\"赤い\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287469.446253,\"content\":\"すごい赤い\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287470.147827,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 98000 上がりました！\",\"speaker\":\"まゆみ1029\"}\n{\"type\":\"viewer\",\"startedAt\":1783287471.074106,\"content\":\"あ、ほんとだ\",\"speaker\":\"れいこchocΩ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287471.120708,\"content\":\"ﾊ━━━ヾ(｡´囗｀)ﾉ━━━ｲ\",\"speaker\":\"Life_style01\"}\n{\"type\":\"viewer\",\"startedAt\":1783287471.159503,\"content\":\"赤い💦\",\"speaker\":\"あやっぺ🎷💕\"}\n{\"type\":\"viewer\",\"startedAt\":1783287471.159503,\"content\":\"赤い😨\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287471.648989,\"content\":\"紅紅的\",\"speaker\":\"🥁annie_アニー🍬\"}\n{\"type\":\"viewer\",\"startedAt\":1783287472.088537,\"content\":\"赤いね💦\",\"speaker\":\"🥁shiho1028🩰︎💕︎RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287472.47,\"content\":\"やばいところ\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287472.549618,\"content\":\"あかいよー\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287472.909714,\"content\":\"赤いよ🟥\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287474.495667,\"content\":\"ヤバい\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287474.68983,\"content\":\"おはようございます🤗\",\"speaker\":\"かぶChan.\"}\n{\"type\":\"viewer\",\"startedAt\":1783287474.980554,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287475.041926,\"content\":\"(๑•̀⌄ｰ́๑)b\",\"speaker\":\"Life_style01\"}\n{\"type\":\"viewer\",\"startedAt\":1783287475.12071,\"content\":\"充血してる\",\"speaker\":\"かちゅえ.🎵💕kachue\"}\n{\"type\":\"streamer\",\"startedAt\":1783287476.97,\"content\":\"なんかやばそう。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287478.131881,\"content\":\"充血してるね😂\",\"speaker\":\"Kasumin🥁J\"}\n{\"type\":\"viewer\",\"startedAt\":1783287479.273932,\"content\":\"充血🩸\",\"speaker\":\"99.81_kuku\"}\n{\"type\":\"viewer\",\"startedAt\":1783287479.696476,\"content\":\"疲れ目\",\"speaker\":\"れいこchocΩ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287479.731165,\"content\":\"おはようございます😊💓\",\"speaker\":\"オリメン\"}\n{\"type\":\"viewer\",\"startedAt\":1783287480.666213,\"content\":\"けつまくえん！\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287480.666213,\"content\":\"目が充血してる\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287480.76,\"content\":\"ダメージ受けてる目が。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287480.805126,\"content\":\"たまになるよ\",\"speaker\":\"ひろたん_RWG🥁☀️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287481.09776,\"content\":\"こわくはない🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287481.485835,\"content\":\"眼科へ\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"streamer\",\"startedAt\":1783287484.06,\"content\":\"目薬めちゃくちゃ充血痛いんですが。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287484.33258,\"content\":\"目薬してね💦\",\"speaker\":\"aya_07\"}\n{\"type\":\"viewer\",\"startedAt\":1783287484.758593,\"content\":\"大丈夫❓\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287486.148883,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 98500 上がりました！\",\"speaker\":\"myハニー.☀️🐉\"}\n{\"type\":\"viewer\",\"startedAt\":1783287486.339305,\"content\":\"痛いんですか？\",\"speaker\":\"🦄柳瀬莉緒🥁tf63🦄\"}\n{\"type\":\"viewer\",\"startedAt\":1783287486.515138,\"content\":\"めちゃくちゃ充血してますよ\",\"speaker\":\"tkomm\"}\n{\"type\":\"viewer\",\"startedAt\":1783287487.929762,\"content\":\"中で出血🩸？\",\"speaker\":\"ワタッコ_jr.\"}\n{\"type\":\"streamer\",\"startedAt\":1783287488.71,\"content\":\"ホスター真由美チャンネルですアリ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287489.295932,\"content\":\"いやらしいことしたん\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287489.885044,\"content\":\"結膜炎かも\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287490.647832,\"content\":\"こすった⁉️\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287491.89,\"content\":\"待った。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287492.808961,\"content\":\"おはようございます\",\"speaker\":\"_.CHOMU._\"}\n{\"type\":\"streamer\",\"startedAt\":1783287492.88,\"content\":\"かぶちゃん\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287493.366691,\"content\":\"🤍ྀིおはよう〜⸜(*ˊᗜˋ*)⸝💎💕\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287494.68,\"content\":\"おはようございます。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287498.475388,\"content\":\"痛そう\",\"speaker\":\"かちゅえ.🎵💕kachue\"}\n{\"type\":\"streamer\",\"startedAt\":1783287498.64,\"content\":\"さてござれ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287499.530223,\"content\":\"結膜炎用の目薬を\",\"speaker\":\"りまの🤍\"}\n{\"type\":\"streamer\",\"startedAt\":1783287499.72,\"content\":\"現在でございますけど。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287499.826346,\"content\":\"眼科へGO\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287501.50813,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287501.50813,\"content\":\"おはようございます😊\",\"speaker\":\"🥁あつよ_Bs⚾️\"}\n{\"type\":\"streamer\",\"startedAt\":1783287503.19,\"content\":\"がんかえって。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287503.23072,\"content\":\"眼科へ💦\",\"speaker\":\"ぽよみん🥁S.Dragon🐈\"}\n{\"type\":\"viewer\",\"startedAt\":1783287503.241352,\"content\":\"おはよー🥰\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287503.925551,\"content\":\"おはようございます☀\",\"speaker\":\"_.CHOMU._\"}\n{\"type\":\"viewer\",\"startedAt\":1783287504.110707,\"content\":\"おはようございます🐈💎\",\"speaker\":\"🥁🐈まゆち🤍ྀིRWG💎🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287505.44,\"content\":\"勘かなんか。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287506.415158,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287507.26,\"content\":\"行きたくないよ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287507.921995,\"content\":\"痛いの良くないかも\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"viewer\",\"startedAt\":1783287508.357628,\"content\":\"早安😊\",\"speaker\":\"🥁annie_アニー🍬\"}\n{\"type\":\"viewer\",\"startedAt\":1783287509.832746,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287511.07,\"content\":\"眼科ね。\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287514.86,\"content\":\"りわなちゃん\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287515.065789,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287516.010558,\"content\":\"おはようございます♪\",\"speaker\":\"りまの🤍\"}\n{\"type\":\"streamer\",\"startedAt\":1783287516.87,\"content\":\"鬼滅エヴァ\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287516.997946,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 99000 上がりました！\",\"speaker\":\"🥁🐈yukko🌻RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287518.865257,\"content\":\"鬼滅の刃にでそうなキャラ\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287519.15,\"content\":\"行ってかんか。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287519.729557,\"content\":\"おはようございます☀\",\"speaker\":\"_.CHOMU._\"}\n{\"type\":\"viewer\",\"startedAt\":1783287520.351616,\"content\":\"行って眼科\",\"speaker\":\"🌹さち🎹🍊sachi💫🌸\"}\n{\"type\":\"viewer\",\"startedAt\":1783287520.583848,\"content\":\"🤣🤣🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287521.39,\"content\":\"アリスちゃん\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287524.488773,\"content\":\"いやーいい\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287524.979924,\"content\":\"診てもらわないと\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"streamer\",\"startedAt\":1783287525.16,\"content\":\"やった。\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287526.02,\"content\":\"自然に治りますけど。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287527.467921,\"content\":\"自然に治りますけどね…\",\"speaker\":\"ひろたん_RWG🥁☀️\"}\n{\"type\":\"streamer\",\"startedAt\":1783287528.2,\"content\":\"イぇー。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287530.120491,\"content\":\"ᐕ)ﾉ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287530.29,\"content\":\"下等所から作った。治りそう。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287531.271276,\"content\":\"産婦人科いこ\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287532.679083,\"content\":\"おはようございます(*^^*)\",\"speaker\":\"🥁🐈yukko🌻RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287533.62,\"content\":\"今何か。\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287534.53,\"content\":\"いただいて\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287535.686337,\"content\":\"ᐕ)ﾉ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287536.08,\"content\":\"あれでするるちゃん、ノブちゃん。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287537.877306,\"content\":\"目は産婦人科やで\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"viewer\",\"startedAt\":1783287538.399153,\"content\":\"目は大切にしないとですからね\",\"speaker\":\"🦄柳瀬莉緒🥁tf63🦄\"}\n{\"type\":\"viewer\",\"startedAt\":1783287538.478438,\"content\":\"🎁ナイス💝ちゃれんじ🎁👏👏\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287538.76,\"content\":\"よし。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287539.623629,\"content\":\"ᐕ)ﾉ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287540.874959,\"content\":\":ohazuma:\",\"speaker\":\"sugar🐣711🍓🍨\"}\n{\"type\":\"viewer\",\"startedAt\":1783287541.967181,\"content\":\"おはようございます🩷😍\",\"speaker\":\"クロネコ3105\"}\n{\"type\":\"streamer\",\"startedAt\":1783287542.12,\"content\":\"起きよう。\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287543.67,\"content\":\"いつまでも\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287543.989289,\"content\":\"おはよございます♪(ᵔᗨᵔ๑)\",\"speaker\":\"ノブ123\"}\n{\"type\":\"viewer\",\"startedAt\":1783287545.116113,\"content\":\"ᐕ)ﾉ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"streamer\",\"startedAt\":1783287545.64,\"content\":\"この体勢じゃいられない。\",\"speaker\":\"\"}\n{\"type\":\"streamer\",\"startedAt\":1783287549.89,\"content\":\"みんな起きるよ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287551.235763,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287552.084688,\"content\":\"@まゆみ1029 👏(ˊᗜˋ*)ﾊﾟﾁﾊﾟﾁ\",\"speaker\":\"ひろたん_RWG🥁☀️\"}\n{\"type\":\"viewer\",\"startedAt\":1783287552.95665,\"content\":\"鈴木龍二🥁Martin🥁 さんのアーミーのスコアが 100000 上がりました！\",\"speaker\":\"キララ🐶御殿💠\"}\n{\"type\":\"streamer\",\"startedAt\":1783287553.33,\"content\":\"3\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287554.475798,\"content\":\"目が痛いの？\",\"speaker\":\"🥁🐈yukko🌻RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287554.939968,\"content\":\"ぱた\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287555.03,\"content\":\"2位。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287555.820085,\"content\":\"んだ\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287555.99069,\"content\":\"いったん\",\"speaker\":\"HANAはち🌷RWG🌷\"}\n{\"type\":\"streamer\",\"startedAt\":1783287556.95,\"content\":\"エッチ\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287557.157742,\"content\":\"@ひろたん_RWG🥁☀️ (❁ᴗ͈ˬᴗ͈)ﾍﾟｺﾘ♡...*゜\",\"speaker\":\"まゆみ1029\"}\n{\"type\":\"streamer\",\"startedAt\":1783287559.26,\"content\":\"よ。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287559.786827,\"content\":\"ギフトで起きる😆\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287560.858777,\"content\":\"おはようございます⋆⸜🧡⸝‍⋆\",\"speaker\":\"キララ🐶御殿💠\"}\n{\"type\":\"viewer\",\"startedAt\":1783287561.117892,\"content\":\"ぱた\",\"speaker\":\"showa🥁no🥁owari\"}\n{\"type\":\"streamer\",\"startedAt\":1783287561.44,\"content\":\"果てしない。\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287562.547201,\"content\":\"おはよ(*ˊᗜˋ*)/♡\",\"speaker\":\"モモタレ\"}\n{\"type\":\"viewer\",\"startedAt\":1783287563.111806,\"content\":\"🤣🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"streamer\",\"startedAt\":1783287565.88,\"content\":\"ウソラト\",\"speaker\":\"\"}\n{\"type\":\"viewer\",\"startedAt\":1783287566.513946,\"content\":\"すや\",\"speaker\":\"aya_07\"}\n{\"type\":\"viewer\",\"startedAt\":1783287566.954001,\"content\":\"電気切る？\",\"speaker\":\"ぽよみん🥁S.Dragon🐈\"}\n{\"type\":\"viewer\",\"startedAt\":1783287567.414078,\"content\":\"🤣\",\"speaker\":\"🥒カミラーⓇ🥁514💛\"}\n{\"type\":\"viewer\",\"startedAt\":1783287568.479503,\"content\":\"😂😂😂\",\"speaker\":\"ノブ456\"}\n{\"type\":\"viewer\",\"startedAt\":1783287568.53645,\"content\":\"🤣🤣🤣🤣🤣\",\"speaker\":\"Alice🥁RWG🥁\"}\n{\"type\":\"viewer\",\"startedAt\":1783287569.948926,\"content\":\"ね\",\"speaker\":\"ぽよみん🥁S.Dragon🐈\"}\n{\"type\":\"streamer\",\"startedAt\":1783287570.24,\"content\":\"オゾラ\",\"speaker\":\"\"}\n{\"type\"",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1248,
+        -544
+      ],
+      "id": "b0db5ba5-4756-463e-81c9-702d3fafc8e5",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://104.199.212.229/transcribe",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "__EXTERNAL_FILE__://nodes/HTTP_Request/jsonBody.jsonc",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1904,
+        -32
+      ],
+      "id": "89f2a286-7d9b-456c-9d22-4b30a5a2f5fd",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1088,
+        -48
+      ],
+      "id": "25df8210-f088-418a-9f10-7387e2dd6463",
+      "name": "Wait",
+      "webhookId": "3e5aa51e-8291-466d-884f-d0c6960fceb5"
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/merge_dialogue/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -32,
+        -48
+      ],
+      "id": "52069335-9933-4e5d-9d0d-95f098a71bd7",
+      "name": "merge dialogue"
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/encode_to_text/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -48
+      ],
+      "id": "af920623-e8f5-42e6-aef5-6f84b83e9518",
+      "name": "encode to text"
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/extract_comments/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1680,
+        320
+      ],
+      "id": "afd8f530-6c5d-4ceb-bc20-7ce0515a3d39",
+      "name": "extract comments"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2d1c166f-1c58-47a8-b4b9-f249b1874124",
+              "name": "stt",
+              "value": "={{ $json.body.stt }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -640,
+        -64
+      ],
+      "id": "521f3de0-5c35-4855-969f-fa01b041ae44",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5c2b1285-876c-49b0-bf1f-60fbdf0b0345",
+              "leftValue": "={{ $json.body.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -880,
+        -48
+      ],
+      "id": "ffdd8587-1ec5-4af4-9d94-25befcfc7755",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Start').item.json.channel }}",
+          "mode": "id"
+        },
+        "text": "=```{{ JSON.stringify($('Wait').item.json.body, null, 2) }}```",
+        "otherOptions": {
+          "link_names": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Start').item.json.target_thread_ts }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -640,
+        112
+      ],
+      "id": "1d3ea023-e76b-42d8-8ef4-1882ce650755",
+      "name": "Send a message",
+      "webhookId": "b1a0ef68-92df-4fc3-bf6d-7e4057617682",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "20b3b251-6c7d-4bc3-a51f-dde8ccd43564",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "submitted",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1696,
+        -32
+      ],
+      "id": "7c66f1e2-2f91-4ccd-bfa8-860386edf14d",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Start').item.json.channel }}",
+          "mode": "id"
+        },
+        "text": "=```{{ JSON.stringify($json, null, 2) }}```",
+        "otherOptions": {
+          "link_names": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Start').item.json.target_thread_ts }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -1376,
+        112
+      ],
+      "id": "ff004816-9b08-4199-bb0c-df0ca573f075",
+      "name": "Send a message1",
+      "webhookId": "b1a0ef68-92df-4fc3-bf6d-7e4057617682",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Start').item.json.channel }}",
+          "mode": "id"
+        },
+        "text": "=```{{ JSON.stringify($json, null, 2) }}```",
+        "otherOptions": {
+          "link_names": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Start').item.json.target_thread_ts }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -1376,
+        -48
+      ],
+      "id": "68f7ca7b-373e-4801-a089-2688c92deee9",
+      "name": "Send a message2",
+      "webhookId": "b1a0ef68-92df-4fc3-bf6d-7e4057617682",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Normalize Input').first().json.channelId }}",
+          "mode": "id"
+        },
+        "text": "=Dialogue: {{ $('Upload dialogue').item.json.permalink }}\n",
+        "otherOptions": {
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Normalize Input').first().json.threadTs }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        816,
+        416
+      ],
+      "id": "0254543e-6da9-4238-af80-aa31e453664d",
+      "name": "Send results",
+      "webhookId": "75ee254e-256d-4ca3-872b-13aba5981e5e",
+      "alwaysOutputData": true,
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {
+          "fileName": "=dialogue-{{ $('Start').first().json.streamID }}.json"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        256,
+        416
+      ],
+      "id": "3419192e-adb5-4b81-b506-c30d4e104b9b",
+      "name": "Convert to file"
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {
+          "fileName": "=vds-{{ $('Start').first().json.streamID }}.json"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1008,
+        -48
+      ],
+      "id": "6f4a70f4-d234-466f-908a-67c0bce57055",
+      "name": "Convert to file1"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Normalize Input').first().json.channelId }}",
+          "mode": "id"
+        },
+        "text": "=result: {{ $json.permalink }}\n",
+        "otherOptions": {
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Normalize Input').first().json.threadTs }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1424,
+        -48
+      ],
+      "id": "73fad27c-1aea-415b-a0d1-e9837c859b5a",
+      "name": "Send results1",
+      "webhookId": "75ee254e-256d-4ca3-872b-13aba5981e5e",
+      "alwaysOutputData": true,
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "options": {
+          "threadTs": "={{ $('Start').first().json.target_thread_ts }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        -48
+      ],
+      "id": "97d148a7-a9cd-4f61-aad5-7b69c6b22e67",
+      "name": "Upload vds result",
+      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "options": {
+          "threadTs": "={{ $('Start').first().json.target_thread_ts }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        416
+      ],
+      "id": "d181a5c2-b0ab-468e-b557-df618bafb8aa",
+      "name": "Upload dialogue",
+      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "steamID beginTime and endTime1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "steamID beginTime and endTime1": {
+      "main": [
+        [
+          {
+            "node": "If streamID exist1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If streamID exist1": {
+      "main": [
+        [
+          {
+            "node": "get openID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stream comments": {
+      "main": [
+        [
+          {
+            "node": "extract comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get openID": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Stream comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "decode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "merge dialogue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "merge dialogue": {
+      "main": [
+        [
+          {
+            "node": "Convert to file",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "encode to text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "encode to text": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract comments": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message2": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "decode": {
+      "main": [
+        [
+          {
+            "node": "Convert to file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to file": {
+      "main": [
+        [
+          {
+            "node": "Upload dialogue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to file1": {
+      "main": [
+        [
+          {
+            "node": "Upload vds result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload vds result": {
+      "main": [
+        [
+          {
+            "node": "Send results1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload dialogue": {
+      "main": [
+        [
+          {
+            "node": "Send results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "streamID": "214907085",
+          "channel": "C09F0SYG57D",
+          "target_thread_ts": "1783509777.579759",
+          "playback": "http://1316676231.vod2.myqcloud.com/1d899b0cvodjp1316676231/27a809a65145403727916502758/f0.flv",
+          "playbacks": [
+            "https://1500028699.vod-qcloud.com/1431b680vodsgp1500028699/9a2b39c85001834805669955117/f0.flv",
+            "https://1500028699.vod-qcloud.com/1431b680vodsgp1500028699/9a2b39c85001834805669955117/f0.flv"
+          ],
+          "startSec": 0,
+          "durationSec": 0
+        }
+      }
+    ]
+  },
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "uz3J0cKPyNzcZPt0",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

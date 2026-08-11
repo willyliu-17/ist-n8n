@@ -1,0 +1,9 @@
+={{ JSON.stringify({
+  flvUrls: Array.isArray($('Start').item.json.playbacks) && $('Start').item.json.playbacks.length > 0
+    ? $('Start').item.json.playbacks
+    : [$('Start').item.json.playback],
+  sourceLanguage: ({ tw: 'zh', jp: 'ja' }[ $('steamID beginTime and endTime1').item.json.ipRegion ] ?? 'zh'),
+  webhookUrl: $execution.resumeUrl,
+  startSec: $('Start').item.json.startSec,
+  durationSec: $('Start').item.json.durationSec
+}) }}

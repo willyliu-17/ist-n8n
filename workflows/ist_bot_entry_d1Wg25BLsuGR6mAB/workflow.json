@@ -182,6 +182,29 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "70bd6793-10ec-4e38-9413-115704626861",
+                    "leftValue": "={{ $json.routeKey }}",
+                    "rightValue": "vds:stream",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -538,6 +561,112 @@
       ],
       "id": "9600d0e7-d771-4eb3-b2e1-da1733cdb475",
       "name": "Call 'AI SUMMARY v2'"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "uz3J0cKPyNzcZPt0",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/uz3J0cKPyNzcZPt0",
+          "cachedResultName": "tencent realtime vds"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "durationSec": "={{ $json.positionals[3] ?? 0 }}",
+            "startSec": "={{ $json.positionals[2] ?? 0 }}",
+            "target_thread_ts": "={{ $json.ts }}",
+            "streamID": "={{ $json.positionals[0] }}",
+            "channel": "={{ $json.channel }}",
+            "playbacks": "={{ String($json.positionals[1] ?? '').split('|')[0].replace(/[<>]/g, '').split(',').map(url => url.trim()).filter(Boolean) }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "streamID",
+              "displayName": "streamID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "channel",
+              "displayName": "channel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "target_thread_ts",
+              "displayName": "target_thread_ts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "playback",
+              "displayName": "playback",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": true
+            },
+            {
+              "id": "playbacks",
+              "displayName": "playbacks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            },
+            {
+              "id": "startSec",
+              "displayName": "startSec",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "durationSec",
+              "displayName": "durationSec",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        496,
+        736
+      ],
+      "id": "e7ebe565-fb4f-4cc0-9d17-b88b2e80bd09",
+      "name": "Call 'tencent realtime vds'"
     }
   ],
   "connections": {
@@ -594,6 +723,13 @@
           },
           {
             "node": "Call 'AI SUMMARY v2'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call 'tencent realtime vds'",
             "type": "main",
             "index": 0
           }
@@ -684,7 +820,7 @@
       }
     ]
   },
-  "activeVersionId": "b11be484-df3a-4f6e-9347-70324c2de373",
+  "activeVersionId": "2a03225a-6ba9-47b3-999b-c651ccd95ab0",
   "triggerCount": 1,
   "shared": [
     {
@@ -739,9 +875,9 @@
     }
   ],
   "activeVersion": {
-    "updatedAt": "2026-06-15T07:54:59.594Z",
-    "createdAt": "2026-06-15T07:54:59.594Z",
-    "versionId": "b11be484-df3a-4f6e-9347-70324c2de373",
+    "updatedAt": "2026-08-06T03:26:40.192Z",
+    "createdAt": "2026-08-06T03:26:40.192Z",
+    "versionId": "2a03225a-6ba9-47b3-999b-c651ccd95ab0",
     "workflowId": "d1Wg25BLsuGR6mAB",
     "nodes": [
       {
@@ -912,6 +1048,29 @@
                       "id": "14250528-16a5-4a81-aa29-7d19b365a272",
                       "leftValue": "={{ $json.routeKey }}",
                       "rightValue": "summary:stream",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals",
+                        "name": "filter.operator.equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "70bd6793-10ec-4e38-9413-115704626861",
+                      "leftValue": "={{ $json.routeKey }}",
+                      "rightValue": "vds:stream",
                       "operator": {
                         "type": "string",
                         "operation": "equals",
@@ -1277,6 +1436,112 @@
         ],
         "id": "9600d0e7-d771-4eb3-b2e1-da1733cdb475",
         "name": "Call 'AI SUMMARY v2'"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "uz3J0cKPyNzcZPt0",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/uz3J0cKPyNzcZPt0",
+            "cachedResultName": "tencent realtime vds"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "durationSec": "={{ $json.positionals[3] ?? 0 }}",
+              "startSec": "={{ $json.positionals[2] ?? 0 }}",
+              "target_thread_ts": "={{ $json.ts }}",
+              "streamID": "={{ $json.positionals[0] }}",
+              "channel": "={{ $json.channel }}",
+              "playbacks": "={{ String($json.positionals[1] ?? '').split('|')[0].replace(/[<>]/g, '').split(',').map(url => url.trim()).filter(Boolean) }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "streamID",
+                "displayName": "streamID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "channel",
+                "displayName": "channel",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "target_thread_ts",
+                "displayName": "target_thread_ts",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "playback",
+                "displayName": "playback",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": true
+              },
+              {
+                "id": "playbacks",
+                "displayName": "playbacks",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "array",
+                "removed": false
+              },
+              {
+                "id": "startSec",
+                "displayName": "startSec",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "number",
+                "removed": false
+              },
+              {
+                "id": "durationSec",
+                "displayName": "durationSec",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "number",
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          496,
+          736
+        ],
+        "id": "e7ebe565-fb4f-4cc0-9d17-b88b2e80bd09",
+        "name": "Call 'tencent realtime vds'"
       }
     ],
     "connections": {
@@ -1333,6 +1598,13 @@
             },
             {
               "node": "Call 'AI SUMMARY v2'",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Call 'tencent realtime vds'",
               "type": "main",
               "index": 0
             }
