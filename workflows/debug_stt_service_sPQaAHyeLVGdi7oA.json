@@ -1,0 +1,141 @@
+{
+  "id": "sPQaAHyeLVGdi7oA",
+  "name": "Debug STT service",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=http://35.206.206.41/ping",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "last_mins",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        -240
+      ],
+      "id": "21a2de2f-fa04-4b6b-a32f-1f4c444ec7df",
+      "name": "STT ping"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "aec0d590-73e9-4532-9272-c493a34b0d49",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        240,
+        -240
+      ]
+    }
+  ],
+  "connections": {
+    "STT ping": {
+      "main": [
+        []
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "STT ping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "sPQaAHyeLVGdi7oA",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [
+    {
+      "updatedAt": "2025-10-31T00:43:57.669Z",
+      "createdAt": "2025-10-31T00:43:57.669Z",
+      "id": "1aivWf6nJKJPatrn",
+      "name": "aliveCheck"
+    },
+    {
+      "updatedAt": "2025-10-31T00:33:05.881Z",
+      "createdAt": "2025-10-31T00:33:05.881Z",
+      "id": "boreCiHZYpl3eDGl",
+      "name": "ist-bot"
+    }
+  ],
+  "activeVersion": null
+}

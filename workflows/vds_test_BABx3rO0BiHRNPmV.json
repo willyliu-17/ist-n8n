@@ -1,0 +1,145 @@
+{
+  "id": "BABx3rO0BiHRNPmV",
+  "name": "vds-test",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -704,
+        -96
+      ],
+      "id": "a057e87a-e1c3-4417-973e-80e4731e416a",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=prompt: “You are a streaming content integration assistant. Your ABSOLUTE task is to analyze streamer transcripts and identify DISTINCT feedback items that are DIRECTLY related to the platform’s functionality, design, and operations. You MUST categorize each unique feedback item exclusively using the provided tags. If a unique piece of feedback relates to multiple defined tags, you MUST include all relevant tags as a list. Any unique feedback item that cannot be classified under any of the existing tags MUST be placed under the `#Others` tag. You MUST IGNORE emotional expressions, personal issues, or any discussions that are not a direct critique, suggestion, or question about the platform’s features or policies.Follow these rigorous steps:Step 1: Thoroughly review the entire streamer’s speech.Step 2: For each statement or closely related set of statements expressing feedback about the platform, extract the core issue or sentiment.Step 3: Compare the currently identified feedback with any previously identified feedback. If the core issue and sentiment are substantially the same, consider them as a single feedback item. Focus on the meaning, not the exact wording.Step 4: For each DISTINCT and UNIQUE feedback item about the platform, meticulously evaluate its relevance to the following conceptual categories, using the provided hashtag definitions as the ONLY classification criteria:* **Event and Reward Mechanism Issues:** Concerns the platform’s event reward system, gifting mechanisms, event rules, and participation experience. Focus on fairness, participation difficulty, and reward distribution.* **Interface and User Experience Issues:** Concerns the platform interface layout, feature placement, and user flow. Focus on ease of use, operational efficiency, and consistency.* **Technical Issues:** Pertains to the platform’s technical performance, including stream lag, platform stability, server latency, and other system malfunctions.* **Rules and Policy Issues:** Addresses platform rules, moderation mechanisms, or content policies, including concerns about user behavior handling, moderation fairness, and violation clarity.Step 5: Apply the provided hashtags EXCLUSIVELY based on the following definitions. DO NOT invent new tags or combine existing tags into new ones. If a UNIQUE feedback item clearly aligns with one or more of these definitions, include all applicable tags in a list.* `#SystemNotification`: DISTINCT feedback explicitly mentioning ‘SystemNotification,’ ‘NotificationSystem,’ ‘APP Notification,’ ‘PushNotification,’ or other direct references to system-generated notifications, focusing on the core complaint, suggestion, or question.* `#LuckyBag`: DISTINCT complaints, suggestions, or questions specifically mentioning ‘RandomGift,’, ‘SupriseGift,’, ‘Limit Gift’, ‘LuckyBag.’ or ‘hard to win the biggest prize’.* `#Requirement`: DISTINCT suggestions for new features, improvements to existing ones, or criticism of poorly designed features.* `#Compliment`: DISTINCT positive feedback related to platform features or services or specific user interface.* `#Gambling`: DISTINCT negative feedback related to gambling games in streaming room, include but not limit the speech about ‘percentage too low’, ‘hard to win’, ‘Game cannot be launched’.* `#Game`: DISTINCT negative feedback related to game features, include but not lime the speech about’cannot control the screen’, ‘cellphone is getting hot during playing game’,‘Game cannot be launched’.* `#Event`: DISTINCT negative feedback related to events or campaigns, including descriptions of the event flow, or questions about them.* `#StreamingQuality`: DISTINCT negative feedback related to streaming quality, including stream delay, jitter, audio/video desync.* `#UserExperience`: DISTINCT negative feedback related to the user interface, including UI truncation, small font sizes, difficulty finding features.* `#Others`: Any DISTINCT feedback item that CANNOT be definitively classified under any of the above tags.Step 6: For each UNIQUE piece of platform-related feedback, provide a detailed description that summarizes the core issue, the FIRST specific quote from the streamer expressing that issue (to represent the feedback), and the classification tag(s). If a unique feedback item aligns with multiple tags, the `tag` field MUST be a list of those tags. If a unique feedback item cannot be classified under any specific tag, the `tag` MUST be `#Others`.Step 7: ABSOLUTELY IGNORE any streamer speech that reflects personal feelings, off-topic discussions, or general chat unrelated to a specific platform feature or policy (e.g., I’m not feeling well today,No one is talking to me in the chat,What are you guys doing?). Focus ONLY on direct feedback about the platform itself.Step 8: Output the analysis as an array of JSON objects. Each object MUST contain the `description`, `quote` (the first instance of the feedback), and `tag`. Ensure that the `tag` field is either a single string (for `#Others`) or a list of strings (for one or more applicable tags). If no relevant and unique platform-related issues are found, output an empty array: `[]`. You can leverage the following predefined hashtags and hashtag definitions:\\n\\t\\t{hashtag}\\n\\n\\tOtherwise, please strictly follow the response example format below:\\n\\n\\tExample:\\n\\t\\t[{example}]”\nhashtags:\n“#SystemNotification”: “DISTINCT feedback specifically mentioning ‘SystemNotification,’ ‘NotificationSystem,’ ‘APP Notification,’ ‘PushNotification,’ or other explicit references to system-generated notifications, focusing on the core complaint.”\n“#LuckyBag”: “DISTINCT complaints specifically mentioning ‘RandomGift,’ ‘SupriseGift,’ or ‘LuckyBag.’”\n“#Requirement”: “DISTINCT suggestions for new features, improvements to existing ones, or criticism of poorly designed features.”\n“#Compliment”: “DISTINCT positive feedback related to platform features or services.”\n“#Gambling”: “DISTINCT negative feedback related to gambling games.”\n“#Game”: “DISTINCT negative feedback related to game features.”\n“#Event”: “DISTINCT negative feedback related to events or campaigns, including descriptions of the event flow.”\n“#StreamingQuality”: “DISTINCT negative feedback related to streaming quality, including stream delay, jitter, audio/video desync.”\n“#UserExperience”: “DISTINCT negative feedback related to the user interface, including UI truncation, small font sizes, difficulty finding features.”\n“#Others”: “Any DISTINCT feedback that cannot be clearly classified under any of the above tags.”\nexample:\n- {‘description’: ‘Complaint about XXX’, ‘ref’: ‘Reference content from original transcript’, ‘time’: ‘xx:xx:xx.xxx’, ‘hashtags’: [‘#SystemNotification’, ‘#Requirement’]}\n- {‘description’: ‘Complaint about YYY’, ‘ref’: ‘Reference content from original transcript’, ‘time’: ‘xx:xx:xx.xxx’, ‘hashtags’: [‘#LuckyBag’, ‘#Requirement’]}\n- {‘description’: ‘Complaint about ZZZ’, ‘ref’: ‘Reference content from original transcript’, ‘time’: ‘xx:xx:xx.xxx’, ‘hashtags’: [‘#Compliment’]}\nchinese_translation_prompt: “翻譯下列內容為繁體中文：”\n\n{{ $json.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -96
+      ],
+      "id": "03913064-2dba-4be2-8028-8e7ccf74e547",
+      "name": "Current VDS prompt",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gMeMxD0Uq89xl8xy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n\n      type: \"streaming\",\n      source: \"tencent\",\n      region: \"JP\",\n      uniqueID: \"213037420\",\n      userID: \"ed5f6e5a-05ea-4b74-85ba-90953fce00fc\",\n      openID: \"🍓草莓肉肉🐽\",\n      streamID: \"212589073\",\n      messageID: 1234,\n      contractType: 1,\n      vliverModel: 0,\n      appVersion: \"3.311.0\",\n      deviceType: \"IOS\",\n      createdTime: 1756961946567,\n      content: \"有在一隻往上\\n中了鴨子\\n這樣你改變心意要換練鴨子的事嗎\\n可是鴨子練完應該很貴耶\\n下一個機器鴨\\n可是我覺得機器鴨長得有點奇怪\\n弟弟早安\\n3900隻\\n我知道我知道\\n4000好了\\n4000乘以150\\n60萬\\n快要60萬了\\n鴨子2400了\\n今天親戚來家裡\\n所以等一下\\n等一下可能\\n就要去應付他們\\n跟他們吃飯\\n加刷缸兩隻2402\\n你算的可真是精細\\n嗨哩媽\\n嗨Landy\\n謝謝點心\\n謝謝Landy\\n這個我就收到生日快樂中\\n棒棒\\n很可以耶\\n這個好美怎麼辦\\n涼拌\\n但我現在\\n我現在是比較醜的時候\\n我的臉還沒有好\\n臉還沒好還要硬化妝\\n要上班\\n等一下要去醫院\\n趕快去\\n你知道你上\\n謝謝你\\n你趕快去忙你的\\n祝媽媽\\n早日康復\\n好\\n好\\n好\\n好\\n不怕你睡著了\\n我就知道\\n我還在睡念你跟EP\\n為什麼人不見\\n不是說要來給我\\n支持\\n還是來看我\\n結果人呢\\n人咧\\n人沒了\\n觀禮都沒啦\\n哭哭\\n你還說什麼你會\\n你就到家\\n我知道你到家\\n到家但是沒有到我直播間\\n哭哭\\n給Landy點心\\n謝謝安\\n吃飽了\\n你已經吃飽了\\n你這麼快就吃飽了\\n還沒吃耶\\n等我一下\\n沒有去裝好水\\n我剛剛去弄我的那個額頭\\n麵豬\\n你們是吃什麼麵 家常\\n電眼耳子\\n用陽春麵這樣子\\n有的地方遮不住\\n去哪裡唷\\n沒有要去哪裡\\n就在家裡\\n我是誰點了誰\\n搞不清楚\\n右射\\n什麼是右射\\n我的貓在外面玩\\n今天沒有貓\\n因為今天親戚來\\n所以可能\\n又雷射\\n對\\n雷射打臉\\n差不多一個月會雷射一次\\n就會醜一次\\n然後因為我現在雷射才第二天\\n所以那個傷全部\\n遮是可以遮啦\\n但是就是遮不好\\n我沒遮我就要用濾鏡啊\\n我沒遮我就要用濾鏡啊\\n我沒遮我就要用濾鏡啊\\n我沒遮我就要用濾鏡啊\\n如果不用濾鏡我就要\\n如果不用濾鏡我就要\\n我就要化妝\\n二折一\\n哎唷\\n真太可愛了\\n這個\\n杯子被我撞那麼多次了\\n裝個水\\n等我一下\\n送我每日幸運一起慶聚\\n還有一起慶聚\\n一起慶祝\\n思念的拍拍\\n愛的掌聲\\n什麼東西一起慶聚啊\\n自己發\\n自己的通知\\n很可憐\\n然後放到現在還在放\\n一個有關麻糬\\n雞的餅\\n也許晚上的時候餓了可以吃\\n但是現在有點噁心\\n我是說\\n放\\n放太久有點噁心\\n然後等一下要\\n給貓貓吃的飯\\n大概等到\\n8點再給牠吃就好\\n8點再給牠吃就好\\n太早吃牠又會\\n整這麼噁心\\n很噁心嗎\\n牠只是\\n長相不好而已\\n謝謝Landy的點心\\n牠只長得不好但是其實蠻好吃的\\n不要誤會牠\\n謝謝風塵\\n我今天到底是\\n為什麼一直叫錯人家名字\\n謝謝方塵\\n謝謝Jason\\n我沒有嫌棄\\n謝謝車車\\n結果我又\\n按錯了啦\\n生日快樂\\n生日快樂\\n他的飼料\\n好吃唷\\n這真的要放到8點\\n放到8點不知道會不會壞掉\\n謝謝車車\\n謝謝乾爸的阿飄阿飄阿飄\\n三個阿飄\\n看可以飄去哪\\n飄到心裡\\n這時候\\n還可以做個運動\\n2 13 14 15\\n16 17 18\\n19 20 21 22\\n23 24 25\\n26 27 28\\n29 30\\n31 32 33\\n34 35 36\\n37 38 39\\n41 42\\n43 14 45\\n47 48 49\\n50\\n50下一點都不會算\\n51 52\\n53 54 57\\n58 59 60\\n61 62 63\\n64 66 67\\n68 69 77\\n76 77\\n78 79 80\\n87 88\\n89 99\\n97 98 99\\n100\\n我在瘦手臂\\n覺得手臂太粗\\n要瘦手臂\\n瘦手臂\\n27 17\\n19 20\\n21\\n24 25\\n27 28\\n29 30\\n31 36\\n37 39\\n12 43\\n47 48\\n49\\n50\\n56\\n94\\n19 20\\n27\\n欸你的這個音樂波也太可愛了吧\\n29 30\\n31 32\\n33 34\\n我在算我\\n運動的時間\\n39 40\\n43\\n那你這個幾級\\n48 49 50\\n喔這個是滿了\\n滿了很可愛耶\\n那我都沒有看過什麼是沒滿的啊\\n滿了是五個\\nUFO的外星人\\n方程你為什麼124\\n啊你的3咧\\n你沒有看過什麼是沒滿的啊\\n你有3啊\\n3要怎麼獲得\\n謝謝車車的點心\\n謝謝車車\\n嗨委委\\n3要明天才有\\n0626到063\\n連續簽到5天\\n喔喔喔喔\\n喔喔喔喔\\n好了解\\n所以3要等到30才會發放\\n了解了解了解了解\\n好好奇怪喔\\n要再蒐集\\n我再等過12點\\n等10個點就可以拿到3\\n那5要怎麼獲得\\n謝謝兒子點心\\n上午點後再領\\n也是啊\\n不用這麼著急領啊\\n反正他就是一個時間會給你領不是嗎\\n不過一個小時\\n不過一個小時\\n5號到10號\\n那不就要好幾天\\n好久喔\\n直播一個小時\\n不容易\\n要掛在直播間一個小時\\n辛苦大家了\\n你開一個小時給我們看\\n我開一個小時\\n然後沒有人的播\\n我去洗個手\\n送給主播\\n1710歲\\n為什麼送給主播1710歲\\n沒有加一份\\n你怎麼又送馬卡龍了\\n你的鴨呢\\n歐北七\\n高興就按一個\\n不高興也按一個\\n謝謝方可\\n謝謝加漢的帥\\n打一個\\n自由自在\\n完全沒有要管主播\\n在蒐集什麼禮物\\n8萬贏了最後\\n最後的獎金\\n照\\n照哪裡去了噴火龍\\n你沒有看到噴火龍嗎\\n噴火龍\\n已經噴完火了\\n兒子沒看到\\n兒子沒看清噴火龍\\n還在想說你晚上\\n怎麼也沒有\\n也沒有來然後\\n晚上\\n又去聚餐到底是\\n聚到哪去了\\n就你跟方程都沒有到\\n太不可思議了\\n兩位聚餐都\\n聚到人間蒸發\\n我有上來前到\\n你說你12點有上來前到\\n我12點沒有看到你耶\\n我只有看到你\\n7點的時候前到\\n嗯就那一次\\n是的\\n你聚餐可以聚到早上\\n我也是佩服耶\\n這是什麼\\n什麼好玩的聚餐\\n可以聚整天\\n公司的\\n那個\\n感情可以多好\\n後面不好玩\\n不好玩\\n但你是用什麼意志力活到\\n活到\\n早上的\\n星星嗎\\n需要的魯夫\\n要追蹤啊\\n如果有星星可以給喔\\n前面比較好玩\\n在那邊6點半到11點半\\n然後也只唱到2點\\n2點到後面\\n是不是大家比較沒力了\\n耶\\n我有無敵星星\\n加了500分\\n當很醜的時候\\n就只要用這個面不食人\\n但同事喝醉\\n謝謝魯夫還有兩個120的耶\\n感謝戀愛\\n謝謝你的無敵星星加分\\n加了很多分\\n可可愛愛\\n可愛愛\\n漂漂亮亮\\n漂亮個鬼\\n漂亮的像鬼一樣\\n還剩7天不存了\\n所以都一起給你\\n本來剩7天\\n本來剩7天\\n你原本要給人喔\\n給我啦給我啦\\n給我我很有用\\n我來說意義重大\\n現在的底色是灰黑色\\n還蠻好看的\\n把全部都給\\n你的全部都是升級禮\\n你全部都送我升級禮\\n歸零\\n超傻眼的\\n我等昨天說去準備\\n然後結果\\n今天準備來了\\n全部都是義氣蛋糕\\n要送他回家怎麼樣\\n後面上車又說\\n又說他要吃小夜\\n結果吃完小夜早上5點半\\n你說女生喔\\n是同事嗎\\n那同事\\n同事是女生嗎\\n有這麼值得陪他到早上5點半喔\\n有這麼值得陪他到早上5點半喔\\n那長得漂亮嗎\\n那長得漂亮嗎\\n是個妹子嗎\\n那是個妹子嗎\\n但吃個早餐\\n吃到5點也離譜\\n總不能丟在路邊\\n總不能丟在路邊\\n然後不說自己家在哪裡\\n然後不說自己家在哪裡\\n想幹嘛騙了我們一批一大把時間\\n想幹嘛騙了我們一批一大把時間\\n騙了我們一批一大把時間\\n連草莓肉肉都沒有在看\\n逃過了草莓肉肉這一劫\\n逃過了草莓肉肉這一劫\\n生死劫\\n沒有長得特別好\\n沒有長得特別不好\\n就一般般\\n只是覺得他是個女生\\n把他丟在路上好像\\n對不起他\\n了解\\n非常的了解\\n問法就問不對了\\n這叫做沒興趣\\n那請問有興趣的話\\nEP會怎樣\\n有興趣的話\\n有興趣的話\\n是我說想吃宵夜的嗎\\n他說的我是說你還是他\\n那個我是誰\\n都上車了應該就直接回家了吧\\n他就不說\\n他就不說\\n他自己住哪裡\\nEP說他不知道他家自己住哪裡\\n不說啦\\n他在吃宵夜的時候\\n他在吃宵夜的時候\\n說是你想要吃還是他想要吃宵夜的嗎\\n說是你想要吃還是他想要吃宵夜的嗎\\n喜歡的女生回誰家你懂的\\n喜歡的女生回誰家你懂的\\n喜歡的女生回誰家你懂的\\n回誰家\\n回你家嗎\\n回你家嗎\\n回你家 啊你家有爸媽欸\\n你上有老 下有小欸\\n不對欸 我不是\\n我叫錯\\n爸\\n我\\n哪有小\\n帶女生回家就很奇怪啊\\n你敢喔\\n我小 我小的時候我都\\n我都不敢\\n感覺被我媽媽把腿打斷了\\n因為被打死\\n非常可能的事情\\n出去看夜景要看到幾點\\n出去看夜景叫\\n叫你爸媽直接隔天再回家就好了是嗎\\n不然他們訂個\\n訂個房間說\\n你們兩個去外面睡一天再回來這樣\\n你爸媽還是會打死你\\n謝謝EP的點心\\n我覺得封城應該家裡還沒有開放到這種程度吧\\n謝謝你回錯\\n你爸媽不會生氣喔\\n我還沒有開發這一塊\\n我覺得你開發\\n的話你爸媽就會煩惱\\n還是還是你爸媽會想說\\n喔我兒子\\n那個終於畢業可以開始找女朋友了\\n我跟你說你就一直到年紀很大\\n然後都不要交\\n你爸媽就開始煩惱了\\n逆向操作\\n因為小時候爸爸媽媽都會堅持說\\n念書的時候不可以讀書的時候\\n不可以交往什麼的\\n對吧\\n然後就讀書都沒有交往\\n那個出社會也不交往\\n永遠都不交往\\n等我四十歲的時候再說嗎\\n等你四十歲的時候你\\n你媽應該就會瘋狂幫你介紹\\n你的身邊的婆婆阿姨什麼的\\n就會瘋狂的幫你介紹\\n現在時代不同\\n但是還是蠻多介紹的局的啊\\n但是我覺得不容易啦\\n是很難的啦\\n很容易耶\\n頭髮爆炸囉\\n昨天沒有洗頭\\n今天還可以維持\\n昨天去樂成宮拜拜的時候\\n我有問月老爺爺一個問題\\n我現在應該談戀愛嗎\\n那他給你聖筊嗎\\n他感覺會幫你牽紅線喔\\n但是我跟你說\\n嘖\\n月老啊\\n人家說求的時候要說好\\n說好你要的條件\\n就是你想要\\n多高多重長得怎樣\\n外觀怎麼樣\\n條件怎麼樣\\n你就是全部都要說好\\n因為他們好像是有業績制的\\n就是月老有很多\\n然後他們需要做業績\\n那他派給你的只是你喜歡的\\n而不是最適合你的\\n懂嗎\\n下次再去說一次\\n月老廟很多啊\\n你可以去離你家比較近的\\n不用特別跑這麼遠\\n因為我不知道你說的那個在哪裡\\n但是你可以離你家近的\\n然後再去跟他講一次\\n反正每一間都有在做不一樣的業績\\n你在不一樣的地方可以求到不一樣的因緣\\n他離你家近\\n然後我真的覺得\\n這種東西也是不要太相信\\n之前有一個朋友啊\\n他就去拜拜也是求月老\\n可是月老就說\\n他跟他前男友還有機會復合\\n然後他跟男朋友是真的是一對\\n放屁好不好\\n他男朋友最後就是被抓到就是有問題啊\\n50分鐘\\n會烤焦耶\\n烤焦麵包\\n吃口蕉芳成\\n太熱了\\n你想要當口蕉芳成嗎\\n一起去拜拜\\n我覺得年輕人真的很熱血\\n可以\\n阿爸你現在才看到通知嗎\\n好久喔\\n唱你編翻白眼\\n是你主管唱的\\n所以不管他唱得好不好你都是這樣\\n哈囉Patrick\\nPatrick昨天首訪還有來支持我耶\\n你們這些沒有來的\\n打屁股\\n然後昨天還有一個玩家神來一筆\\n很好笑\\n就一個玩家神來一筆\\n他在我最後手榜的時候\\n從竟然送了我一萬多點\\n然後他就一直笑\\n他說第八名一定氣死\\n然後他就走了\\n我不知道\\n我不知道為什麼他會這樣子講\\n還是因為他\\n他不喜歡第八名\\n他就選擇丟第七名\\n就我完全不認識這個玩家\\n我就覺得好好笑喔\\n怎麼會這樣\\n怎麼會有人就是因為要讓前面那個主播贏\\n然後要讓自己的主播輸了\\n故意就是去丟別人\\n然後把自己的主播弄輸了這樣子\\n謝謝大家的聯繫\\n真是可可愛\\n快要一個鐘頭囉\\n天三天\\n我想第三天就可以開始\\n用力阻攔\\n可能臉會好快一點\\n這幾天的臉\\n實在太醜肉了\\nPatrick又回來了\\n繞了一圈\\n你是繞去別的地方切到\\n然後再繞回來嗎\\n還是直播間壞掉了\\n直播間卡頓\\n面前要說實話耶\\n因為你是在你主管面前\\n所以\\n你就不用說實話\\n所以事實上他到底唱的\\n如何\\n如此如此\\n這般這般\\n我唱的還可以\\n欸\\n那不容易耶\\n好快喔\\n一小時\\n我晚上還會上啊\\n晚上又會看我上線\\n來吃一顆維他命C\\n不是維他命C啦\\n綜合維他命\\n不是很妙\\n搞不到喝\\n喝掉一杯水\\n還是你只是\\n沒注意手機\\n你哪位\\n氣死\\n吃飯了\\n喔所以你沒有\\n你沒有刻意拿手機\\n怎樣我長得不像我自己是不是\\n現在才長得比較像自己啊\\n開了\\n這是一顆冰球\\n開了冰球以後要怎麼\\n怎麼讓它\\n拿出來你知道嗎\\n因為它這樣拿不出來\\n所以要這樣\\n然後把它放在旁邊\\n把它放在旁邊\\n退冰\\n把它們退冰\\n它等一下要退冰以後\\n球才退得出來\\n這是一個很奇怪的退冰方式\\n來一點冰球\\n我冰箱還有好幾個冰球\\n我真的覺得這個設計不好\\n因為那個冰球都拿不出來啊\\n總不可能那個\\n開一個就廢一個冰球吧\\n還是往\\n往水裡面砸\\n因為我去澆\\n我有試過澆水\\n澆水的話它會整個就是\\n侵蝕掉\\n結果底部還是黏住\\n所以變成最好的方式是讓它自然退冰\\n麻煩電到電\\n到了都剩水了\\n漏漏板脫模\\n反正總而言之\\n言而總之它\\n它的脫模\\n脫模就是要等\\n它沒有辦法沖水\\n沖水只會消融這一項\\n然後底部還是沒有消\\n但是它可以是一個球體啊\\n就這樣\\n它可以做成一個球球的冰塊\\n有趣吧\\n謝謝Happy哥的分享\\nHi Jason\\n用嘴脫模不行\\n它等一下要脫模的時候\\n我一定是拿著\\n抓住球\\n然後把杯子放到最斜最斜最斜\\n然後放進去\\n然後水就會亂灑\\n想出門一下\\n可是又怕下雨\\n我幫你看一下\\n目前為止都不會下雨\\n石頭黏在上面\\n剛剛早就黏了好不好\\n欸它好像有脫模一點點耶\\n今天不會下雨\\n它就要自己用自己的內力\\n把它脫模\\n你要出去多久啊\\n不負責任新聞主播喔\\n就下大雨幹我屁事的那種\\n你知道走路還騎車了\\n就我晚上收棒的時候\\n方程直接來幹咬我\\n你說不會下雨的\\n結果\\n直接下到ㄎㄧㄤ掉\\n騎車可以啦\\n呸一下就好了\\n多遠\\n是多遠\\n就先下課了\\n好不好\\n已經一個小時多\\n我要先陪家人吃飯\\n因為今天我親戚來我家\\n又是腥風血雨的一天\\n光想想就覺得累\\n剛好來\\n我剛好要下課\\n再見啦\"\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        -96
+      ],
+      "id": "d15372ab-03dc-4e72-a0ee-56da828aa2b5",
+      "name": "mock data"
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "mock data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mock data": {
+      "main": [
+        [
+          {
+            "node": "Current VDS prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "BABx3rO0BiHRNPmV",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

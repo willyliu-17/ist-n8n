@@ -1,0 +1,2945 @@
+{
+  "id": "Z5zJhCRPNDZckmmA",
+  "name": "Collect suspect streamID",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// 將聚合的詳細清單拆解回獨立的 Items，供 Loop 使用\nconst detailedList = $('Code dedup').first().json.detailedList\n\nreturn detailedList.map(item => {\n  return { json: item };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        400
+      ],
+      "id": "8f75bbc0-5b6a-48af-a10b-3f956f110870",
+      "name": "Split to Items"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1248,
+        400
+      ],
+      "id": "13cea197-6a8e-4285-a71c-ac2924758cb6",
+      "name": "Loop StreamIDs"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $node[\"get ChannelID\"].json.id }}",
+          "mode": "id"
+        },
+        "text": "==🔍 *自動化檢測詳情* | userID `{{ $json.userID }}`\nStreamID: `{{ $json.streamID }}`\nSource: {{ $json.sources.join(', ') }}\n{{\n  (($json.sources.join(',').includes('commentCaptionKeyword') || $json.sources.join(',').includes('captionKeyword'))\n    ? '\\n🎯 Hit Keywords: `' + $('Set Config').first().json.searchKeywords + '`' \n    : ''\n  ) \n  + \n  (($json.sources.join(',').includes('endByNewStream'))\n    ? '\\n⏳ Hit Conditions: `Prev endByNewStream + Restart in 60s + Contracted TW streamer`'\n    : ''\n  )\n  +\n  ($json.prevStreamID \n    ? '\\n PrevStreamID: `' + $json.prevStreamID + '`' \n    : ''\n  )\n}}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1520,
+        416
+      ],
+      "id": "f3c397d7-c392-48be-93d1-af46733f7910",
+      "name": "Send Stream Header",
+      "webhookId": "bbd48e74-773e-4d36-bdc6-0fddb3d230e4",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "TwSY9mJNgYpHEzYw",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/TwSY9mJNgYpHEzYw",
+          "cachedResultName": "Query Steam Logs"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "streamID": "={{ $('Loop StreamIDs').item.json.streamID }}",
+            "channel": "={{ $('Send Stream Header').first().json.channel }}",
+            "target_thread_ts": "={{ $json.message.ts }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "streamID",
+              "displayName": "streamID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "channel",
+              "displayName": "channel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "target_thread_ts",
+              "displayName": "target_thread_ts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1744,
+        416
+      ],
+      "id": "599bda7e-2b1b-46d8-8d43-149de9672c76",
+      "name": "Exec Query Logs",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "0TBEQsul28S2k7fu",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/0TBEQsul28S2k7fu",
+          "cachedResultName": "Req STT process"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "streamID": "={{ $('Loop StreamIDs').item.json.streamID }}",
+            "channel": "={{ $('Send Stream Header').first().json.channel }}",
+            "target_thread_ts": "={{ $('Send Stream Header').first().json.message.ts }}",
+            "mode": "first",
+            "ts": "={{ $('Send Stream Header').first().json.message.ts }}",
+            "routeKey": "daily:auto",
+            "mins": 5,
+            "logFileID": "={{ $json.fileID }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "streamID",
+              "displayName": "streamID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "channel",
+              "displayName": "channel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "target_thread_ts",
+              "displayName": "target_thread_ts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "mode",
+              "displayName": "mode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "mins",
+              "displayName": "mins",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            },
+            {
+              "id": "ts",
+              "displayName": "ts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_msg_id",
+              "displayName": "client_msg_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "routeKey",
+              "displayName": "routeKey",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "logFileID",
+              "displayName": "logFileID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1936,
+        416
+      ],
+      "id": "77bb198b-fa2b-4e17-854d-99f14d5a1ce7",
+      "name": "Exec Req STT",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $node[\"get ChannelID\"].json.id }}",
+          "mode": "id"
+        },
+        "text": "={{\n  (() => {\n    try {\n      if ($('Manually trigger').first().json) {\n        return '🛠️ *手動觸發檢測報告*' + $('Manually trigger').first().json.timestamp;\n      }\n    } catch (error) {}\n    return '🕊️ *自動化異常 Stream 監控報告*';\n  })()\n}}\n\n**天下太平**，目前未發現任何異常。\n偵測數：0\n監控時間：{{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        816,
+        752
+      ],
+      "id": "d29b0029-b150-44a1-9fa0-630f71c5916f",
+      "name": "Send a message3",
+      "webhookId": "063490fb-a182-42be-b4ae-4468903f27ec",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1456,
+        656
+      ],
+      "id": "3c5f53f3-e835-44d9-858b-5581c8c93a35",
+      "name": "Manually trigger"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3840,
+        432
+      ],
+      "id": "f8b5168d-f9ad-485c-83bc-1534ad89b143",
+      "name": "Wait 1s",
+      "webhookId": "d0872a32-c6a2-474b-a971-016ba42fa19d"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "DECLARE timeRegion STRING DEFAULT 'Asia/Taipei';\nDECLARE searchKeywords STRING DEFAULT r'{{ $json.searchKeywords || \"卡了|重開|當機\" }}';\n\n-- [Time Calculation]\nDECLARE queryEndDate TIMESTAMP DEFAULT TIMESTAMP_TRUNC(\n  {{\n    (() => {\n      try {\n        const manualTime = $('Manually trigger').item.json.timestamp;\n        if (manualTime) { return `TIMESTAMP(\"${manualTime}\")`; }\n      } catch (e) {}\n      return 'CURRENT_TIMESTAMP()';\n    })()\n  }},\n  DAY, \"Asia/Taipei\"\n) + INTERVAL 4 HOUR;\n\nDECLARE queryStartDate TIMESTAMP DEFAULT queryEndDate - INTERVAL {{\n    (() => {\n      try {\n        const manualInterval = $('Manually trigger').item.json.manualInterval;\n        if (manualInterval && !isNaN(manualInterval)) { return parseInt(manualInterval); }\n      } catch (e) {}\n      return 1;\n    })()\n}} DAY;\n\n-- [Lookback Setting]\nDECLARE lookBackStartDate TIMESTAMP DEFAULT queryStartDate - INTERVAL 7 DAY;\n\nWITH\n  -- 1. Get RecentComments\n  RecentComments AS (\n    SELECT\n      s_streamID,\n      COUNT(1) as comment_count\n    FROM\n      `media17-1119.eventStreaming.streamComment`\n    WHERE\n      _PARTITIONTIME BETWEEN TIMESTAMP_TRUNC(queryStartDate, DAY) AND TIMESTAMP_TRUNC(queryEndDate, DAY)\n      AND REGEXP_CONTAINS(s_content, searchKeywords)\n    GROUP BY s_streamID\n  ),\n\n  -- 2. Raw Stream Data (Performance Filter)\n  RawStreamsData AS (\n    SELECT\n      userID,\n      liveStreamID,\n      beginTime,\n      endTime,\n      closeBy,\n      caption,\n      publishSec,\n      deviceInfo.type AS deviceType,\n      deviceInfo.deviceModel AS deviceModel\n    FROM\n      `media17-1119.mongodb.LiveStreamV2`\n    WHERE\n      TIMESTAMP_SECONDS(beginTime) >= lookBackStartDate\n      AND TIMESTAMP_SECONDS(beginTime) <= queryEndDate\n      AND beginTime IS NOT NULL\n      AND endTime IS NOT NULL\n  ),\n\n  -- 3. Calculate Previous Stream Info\n  RankedStreams AS (\n    SELECT\n      *,\n      LAG(endTime, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_endTime,\n      LAG(closeBy, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_closeBy,\n      LAG(liveStreamID, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_liveStreamID,\n      LAG(publishSec, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_publishSec,\n      LAG(deviceType, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_deviceType,\n      LAG(deviceModel, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_deviceModel\n    FROM\n      RawStreamsData\n  ),\n\n  -- 4. Filter Captions and Restart Logic\n  RecentCaptions AS (\n    SELECT\n      userID,\n      liveStreamID AS problematic_streamID,\n      DATETIME(TIMESTAMP_SECONDS(beginTime), 'Asia/Taipei') AS problematic_stream_BeginTime_Taipei,\n      caption AS problematic_stream_caption,\n      closeBy AS problematic_stream_closeBy,\n      publishSec AS problematic_publishSec,\n      deviceType AS problematic_deviceType,\n      deviceModel AS problematic_deviceModel,\n\n      previous_liveStreamID,\n      previous_closeBy,\n      previous_publishSec,\n      previous_deviceType,\n      previous_deviceModel,\n      (beginTime - previous_endTime) AS time_diff_seconds,\n      DATETIME(TIMESTAMP_SECONDS(previous_endTime), 'Asia/Taipei') AS previous_stream_EndTime_Taipei\n    FROM\n      RankedStreams\n    WHERE\n      TIMESTAMP_SECONDS(beginTime) BETWEEN queryStartDate AND queryEndDate\n      AND REGEXP_CONTAINS(caption, searchKeywords)\n      AND previous_endTime IS NOT NULL\n      AND (beginTime - previous_endTime) < 3600\n  )\n\n-- Final Join\nSELECT\n  cap.userID,\n  com.s_streamID AS streamID,\n  cap.problematic_stream_caption AS caption,\n  cap.problematic_stream_BeginTime_Taipei AS beginTime,\n  cap.problematic_publishSec AS publishSec,\n  cap.problematic_deviceType AS deviceType,\n  cap.problematic_deviceModel AS deviceModel,\n  cap.previous_liveStreamID AS prevStreamID,\n  cap.previous_closeBy AS prevCloseBy,\n  cap.previous_publishSec AS prevPublishSec,\n  cap.previous_deviceType AS prevDeviceType,\n  cap.previous_deviceModel AS prevDeviceModel,\n  cap.time_diff_seconds,\n  com.comment_count\nFROM\n  RecentComments AS com\nINNER JOIN\n  RecentCaptions AS cap\nON\n  com.s_streamID = CAST(cap.problematic_streamID AS STRING)\nORDER BY\n  com.s_streamID ASC",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -496,
+        448
+      ],
+      "id": "5cb88b13-6a25-45e8-9a08-c2c9b1e220aa",
+      "name": "Comment and Caption with keywords",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "73802441-6ea6-4781-95b1-9aab7b6955fe",
+              "name": "metricSource",
+              "value": "commentCaptionKeyword",
+              "type": "string"
+            },
+            {
+              "id": "8762cda7-014c-4c84-b0da-123a992db05f",
+              "name": "streamID",
+              "value": "={{ $json.streamID }}",
+              "type": "string"
+            },
+            {
+              "id": "4b5f9cb4-bf42-4181-9e31-22f741483b68",
+              "name": "prevStreamID",
+              "value": "={{ $json.prevStreamID }}",
+              "type": "string"
+            },
+            {
+              "id": "fb3ea05c-5b63-4744-be37-dce7d7a6ff02",
+              "name": "userID",
+              "value": "={{ $json.userID }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -176,
+        448
+      ],
+      "id": "4b1a09c9-9cb4-4156-94af-b55bd4f04df7",
+      "name": "Label input comment and caption"
+    },
+    {
+      "parameters": {
+        "jsCode": "const streamMap = {};\n\nfor (const item of $input.all()) {\n  const data = item.json;\n\n  if (!data || Object.keys(data).length <= 1 || !data.streamID) {\n    continue;\n  }\n\n  const sid = data.streamID;\n  const userID = data.userID;\n  const currentSource = data.metricSource || data.metric_source || \"Unknown\";\n\n  if (!streamMap[sid]) {\n    streamMap[sid] = {\n      userID: userID,\n      streamID: sid,\n      prevStreamID: data.prevStreamID || null,\n      sources: [currentSource],\n      count: 1\n    };\n  } else {\n    if (!streamMap[sid].prevStreamID && data.prevStreamID) {\n      streamMap[sid].prevStreamID = data.prevStreamID;\n    }\n    if (!streamMap[sid].sources.includes(currentSource)) {\n      streamMap[sid].sources.push(currentSource);\n    }\n    streamMap[sid].count += 1;\n  }\n}\n\nconst cleanList = Object.values(streamMap);\n\nconst summaryText = cleanList.map(i => \n  `• StreamID: ${i.streamID} (來源: ${i.sources.join(', ')})`\n).join('\\n');\n\nreturn [\n  {\n    json: {\n      summaryText: summaryText,\n      totalCount: cleanList.length,\n      detailedList: cleanList\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        560
+      ],
+      "id": "7e659eb0-388d-459b-b66e-a4a77ebf0573",
+      "name": "Code dedup"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "10889ed4-b75c-4d22-803c-1473b8760327",
+              "leftValue": "={{$json.totalCount}}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        560
+      ],
+      "id": "f4d6493f-3385-4bb6-a846-172228db60c7",
+      "name": "If data exist"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $node[\"get ChannelID\"].json.id }}",
+          "mode": "id"
+        },
+        "text": "={{\n(() => {\n    try {\n      if ($('Manually trigger').first().json) {\n        return '🛠️ *手動觸發檢測報告*\\n' + $('Manually trigger').first().json.timestamp + ' Inverval: '+ $('Manually trigger').first().json.manualInterval + 'day';\n      }\n    } catch (error) {\n      // Ignore error\n    }\n    // Auto\n    return '🚨 *自動化異常 Stream 監控報告*';\n  })()\n}}\n監控關鍵字: `{{ $('Set Config').first().json.searchKeywords }}`\n以及監控 endByNewStream Conditions: `Prev endByNewStream + Restart in 60s + Contracted TW streamer`\n共發現 {{ $json.totalCount }} 個可疑 Stream。\n\n詳細清單：\n{{ $json.detailedList\n  .map(item =>\n    '• StreamID: ' + item.streamID +\n    (item.prevStreamID ? ' (PrevStreamID: ' + item.prevStreamID + ')' : '') +\n    ' (來源: ' + item.sources.join(', ') + ')'\n  )\n  .join('\\n')\n}}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        816,
+        544
+      ],
+      "id": "b2dc3459-1b46-40f9-acf8-2373cb8b7bd8",
+      "name": "Send summary message",
+      "webhookId": "063490fb-a182-42be-b4ae-4468903f27ec",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1456,
+        448
+      ],
+      "id": "310c4132-40c5-4bea-a0ac-01eefee14752",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2ea70e73-6fff-4b18-91bb-435b065a9bf2",
+              "name": "searchKeywords",
+              "value": "卡了|重開|當機|卡頓|轉圈|斷線|黑屏|沒畫面|重い|ラグ|カクカク|止まった|くるくる|落ち|見れない|再起動|枠取り直し",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -784,
+        448
+      ],
+      "id": "6c1c9330-4f10-46b5-8783-793108175263",
+      "name": "Set Config",
+      "notesInFlow": true,
+      "notes": "Show search keyword"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "TwSY9mJNgYpHEzYw",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/TwSY9mJNgYpHEzYw",
+          "cachedResultName": "Query Steam Logs"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "streamID": "={{ $('Loop StreamIDs').item.json.prevStreamID }}",
+            "channel": "={{ $('Send Stream Header').first().json.channel }}",
+            "target_thread_ts": "={{ $('Send Stream Header').first().json.message.ts }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "streamID",
+              "displayName": "streamID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "channel",
+              "displayName": "channel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "target_thread_ts",
+              "displayName": "target_thread_ts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2720,
+        272
+      ],
+      "id": "6a7b0ef2-24d3-4058-9fe9-25ddbc8781a1",
+      "name": "Exec Query PrevStream Logs",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "0TBEQsul28S2k7fu",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/0TBEQsul28S2k7fu",
+          "cachedResultName": "Req STT process"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "streamID": "={{ $('Loop StreamIDs').item.json.prevStreamID }}",
+            "channel": "={{ $('Send Stream Header').first().json.channel }}",
+            "target_thread_ts": "={{ $('Send Stream Header').item.json.message.ts }}",
+            "mode": "last",
+            "ts": "={{ $('Send Stream Header').item.json.message.ts }}",
+            "routeKey": "daily:auto",
+            "mins": 5
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "streamID",
+              "displayName": "streamID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "channel",
+              "displayName": "channel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "target_thread_ts",
+              "displayName": "target_thread_ts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "mode",
+              "displayName": "mode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "mins",
+              "displayName": "mins",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            },
+            {
+              "id": "ts",
+              "displayName": "ts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_msg_id",
+              "displayName": "client_msg_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "routeKey",
+              "displayName": "routeKey",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2944,
+        272
+      ],
+      "id": "df6c47f4-003d-46fb-801b-38602fefe7fa",
+      "name": "Exec PrevStream STT",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "DECLARE timeRegion STRING DEFAULT 'Asia/Taipei';\nDECLARE searchKeywords STRING DEFAULT r'{{ $json.searchKeywords || \"卡了|重開|當機\" }}';\n\nDECLARE intervalDay INT64 DEFAULT {{\n    (() => {\n      try {\n        const manualInterval = $('Manually trigger').item.json.manualInterval;\n        if (manualInterval && !isNaN(manualInterval)) {\n          return parseInt(manualInterval); \n        }\n      } catch (e) {}\n      return 1;\n    })()\n}};\n\n-- [Time Range Settings]\nDECLARE queryEndDate TIMESTAMP DEFAULT TIMESTAMP_TRUNC(\n  {{\n    (() => {\n      try {\n        const manualTime = $('Manually trigger').item.json.timestamp\n        if (manualTime) {\n          return `TIMESTAMP(\"${manualTime}\")`; \n        }\n      } catch (e) {}\n      return 'CURRENT_TIMESTAMP()';\n    })()\n  }},\n  DAY, timeRegion\n) + INTERVAL 4 HOUR;\n\nDECLARE queryStartDate TIMESTAMP DEFAULT TIMESTAMP_SUB(queryEndDate, INTERVAL intervalDay DAY);\n\nWITH\n  AllStreamsRanked AS ( \n    SELECT\n      userID,\n      liveStreamID,\n      beginTime,\n      endTime,\n      closeBy, \n      caption,\n      publishSec,\n      deviceInfo.type AS deviceType,\n      deviceInfo.deviceModel AS deviceModel,\n      LAG(endTime, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_endTime,\n      LAG(closeBy, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_closeBy,\n      LAG(liveStreamID, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_liveStreamID,\n      LAG(publishSec, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_publishSec,\n      LAG(deviceInfo.type, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_deviceType,\n      LAG(deviceInfo.deviceModel, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_deviceModel\n    FROM\n      `media17-1119.mongodb.LiveStreamV2`\n    WHERE \n      TIMESTAMP_SECONDS(beginTime) BETWEEN TIMESTAMP_SUB(queryStartDate, INTERVAL (intervalDay + 10) DAY) AND queryEndDate\n      AND beginTime IS NOT NULL\n      AND endTime IS NOT NULL\n      AND userID IS NOT NULL\n  ),\n\n  TargetStreams AS (\n    SELECT\n      userID,\n      liveStreamID AS problematic_streamID,\n      DATETIME(TIMESTAMP_SECONDS(beginTime), timeRegion) AS problematic_stream_BeginTime_Taipei,\n      caption AS problematic_stream_caption,\n      closeBy AS problematic_stream_closeBy,\n      publishSec AS problematic_publishSec,\n      deviceType AS problematic_deviceType,\n      deviceModel AS problematic_deviceModel,\n\n      previous_liveStreamID,\n      previous_closeBy,\n      previous_publishSec,\n      previous_deviceType,\n      previous_deviceModel,\n      (beginTime - previous_endTime) AS time_diff_seconds,\n      DATETIME(TIMESTAMP_SECONDS(previous_endTime), timeRegion) AS previous_stream_EndTime_Taipei\n    FROM\n      AllStreamsRanked\n    WHERE\n      TIMESTAMP_SECONDS(beginTime) BETWEEN queryStartDate AND queryEndDate\n      AND REGEXP_CONTAINS(caption, searchKeywords)\n      AND previous_endTime IS NOT NULL\n  )\n\nSELECT\n  userID,\n  CAST(problematic_streamID AS STRING) AS streamID,\n  problematic_stream_caption AS caption,\n  problematic_stream_closeBy AS closeBy,\n  problematic_publishSec AS publishSec,\n  problematic_deviceType AS deviceType,\n  problematic_deviceModel AS deviceModel,\n  \n  previous_liveStreamID AS prevStreamID,\n  previous_closeBy AS prevCloseBy,\n  previous_publishSec AS prevPublicSec,\n  previous_deviceType AS prevDeviceType,\n  previous_deviceModel AS prevDeviceModel,\n  time_diff_seconds,\n  problematic_stream_BeginTime_Taipei\nFROM\n  TargetStreams\nWHERE\n  time_diff_seconds < 3600\nORDER BY\n  streamID ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -496,
+        704
+      ],
+      "id": "61887c8e-ce67-41bb-8825-9770dfa9f0aa",
+      "name": "Caption with keywords",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "73802441-6ea6-4781-95b1-9aab7b6955fe",
+              "name": "metricSource",
+              "value": "captionKeyword",
+              "type": "string"
+            },
+            {
+              "id": "8762cda7-014c-4c84-b0da-123a992db05f",
+              "name": "streamID",
+              "value": "={{ $json.streamID }}",
+              "type": "string"
+            },
+            {
+              "id": "4b5f9cb4-bf42-4181-9e31-22f741483b68",
+              "name": "prevStreamID",
+              "value": "={{ $json.prevStreamID }}",
+              "type": "string"
+            },
+            {
+              "id": "f4894b76-f7bc-4a15-b6b7-31ac9f3c942a",
+              "name": "userID",
+              "value": "={{ $json.userID }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -176,
+        704
+      ],
+      "id": "52dfcc59-1388-4e39-af7c-f7526e77345a",
+      "name": "Label input comment and caption1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a13401a1-a08b-4171-8b5c-8f5199d6f04f",
+              "leftValue": "={{ $('Loop StreamIDs').item.json.sources.join(',').includes('commentCaptionKeyword') || $('Loop StreamIDs').item.json.sources.join(',').includes('captionKeyword') || $('Loop StreamIDs').item.json.sources.join(',').includes('endByNewStream') }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "8cf9bf0f-389c-4984-add6-558b12fefca2",
+              "leftValue": "={{ !!$('Loop StreamIDs').item.json.prevStreamID }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2112,
+        416
+      ],
+      "id": "8b93cd86-38dd-437b-b051-b1db58a560be",
+      "name": "If need check prevStreamID"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "DECLARE timeRegion STRING DEFAULT 'Asia/Taipei';\nDECLARE searchKeywords STRING DEFAULT r'{{ $json.searchKeywords || \"卡了|重開|當機\" }}';\n-- [Real Case]\nDECLARE queryEndDate TIMESTAMP DEFAULT TIMESTAMP_TRUNC(\n  {{\n    (() => {\n      try {\n        // Try to get manually input\n        const manualTime = $('Manually trigger').first().json.timestamp;\n        \n        if (manualTime) {\n          return `TIMESTAMP(\"${manualTime}\")`; \n        }\n      } catch (e) {\n        // Ignore error\n      }\n      // Others, use current timestamp\n      return 'CURRENT_TIMESTAMP()';\n    })()\n  }},\n  DAY, \"Asia/Taipei\"\n) + INTERVAL 4 HOUR;\nDECLARE queryStartDate TIMESTAMP DEFAULT queryEndDate - INTERVAL {{\n    (() => {\n      try {\n        const manualInterval = $json.manualInterval;\n        \n        if (manualInterval && !isNaN(manualInterval)) {\n          return parseInt(manualInterval); \n        }\n      } catch (e) {\n        // Ignore error\n      }\n      return 1;\n    })()\n}} DAY;\nWITH\n  -- Get RecentComments\n  RecentStreamIDs AS ( \n    SELECT\n      DISTINCT CAST(liveStreamID AS STRING) AS liveStreamID\n    FROM\n      `media17-1119.mongodb.LiveStreamV2`\n    WHERE \n      TIMESTAMP_SECONDS(beginTime) BETWEEN queryStartDate AND queryEndDate\n      AND beginTime IS NOT NULL\n      AND liveStreamID IS NOT NULL \n  ),\n  RecentComments AS (\n    SELECT\n      s_streamID,\n    FROM\n      `media17-1119.eventStreaming.streamComment`\n    WHERE\n      _PARTITIONTIME BETWEEN queryStartDate AND queryEndDate\n      AND s_streamID IN (SELECT liveStreamID FROM RecentStreamIDs)\n      AND REGEXP_CONTAINS(s_content, searchKeywords)\n    GROUP BY s_streamID\n    ORDER BY s_streamID ASC\n  ),\n  -- Get RecentCaptions\n  AllStreamsRanked AS ( \n    SELECT\n      userID,\n      liveStreamID,\n      beginTime,\n      endTime,\n      closeBy, \n      caption,\n      LAG(endTime, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_endTime,\n      LAG(closeBy, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_closeBy,\n      LAG(liveStreamID, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_liveStreamID\n    FROM\n      `media17-1119.mongodb.LiveStreamV2`\n    WHERE \n      beginTime IS NOT NULL\n      AND endTime IS NOT NULL\n      AND userID IS NOT NULL\n  ),\n  RecentCaptions AS (\n    SELECT\n      userID,\n      liveStreamID AS problematic_streamID,\n      DATETIME(TIMESTAMP_SECONDS(beginTime), 'Asia/Taipei') AS problematic_stream_BeginTime_Taipei,\n      caption AS problematic_stream_caption,\n      closeBy AS problematic_stream_closeBy,\n      previous_liveStreamID,\n      previous_closeBy,\n      (beginTime - previous_endTime) AS time_diff_seconds,\n      DATETIME(TIMESTAMP_SECONDS(previous_endTime), 'Asia/Taipei') AS previous_stream_EndTime_Taipei\n    FROM\n      AllStreamsRanked\n    WHERE\n      TIMESTAMP_SECONDS(beginTime) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)\n      AND REGEXP_CONTAINS(caption, r\"卡了|重開|當機\")\n      AND previous_endTime IS NOT NULL\n    ORDER BY\n      userID,\n      beginTime DESC\n  )\n-- Get Join ----------------------\nSELECT\n  com.s_streamID AS streamID,\n  cap.problematic_stream_caption AS caption,\n  cap.previous_liveStreamID AS prevStreamID,\n  cap.previous_closeBy AS prevCloseBy,\n  cap.time_diff_seconds,\nFROM\n  RecentComments AS com\nINNER JOIN\n  RecentCaptions AS cap\nON\n  com.s_streamID = CAST(cap.problematic_streamID AS STRING)\nWHERE\n  cap.time_diff_seconds < 3600\nORDER BY\n  cap.previous_closeBy,\n  com.s_streamID",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -400,
+        -128
+      ],
+      "id": "a8a61c05-a8ff-49bf-84ee-528c8dd5073c",
+      "name": "Comment and Caption with keywords1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        80,
+        560
+      ],
+      "id": "189e2b72-b01f-4d51-a665-e1dc9df14671",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2336,
+        272
+      ],
+      "id": "eb18af30-1e6b-4f27-a2e2-1d7d43d0e6fc",
+      "name": "Wait 3s",
+      "webhookId": "d27ca049-8982-4a63-bba1-17409e9b6ae7"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Send Stream Header').first().json.channel }}",
+          "mode": "id"
+        },
+        "text": "==🔍 *自動化檢測|prevStreamID*: `{{ $('Loop StreamIDs').item.json.prevStreamID }}`",
+        "otherOptions": {
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Send Stream Header').first().json.message.ts }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2512,
+        272
+      ],
+      "id": "73445027-ca7a-470f-b560-8aa4f02e0335",
+      "name": "Send prevStream Header",
+      "webhookId": "bbd48e74-773e-4d36-bdc6-0fddb3d230e4",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let isManual = false;\n\ntry {\n  // 嘗試讀取 Manually trigger 的數據\n  // 如果是排程觸發，這一行會報錯，直接跳到 catch\n  if ($('Manually trigger').first().json) {\n    isManual = true;\n  }\n} catch (error) {\n  // 捕捉到錯誤，代表該節點未執行 (即為排程觸發)\n  // 不做任何事，保持 isManual = false\n}\n\nif (isManual) {\n  // 手動觸發的邏輯\n  return [\n    { \"id\": \"C0A4JJJKJMD\" }\n  ];\n} else {\n  // 自動/排程觸發的邏輯\n  return [\n    { \"id\": \"C09F0SYG57D\" }\n  ];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        448
+      ],
+      "id": "6f7f258e-bb89-4a4d-a856-5111eb9ca9f2",
+      "name": "get ChannelID"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "sOSbXSfXFcMLeIfr",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/sOSbXSfXFcMLeIfr",
+          "cachedResultName": "AI SUMMARY"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "channelID": "={{ $('Send Stream Header').first().json.channel }}",
+            "threadTS": "={{ $('Send Stream Header').item.json.message.ts }}",
+            "stream": "={{ \n[\n  {\n    \"liveStreamID\": $('Loop StreamIDs').first().json.prevStreamID,\n    \"mode\": \"last\"\n  }, \n  {\n    \"liveStreamID\": $('Loop StreamIDs').first().json.streamID,\n    \"mode\": \"first\"\n  }\n] \n}}"
+          },
+          "matchingColumns": [
+            "dialogue"
+          ],
+          "schema": [
+            {
+              "id": "stream",
+              "displayName": "stream",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            },
+            {
+              "id": "channelID",
+              "displayName": "channelID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "threadTS",
+              "displayName": "threadTS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3376,
+        432
+      ],
+      "id": "50f8428f-c096-4b80-b71a-861820c72d4b",
+      "name": "Exec AI SUMMARY",
+      "disabled": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "DECLARE timeRegion STRING DEFAULT 'Asia/Taipei';\n\nDECLARE intervalDay INT64 DEFAULT {{\n    (() => {\n      try {\n        const manualInterval = $('Manually trigger').item.json.manualInterval;\n        if (manualInterval && !isNaN(manualInterval)) {\n          return parseInt(manualInterval); \n        }\n      } catch (e) {}\n      return 1;\n    })()\n}};\n\n-- [Time Range Settings]\nDECLARE queryEndDate TIMESTAMP DEFAULT TIMESTAMP_TRUNC(\n  {{\n    (() => {\n      try {\n        const manualTime = $('Manually trigger').item.json.timestamp\n        if (manualTime) {\n          return `TIMESTAMP(\"${manualTime}\")`; \n        }\n      } catch (e) {}\n      return 'CURRENT_TIMESTAMP()';\n    })()\n  }},\n  DAY, timeRegion\n) + INTERVAL 4 HOUR;\n\nDECLARE queryStartDate TIMESTAMP DEFAULT TIMESTAMP_SUB(queryEndDate, INTERVAL intervalDay DAY);\n\nWITH\n  -- Get RecentComments\n  RecentStreamIDs AS ( \n    SELECT\n      liveStreamID,\n      userID,\n      beginTime,\n      endTime,\n      closeBy,\n      caption,\n\n      -- 取得上一場的 endTime\n      LAG(endTime, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_endTime,\n      -- 取得上一場的 closeBy\n      LAG(closeBy, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_closeBy,\n      -- 取得上一場的 liveStreamID (方便核對)\n      LAG(liveStreamID, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_liveStreamID,\n\n      deviceInfo.ipRegion,\n      region,\n      device\n    FROM\n      `media17-1119.mongodb.LiveStreamV2`\n    WHERE -- 使用 beginTime (轉換為 TIMESTAMP) 來篩選時間範圍\n      TIMESTAMP_SECONDS(beginTime) BETWEEN queryStartDate AND queryEndDate\n      AND deviceInfo.ipRegion = \"TW\"\n      AND region = \"TW\"\n      AND device NOT IN (\"OBS\")\n      AND beginTime IS NOT NULL\n      AND endTime IS NOT NULL\n      AND liveStreamID IS NOT NULL -- 順便確保 liveStreamID 不是 NULL\n  ),\n  -- Find all userIDs with a contract in the specified month (JP region, not deleted, not terminated)\n  ContractedUsers AS (\n    SELECT\n      DISTINCT userID\n    FROM `media17-1119.mysql17admin.Contract`\n    WHERE\n      dateStart < queryStartDate\n      AND dateEnd >= queryEndDate\n      AND isDeleted = 0\n      AND isTerminated = 0\n)\n\n-- Get Join ----------------------\nSELECT\n  rec.liveStreamID AS streamID,\n  rec.userID,\n  DATETIME(TIMESTAMP_SECONDS(rec.beginTime), \"Asia/Taipei\") AS beginTime_Utc8,\n  DATETIME(TIMESTAMP_SECONDS(rec.endTime), \"Asia/Taipei\") AS endTime_Utc8,\n  rec.closeBy,\n  rec.caption,\n\n  DATETIME(TIMESTAMP_SECONDS(rec.previous_endTime), \"Asia/Taipei\") AS prevEndTime_Utc8,\n  rec.previous_closeBy,\n  rec.previous_liveStreamID AS prevStreamID,\n\n  rec.ipRegion,\n  rec.region,\n  rec.device\nFROM\n  RecentStreamIDs AS rec\nINNER JOIN\n  ContractedUsers AS cont\nON\n  cont.userID = rec.userID\nWHERE\n  (rec.beginTime - rec.previous_endTime) < 60\n  AND rec.previous_closeBy = \"end by new stream\"\nORDER BY\n  rec.beginTime ASC,\n  rec.userID ASC,\n  rec.liveStreamID ASC\n  ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -496,
+        976
+      ],
+      "id": "74c80a7a-952f-4a48-a8d2-d08422de4a5d",
+      "name": "End by new stream",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "73802441-6ea6-4781-95b1-9aab7b6955fe",
+              "name": "metricSource",
+              "value": "endByNewStream",
+              "type": "string"
+            },
+            {
+              "id": "8762cda7-014c-4c84-b0da-123a992db05f",
+              "name": "streamID",
+              "value": "={{ $json.streamID }}",
+              "type": "string"
+            },
+            {
+              "id": "4b5f9cb4-bf42-4181-9e31-22f741483b68",
+              "name": "prevStreamID",
+              "value": "={{ $json.prevStreamID }}",
+              "type": "string"
+            },
+            {
+              "id": "f4894b76-f7bc-4a15-b6b7-31ac9f3c942a",
+              "name": "userID",
+              "value": "={{ $json.userID }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -176,
+        976
+      ],
+      "id": "ba07656d-a9e6-4e0c-bb2b-c6f8982dab0d",
+      "name": "Label input comment and caption2"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "FCaONjqNFA8YieKr",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/FCaONjqNFA8YieKr",
+          "cachedResultName": "AI SUMMARY v2"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "channelID": "={{ $('Send Stream Header').first().json.channel }}",
+            "threadTS": "={{ $('Send Stream Header').item.json.message.ts }}",
+            "stream": "={{ \n[\n  {\n    \"liveStreamID\": $('Loop StreamIDs').first().json.prevStreamID,\n    \"mode\": \"last\"\n  }, \n  {\n    \"liveStreamID\": $('Loop StreamIDs').first().json.streamID,\n    \"mode\": \"first\"\n  }\n] \n}}"
+          },
+          "matchingColumns": [
+            "dialogue"
+          ],
+          "schema": [
+            {
+              "id": "stream",
+              "displayName": "stream",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            },
+            {
+              "id": "channelID",
+              "displayName": "channelID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "threadTS",
+              "displayName": "threadTS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3600,
+        432
+      ],
+      "id": "e5855157-3e8f-4de9-9a09-3d496766a3b7",
+      "name": "Exec AI SUMMARY v2",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Split to Items": {
+      "main": [
+        [
+          {
+            "node": "Loop StreamIDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop StreamIDs": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send Stream Header",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Stream Header": {
+      "main": [
+        [
+          {
+            "node": "Exec Query Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exec Query Logs": {
+      "main": [
+        [
+          {
+            "node": "Exec Req STT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Exec Req STT": {
+      "main": [
+        [
+          {
+            "node": "If need check prevStreamID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Manually trigger": {
+      "main": [
+        [
+          {
+            "node": "get ChannelID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1s": {
+      "main": [
+        [
+          {
+            "node": "Loop StreamIDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comment and Caption with keywords": {
+      "main": [
+        [
+          {
+            "node": "Label input comment and caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label input comment and caption": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code dedup": {
+      "main": [
+        [
+          {
+            "node": "If data exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If data exist": {
+      "main": [
+        [
+          {
+            "node": "Send summary message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send summary message": {
+      "main": [
+        [
+          {
+            "node": "Split to Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "get ChannelID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Config": {
+      "main": [
+        [
+          {
+            "node": "Comment and Caption with keywords",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Caption with keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exec Query PrevStream Logs": {
+      "main": [
+        [
+          {
+            "node": "Exec PrevStream STT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Exec PrevStream STT": {
+      "main": [
+        [
+          {
+            "node": "Exec AI SUMMARY",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Caption with keywords": {
+      "main": [
+        [
+          {
+            "node": "Label input comment and caption1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label input comment and caption1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "If need check prevStreamID": {
+      "main": [
+        [
+          {
+            "node": "Wait 3s",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exec AI SUMMARY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code dedup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 3s": {
+      "main": [
+        [
+          {
+            "node": "Send prevStream Header",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send prevStream Header": {
+      "main": [
+        [
+          {
+            "node": "Exec Query PrevStream Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get ChannelID": {
+      "main": [
+        [
+          {
+            "node": "End by new stream",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Set Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exec AI SUMMARY": {
+      "main": [
+        [
+          {
+            "node": "Exec AI SUMMARY v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "End by new stream": {
+      "main": [
+        [
+          {
+            "node": "Label input comment and caption2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label input comment and caption2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Exec AI SUMMARY v2": {
+      "main": [
+        [
+          {
+            "node": "Wait 1s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    },
+    "node:Schedule Trigger1": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Manually trigger": [
+      {
+        "json": {
+          "timestamp": "2026-01-15 10:30:00",
+          "manualInterval": 1
+        }
+      }
+    ],
+    "Schedule Trigger": [
+      {
+        "json": {
+          "timestamp": "2026-02-24T11:13:42.013+08:00",
+          "Readable date": "February 24th 2026, 11:13:42 am",
+          "Readable time": "11:13:42 am",
+          "Day of week": "Tuesday",
+          "Year": "2026",
+          "Month": "February",
+          "Day of month": "24",
+          "Hour": "11",
+          "Minute": "13",
+          "Second": "42",
+          "Timezone": "Asia/Taipei (UTC+08:00)"
+        }
+      }
+    ]
+  },
+  "activeVersionId": "c9a9cb02-dd72-4d25-bf01-81caa0d7ae9b",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "Z5zJhCRPNDZckmmA",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [
+    {
+      "updatedAt": "2025-10-31T00:33:05.881Z",
+      "createdAt": "2025-10-31T00:33:05.881Z",
+      "id": "boreCiHZYpl3eDGl",
+      "name": "ist-bot"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-06-17T03:30:35.314Z",
+    "createdAt": "2026-06-17T03:30:35.314Z",
+    "versionId": "c9a9cb02-dd72-4d25-bf01-81caa0d7ae9b",
+    "workflowId": "Z5zJhCRPNDZckmmA",
+    "nodes": [
+      {
+        "parameters": {
+          "jsCode": "// 將聚合的詳細清單拆解回獨立的 Items，供 Loop 使用\nconst detailedList = $('Code dedup').first().json.detailedList\n\nreturn detailedList.map(item => {\n  return { json: item };\n});"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1008,
+          400
+        ],
+        "id": "8f75bbc0-5b6a-48af-a10b-3f956f110870",
+        "name": "Split to Items"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "n8n-nodes-base.splitInBatches",
+        "typeVersion": 3,
+        "position": [
+          1248,
+          400
+        ],
+        "id": "13cea197-6a8e-4285-a71c-ac2924758cb6",
+        "name": "Loop StreamIDs"
+      },
+      {
+        "parameters": {
+          "select": "channel",
+          "channelId": {
+            "__rl": true,
+            "value": "={{ $node[\"get ChannelID\"].json.id }}",
+            "mode": "id"
+          },
+          "text": "==🔍 *自動化檢測詳情* | userID `{{ $json.userID }}`\nStreamID: `{{ $json.streamID }}`\nSource: {{ $json.sources.join(', ') }}\n{{\n  (($json.sources.join(',').includes('commentCaptionKeyword') || $json.sources.join(',').includes('captionKeyword'))\n    ? '\\n🎯 Hit Keywords: `' + $('Set Config').first().json.searchKeywords + '`' \n    : ''\n  ) \n  + \n  (($json.sources.join(',').includes('endByNewStream'))\n    ? '\\n⏳ Hit Conditions: `Prev endByNewStream + Restart in 60s + Contracted TW streamer`'\n    : ''\n  )\n  +\n  ($json.prevStreamID \n    ? '\\n PrevStreamID: `' + $json.prevStreamID + '`' \n    : ''\n  )\n}}",
+          "otherOptions": {}
+        },
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 2.3,
+        "position": [
+          1520,
+          416
+        ],
+        "id": "f3c397d7-c392-48be-93d1-af46733f7910",
+        "name": "Send Stream Header",
+        "webhookId": "bbd48e74-773e-4d36-bdc6-0fddb3d230e4",
+        "credentials": {
+          "slackApi": {
+            "id": "9sfslX7caXSFAVUN",
+            "name": "n8n-streaming-testing"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "TwSY9mJNgYpHEzYw",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/TwSY9mJNgYpHEzYw",
+            "cachedResultName": "Query Steam Logs"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "streamID": "={{ $('Loop StreamIDs').item.json.streamID }}",
+              "channel": "={{ $('Send Stream Header').first().json.channel }}",
+              "target_thread_ts": "={{ $json.message.ts }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "streamID",
+                "displayName": "streamID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "channel",
+                "displayName": "channel",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "target_thread_ts",
+                "displayName": "target_thread_ts",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.2,
+        "position": [
+          1744,
+          416
+        ],
+        "id": "599bda7e-2b1b-46d8-8d43-149de9672c76",
+        "name": "Exec Query Logs",
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "0TBEQsul28S2k7fu",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/0TBEQsul28S2k7fu",
+            "cachedResultName": "Req STT process"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "streamID": "={{ $('Loop StreamIDs').item.json.streamID }}",
+              "channel": "={{ $('Send Stream Header').first().json.channel }}",
+              "target_thread_ts": "={{ $('Send Stream Header').first().json.message.ts }}",
+              "mode": "first",
+              "ts": "={{ $('Send Stream Header').first().json.message.ts }}",
+              "routeKey": "daily:auto",
+              "mins": 5,
+              "logFileID": "={{ $json.fileID }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "streamID",
+                "displayName": "streamID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "channel",
+                "displayName": "channel",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "target_thread_ts",
+                "displayName": "target_thread_ts",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "mode",
+                "displayName": "mode",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "mins",
+                "displayName": "mins",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "number"
+              },
+              {
+                "id": "ts",
+                "displayName": "ts",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "client_msg_id",
+                "displayName": "client_msg_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "routeKey",
+                "displayName": "routeKey",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "logFileID",
+                "displayName": "logFileID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "object",
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {
+            "waitForSubWorkflow": true
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.2,
+        "position": [
+          1936,
+          416
+        ],
+        "id": "77bb198b-fa2b-4e17-854d-99f14d5a1ce7",
+        "name": "Exec Req STT",
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "select": "channel",
+          "channelId": {
+            "__rl": true,
+            "value": "={{ $node[\"get ChannelID\"].json.id }}",
+            "mode": "id"
+          },
+          "text": "={{\n  (() => {\n    try {\n      if ($('Manually trigger').first().json) {\n        return '🛠️ *手動觸發檢測報告*' + $('Manually trigger').first().json.timestamp;\n      }\n    } catch (error) {}\n    return '🕊️ *自動化異常 Stream 監控報告*';\n  })()\n}}\n\n**天下太平**，目前未發現任何異常。\n偵測數：0\n監控時間：{{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}",
+          "otherOptions": {}
+        },
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 2.3,
+        "position": [
+          816,
+          752
+        ],
+        "id": "d29b0029-b150-44a1-9fa0-630f71c5916f",
+        "name": "Send a message3",
+        "webhookId": "063490fb-a182-42be-b4ae-4468903f27ec",
+        "alwaysOutputData": true,
+        "executeOnce": false,
+        "credentials": {
+          "slackApi": {
+            "id": "9sfslX7caXSFAVUN",
+            "name": "n8n-streaming-testing"
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          -1456,
+          656
+        ],
+        "id": "3c5f53f3-e835-44d9-858b-5581c8c93a35",
+        "name": "Manually trigger"
+      },
+      {
+        "parameters": {
+          "amount": 1
+        },
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          3840,
+          432
+        ],
+        "id": "f8b5168d-f9ad-485c-83bc-1534ad89b143",
+        "name": "Wait 1s",
+        "webhookId": "d0872a32-c6a2-474b-a971-016ba42fa19d"
+      },
+      {
+        "parameters": {
+          "authentication": "serviceAccount",
+          "projectId": {
+            "__rl": true,
+            "value": "media17-1119",
+            "mode": "list",
+            "cachedResultName": "Media17",
+            "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+          },
+          "sqlQuery": "DECLARE timeRegion STRING DEFAULT 'Asia/Taipei';\nDECLARE searchKeywords STRING DEFAULT r'{{ $json.searchKeywords || \"卡了|重開|當機\" }}';\n\n-- [Time Calculation]\nDECLARE queryEndDate TIMESTAMP DEFAULT TIMESTAMP_TRUNC(\n  {{\n    (() => {\n      try {\n        const manualTime = $('Manually trigger').item.json.timestamp;\n        if (manualTime) { return `TIMESTAMP(\"${manualTime}\")`; }\n      } catch (e) {}\n      return 'CURRENT_TIMESTAMP()';\n    })()\n  }},\n  DAY, \"Asia/Taipei\"\n) + INTERVAL 4 HOUR;\n\nDECLARE queryStartDate TIMESTAMP DEFAULT queryEndDate - INTERVAL {{\n    (() => {\n      try {\n        const manualInterval = $('Manually trigger').item.json.manualInterval;\n        if (manualInterval && !isNaN(manualInterval)) { return parseInt(manualInterval); }\n      } catch (e) {}\n      return 1;\n    })()\n}} DAY;\n\n-- [Lookback Setting]\nDECLARE lookBackStartDate TIMESTAMP DEFAULT queryStartDate - INTERVAL 7 DAY;\n\nWITH\n  -- 1. Get RecentComments\n  RecentComments AS (\n    SELECT\n      s_streamID,\n      COUNT(1) as comment_count\n    FROM\n      `media17-1119.eventStreaming.streamComment`\n    WHERE\n      _PARTITIONTIME BETWEEN TIMESTAMP_TRUNC(queryStartDate, DAY) AND TIMESTAMP_TRUNC(queryEndDate, DAY)\n      AND REGEXP_CONTAINS(s_content, searchKeywords)\n    GROUP BY s_streamID\n  ),\n\n  -- 2. Raw Stream Data (Performance Filter)\n  RawStreamsData AS (\n    SELECT\n      userID,\n      liveStreamID,\n      beginTime,\n      endTime,\n      closeBy,\n      caption,\n      publishSec,\n      deviceInfo.type AS deviceType,\n      deviceInfo.deviceModel AS deviceModel\n    FROM\n      `media17-1119.mongodb.LiveStreamV2`\n    WHERE\n      TIMESTAMP_SECONDS(beginTime) >= lookBackStartDate\n      AND TIMESTAMP_SECONDS(beginTime) <= queryEndDate\n      AND beginTime IS NOT NULL\n      AND endTime IS NOT NULL\n  ),\n\n  -- 3. Calculate Previous Stream Info\n  RankedStreams AS (\n    SELECT\n      *,\n      LAG(endTime, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_endTime,\n      LAG(closeBy, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_closeBy,\n      LAG(liveStreamID, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_liveStreamID,\n      LAG(publishSec, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_publishSec,\n      LAG(deviceType, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_deviceType,\n      LAG(deviceModel, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_deviceModel\n    FROM\n      RawStreamsData\n  ),\n\n  -- 4. Filter Captions and Restart Logic\n  RecentCaptions AS (\n    SELECT\n      userID,\n      liveStreamID AS problematic_streamID,\n      DATETIME(TIMESTAMP_SECONDS(beginTime), 'Asia/Taipei') AS problematic_stream_BeginTime_Taipei,\n      caption AS problematic_stream_caption,\n      closeBy AS problematic_stream_closeBy,\n      publishSec AS problematic_publishSec,\n      deviceType AS problematic_deviceType,\n      deviceModel AS problematic_deviceModel,\n\n      previous_liveStreamID,\n      previous_closeBy,\n      previous_publishSec,\n      previous_deviceType,\n      previous_deviceModel,\n      (beginTime - previous_endTime) AS time_diff_seconds,\n      DATETIME(TIMESTAMP_SECONDS(previous_endTime), 'Asia/Taipei') AS previous_stream_EndTime_Taipei\n    FROM\n      RankedStreams\n    WHERE\n      TIMESTAMP_SECONDS(beginTime) BETWEEN queryStartDate AND queryEndDate\n      AND REGEXP_CONTAINS(caption, searchKeywords)\n      AND previous_endTime IS NOT NULL\n      AND (beginTime - previous_endTime) < 3600\n  )\n\n-- Final Join\nSELECT\n  cap.userID,\n  com.s_streamID AS streamID,\n  cap.problematic_stream_caption AS caption,\n  cap.problematic_stream_BeginTime_Taipei AS beginTime,\n  cap.problematic_publishSec AS publishSec,\n  cap.problematic_deviceType AS deviceType,\n  cap.problematic_deviceModel AS deviceModel,\n  cap.previous_liveStreamID AS prevStreamID,\n  cap.previous_closeBy AS prevCloseBy,\n  cap.previous_publishSec AS prevPublishSec,\n  cap.previous_deviceType AS prevDeviceType,\n  cap.previous_deviceModel AS prevDeviceModel,\n  cap.time_diff_seconds,\n  com.comment_count\nFROM\n  RecentComments AS com\nINNER JOIN\n  RecentCaptions AS cap\nON\n  com.s_streamID = CAST(cap.problematic_streamID AS STRING)\nORDER BY\n  com.s_streamID ASC",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleBigQuery",
+        "typeVersion": 2.1,
+        "position": [
+          -496,
+          448
+        ],
+        "id": "5cb88b13-6a25-45e8-9a08-c2c9b1e220aa",
+        "name": "Comment and Caption with keywords",
+        "alwaysOutputData": true,
+        "executeOnce": false,
+        "credentials": {
+          "googleApi": {
+            "id": "Dd7x1TQhh9YKbD8v",
+            "name": "Google BigQuery account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "73802441-6ea6-4781-95b1-9aab7b6955fe",
+                "name": "metricSource",
+                "value": "commentCaptionKeyword",
+                "type": "string"
+              },
+              {
+                "id": "8762cda7-014c-4c84-b0da-123a992db05f",
+                "name": "streamID",
+                "value": "={{ $json.streamID }}",
+                "type": "string"
+              },
+              {
+                "id": "4b5f9cb4-bf42-4181-9e31-22f741483b68",
+                "name": "prevStreamID",
+                "value": "={{ $json.prevStreamID }}",
+                "type": "string"
+              },
+              {
+                "id": "fb3ea05c-5b63-4744-be37-dce7d7a6ff02",
+                "name": "userID",
+                "value": "={{ $json.userID }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -176,
+          448
+        ],
+        "id": "4b1a09c9-9cb4-4156-94af-b55bd4f04df7",
+        "name": "Label input comment and caption"
+      },
+      {
+        "parameters": {
+          "jsCode": "const streamMap = {};\n\nfor (const item of $input.all()) {\n  const data = item.json;\n\n  if (!data || Object.keys(data).length <= 1 || !data.streamID) {\n    continue;\n  }\n\n  const sid = data.streamID;\n  const userID = data.userID;\n  const currentSource = data.metricSource || data.metric_source || \"Unknown\";\n\n  if (!streamMap[sid]) {\n    streamMap[sid] = {\n      userID: userID,\n      streamID: sid,\n      prevStreamID: data.prevStreamID || null,\n      sources: [currentSource],\n      count: 1\n    };\n  } else {\n    if (!streamMap[sid].prevStreamID && data.prevStreamID) {\n      streamMap[sid].prevStreamID = data.prevStreamID;\n    }\n    if (!streamMap[sid].sources.includes(currentSource)) {\n      streamMap[sid].sources.push(currentSource);\n    }\n    streamMap[sid].count += 1;\n  }\n}\n\nconst cleanList = Object.values(streamMap);\n\nconst summaryText = cleanList.map(i => \n  `• StreamID: ${i.streamID} (來源: ${i.sources.join(', ')})`\n).join('\\n');\n\nreturn [\n  {\n    json: {\n      summaryText: summaryText,\n      totalCount: cleanList.length,\n      detailedList: cleanList\n    }\n  }\n];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          304,
+          560
+        ],
+        "id": "7e659eb0-388d-459b-b66e-a4a77ebf0573",
+        "name": "Code dedup"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "10889ed4-b75c-4d22-803c-1473b8760327",
+                "leftValue": "={{$json.totalCount}}",
+                "rightValue": 0,
+                "operator": {
+                  "type": "number",
+                  "operation": "gt"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          528,
+          560
+        ],
+        "id": "f4d6493f-3385-4bb6-a846-172228db60c7",
+        "name": "If data exist"
+      },
+      {
+        "parameters": {
+          "select": "channel",
+          "channelId": {
+            "__rl": true,
+            "value": "={{ $node[\"get ChannelID\"].json.id }}",
+            "mode": "id"
+          },
+          "text": "={{\n(() => {\n    try {\n      if ($('Manually trigger').first().json) {\n        return '🛠️ *手動觸發檢測報告*\\n' + $('Manually trigger').first().json.timestamp + ' Inverval: '+ $('Manually trigger').first().json.manualInterval + 'day';\n      }\n    } catch (error) {\n      // Ignore error\n    }\n    // Auto\n    return '🚨 *自動化異常 Stream 監控報告*';\n  })()\n}}\n監控關鍵字: `{{ $('Set Config').first().json.searchKeywords }}`\n以及監控 endByNewStream Conditions: `Prev endByNewStream + Restart in 60s + Contracted TW streamer`\n共發現 {{ $json.totalCount }} 個可疑 Stream。\n\n詳細清單：\n{{ $json.detailedList\n  .map(item =>\n    '• StreamID: ' + item.streamID +\n    (item.prevStreamID ? ' (PrevStreamID: ' + item.prevStreamID + ')' : '') +\n    ' (來源: ' + item.sources.join(', ') + ')'\n  )\n  .join('\\n')\n}}",
+          "otherOptions": {}
+        },
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 2.3,
+        "position": [
+          816,
+          544
+        ],
+        "id": "b2dc3459-1b46-40f9-acf8-2373cb8b7bd8",
+        "name": "Send summary message",
+        "webhookId": "063490fb-a182-42be-b4ae-4468903f27ec",
+        "alwaysOutputData": true,
+        "executeOnce": true,
+        "credentials": {
+          "slackApi": {
+            "id": "9sfslX7caXSFAVUN",
+            "name": "n8n-streaming-testing"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "triggerAtHour": 10
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -1456,
+          448
+        ],
+        "id": "310c4132-40c5-4bea-a0ac-01eefee14752",
+        "name": "Schedule Trigger"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "2ea70e73-6fff-4b18-91bb-435b065a9bf2",
+                "name": "searchKeywords",
+                "value": "卡了|重開|當機|卡頓|轉圈|斷線|黑屏|沒畫面|重い|ラグ|カクカク|止まった|くるくる|落ち|見れない|再起動|枠取り直し",
+                "type": "string"
+              }
+            ]
+          },
+          "includeOtherFields": true,
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -784,
+          448
+        ],
+        "id": "6c1c9330-4f10-46b5-8783-793108175263",
+        "name": "Set Config",
+        "notesInFlow": true,
+        "notes": "Show search keyword"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "TwSY9mJNgYpHEzYw",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/TwSY9mJNgYpHEzYw",
+            "cachedResultName": "Query Steam Logs"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "streamID": "={{ $('Loop StreamIDs').item.json.prevStreamID }}",
+              "channel": "={{ $('Send Stream Header').first().json.channel }}",
+              "target_thread_ts": "={{ $('Send Stream Header').first().json.message.ts }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "streamID",
+                "displayName": "streamID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "channel",
+                "displayName": "channel",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "target_thread_ts",
+                "displayName": "target_thread_ts",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.2,
+        "position": [
+          2720,
+          272
+        ],
+        "id": "6a7b0ef2-24d3-4058-9fe9-25ddbc8781a1",
+        "name": "Exec Query PrevStream Logs",
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "0TBEQsul28S2k7fu",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/0TBEQsul28S2k7fu",
+            "cachedResultName": "Req STT process"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "streamID": "={{ $('Loop StreamIDs').item.json.prevStreamID }}",
+              "channel": "={{ $('Send Stream Header').first().json.channel }}",
+              "target_thread_ts": "={{ $('Send Stream Header').item.json.message.ts }}",
+              "mode": "last",
+              "ts": "={{ $('Send Stream Header').item.json.message.ts }}",
+              "routeKey": "daily:auto",
+              "mins": 5
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "streamID",
+                "displayName": "streamID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "channel",
+                "displayName": "channel",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "target_thread_ts",
+                "displayName": "target_thread_ts",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "mode",
+                "displayName": "mode",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "mins",
+                "displayName": "mins",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "number"
+              },
+              {
+                "id": "ts",
+                "displayName": "ts",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "client_msg_id",
+                "displayName": "client_msg_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "routeKey",
+                "displayName": "routeKey",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {
+            "waitForSubWorkflow": true
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.2,
+        "position": [
+          2944,
+          272
+        ],
+        "id": "df6c47f4-003d-46fb-801b-38602fefe7fa",
+        "name": "Exec PrevStream STT",
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "authentication": "serviceAccount",
+          "projectId": {
+            "__rl": true,
+            "value": "media17-1119",
+            "mode": "list",
+            "cachedResultName": "Media17",
+            "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+          },
+          "sqlQuery": "DECLARE timeRegion STRING DEFAULT 'Asia/Taipei';\nDECLARE searchKeywords STRING DEFAULT r'{{ $json.searchKeywords || \"卡了|重開|當機\" }}';\n\nDECLARE intervalDay INT64 DEFAULT {{\n    (() => {\n      try {\n        const manualInterval = $('Manually trigger').item.json.manualInterval;\n        if (manualInterval && !isNaN(manualInterval)) {\n          return parseInt(manualInterval); \n        }\n      } catch (e) {}\n      return 1;\n    })()\n}};\n\n-- [Time Range Settings]\nDECLARE queryEndDate TIMESTAMP DEFAULT TIMESTAMP_TRUNC(\n  {{\n    (() => {\n      try {\n        const manualTime = $('Manually trigger').item.json.timestamp\n        if (manualTime) {\n          return `TIMESTAMP(\"${manualTime}\")`; \n        }\n      } catch (e) {}\n      return 'CURRENT_TIMESTAMP()';\n    })()\n  }},\n  DAY, timeRegion\n) + INTERVAL 4 HOUR;\n\nDECLARE queryStartDate TIMESTAMP DEFAULT TIMESTAMP_SUB(queryEndDate, INTERVAL intervalDay DAY);\n\nWITH\n  AllStreamsRanked AS ( \n    SELECT\n      userID,\n      liveStreamID,\n      beginTime,\n      endTime,\n      closeBy, \n      caption,\n      publishSec,\n      deviceInfo.type AS deviceType,\n      deviceInfo.deviceModel AS deviceModel,\n      LAG(endTime, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_endTime,\n      LAG(closeBy, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_closeBy,\n      LAG(liveStreamID, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_liveStreamID,\n      LAG(publishSec, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_publishSec,\n      LAG(deviceInfo.type, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_deviceType,\n      LAG(deviceInfo.deviceModel, 1) OVER (\n        PARTITION BY userID\n        ORDER BY beginTime ASC\n      ) AS previous_deviceModel\n    FROM\n      `media17-1119.mongodb.LiveStreamV2`\n    WHERE \n      TIMESTAMP_SECONDS(beginTime) BETWEEN TIMESTAMP_SUB(queryStartDate, INTERVAL (intervalDay + 10) DAY) AND queryEndDate\n      AND beginTime IS NOT NULL\n      AND endTime IS NOT NULL\n      AND userID IS NOT NULL\n  ),\n\n  TargetStreams AS (\n    SELECT\n      userID,\n      liveStreamID AS problematic_streamID,\n      DATETIME(TIMESTAMP_SECONDS(beginTime), timeRegion) AS problematic_stream_BeginTime_Taipei,\n      caption AS problematic_stream_caption,\n      closeBy AS problematic_stream_closeBy,\n      publishSec AS problematic_publishSec,\n      deviceType AS problematic_deviceType,\n      deviceModel AS problematic_deviceModel,\n\n      previous_liveStreamID,\n      previous_closeBy,\n      previous_publishSec,\n      previous_deviceType,\n      previous_deviceModel,\n      (beginTime - previous_endTime) AS time_diff_seconds,\n      DATETIME(TIMESTAMP_SECONDS(previous_endTime), timeRegion) AS previous_stream_EndTime_Taipei\n    FROM\n      AllStreamsRanked\n    WHERE\n      TIMESTAMP_SECONDS(beginTime) BETWEEN queryStartDate AND queryEndDate\n      AND REGEXP_CONTAINS(caption, searchKeywords)\n      AND previous_endTime IS NOT NULL\n  )\n\nSELECT\n  userID,\n  CAST(problematic_streamID AS STRING) AS streamID,\n  problematic_stream_caption AS caption,\n  problematic_stream_closeBy AS closeBy,\n  problematic_publishSec AS publishSec,\n  problematic_deviceType AS deviceType,\n  problematic_deviceModel AS deviceModel,\n  \n  previous_liveStreamID AS prevStreamID,\n  previous_closeBy AS prevCloseBy,\n  previous_publishSec AS prevPublicSec,\n  previous_deviceType AS prevDeviceType,\n  previous_deviceModel AS prevDeviceModel,\n  time_diff_seconds,\n  problematic_stream_BeginTime_Taipei\nFROM\n  TargetStreams\nWHERE\n  time_diff_seconds < 3600\nORDER BY\n  streamID ASC;",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleBigQuery",
+        "typeVersion": 2.1,
+        "position": [
+          -496,
+          704
+        ],
+        "id": "61887c8e-ce67-41bb-8825-9770dfa9f0aa",
+        "name": "Caption with keywords",
+        "alwaysOutputData": true,
+        "executeOnce": false,
+        "credentials": {
+          "googleApi": {
+            "id": "Dd7x1TQhh9YKbD8v",
+            "name": "Google BigQuery account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "73802441-6ea6-4781-95b1-9aab7b6955fe",
+                "name": "metricSource",
+                "value": "captionKeyword",
+                "type": "string"
+              },
+              {
+                "id": "8762cda7-014c-4c84-b0da-123a992db05f",
+                "name": "streamID",
+                "value": "={{ $json.streamID }}",
+                "type": "string"
+              },
+              {
+                "id": "4b5f9cb4-bf42-4181-9e31-22f741483b68",
+                "name": "prevStreamID",
+                "value": "={{ $json.prevStreamID }}",
+                "type": "string"
+              },
+              {
+                "id": "f4894b76-f7bc-4a15-b6b7-31ac9f3c942a",
+                "name": "userID",
+                "value": "={{ $json.userID }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -176,
+          704
+        ],
+        "id": "52dfcc59-1388-4e39-af7c-f7526e77345a",
+        "name": "Label input comment and caption1"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "a13401a1-a08b-4171-8b5c-8f5199d6f04f",
+                "leftValue": "={{ $('Loop StreamIDs').item.json.sources.join(',').includes('commentCaptionKeyword') || $('Loop StreamIDs').item.json.sources.join(',').includes('captionKeyword') || $('Loop StreamIDs').item.json.sources.join(',').includes('endByNewStream') }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              },
+              {
+                "id": "8cf9bf0f-389c-4984-add6-558b12fefca2",
+                "leftValue": "={{ !!$('Loop StreamIDs').item.json.prevStreamID }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "exists",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          2112,
+          416
+        ],
+        "id": "8b93cd86-38dd-437b-b051-b1db58a560be",
+        "name": "If need check prevStreamID"
+      },
+      {
+        "parameters": {
+          "authentication": "serviceAccount",
+          "projectId": {
+            "__rl": true,
+            "value": "media17-1119",
+            "mode": "list",
+            "cachedResultName": "Media17",
+            "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+          },
+          "sqlQuery": "DECLARE timeRegion STRING DEFAULT 'Asia/Taipei';\nDECLARE searchKeywords STRING DEFAULT r'{{ $json.searchKeywords || \"卡了|重開|當機\" }}';\n-- [Real Case]\nDECLARE queryEndDate TIMESTAMP DEFAULT TIMESTAMP_TRUNC(\n  {{\n    (() => {\n      try {\n        // Try to get manually input\n        const manualTime = $('Manually trigger').first().json.timestamp;\n        \n        if (manualTime) {\n          return `TIMESTAMP(\"${manualTime}\")`; \n        }\n      } catch (e) {\n        // Ignore error\n      }\n      // Others, use current timestamp\n      return 'CURRENT_TIMESTAMP()';\n    })()\n  }},\n  DAY, \"Asia/Taipei\"\n) + INTERVAL 4 HOUR;\nDECLARE queryStartDate TIMESTAMP DEFAULT queryEndDate - INTERVAL {{\n    (() => {\n      try {\n        const manualInterval = $json.manualInterval;\n        \n        if (manualInterval && !isNaN(manualInterval)) {\n          return parseInt(manualInterval); \n        }\n      } catch (e) {\n        // Ignore error\n      }\n      return 1;\n    })()\n}} DAY;\nWITH\n  -- Get RecentComments\n  RecentStreamIDs AS ( \n    SELECT\n      DISTINCT CAST(liveStreamID AS STRING) AS liveStreamID\n    FROM\n      `media17-1119.mongodb.LiveStreamV2`\n    WHERE \n      TIMESTAMP_SECONDS(beginTime) BETWEEN queryStartDate AND queryEndDate\n      AND beginTime IS NOT NULL\n      AND liveStreamID IS NOT NULL \n  ),\n  RecentComments AS (\n    SELECT\n      s_streamID,\n    FROM\n      `media17-1119.eventStreaming.streamComment`\n    WHERE\n      _PARTITIONTIME BETWEEN queryStartDate AND queryEndDate\n      AND s_streamID IN (SELECT liveStreamID FROM RecentStreamIDs)\n      AND REGEXP_CONTAINS(s_content, searchKeywords)\n    GROUP BY s_streamID\n    ORDER BY s_streamID ASC\n  ),\n  -- Get RecentCaptions\n  AllStreamsRanked AS ( \n    SELECT\n      userID,\n      liveStreamID,\n      beginTime,\n      endTime,\n      closeBy, \n      caption,\n      LAG(endTime, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_endTime,\n      LAG(closeBy, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_closeBy,\n      LAG(liveStreamID, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_liveStreamID\n    FROM\n      `media17-1119.mongodb.LiveStreamV2`\n    WHERE \n      beginTime IS NOT NULL\n      AND endTime IS NOT NULL\n      AND userID IS NOT NULL\n  ),\n  RecentCaptions AS (\n    SELECT\n      userID,\n      liveStreamID AS problematic_streamID,\n      DATETIME(TIMESTAMP_SECONDS(beginTime), 'Asia/Taipei') AS problematic_stream_BeginTime_Taipei,\n      caption AS problematic_stream_caption,\n      closeBy AS problematic_stream_closeBy,\n      previous_liveStreamID,\n      previous_closeBy,\n      (beginTime - previous_endTime) AS time_diff_seconds,\n      DATETIME(TIMESTAMP_SECONDS(previous_endTime), 'Asia/Taipei') AS previous_stream_EndTime_Taipei\n    FROM\n      AllStreamsRanked\n    WHERE\n      TIMESTAMP_SECONDS(beginTime) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)\n      AND REGEXP_CONTAINS(caption, r\"卡了|重開|當機\")\n      AND previous_endTime IS NOT NULL\n    ORDER BY\n      userID,\n      beginTime DESC\n  )\n-- Get Join ----------------------\nSELECT\n  com.s_streamID AS streamID,\n  cap.problematic_stream_caption AS caption,\n  cap.previous_liveStreamID AS prevStreamID,\n  cap.previous_closeBy AS prevCloseBy,\n  cap.time_diff_seconds,\nFROM\n  RecentComments AS com\nINNER JOIN\n  RecentCaptions AS cap\nON\n  com.s_streamID = CAST(cap.problematic_streamID AS STRING)\nWHERE\n  cap.time_diff_seconds < 3600\nORDER BY\n  cap.previous_closeBy,\n  com.s_streamID",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleBigQuery",
+        "typeVersion": 2.1,
+        "position": [
+          -400,
+          -128
+        ],
+        "id": "a8a61c05-a8ff-49bf-84ee-528c8dd5073c",
+        "name": "Comment and Caption with keywords1",
+        "alwaysOutputData": true,
+        "credentials": {
+          "googleApi": {
+            "id": "Dd7x1TQhh9YKbD8v",
+            "name": "Google BigQuery account"
+          }
+        },
+        "disabled": true
+      },
+      {
+        "parameters": {
+          "numberInputs": 3
+        },
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          80,
+          560
+        ],
+        "id": "189e2b72-b01f-4d51-a665-e1dc9df14671",
+        "name": "Merge"
+      },
+      {
+        "parameters": {
+          "amount": 3
+        },
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          2336,
+          272
+        ],
+        "id": "eb18af30-1e6b-4f27-a2e2-1d7d43d0e6fc",
+        "name": "Wait 3s",
+        "webhookId": "d27ca049-8982-4a63-bba1-17409e9b6ae7"
+      },
+      {
+        "parameters": {
+          "select": "channel",
+          "channelId": {
+            "__rl": true,
+            "value": "={{ $('Send Stream Header').first().json.channel }}",
+            "mode": "id"
+          },
+          "text": "==🔍 *自動化檢測|prevStreamID*: `{{ $('Loop StreamIDs').item.json.prevStreamID }}`",
+          "otherOptions": {
+            "thread_ts": {
+              "replyValues": {
+                "thread_ts": "={{ $('Send Stream Header').first().json.message.ts }}"
+              }
+            }
+          }
+        },
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 2.3,
+        "position": [
+          2512,
+          272
+        ],
+        "id": "73445027-ca7a-470f-b560-8aa4f02e0335",
+        "name": "Send prevStream Header",
+        "webhookId": "bbd48e74-773e-4d36-bdc6-0fddb3d230e4",
+        "credentials": {
+          "slackApi": {
+            "id": "9sfslX7caXSFAVUN",
+            "name": "n8n-streaming-testing"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "let isManual = false;\n\ntry {\n  // 嘗試讀取 Manually trigger 的數據\n  // 如果是排程觸發，這一行會報錯，直接跳到 catch\n  if ($('Manually trigger').first().json) {\n    isManual = true;\n  }\n} catch (error) {\n  // 捕捉到錯誤，代表該節點未執行 (即為排程觸發)\n  // 不做任何事，保持 isManual = false\n}\n\nif (isManual) {\n  // 手動觸發的邏輯\n  return [\n    { \"id\": \"C0A4JJJKJMD\" }\n  ];\n} else {\n  // 自動/排程觸發的邏輯\n  return [\n    { \"id\": \"C09F0SYG57D\" }\n  ];\n}"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1120,
+          448
+        ],
+        "id": "6f7f258e-bb89-4a4d-a856-5111eb9ca9f2",
+        "name": "get ChannelID"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "sOSbXSfXFcMLeIfr",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/sOSbXSfXFcMLeIfr",
+            "cachedResultName": "AI SUMMARY"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "channelID": "={{ $('Send Stream Header').first().json.channel }}",
+              "threadTS": "={{ $('Send Stream Header').item.json.message.ts }}",
+              "stream": "={{ \n[\n  {\n    \"liveStreamID\": $('Loop StreamIDs').first().json.prevStreamID,\n    \"mode\": \"last\"\n  }, \n  {\n    \"liveStreamID\": $('Loop StreamIDs').first().json.streamID,\n    \"mode\": \"first\"\n  }\n] \n}}"
+            },
+            "matchingColumns": [
+              "dialogue"
+            ],
+            "schema": [
+              {
+                "id": "stream",
+                "displayName": "stream",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "array",
+                "removed": false
+              },
+              {
+                "id": "channelID",
+                "displayName": "channelID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "threadTS",
+                "displayName": "threadTS",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {
+            "waitForSubWorkflow": false
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.2,
+        "position": [
+          3376,
+          432
+        ],
+        "id": "50f8428f-c096-4b80-b71a-861820c72d4b",
+        "name": "Exec AI SUMMARY",
+        "disabled": true,
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "authentication": "serviceAccount",
+          "projectId": {
+            "__rl": true,
+            "value": "media17-1119",
+            "mode": "list",
+            "cachedResultName": "Media17",
+            "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+          },
+          "sqlQuery": "DECLARE timeRegion STRING DEFAULT 'Asia/Taipei';\n\nDECLARE intervalDay INT64 DEFAULT {{\n    (() => {\n      try {\n        const manualInterval = $('Manually trigger').item.json.manualInterval;\n        if (manualInterval && !isNaN(manualInterval)) {\n          return parseInt(manualInterval); \n        }\n      } catch (e) {}\n      return 1;\n    })()\n}};\n\n-- [Time Range Settings]\nDECLARE queryEndDate TIMESTAMP DEFAULT TIMESTAMP_TRUNC(\n  {{\n    (() => {\n      try {\n        const manualTime = $('Manually trigger').item.json.timestamp\n        if (manualTime) {\n          return `TIMESTAMP(\"${manualTime}\")`; \n        }\n      } catch (e) {}\n      return 'CURRENT_TIMESTAMP()';\n    })()\n  }},\n  DAY, timeRegion\n) + INTERVAL 4 HOUR;\n\nDECLARE queryStartDate TIMESTAMP DEFAULT TIMESTAMP_SUB(queryEndDate, INTERVAL intervalDay DAY);\n\nWITH\n  -- Get RecentComments\n  RecentStreamIDs AS ( \n    SELECT\n      liveStreamID,\n      userID,\n      beginTime,\n      endTime,\n      closeBy,\n      caption,\n\n      -- 取得上一場的 endTime\n      LAG(endTime, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_endTime,\n      -- 取得上一場的 closeBy\n      LAG(closeBy, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_closeBy,\n      -- 取得上一場的 liveStreamID (方便核對)\n      LAG(liveStreamID, 1) OVER ( \n        PARTITION BY userID \n        ORDER BY beginTime ASC\n      ) AS previous_liveStreamID,\n\n      deviceInfo.ipRegion,\n      region,\n      device\n    FROM\n      `media17-1119.mongodb.LiveStreamV2`\n    WHERE -- 使用 beginTime (轉換為 TIMESTAMP) 來篩選時間範圍\n      TIMESTAMP_SECONDS(beginTime) BETWEEN queryStartDate AND queryEndDate\n      AND deviceInfo.ipRegion = \"TW\"\n      AND region = \"TW\"\n      AND device NOT IN (\"OBS\")\n      AND beginTime IS NOT NULL\n      AND endTime IS NOT NULL\n      AND liveStreamID IS NOT NULL -- 順便確保 liveStreamID 不是 NULL\n  ),\n  -- Find all userIDs with a contract in the specified month (JP region, not deleted, not terminated)\n  ContractedUsers AS (\n    SELECT\n      DISTINCT userID\n    FROM `media17-1119.mysql17admin.Contract`\n    WHERE\n      dateStart < queryStartDate\n      AND dateEnd >= queryEndDate\n      AND isDeleted = 0\n      AND isTerminated = 0\n)\n\n-- Get Join ----------------------\nSELECT\n  rec.liveStreamID AS streamID,\n  rec.userID,\n  DATETIME(TIMESTAMP_SECONDS(rec.beginTime), \"Asia/Taipei\") AS beginTime_Utc8,\n  DATETIME(TIMESTAMP_SECONDS(rec.endTime), \"Asia/Taipei\") AS endTime_Utc8,\n  rec.closeBy,\n  rec.caption,\n\n  DATETIME(TIMESTAMP_SECONDS(rec.previous_endTime), \"Asia/Taipei\") AS prevEndTime_Utc8,\n  rec.previous_closeBy,\n  rec.previous_liveStreamID AS prevStreamID,\n\n  rec.ipRegion,\n  rec.region,\n  rec.device\nFROM\n  RecentStreamIDs AS rec\nINNER JOIN\n  ContractedUsers AS cont\nON\n  cont.userID = rec.userID\nWHERE\n  (rec.beginTime - rec.previous_endTime) < 60\n  AND rec.previous_closeBy = \"end by new stream\"\nORDER BY\n  rec.beginTime ASC,\n  rec.userID ASC,\n  rec.liveStreamID ASC\n  ",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleBigQuery",
+        "typeVersion": 2.1,
+        "position": [
+          -496,
+          976
+        ],
+        "id": "74c80a7a-952f-4a48-a8d2-d08422de4a5d",
+        "name": "End by new stream",
+        "alwaysOutputData": true,
+        "executeOnce": false,
+        "credentials": {
+          "googleApi": {
+            "id": "Dd7x1TQhh9YKbD8v",
+            "name": "Google BigQuery account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "73802441-6ea6-4781-95b1-9aab7b6955fe",
+                "name": "metricSource",
+                "value": "endByNewStream",
+                "type": "string"
+              },
+              {
+                "id": "8762cda7-014c-4c84-b0da-123a992db05f",
+                "name": "streamID",
+                "value": "={{ $json.streamID }}",
+                "type": "string"
+              },
+              {
+                "id": "4b5f9cb4-bf42-4181-9e31-22f741483b68",
+                "name": "prevStreamID",
+                "value": "={{ $json.prevStreamID }}",
+                "type": "string"
+              },
+              {
+                "id": "f4894b76-f7bc-4a15-b6b7-31ac9f3c942a",
+                "name": "userID",
+                "value": "={{ $json.userID }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -176,
+          976
+        ],
+        "id": "ba07656d-a9e6-4e0c-bb2b-c6f8982dab0d",
+        "name": "Label input comment and caption2"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "FCaONjqNFA8YieKr",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/FCaONjqNFA8YieKr",
+            "cachedResultName": "AI SUMMARY v2"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "channelID": "={{ $('Send Stream Header').first().json.channel }}",
+              "threadTS": "={{ $('Send Stream Header').item.json.message.ts }}",
+              "stream": "={{ \n[\n  {\n    \"liveStreamID\": $('Loop StreamIDs').first().json.prevStreamID,\n    \"mode\": \"last\"\n  }, \n  {\n    \"liveStreamID\": $('Loop StreamIDs').first().json.streamID,\n    \"mode\": \"first\"\n  }\n] \n}}"
+            },
+            "matchingColumns": [
+              "dialogue"
+            ],
+            "schema": [
+              {
+                "id": "stream",
+                "displayName": "stream",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "array",
+                "removed": false
+              },
+              {
+                "id": "channelID",
+                "displayName": "channelID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "threadTS",
+                "displayName": "threadTS",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {
+            "waitForSubWorkflow": false
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.2,
+        "position": [
+          3600,
+          432
+        ],
+        "id": "e5855157-3e8f-4de9-9a09-3d496766a3b7",
+        "name": "Exec AI SUMMARY v2",
+        "onError": "continueRegularOutput"
+      }
+    ],
+    "connections": {
+      "Split to Items": {
+        "main": [
+          [
+            {
+              "node": "Loop StreamIDs",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Loop StreamIDs": {
+        "main": [
+          [],
+          [
+            {
+              "node": "Send Stream Header",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Stream Header": {
+        "main": [
+          [
+            {
+              "node": "Exec Query Logs",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Exec Query Logs": {
+        "main": [
+          [
+            {
+              "node": "Exec Req STT",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Exec Req STT": {
+        "main": [
+          [
+            {
+              "node": "If need check prevStreamID",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Manually trigger": {
+        "main": [
+          [
+            {
+              "node": "get ChannelID",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait 1s": {
+        "main": [
+          [
+            {
+              "node": "Loop StreamIDs",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Comment and Caption with keywords": {
+        "main": [
+          [
+            {
+              "node": "Label input comment and caption",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Label input comment and caption": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code dedup": {
+        "main": [
+          [
+            {
+              "node": "If data exist",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If data exist": {
+        "main": [
+          [
+            {
+              "node": "Send summary message",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send a message3",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send summary message": {
+        "main": [
+          [
+            {
+              "node": "Split to Items",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "get ChannelID",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Set Config": {
+        "main": [
+          [
+            {
+              "node": "Comment and Caption with keywords",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Caption with keywords",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Exec Query PrevStream Logs": {
+        "main": [
+          [
+            {
+              "node": "Exec PrevStream STT",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Exec PrevStream STT": {
+        "main": [
+          [
+            {
+              "node": "Exec AI SUMMARY",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Caption with keywords": {
+        "main": [
+          [
+            {
+              "node": "Label input comment and caption1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Label input comment and caption1": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "If need check prevStreamID": {
+        "main": [
+          [
+            {
+              "node": "Wait 3s",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Exec AI SUMMARY",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge": {
+        "main": [
+          [
+            {
+              "node": "Code dedup",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait 3s": {
+        "main": [
+          [
+            {
+              "node": "Send prevStream Header",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send prevStream Header": {
+        "main": [
+          [
+            {
+              "node": "Exec Query PrevStream Logs",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "get ChannelID": {
+        "main": [
+          [
+            {
+              "node": "End by new stream",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Set Config",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Exec AI SUMMARY": {
+        "main": [
+          [
+            {
+              "node": "Exec AI SUMMARY v2",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "End by new stream": {
+        "main": [
+          [
+            {
+              "node": "Label input comment and caption2",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Label input comment and caption2": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 2
+            }
+          ]
+        ]
+      },
+      "Exec AI SUMMARY v2": {
+        "main": [
+          [
+            {
+              "node": "Wait 1s",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "null null",
+    "name": null,
+    "description": null
+  }
+}

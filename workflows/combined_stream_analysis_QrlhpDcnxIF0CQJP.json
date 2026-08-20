@@ -1,0 +1,739 @@
+{
+  "id": "QrlhpDcnxIF0CQJP",
+  "name": "Combined Stream Analysis",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "streamID"
+            }
+          ]
+        }
+      },
+      "id": "fe9f45aa-6838-42c3-8b76-9a720d224c76",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1680,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C09F0SYG57D",
+          "mode": "id"
+        },
+        "text": "=[自動化分析] 開始處理可疑 Stream ID: `{{ $json.streamID }}`",
+        "otherOptions": {}
+      },
+      "id": "2dc74151-c51d-4079-97dc-303b0fcfe766",
+      "name": "Send initial message",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -1472,
+        432
+      ],
+      "webhookId": "67b34e75-b696-41c5-a5d6-7d811452b506",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1a1c1d1-e1f1-41a1-b1c1-d1e1f1a1c1d1",
+              "name": "streamID",
+              "value": "={{ $('Start').item.json.streamID }}",
+              "type": "string"
+            },
+            {
+              "id": "b2a2c2d2-e2f2-42a2-b2c2-d2e2f2a2c2d2",
+              "name": "slack_ts",
+              "value": "={{ $json.ts }}",
+              "type": "string"
+            },
+            {
+              "id": "b3a3c3d3-e3f3-43a3-b3c3-d3e3f3a3c3d3",
+              "name": "slack_channel",
+              "value": "={{ $json.channel }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "abbb076f-d725-40e6-861b-96fbe9506e60",
+      "name": "Store Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1280,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list"
+        },
+        "sqlQuery": "-- 設定搜尋範圍為最近 30 天\nDECLARE limit_timestamp TIMESTAMP DEFAULT TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY);\n\nSELECT \n  userID,\n  DATETIME(TIMESTAMP_SECONDS(beginTime), 'Asia/Taipei') as BeginTimeU8,\n  beginTime, endTime, publishSec, duration, closeBy,\n  landscape, liveStreamID, streamType, streamMode, streamerType, \n  caption,\n  premiumContent.premiumType,\n  archiveConfig,\n  deviceInfo.deviceName, deviceInfo.deviceModel,\n  deviceInfo.type, deviceInfo.version, deviceInfo.hardware, deviceInfo.OSVersion, \n  deviceInfo.Customization, deviceInfo.publicIP, deviceInfo.ipRegion,\n  premiumContent, *\nFROM `media17-1119.mongodb.LiveStreamV2`\nWHERE \n  -- 篩選特定的 Stream ID\n  liveStreamID = {{ $json.streamID }}\n  AND TIMESTAMP_SECONDS(beginTime) >= limit_timestamp\n  \n  AND beginTime is NOT NULL\n  AND endTime is NOT NULL",
+        "options": {}
+      },
+      "id": "2d4f22d2-2381-4487-ad89-b1636759bc99",
+      "name": "Get Stream Info",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -1072,
+        432
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "abfe2e67-9473-4380-bae0-485261072c5c",
+              "leftValue": "={{ $json.liveStreamID }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "025a0078-bdab-4210-bac8-30ab6adf5e4a",
+      "name": "If Stream Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -880,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Store Context').item.json.slack_channel }}",
+          "mode": "id"
+        },
+        "text": "=StreamID: `{{ $('Store Context').item.json.streamID }}` not found in recent 30 days.",
+        "otherOptions": {
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Store Context').item.json.slack_ts }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -656,
+        624
+      ],
+      "id": "4f9980c2-fcb3-4676-b047-a17df42314c5",
+      "name": "Send streamID not found",
+      "webhookId": "75ee254e-256d-4ca3-872b-13aba5981e5e",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list"
+        },
+        "sqlQuery": "DECLARE start_timestamp TIMESTAMP;\nDECLARE end_timestamp TIMESTAMP;\n\nSET end_timestamp = TIMESTAMP_ADD(TIMESTAMP_SECONDS({{ $json.endTime }}), INTERVAL 5 MINUTE);\n\nSET start_timestamp = TIMESTAMP_SUB(TIMESTAMP_SECONDS({{ $json.beginTime }}), INTERVAL 5 MINUTE);\n\nSELECT DATETIME(ClientTime, \"Asia/Taipei\") as ClientTimeUTCp8, \n  LiveStreamID, -- Do NOT remove it for output check\n  Type,\n  OSVersion,\n  Device,\n  AppVersion,\n  UserIP,\n  IPRegion,\n  NetworkType,\n  Carrier,\n  PingMax,\n  PingMedian,\n  PingSD,\n  PingCV,\n  Provider,\n  HostIP,\n  StreamUrl,\n  BitrateMin,\n  BitrateMedian,\n  BitrateAverage,\n  BitrateSD,\n  BitrateCV,\n  BroadcastDuration,\n  StartBroadcastTime,\n  StartPushTime,\n  StartStreamingTime,\n  ReconnectTimes,\n  Width,\n  Height,\n  UnsentCountMax,\n  UnsentCountAverage,\n  UnsentCountMedian,\n  UnsentCountSD,\n  KeepAliveFailCount,\n  Event,\n  deviceType,\n  ip,\n  region,\n  deviceID,\n  version\nFROM `media17-1119.BackendEvent.IstStreamerLog`\nWHERE \n  timestamp BETWEEN start_timestamp AND end_timestamp\n  AND Suid = \"{{ $json.liveStreamID }}\"\nORDER BY ClientTime ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -672,
+        160
+      ],
+      "id": "72702dcc-ef88-4ce3-bc3b-0dd165558e04",
+      "name": "StreamerLog",
+      "notesInFlow": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list"
+        },
+        "sqlQuery": "DECLARE start_timestamp TIMESTAMP;\nDECLARE end_timestamp TIMESTAMP;\n\nSET end_timestamp = TIMESTAMP_ADD(TIMESTAMP_SECONDS({{ $json.endTime }}), INTERVAL 5 MINUTE);\nSET start_timestamp = TIMESTAMP_SUB(TIMESTAMP_SECONDS({{ $json.beginTime }}), INTERVAL 5 MINUTE);\n\n  SELECT\n    DATETIME(timestamp, \"Asia/Taipei\") as UTCp8, \n    JSON_EXTRACT_SCALAR(Log, '$.time') as LocalTime,\n    triggerUserID, -- Do NOT remove it for output check\n    Type,\n    JSON_EXTRACT_SCALAR(Log, '$.title') AS title, -- Extracts 'title' from the JSON string\n    Log,\n    deviceType,\n    ip,\n    region,\n    deviceID,\n    version,\nFROM\n    `media17-1119.BackendEvent.IstStreamerEventLog`\nWHERE\n    timestamp BETWEEN start_timestamp AND end_timestamp\n    AND triggerUserID LIKE \"%{{ $json.userID }}%\"\nORDER BY\n    JSON_EXTRACT_SCALAR(Log, '$.time') ASC -- Orders by the 'time' field within the JSON string",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -672,
+        288
+      ],
+      "id": "5c109632-246f-4328-93d3-7d6f4a1aa668",
+      "name": "StreamerEventLog",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list"
+        },
+        "sqlQuery": "DECLARE timeRegion STRING DEFAULT 'Asia/Taipei';\n\nDECLARE startTime TIMESTAMP DEFAULT TIMESTAMP_SUB(TIMESTAMP_SECONDS({{ $json.beginTime }}), INTERVAL 5 MINUTE);\nDECLARE endTime TIMESTAMP DEFAULT TIMESTAMP_ADD(TIMESTAMP_SECONDS({{ $json.endTime }}), INTERVAL 5 MINUTE);\n\nSELECT\n  s_streamID, -- Do NOT remove it for output check\n  DATETIME(insertTs, \"Asia/Taipei\") as UTCp8, msg, s_content, s_region, s_reqOpenID, s_reqUserID\nFROM\n  `media17-1119.eventStreaming.streamComment`\nWHERE\n  _PARTITIONTIME BETWEEN TIMESTAMP_TRUNC(startTime, DAY) AND TIMESTAMP_TRUNC(endTime, DAY)\n  AND insertTs BETWEEN startTime AND endTime\n  \n  AND s_streamID = \"{{ $json.liveStreamID }}\" \nORDER by s_streamID, UTCp8 ASC; ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -672,
+        432
+      ],
+      "id": "e77a4f92-c432-4ee1-b8fd-a9b8cd5883e1",
+      "name": "Stream comments",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "abfe2e67-9473-4380-bae0-485261072c5c",
+              "leftValue": "={{ $json.LiveStreamID }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -480,
+        160
+      ],
+      "id": "184bc60e-1572-4964-957a-7e057a95825d",
+      "name": "If StreamerLog Exists"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "abfe2e67-9473-4380-bae0-485261072c5c",
+              "leftValue": "={{ $json.triggerUserID }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -480,
+        288
+      ],
+      "id": "48225413-3630-4f5e-9cf8-a3340126168a",
+      "name": "If StreamerEventLog Exists"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "abfe2e67-9473-4380-bae0-485261072c5c",
+              "leftValue": "={{ $json.s_streamID }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -480,
+        432
+      ],
+      "id": "b8f24bac-ce7a-451f-909a-3d4d0b958147",
+      "name": "If StreamCommentLog Exists"
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=StreamerLog-{{ $('Get Stream Info').item.json.liveStreamID }}.xlsx"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -272,
+        48
+      ],
+      "id": "cf19e8b4-6b94-49a3-8890-3b8894877da2",
+      "name": "Convert to StreamerLog"
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=StreamerEventLog-{{ $('Get Stream Info').item.json.liveStreamID }}.xlsx"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -272,
+        192
+      ],
+      "id": "9b093d8e-02db-41d3-9246-bea3844d41e2",
+      "name": "Convert to StreamerEventLog"
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=StreamCommentLog-{{ $('Get Stream Info').item.json.liveStreamID }}.xlsx"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -272,
+        336
+      ],
+      "id": "6164d9de-a6b2-44d5-84a2-1b3bbf129d2f",
+      "name": "Convert to StreamCommentLog"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "options": {
+          "threadTs": "={{ $('Store Context').item.json.slack_ts }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -80,
+        48
+      ],
+      "id": "b4532417-bfb8-4305-919c-8e8fbe7b5816",
+      "name": "Upload StreamLog",
+      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "options": {
+          "threadTs": "={{ $('Store Context').item.json.slack_ts }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -80,
+        192
+      ],
+      "id": "9648ce6a-c78b-47e1-9b42-4428c68d3a4f",
+      "name": "Upload StreamerEventLog",
+      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "options": {
+          "threadTs": "={{ $('Store Context').item.json.slack_ts }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -80,
+        336
+      ],
+      "id": "ffb07422-e630-4868-9151-73a419bfda8e",
+      "name": "Upload StreamerCommentLog",
+      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "wait"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        336,
+        304
+      ],
+      "id": "92d3e964-8e44-4825-91e1-e3e357461bc7",
+      "name": "Merge"
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Send initial message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send initial message": {
+      "main": [
+        [
+          {
+            "node": "Store Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Context": {
+      "main": [
+        [
+          {
+            "node": "Get Stream Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Stream Info": {
+      "main": [
+        [
+          {
+            "node": "If Stream Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Stream Exists": {
+      "main": [
+        [
+          {
+            "node": "StreamerLog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "StreamerEventLog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Stream comments",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send streamID not found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "StreamerLog": {
+      "main": [
+        [
+          {
+            "node": "If StreamerLog Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "StreamerEventLog": {
+      "main": [
+        [
+          {
+            "node": "If StreamerEventLog Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stream comments": {
+      "main": [
+        [
+          {
+            "node": "If StreamCommentLog Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If StreamerLog Exists": {
+      "main": [
+        [
+          {
+            "node": "Convert to StreamerLog",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If StreamerEventLog Exists": {
+      "main": [
+        [
+          {
+            "node": "Convert to StreamerEventLog",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "If StreamCommentLog Exists": {
+      "main": [
+        [
+          {
+            "node": "Convert to StreamCommentLog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to StreamerLog": {
+      "main": [
+        [
+          {
+            "node": "Upload StreamLog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to StreamerEventLog": {
+      "main": [
+        [
+          {
+            "node": "Upload StreamerEventLog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to StreamCommentLog": {
+      "main": [
+        [
+          {
+            "node": "Upload StreamerCommentLog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload StreamLog": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload StreamerEventLog": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "streamID": "213573365"
+        }
+      }
+    ]
+  },
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "QrlhpDcnxIF0CQJP",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

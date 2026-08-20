@@ -1,0 +1,216 @@
+{
+  "id": "qYJRGXupxdbKbY54",
+  "name": "Slack Reaction Subworkflow",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "e81d7d0a-9d21-4f3b-8b5e-2e0f5b9d3b4b",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const channelId = $input.first().json.channelID;\nconst threadTs = $input.first().json.threadTS;\nconst emojis = $input.first().json.emojis;\nlet waitSeconds = $input.first().json.waitSeconds;\n\nif (!channelId || !threadTs) {\n  throw new Error(\"Missing required parameters: channelID or threadTS\");\n}\n\nif (!emojis || !Array.isArray(emojis) || emojis.length === 0) {\n  return []; // Skip processing if no emojis\n}\n\nif (waitSeconds === undefined || waitSeconds === null) {\n  waitSeconds = 1;\n}\n\n// Convert emojis array into separate items for the Loop node\nreturn emojis.map((emoji) => {\n  return {\n    json: {\n      channelId: channelId,\n      threadTs: threadTs,\n      emoji: emoji,\n      waitSeconds: waitSeconds\n    }\n  };\n});\n"
+      },
+      "id": "c1f1a5b8-5a2a-4a2a-9e1e-2e2d5c3f3f2d",
+      "name": "Data Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "a2a2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b",
+      "name": "Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "reaction",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channelId }}",
+          "mode": "id"
+        },
+        "timestamp": "={{ $json.threadTs }}",
+        "name": "={{ $json.emoji }}"
+      },
+      "id": "b3b3c3c3-3c3c-3c3c-3c3c-3c3c3c3c3c3c",
+      "name": "Add Reaction",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        600,
+        -100
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.waitSeconds }}",
+        "unit": "seconds"
+      },
+      "id": "d4d4e4e4-4e4e-4e4e-4e4e-4e4e4e4e4e4e",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    status: \"completed\",\n    message: \"Reactions processed.\"\n  }\n}];\n"
+      },
+      "id": "e5e5f5f5-5f5f-5f5f-5f5f-5f5f5f5f5f5f",
+      "name": "Finish",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Data Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Prep": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop": {
+      "main": [
+        [
+          {
+            "node": "Finish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Reaction": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "qYJRGXupxdbKbY54",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

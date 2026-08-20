@@ -1,0 +1,574 @@
+{
+  "id": "fcJRfCDLAf8LBvXK",
+  "name": "AI SUMMARY Prompt Eval",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "5f786d2c-4dda-4c15-bce5-32fd76ff5ab8",
+      "name": "When clicking ‘Execute workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1344,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": ""
+        }
+      },
+      "id": "f29f4ae4-358e-4256-bad3-8994ff3b0134",
+      "name": "When fetching a dataset row",
+      "type": "n8n-nodes-base.evaluationTrigger",
+      "typeVersion": 4.7,
+      "position": [
+        -1344,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cases = [\n  {\n    case_id: 'case-001',\n    expected_category: '[0] 網路/推流品質',\n    expected_keywords: ['卡', '斷續', 'Poor CDN Connection'],\n    evalConfig: { modelName: 'gemini-2.5-pro', temperature: 0.1 },\n    aggregateData: [\n      {\n        liveStreamID: '213754852',\n        details: [\n          {\n            liveStreamID: '213754852',\n            type: 'dialogue',\n            dialogue: '[21:04:10] [streamer]: 畫面有點卡\\n[21:04:15] [viewer]: 聲音斷斷續續'\n          },\n          {\n            liveStreamID: '213754852',\n            type: 'streamerLog',\n            conditions: [],\n            filterLogs: [\n              {\n                conditionID: 'bitrate_fail',\n                description: 'Bitrate CV > 0.3',\n                lineNumber: 1,\n                timestamp: '2025-12-21T21:04:15',\n                dataSnippet: {\n                  BitrateCV: '0.72',\n                  PingMax: '999.0',\n                  UnsentCountMax: '158.0',\n                  NetworkType: 'WiFi'\n                }\n              }\n            ]\n          },\n          {\n            liveStreamID: '213754852',\n            type: 'streamEventLog',\n            conditions: [],\n            filterLogs: [\n              {\n                lineNumber: 1,\n                timestamp: '2025-12-21T21:04:12',\n                title: 'Poor CDN Connection',\n                Log: '{\"time\":\"21:04:12\",\"title\":\"Poor CDN Connection\"}'\n              }\n            ]\n          },\n          {\n            type: 'streamInfo',\n            liveStreamID: '213754852',\n            streamInfo: [\n              {\n                liveStreamID: '213754852',\n                closeBy: 'normalEnd',\n                deviceModel: 'iPhone 13',\n                type: 'iOS',\n                version: '3.260.0',\n                ipRegion: 'JP'\n              }\n            ]\n          }\n        ],\n        count: 4\n      }\n    ]\n  },\n  {\n    case_id: 'case-002',\n    expected_category: '[3] 無資料/無法判定',\n    expected_keywords: ['無資料', '查無'],\n    evalConfig: { modelName: 'gemini-3.0-pro-preview', temperature: 0.1 },\n    aggregateData: []\n  }\n];\n\nreturn cases.map((item) => ({ json: item }));"
+      },
+      "id": "2b531269-57c7-49e6-94a5-b11541708a1c",
+      "name": "Eval Cases (Manual)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $json;\n\nfunction parseMaybeJson(value, fallback) {\n  if (value === null || value === undefined || value === '') return fallback;\n  if (typeof value === 'object') return value;\n  try {\n    return JSON.parse(String(value));\n  } catch {\n    return fallback;\n  }\n}\n\nconst aggregateData = (() => {\n  const parsed = parseMaybeJson(item.aggregateData, []);\n  return Array.isArray(parsed) ? parsed : [];\n})();\n\nconst evalConfigRaw = parseMaybeJson(item.evalConfig, {});\nconst evalConfig = {\n  modelName: evalConfigRaw.modelName || 'gemini-3.0-pro-preview',\n  temperature:\n    typeof evalConfigRaw.temperature === 'number'\n      ? evalConfigRaw.temperature\n      : Number(evalConfigRaw.temperature ?? 0.1),\n};\n\nconst expectedKeywords = (() => {\n  if (Array.isArray(item.expected_keywords)) return item.expected_keywords;\n  if (typeof item.expected_keywords === 'string') {\n    return item.expected_keywords\n      .split(',')\n      .map((k) => k.trim())\n      .filter(Boolean);\n  }\n  return [];\n})();\n\nreturn [{\n  json: {\n    case_id: item.case_id || `row-${item.row_number ?? 0}`,\n    expected_category: String(item.expected_category || ''),\n    expected_keywords: expectedKeywords,\n    evalConfig,\n    aggregateData,\n    row_id: item.row_id,\n    row_number: item.row_number,\n  },\n}];"
+      },
+      "id": "a60b1ab2-4495-4aa7-a39d-17c7a9f676ed",
+      "name": "Normalize Eval Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        -192
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c74f8ebb-36c2-4b88-9db4-fda76f3377f4",
+      "name": "Unified Input",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        -80
+      ],
+      "notes": "這個 Code 節點負責處理輸入資料, 不論是來自手動案例還是資料集, 它都會將 aggregateData、evalConfig 和 expected_keywords 進行清理和標準化, 確保後續處理時資料格式一致"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "m8VcIoclFE2lVKrl",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/m8VcIoclFE2lVKrl",
+          "cachedResultName": "AI SUMMARY Inference SubWF"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "aggregateData": "={{ $json.aggregateData || [] }}",
+            "evalConfig": "={{ $json.evalConfig || { modelName: 'gemini-2.5-pro', temperature: 0.1 } }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "aggregateData",
+              "displayName": "aggregateData",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array"
+            },
+            {
+              "id": "evalConfig",
+              "displayName": "evalConfig",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "66043d3c-14e7-4e79-b065-cff3fce06ded",
+      "name": "Run Inference SubWF",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -640,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "summary",
+              "name": "summary",
+              "value": "={{ (() => { const rawText = $json.output || $json.response || $json.text || ($json.candidates && $json.candidates[0] && $json.candidates[0].content && $json.candidates[0].content.parts && $json.candidates[0].content.parts[0] && $json.candidates[0].content.parts[0].text); if (!rawText) { return { error: true, message: 'Empty model output', raw: $json }; } if (typeof rawText === 'object') { const normalized = Array.isArray(rawText) ? rawText[0] : rawText; if (normalized && typeof normalized === 'object' && normalized.output && normalized.output.report) { return normalized.output; } return normalized; } const trimmed = String(rawText).trim(); const firstArray = trimmed.indexOf('['); const firstObject = trimmed.indexOf('{'); const startIndex = firstArray === -1 ? firstObject : (firstObject === -1 ? firstArray : Math.min(firstArray, firstObject)); if (startIndex === -1) { return { error: true, message: 'No JSON start found', rawText: trimmed }; } const jsonText = trimmed.slice(startIndex); let parsed; try { parsed = JSON.parse(jsonText); } catch (error) { return { error: true, message: 'Invalid JSON', rawText: trimmed }; } const normalized = Array.isArray(parsed) ? parsed[0] : parsed; if (normalized && typeof normalized === 'object' && normalized.output && normalized.output.report) { return normalized.output; } return normalized; })() }}",
+              "type": "object"
+            },
+            {
+              "id": "usageMetadata",
+              "name": "usageMetadata",
+              "value": "={{ $json.usageMetadata || $json.usage || $json.tokenUsage || {} }}",
+              "type": "object"
+            },
+            {
+              "id": "modelVersion",
+              "name": "modelVersion",
+              "value": "={{ $json.modelVersion || $json.model || $json.modelName || 'gemini-2.5-pro' }}",
+              "type": "string"
+            },
+            {
+              "id": "case_id",
+              "name": "case_id",
+              "value": "={{ $('Unified Input').item.json.case_id }}",
+              "type": "string"
+            },
+            {
+              "id": "expected_category",
+              "name": "expected_category",
+              "value": "={{ $('Unified Input').item.json.expected_category }}",
+              "type": "string"
+            },
+            {
+              "id": "expected_keywords",
+              "name": "expected_keywords",
+              "value": "={{ $('Unified Input').item.json.expected_keywords || [] }}",
+              "type": "array"
+            },
+            {
+              "id": "row_id",
+              "name": "row_id",
+              "value": "={{ $('Unified Input').item.json.row_id }}",
+              "type": "number"
+            },
+            {
+              "id": "row_number",
+              "name": "row_number",
+              "value": "={{ $('Unified Input').item.json.row_number }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5e75e2e4-9ef0-493f-89c3-5cfe97ee51e6",
+      "name": "Normalize + Attach Expectation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -384,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $json || {};\nconst summary = row.summary || {};\nconst report = summary.report || {};\nconst summaryBlock = report.summary || {};\n\nconst actualCategory = String(summaryBlock.responsibility_category || '').trim();\nconst expectedCategory = String(row.expected_category || '').trim();\nconst expectedKeywords = Array.isArray(row.expected_keywords) ? row.expected_keywords : [];\n\nconst categoryMatch = expectedCategory !== '' && actualCategory === expectedCategory ? 1 : 0;\n\nconst evaluatorOutput = $('AI Keyword Evaluator').first().json || {};\nconst evalResult = (() => {\n  if (evaluatorOutput && typeof evaluatorOutput === 'object') {\n    if (evaluatorOutput.keyword_hit !== undefined) return evaluatorOutput;\n    if (evaluatorOutput.output && typeof evaluatorOutput.output === 'object' && evaluatorOutput.output.keyword_hit !== undefined) {\n      return evaluatorOutput.output;\n    }\n    if (typeof evaluatorOutput.output === 'string') {\n      try {\n        return JSON.parse(evaluatorOutput.output);\n      } catch {}\n    }\n  }\n  return { keyword_hit: 0, hit_keywords: [] };\n})();\n\nconst keywordHit = Number(evalResult.keyword_hit || 0) === 1 ? 1 : 0;\nlet hitKeywords = Array.isArray(evalResult.hit_keywords)\n  ? evalResult.hit_keywords.map((k) => String(k)).filter((k) => expectedKeywords.includes(k))\n  : [];\n\nif (keywordHit === 1 && hitKeywords.length === 0) {\n  hitKeywords = expectedKeywords;\n}\n\nconst success = categoryMatch === 1 && keywordHit === 1 ? 1 : 0;\n\nreturn [{\n  json: {\n    case_id: row.case_id || '',\n    expected_category: expectedCategory,\n    actual_category: actualCategory,\n    expected_keywords: expectedKeywords,\n    hit_keywords: hitKeywords,\n    category_match: categoryMatch,\n    keyword_hit: keywordHit,\n    success,\n    modelVersion: row.modelVersion || '',\n    usageMetadata: row.usageMetadata || {},\n    summary,\n    row_id: row.row_id,\n    row_number: row.row_number,\n    keyword_eval_raw: evalResult,\n  },\n}];"
+      },
+      "id": "2d2066e4-d7ee-4f12-8e99-99dfef0fdd9f",
+      "name": "Score Prompt Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "source": "dataTable",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_DATA_TABLE_ID",
+          "mode": "id"
+        },
+        "outputs": {
+          "values": [
+            {
+              "outputName": "case_id",
+              "outputValue": "={{ $json.case_id }}"
+            },
+            {
+              "outputName": "expected_category",
+              "outputValue": "={{ $json.expected_category }}"
+            },
+            {
+              "outputName": "actual_category",
+              "outputValue": "={{ $json.actual_category }}"
+            },
+            {
+              "outputName": "success",
+              "outputValue": "={{ Number($json.success || 0) }}"
+            },
+            {
+              "outputName": "category_match",
+              "outputValue": "={{ Number($json.category_match || 0) }}"
+            },
+            {
+              "outputName": "keyword_hit",
+              "outputValue": "={{ Number($json.keyword_hit || 0) }}"
+            },
+            {
+              "outputName": "hit_keywords",
+              "outputValue": "={{ ($json.hit_keywords || []).join(',') }}"
+            },
+            {
+              "outputName": "modelVersion",
+              "outputValue": "={{ $json.modelVersion || \"\" }}"
+            },
+            {
+              "outputName": "actual_output",
+              "outputValue": "={{ JSON.stringify($json.summary || {}) }}"
+            }
+          ]
+        }
+      },
+      "id": "611b50d8-8f38-4727-a996-82410771a739",
+      "name": "Set Outputs (Evaluation)",
+      "type": "n8n-nodes-base.evaluation",
+      "typeVersion": 4.7,
+      "position": [
+        400,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "setMetrics",
+        "metric": "customMetrics",
+        "metrics": {
+          "assignments": [
+            {
+              "name": "success",
+              "value": "={{ Number($json.success || 0) }}",
+              "type": "number"
+            },
+            {
+              "name": "category_match",
+              "value": "={{ Number($json.category_match || 0) }}",
+              "type": "number"
+            },
+            {
+              "name": "keyword_hit",
+              "value": "={{ Number($json.keyword_hit || 0) }}",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "d8653bc2-398f-4ce5-beda-e975a00b8379",
+      "name": "Set Metrics (Evaluation)",
+      "type": "n8n-nodes-base.evaluation",
+      "typeVersion": 4.7,
+      "position": [
+        656,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((i) => i.json);\nconst total = rows.length;\nconst successCount = rows.reduce((acc, row) => acc + Number(row.success || 0), 0);\nconst categoryMatchCount = rows.reduce((acc, row) => acc + Number(row.category_match || 0), 0);\nconst keywordHitCount = rows.reduce((acc, row) => acc + Number(row.keyword_hit || 0), 0);\n\nreturn [{\n  json: {\n    total,\n    successCount,\n    successRate: total > 0 ? successCount / total : 0,\n    categoryMatchCount,\n    categoryMatchRate: total > 0 ? categoryMatchCount / total : 0,\n    keywordHitCount,\n    keywordHitRate: total > 0 ? keywordHitCount / total : 0,\n    rows,\n  },\n}];"
+      },
+      "id": "42f8ce11-5dd9-4a67-b288-b87f2479fd2c",
+      "name": "Summarize Success Rate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=請比對下列摘要與關鍵字是否語意命中。\n\nexpected_keywords: {{ JSON.stringify($json.expected_keywords || []) }}\ncausal_summary: {{ JSON.stringify(($json.summary && $json.summary.report && $json.summary.report.summary && $json.summary.report.summary.causal_summary) ? $json.summary.report.summary.causal_summary : '') }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "你是語意比對評估器。任務：判斷 causal_summary 是否語意命中 expected_keywords。規則：1) 以語意為準，不要求字面完全一致。2) 命中至少一個 keyword 時 keyword_hit=1，否則 0。3) hit_keywords 只能填寫 expected_keywords 內實際命中的詞。4) 嚴格輸出指定 JSON。",
+          "maxIterations": 4
+        }
+      },
+      "id": "593624c0-d634-4013-a2fe-49993fd24399",
+      "name": "AI Keyword Evaluator",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -224,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"title\": \"Keyword Eval\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"keyword_hit\": {\n      \"type\": \"integer\",\n      \"enum\": [0, 1]\n    },\n    \"hit_keywords\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"required\": [\n    \"keyword_hit\",\n    \"hit_keywords\"\n  ],\n  \"additionalProperties\": false\n}",
+        "autoFix": true
+      },
+      "id": "df1f03c3-42e8-41bd-9c0d-a322b9c6ca8b",
+      "name": "Keyword Eval Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -128,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "value": "aiops-338206",
+          "mode": "list",
+          "cachedResultName": "Aiops"
+        },
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "83fd3441-ac5b-45f0-a60f-f6e9fa76c89b",
+      "name": "Keyword Eval LLM",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        304
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "xCxzQVNUYMaL9Cea",
+          "name": "Vertex SA"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Eval Cases (Manual)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When fetching a dataset row": {
+      "main": [
+        [
+          {
+            "node": "Normalize Eval Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Eval Cases (Manual)": {
+      "main": [
+        [
+          {
+            "node": "Unified Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Eval Row": {
+      "main": [
+        [
+          {
+            "node": "Unified Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unified Input": {
+      "main": [
+        [
+          {
+            "node": "Run Inference SubWF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Inference SubWF": {
+      "main": [
+        [
+          {
+            "node": "Normalize + Attach Expectation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize + Attach Expectation": {
+      "main": [
+        [
+          {
+            "node": "AI Keyword Evaluator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Prompt Result": {
+      "main": [
+        [
+          {
+            "node": "Set Outputs (Evaluation)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Outputs (Evaluation)": {
+      "main": [
+        [
+          {
+            "node": "Set Metrics (Evaluation)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Metrics (Evaluation)": {
+      "main": [
+        [
+          {
+            "node": "Summarize Success Rate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Keyword Evaluator": {
+      "main": [
+        [
+          {
+            "node": "Score Prompt Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keyword Eval Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Keyword Evaluator",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keyword Eval LLM": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Keyword Evaluator",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Keyword Eval Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "fcJRfCDLAf8LBvXK",
+      "projectId": "T2eF9Qj9h6MeNqHW",
+      "project": {
+        "id": "T2eF9Qj9h6MeNqHW",
+        "name": "<ist@17.media>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+            "projectId": "T2eF9Qj9h6MeNqHW",
+            "user": {
+              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
+              "email": "ist@17.media",
+              "firstName": null,
+              "lastName": null,
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
+                "personalization_survey_n8n_version": "1.109.2"
+              },
+              "settings": {
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
+                "userActivated": true,
+                "userActivatedAt": 1757907025897,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1777450741616
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}
