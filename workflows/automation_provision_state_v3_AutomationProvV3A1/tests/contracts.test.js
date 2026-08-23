@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const schema = require('../nodes/State_Schema/schema.json');
@@ -15,6 +17,41 @@ const EXPECTED_TABLES = [
   'summary_requests_v3',
   'automation_errors_v3',
 ];
+
+const workflowDir = path.resolve(__dirname, '..');
+const workflowPath = path.join(workflowDir, 'workflow.json');
+const manifestCodePath = path.join(workflowDir, 'nodes', 'Build_Provisioning_Manifest', 'jsCode.js');
+const reportCodePath = path.join(workflowDir, 'nodes', 'Report_Expected_Schema', 'jsCode.js');
+
+function readWorkflow() {
+  return JSON.parse(fs.readFileSync(workflowPath, 'utf8'));
+}
+
+function readManifestCode() {
+  return fs.readFileSync(manifestCodePath, 'utf8');
+}
+
+function buildManifestItems() {
+  return Function(readManifestCode())();
+}
+
+function loadReportBuilder() {
+  delete require.cache[require.resolve(reportCodePath)];
+  return require(reportCodePath).buildExpectedSchemaReport;
+}
+
+function expectedReportItems() {
+  return buildManifestItems().map(({ json }) => ({
+    json: {
+      tableName: json.tableName,
+      columnsJson: json.columnsJson,
+      columnCount: json.columnCount,
+      reportType: 'expected_schema_reference',
+      schemaStatus: 'not_validated_by_existence_probe',
+      tableCreationStatus: 'not_performed',
+    },
+  }));
+}
 
 test('defines only the four isolated v3 tables', () => {
   assert.deepEqual(Object.keys(schema), EXPECTED_TABLES);
@@ -290,4 +327,106 @@ test('multiple canonicals with any checkpoint require manual review', () => {
     { id: 'row-b', createdAt: '2026-08-22T00:00:01.000Z', reconciliationStatus: 'canonical', submittedAtIso: '2026-08-22T00:01:00.000Z' },
   ]);
   assert.deepEqual(result, { action: 'manual_review', reason: 'multiple_canonical_checkpoint_conflict' });
+});
+
+test('keeps the provisioning workflow inactive, unarchived, manual-only, and unpinned', () => {
+  const workflow = readWorkflow();
+  const triggerNodes = workflow.nodes.filter(({ type }) => type.toLowerCase().includes('trigger'));
+  const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  assert.equal(workflow.name, 'Automation: provision state v3');
+  assert.equal(workflow.active, false);
+  assert.equal(workflow.isArchived, false);
+  assert.equal(Object.hasOwn(workflow, 'pinData'), false);
+  assert.deepEqual(triggerNodes.map(({ type }) => type), ['n8n-nodes-base.manualTrigger']);
+  assert.ok(workflow.nodes.every(({ id }) => uuidV4.test(id)));
+});
+
+test('externalizes a self-contained manifest that exactly matches the canonical schema', () => {
+  const workflow = readWorkflow();
+  const buildNode = workflow.nodes.find(({ name }) => name === 'Build Provisioning Manifest');
+  const code = readManifestCode();
+  const output = buildManifestItems();
+
+  assert.equal(buildNode.parameters.jsCode, '__EXTERNAL_FILE__://nodes/Build_Provisioning_Manifest/jsCode.js');
+  assert.doesNotMatch(code, /\$input\.first\(\)\.json\.schemaJson/);
+  assert.doesNotMatch(code, /\brequire\s*\(|\breadFile(?:Sync)?\b|\b schemaJson\b/);
+  assert.deepEqual(output.map(({ json }) => json.tableName), EXPECTED_TABLES);
+  assert.equal(output.length, 4);
+
+  for (const { json } of output) {
+    assert.deepEqual(JSON.parse(json.columnsJson), schema[json.tableName]);
+    assert.equal(json.columnCount, schema[json.tableName].length);
+  }
+});
+
+test('runs four read-only by-name Data Table probes with zero-row continuation', () => {
+  const workflow = readWorkflow();
+  const probe = workflow.nodes.find(({ name }) => name === 'Probe Table by Name');
+
+  assert.deepEqual(probe.parameters, {
+    resource: 'row',
+    operation: 'get',
+    dataTableId: { __rl: true, mode: 'name', value: '={{ $json.tableName }}' },
+    matchType: 'anyCondition',
+    filters: { conditions: [{ keyName: 'id', condition: 'isNotEmpty' }] },
+    returnAll: false,
+    limit: 1,
+    options: {},
+  });
+  assert.equal(probe.type, 'n8n-nodes-base.dataTable');
+  assert.equal(probe.typeVersion, 1.1);
+  assert.equal(probe.alwaysOutputData, true);
+  assert.equal(JSON.stringify(probe).includes('dt_'), false);
+});
+
+test('connects manifest, probes, and an expectation-only report without schema claims', () => {
+  const workflow = readWorkflow();
+  const report = workflow.nodes.find(({ name }) => name === 'Report Expected Schema');
+  const serializedReport = JSON.stringify(report).toLowerCase();
+
+  assert.deepEqual(workflow.connections, {
+    'Manual Trigger': { main: [[{ node: 'Build Provisioning Manifest', type: 'main', index: 0 }]] },
+    'Build Provisioning Manifest': { main: [[{ node: 'Probe Table by Name', type: 'main', index: 0 }]] },
+    'Probe Table by Name': { main: [[{ node: 'Report Expected Schema', type: 'main', index: 0 }]] },
+  });
+  assert.ok(report);
+  assert.equal(report.type, 'n8n-nodes-base.code');
+  assert.equal(report.typeVersion, 2);
+  assert.deepEqual(report.parameters, {
+    mode: 'runOnceForAllItems',
+    jsCode: '__EXTERNAL_FILE__://nodes/Report_Expected_Schema/jsCode.js',
+  });
+  assert.match(serializedReport, /expected/);
+  assert.doesNotMatch(serializedReport, /schema[_ ]?(validated|verified)|table[_ ]?(created|provisioned)/);
+});
+
+test('rebuilds all four whitelisted report items when every table probe matches zero rows', () => {
+  const buildExpectedSchemaReport = loadReportBuilder();
+  const zeroProbeOutput = [];
+  const output = buildExpectedSchemaReport(buildManifestItems(), zeroProbeOutput);
+
+  assert.deepEqual(output, expectedReportItems());
+  assert.equal(output.length, 4);
+  assert.ok(output.every(({ json }) => Object.keys(json).length === 6));
+});
+
+test('ignores partial probe rows and never leaks their fields into the four-item report', () => {
+  const buildExpectedSchemaReport = loadReportBuilder();
+  const partialProbeOutput = [
+    { json: { id: 'row-1', createdAt: '2026-08-23T00:00:00.000Z', privateProbeField: 'must-not-leak' } },
+    { json: {} },
+  ];
+  const output = buildExpectedSchemaReport(buildManifestItems(), partialProbeOutput);
+
+  assert.deepEqual(output, expectedReportItems());
+  assert.equal(JSON.stringify(output).includes('row-1'), false);
+  assert.equal(JSON.stringify(output).includes('privateProbeField'), false);
+});
+
+test('uses only the named Build node all-items accessor at report runtime', () => {
+  const code = fs.readFileSync(reportCodePath, 'utf8');
+
+  assert.match(code, /\$\('Build Provisioning Manifest'\)\.all\(\)/);
+  assert.doesNotMatch(code, /\$input|\.item\b/);
 });

@@ -1,0 +1,118 @@
+{
+  "id": "AutomationProvV3A1",
+  "name": "Automation: provision state v3",
+  "description": "Read-only by-name existence probes for the expected v3 Data Table schema. Table creation and schema validation remain separately approved Production gates.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "31cba99a-4a90-4a6f-8df4-29b9d1567c31",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Provisioning_Manifest/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "eb292195-d708-4667-9a5a-b09a8bf38e0f",
+      "name": "Build Provisioning Manifest"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $json.tableName }}"
+        },
+        "matchType": "anyCondition",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "isNotEmpty"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        0
+      ],
+      "id": "c5e3a06c-279f-4f38-a507-439d728b6f4b",
+      "name": "Probe Table by Name",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Report_Expected_Schema/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "id": "e37124cc-8227-42ac-b5cb-40a872a01598",
+      "name": "Report Expected Schema"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Provisioning Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Provisioning Manifest": {
+      "main": [
+        [
+          {
+            "node": "Probe Table by Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Probe Table by Name": {
+      "main": [
+        [
+          {
+            "node": "Report Expected Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
