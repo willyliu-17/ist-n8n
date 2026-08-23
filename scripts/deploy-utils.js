@@ -1,3 +1,5 @@
+const { V3_DATA_TABLE_NAMES } = require('./stt-summary-v3-inventory');
+
 function buildWorkflowIdMap(workflows, requiredNames) {
     const workflowIds = new Map();
 
@@ -150,6 +152,106 @@ function remapCredentialReferences(nodes, credentialIds) {
     }
 
     return remappedNodes;
+}
+
+function dataTablePlaceholder(node) {
+    const locator = node.parameters?.dataTableId;
+    if (
+        !locator || typeof locator !== 'object' || Array.isArray(locator) ||
+        locator.__rl !== true || locator.mode !== 'name' ||
+        Object.keys(locator).length !== 3 ||
+        typeof locator.value !== 'string' || !V3_DATA_TABLE_NAMES.includes(locator.value)
+    ) {
+        throw new Error(
+            `Data Table node "${node.name || '<unknown>'}" has an invalid authoritative Data Table placeholder`
+        );
+    }
+    return locator.value;
+}
+
+function collectDataTableReferences(workflows) {
+    const references = [];
+
+    for (const workflow of workflows) {
+        for (const node of workflow.nodes || []) {
+            if (node.type !== 'n8n-nodes-base.dataTable') continue;
+            references.push({
+                workflowName: workflow.name || '<unknown>',
+                nodeName: node.name || '<unknown>',
+                tableName: dataTablePlaceholder(node)
+            });
+        }
+    }
+
+    return references;
+}
+
+function assertCompleteDataTableIdMap(tableIds) {
+    if (!(tableIds instanceof Map) || tableIds.size !== V3_DATA_TABLE_NAMES.length) {
+        throw new Error('Complete P3 Data Table target ID map is required');
+    }
+
+    const seenIds = new Set();
+    for (const tableName of V3_DATA_TABLE_NAMES) {
+        const id = tableIds.get(tableName);
+        if (typeof id !== 'string' || !id.trim()) {
+            throw new Error(`Complete P3 Data Table target ID map is required; missing "${tableName}"`);
+        }
+        if (seenIds.has(id)) {
+            throw new Error(`P3 Data Table target ID "${id}" maps to multiple authoritative names`);
+        }
+        seenIds.add(id);
+    }
+}
+
+function remapDataTableReferences(nodes, tableIds) {
+    assertCompleteDataTableIdMap(tableIds);
+    const remappedNodes = structuredClone(nodes);
+
+    for (const node of remappedNodes) {
+        if (node.type !== 'n8n-nodes-base.dataTable') continue;
+        const tableName = dataTablePlaceholder(node);
+        node.parameters.dataTableId = {
+            __rl: true,
+            mode: 'id',
+            value: tableIds.get(tableName)
+        };
+    }
+
+    return remappedNodes;
+}
+
+function assertDataTableTargetIds(nodes, expectedNodes) {
+    const actualDataTableNodes = (nodes || []).filter(node => node.type === 'n8n-nodes-base.dataTable');
+    const expectedDataTableNodes = (expectedNodes || []).filter(node => node.type === 'n8n-nodes-base.dataTable');
+    if (actualDataTableNodes.length !== expectedDataTableNodes.length) {
+        throw new Error('Deployed workflow does not contain the exact expected Data Table nodes');
+    }
+
+    for (const expected of expectedDataTableNodes) {
+        const matches = actualDataTableNodes.filter(actual => (
+            typeof expected.id === 'string' && expected.id
+                ? actual.id === expected.id
+                : actual.name === expected.name
+        ));
+        if (matches.length !== 1) {
+            throw new Error(`Data Table node "${expected.name || '<unknown>'}" identity does not match deployment input`);
+        }
+        const actual = matches[0];
+        const expectedLocator = expected.parameters?.dataTableId;
+        const actualLocator = actual.parameters?.dataTableId;
+        if (
+            actual.name !== expected.name ||
+            !actualLocator || typeof actualLocator !== 'object' || Array.isArray(actualLocator) ||
+            actualLocator.__rl !== true || actualLocator.mode !== 'id' ||
+            Object.keys(actualLocator).length !== 3 ||
+            !expectedLocator || actualLocator.value !== expectedLocator.value
+        ) {
+            throw new Error(
+                `Data Table node "${expected.name || '<unknown>'}" does not use its exact expected Data Table target ID "${expectedLocator?.value || '<missing>'}"`
+            );
+        }
+    }
 }
 
 function isExpression(value) {
@@ -334,6 +436,10 @@ module.exports = {
     collectCredentialReferences,
     buildCredentialReferenceMap,
     remapCredentialReferences,
+    collectDataTableReferences,
+    assertCompleteDataTableIdMap,
+    remapDataTableReferences,
+    assertDataTableTargetIds,
     collectRequiredWorkflowNames,
     validateExecuteWorkflowSelectors,
     remapExecuteWorkflowNodes,

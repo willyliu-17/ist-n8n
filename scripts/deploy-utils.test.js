@@ -3,12 +3,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const {
     buildWorkflowIdMap,
     assertUniqueRequestedWorkflowNames,
     collectCredentialReferences,
     buildCredentialReferenceMap,
     remapCredentialReferences,
+    collectDataTableReferences,
+    remapDataTableReferences,
+    assertDataTableTargetIds,
     remapExecuteWorkflowNodes,
     createWorkflowPayload,
     parseCreatedWorkflowId
@@ -16,7 +20,8 @@ const {
 const {
     deployWorkflows,
     provisionV3WorkflowInventory,
-    deployV3WorkflowInventory
+    inspectV3DataTableInventory,
+    deployV3WorkflowInventory: deployV3WorkflowInventoryWithoutDefaults
 } = require('./deploy');
 
 function createTempDir(t) {
@@ -647,9 +652,100 @@ function getV3Inventory() {
     return require('./stt-summary-v3-inventory').V3_WORKFLOW_INVENTORY;
 }
 
+function getV3DataTableNames() {
+    return require('./stt-summary-v3-inventory').V3_DATA_TABLE_NAMES;
+}
+
 const P2_APPROVAL = Object.freeze({ approved: true, gate: 'P2', reference: 'P2-approval-001' });
 const P3_EVIDENCE = Object.freeze({ approved: true, gate: 'P3', reference: 'P3-schema-001' });
 const P4_APPROVAL = Object.freeze({ approved: true, gate: 'P4', reference: 'P4-approval-001' });
+const CANONICAL_SCHEMA_PATH = path.resolve(
+    __dirname,
+    '..',
+    'workflows/automation_provision_state_v3_AutomationProvV3A1/nodes/State_Schema/schema.json'
+);
+
+function dataTableIdMap() {
+    return new Map([
+        ['suspect_stt_candidates_v3', 'table-suspects'],
+        ['stt_jobs_v3', 'table-jobs'],
+        ['summary_requests_v3', 'table-summaries'],
+        ['automation_errors_v3', 'table-errors']
+    ]);
+}
+
+function canonicalDataTableSchema() {
+    return JSON.parse(fs.readFileSync(CANONICAL_SCHEMA_PATH, 'utf8'));
+}
+
+function p3TargetTables() {
+    return [...dataTableIdMap()].map(([name, id]) => ({ id, name }));
+}
+
+function containsMap(value) {
+    if (value instanceof Map) return true;
+    if (!value || typeof value !== 'object') return false;
+    return Object.values(value).some(containsMap);
+}
+
+function canonicalSerializeForTest(value) {
+    if (Array.isArray(value)) return `[${value.map(canonicalSerializeForTest).join(',')}]`;
+    if (value && typeof value === 'object') {
+        return `{${Object.keys(value).sort().map(key => (
+            `${JSON.stringify(key)}:${canonicalSerializeForTest(value[key])}`
+        )).join(',')}}`;
+    }
+    return JSON.stringify(value);
+}
+
+function recomputeArtifactDigest(artifact) {
+    const unsigned = {
+        version: artifact.version,
+        gate: artifact.gate,
+        approvalReference: artifact.approvalReference,
+        canonicalSchemaDigest: artifact.canonicalSchemaDigest,
+        tables: artifact.tables
+    };
+    artifact.artifactDigest = crypto
+        .createHash('sha256')
+        .update(canonicalSerializeForTest(unsigned))
+        .digest('hex');
+    return artifact;
+}
+
+function p4ApprovalFor(artifact, overrides = {}) {
+    return {
+        ...P4_APPROVAL,
+        approvedP3ArtifactDigest: artifact.artifactDigest,
+        ...overrides
+    };
+}
+
+async function createP3Artifact(readback = table => ({
+    ...table,
+    columns: structuredClone(canonicalDataTableSchema()[table.name])
+})) {
+    const tables = p3TargetTables();
+    return inspectV3DataTableInventory({
+        approvalEvidence: P3_EVIDENCE,
+        tables,
+        readTableById: async id => readback(tables.find(table => table.id === id))
+    });
+}
+
+let cachedP3Artifact;
+
+async function deployV3WorkflowInventory(options) {
+    cachedP3Artifact ||= JSON.parse(JSON.stringify(await createP3Artifact()));
+    const approvalEvidence = options.approvalEvidence === P4_APPROVAL
+        ? p4ApprovalFor(options.p3Artifact ?? cachedP3Artifact)
+        : options.approvalEvidence;
+    return deployV3WorkflowInventoryWithoutDefaults({
+        ...options,
+        approvalEvidence,
+        p3Artifact: options.p3Artifact ?? cachedP3Artifact
+    });
+}
 
 function workflowDetail(id, name, overrides = {}) {
     return {
@@ -733,6 +829,321 @@ test('exports the exact authoritative v3 workflow inventory in deployment order'
     ]);
     assert.ok(Object.isFrozen(getV3Inventory()));
     assert.ok(getV3Inventory().every(tuple => Object.isFrozen(tuple)));
+});
+
+test('exports the frozen exact authoritative v3 Data Table names', () => {
+    assert.deepEqual(getV3DataTableNames(), [
+        'suspect_stt_candidates_v3',
+        'stt_jobs_v3',
+        'summary_requests_v3',
+        'automation_errors_v3'
+    ]);
+    assert.ok(Object.isFrozen(getV3DataTableNames()));
+});
+
+test('collectDataTableReferences accepts repeated four-table exact-name placeholders only', () => {
+    const workflows = [{
+        name: 'Data workflow',
+        nodes: [
+            ...getV3DataTableNames().map((tableName, index) => ({
+                name: `Table ${index}`,
+                type: 'n8n-nodes-base.dataTable',
+                parameters: { dataTableId: { __rl: true, mode: 'name', value: tableName } }
+            })),
+            {
+                name: 'Repeated jobs table',
+                type: 'n8n-nodes-base.dataTable',
+                parameters: {
+                    dataTableId: { __rl: true, mode: 'name', value: 'stt_jobs_v3' }
+                }
+            },
+            {
+                name: 'Unrelated locator',
+                type: 'n8n-nodes-base.set',
+                parameters: { dataTableId: { mode: 'id', value: 'ignore-me' } }
+            }
+        ]
+    }];
+
+    assert.deepEqual(collectDataTableReferences(workflows), [
+        { workflowName: 'Data workflow', nodeName: 'Table 0', tableName: 'suspect_stt_candidates_v3' },
+        { workflowName: 'Data workflow', nodeName: 'Table 1', tableName: 'stt_jobs_v3' },
+        { workflowName: 'Data workflow', nodeName: 'Table 2', tableName: 'summary_requests_v3' },
+        { workflowName: 'Data workflow', nodeName: 'Table 3', tableName: 'automation_errors_v3' },
+        { workflowName: 'Data workflow', nodeName: 'Repeated jobs table', tableName: 'stt_jobs_v3' }
+    ]);
+    assert.deepEqual(collectDataTableReferences([{ name: 'No tables', nodes: [] }]), []);
+});
+
+test('collectDataTableReferences fails closed for non-authoritative Data Table locators', () => {
+    const cases = [
+        { label: 'source ID', locator: { __rl: true, mode: 'id', value: 'source-table-id' } },
+        { label: 'list mode', locator: { __rl: true, mode: 'list', value: 'stt_jobs_v3' } },
+        { label: 'expression', locator: { __rl: true, mode: 'name', value: '={{ $json.table }}' } },
+        { label: 'legacy name', locator: { __rl: true, mode: 'name', value: 'stt_jobs' } },
+        { label: 'unknown name', locator: { __rl: true, mode: 'name', value: 'unknown_v3' } },
+        {
+            label: 'extra locator metadata',
+            locator: { __rl: true, mode: 'name', value: 'stt_jobs_v3', cachedResultName: 'stt_jobs_v3' }
+        },
+        { label: 'missing locator', locator: undefined }
+    ];
+
+    for (const testCase of cases) {
+        assert.throws(() => collectDataTableReferences([{
+            name: 'Data workflow',
+            nodes: [{
+                name: testCase.label,
+                type: 'n8n-nodes-base.dataTable',
+                parameters: testCase.locator === undefined ? {} : { dataTableId: testCase.locator }
+            }]
+        }]), /invalid Data Table.*placeholder|authoritative Data Table/i, testCase.label);
+    }
+});
+
+test('remapDataTableReferences deep-clones and emits the exact runtime ID locator shape', () => {
+    const nodes = [{
+        name: 'Jobs table',
+        type: 'n8n-nodes-base.dataTable',
+        parameters: {
+            dataTableId: { __rl: true, mode: 'name', value: 'stt_jobs_v3' }
+        }
+    }];
+
+    const remapped = remapDataTableReferences(nodes, dataTableIdMap());
+
+    assert.notStrictEqual(remapped, nodes);
+    assert.notStrictEqual(remapped[0], nodes[0]);
+    assert.deepEqual(remapped[0].parameters.dataTableId, {
+        __rl: true,
+        mode: 'id',
+        value: 'table-jobs'
+    });
+    assert.equal(nodes[0].parameters.dataTableId.mode, 'name');
+});
+
+test('assertDataTableTargetIds compares each deployed node identity and exact expected ID', () => {
+    const expected = [
+        {
+            id: 'node-jobs',
+            name: 'Jobs table',
+            type: 'n8n-nodes-base.dataTable',
+            parameters: { dataTableId: { __rl: true, mode: 'id', value: 'table-jobs' } }
+        },
+        {
+            id: 'node-summaries',
+            name: 'Summaries table',
+            type: 'n8n-nodes-base.dataTable',
+            parameters: { dataTableId: { __rl: true, mode: 'id', value: 'table-summaries' } }
+        }
+    ];
+    const swapped = structuredClone(expected);
+    swapped[0].parameters.dataTableId.value = 'table-summaries';
+    swapped[1].parameters.dataTableId.value = 'table-jobs';
+
+    assert.doesNotThrow(() => assertDataTableTargetIds(structuredClone(expected), expected));
+    assert.throws(
+        () => assertDataTableTargetIds(swapped, expected),
+        /Jobs table.*expected.*table-jobs|exact expected Data Table target ID/i
+    );
+});
+
+test('P3 requires independent approval before inspecting Data Table metadata', async () => {
+    let readCalls = 0;
+
+    await assert.rejects(inspectV3DataTableInventory({
+        approvalEvidence: P4_APPROVAL,
+        tables: [],
+        readTableById: async () => {
+            readCalls += 1;
+        }
+    }), /explicit P3.*evidence|approval/i);
+    assert.equal(readCalls, 0);
+});
+
+test('P3 inspector accepts normalized metadata only and rejects unadapted API envelopes', async () => {
+    const tables = p3TargetTables().map(table => ({ name: table.name, id: table.id }));
+    const canonical = canonicalDataTableSchema();
+    const sanitizedListEnvelope = {
+        data: tables.map(table => ({ ...table, createdAt: 'redacted-fixture' }))
+    };
+    const normalizedTables = sanitizedListEnvelope.data.map(({ id, name }) => ({ name, id }));
+
+    await assert.doesNotReject(inspectV3DataTableInventory({
+        approvalEvidence: P3_EVIDENCE,
+        tables: normalizedTables,
+        readTableById: async id => {
+            const table = normalizedTables.find(candidate => candidate.id === id);
+            const sanitizedReadEnvelope = {
+                data: { ...table, columns: structuredClone(canonical[table.name]), projectId: 'redacted-fixture' }
+            };
+            const { id: normalizedId, name, columns } = sanitizedReadEnvelope.data;
+            return { columns, name, id: normalizedId };
+        }
+    }));
+    await assert.rejects(inspectV3DataTableInventory({
+        approvalEvidence: P3_EVIDENCE,
+        tables: { data: tables },
+        readTableById: async () => undefined
+    }), /normalized.*metadata|must be.*array/i);
+    await assert.rejects(inspectV3DataTableInventory({
+        approvalEvidence: P3_EVIDENCE,
+        tables,
+        readTableById: async id => {
+            const table = tables.find(candidate => candidate.id === id);
+            return { data: { ...table, columns: canonical[table.name] } };
+        }
+    }), /normalized.*readback|metadata/i);
+});
+
+test('P3 builds one JSON-serializable deep-frozen schema-bound artifact and reads every ID back', async () => {
+    const tables = p3TargetTables();
+    const readIds = [];
+
+    const artifact = await inspectV3DataTableInventory({
+        approvalEvidence: P3_EVIDENCE,
+        tables,
+        readTableById: async id => {
+            readIds.push(id);
+            const table = tables.find(candidate => candidate.id === id);
+            return {
+                ...table,
+                columns: structuredClone(canonicalDataTableSchema()[table.name])
+            };
+        }
+    });
+
+    assert.deepEqual(Object.keys(artifact), [
+        'version',
+        'gate',
+        'approvalReference',
+        'canonicalSchemaDigest',
+        'tables',
+        'artifactDigest'
+    ]);
+    assert.equal(artifact.version, 1);
+    assert.equal(artifact.gate, 'P3');
+    assert.equal(artifact.approvalReference, P3_EVIDENCE.reference);
+    assert.match(artifact.canonicalSchemaDigest, /^[a-f0-9]{64}$/);
+    assert.match(artifact.artifactDigest, /^[a-f0-9]{64}$/);
+    assert.deepEqual(artifact.tables, tables.map(table => ({
+        ...table,
+        columns: canonicalDataTableSchema()[table.name]
+    })));
+    assert.deepEqual(readIds, [...dataTableIdMap().values()]);
+    assert.doesNotThrow(() => JSON.parse(JSON.stringify(artifact)));
+    assert.ok(Object.isFrozen(artifact));
+    assert.ok(Object.isFrozen(artifact.tables));
+    assert.ok(artifact.tables.every(table => Object.isFrozen(table) && Object.isFrozen(table.columns)));
+    assert.ok(artifact.tables.every(table => table.columns.every(column => Object.isFrozen(column))));
+    assert.equal(containsMap(artifact), false);
+    assert.throws(() => Map.prototype.set.call(artifact, 'stt_jobs_v3', 'changed-id'), TypeError);
+});
+
+test('P3 resolves the canonical schema independently from the process working directory', async () => {
+    const originalCwd = process.cwd();
+    try {
+        process.chdir(os.tmpdir());
+        const artifact = await createP3Artifact();
+        assert.deepEqual(artifact.tables.map(table => table.name), getV3DataTableNames());
+    } finally {
+        process.chdir(originalCwd);
+    }
+});
+
+test('P3 fails closed for missing names, duplicate names, and duplicate target IDs', async () => {
+    const validTables = [...dataTableIdMap()].map(([name, id]) => ({ id, name }));
+    const cases = [
+        { label: 'missing', tables: validTables.slice(0, -1), pattern: /missing.*automation_errors_v3/i },
+        {
+            label: 'duplicate name',
+            tables: [...validTables, { id: 'duplicate-jobs', name: 'stt_jobs_v3' }],
+            pattern: /multiple.*stt_jobs_v3|duplicate.*name/i
+        },
+        {
+            label: 'duplicate target ID',
+            tables: validTables.map(table => table.name === 'automation_errors_v3'
+                ? { ...table, id: 'table-jobs' }
+                : table),
+            pattern: /target ID.*multiple|duplicate target ID/i
+        }
+    ];
+
+    for (const testCase of cases) {
+        await assert.rejects(inspectV3DataTableInventory({
+            approvalEvidence: P3_EVIDENCE,
+            tables: testCase.tables,
+            readTableById: async id => {
+                const table = testCase.tables.find(candidate => candidate.id === id);
+                return table && {
+                    ...table,
+                    columns: structuredClone(canonicalDataTableSchema()[table.name])
+                };
+            }
+        }), testCase.pattern, testCase.label);
+    }
+});
+
+test('P3 fails closed when target ID readback has a different exact name', async () => {
+    const tables = p3TargetTables();
+
+    await assert.rejects(inspectV3DataTableInventory({
+        approvalEvidence: P3_EVIDENCE,
+        tables,
+        readTableById: async id => {
+            const table = tables.find(candidate => candidate.id === id);
+            return {
+                ...table,
+                name: id === 'table-jobs' ? 'wrong_jobs_v3' : table.name,
+                columns: structuredClone(canonicalDataTableSchema()[table.name])
+            };
+        }
+    }), /table-jobs.*name|name.*mismatch/i);
+});
+
+test('P3 compares every readback custom column against canonical name, type, and order', async () => {
+    const canonical = canonicalDataTableSchema();
+    const cases = [
+        {
+            label: 'missing column',
+            mutate: columns => columns.slice(0, -1),
+            pattern: /missing|schema.*mismatch/i
+        },
+        {
+            label: 'extra column',
+            mutate: columns => [...columns, { name: 'extraColumn', type: 'string' }],
+            pattern: /extra|schema.*mismatch/i
+        },
+        {
+            label: 'duplicate column',
+            mutate: columns => [...columns, { ...columns[0] }],
+            pattern: /duplicate.*column/i
+        },
+        {
+            label: 'wrong type',
+            mutate: columns => columns.map((column, index) => index === 0
+                ? { ...column, type: column.type === 'string' ? 'number' : 'string' }
+                : column),
+            pattern: /type|schema.*mismatch/i
+        },
+        {
+            label: 'wrong order',
+            mutate: columns => [columns[1], columns[0], ...columns.slice(2)],
+            pattern: /order|schema.*mismatch/i
+        },
+        {
+            label: 'system column collision',
+            mutate: columns => [...columns, { name: 'createdAt', type: 'date' }],
+            pattern: /system column.*collision/i
+        }
+    ];
+
+    for (const testCase of cases) {
+        await assert.rejects(createP3Artifact(table => ({
+            ...table,
+            columns: testCase.mutate(structuredClone(canonical[table.name]))
+        })), testCase.pattern, testCase.label);
+    }
 });
 
 test('collects unique credential reference metadata without credential values', () => {
@@ -1184,11 +1595,12 @@ test('P2 rerun reuses every created ID and performs no additional POST', async (
     assert.deepEqual([...second], [...first]);
 });
 
-test('P4 requires independent P4 approval, P3 schema evidence, and every P2 target ID before I/O', async () => {
+test('P4 requires independent P4 approval, one valid P3 artifact, and every P2 target ID before I/O', async () => {
     const inventory = getV3Inventory();
     const completeIds = new Map(inventory.map(([name], index) => [name, `target-${index}`]));
     const incompleteIds = new Map(completeIds);
     incompleteIds.delete(inventory[inventory.length - 1][0]);
+    const artifact = JSON.parse(JSON.stringify(await createP3Artifact()));
     let fetchCalls = 0;
     const options = {
         apiUrl: 'https://unused.invalid',
@@ -1201,20 +1613,20 @@ test('P4 requires independent P4 approval, P3 schema evidence, and every P2 targ
     };
 
     for (const invalid of [
-        { p3SchemaEvidence: P3_EVIDENCE, targetWorkflowIds: completeIds },
+        { p3Artifact: artifact, targetWorkflowIds: completeIds },
         {
             approvalEvidence: { approved: false, gate: 'P4', reference: 'P4-denied' },
-            p3SchemaEvidence: P3_EVIDENCE,
+            p3Artifact: artifact,
             targetWorkflowIds: completeIds
         },
         {
             approvalEvidence: { approved: true, gate: 'P2', reference: 'wrong-gate' },
-            p3SchemaEvidence: P3_EVIDENCE,
+            p3Artifact: artifact,
             targetWorkflowIds: completeIds
         },
         {
             approvalEvidence: { approved: true, gate: 'P4', reference: '   ' },
-            p3SchemaEvidence: P3_EVIDENCE,
+            p3Artifact: artifact,
             targetWorkflowIds: completeIds
         }
     ]) {
@@ -1223,28 +1635,227 @@ test('P4 requires independent P4 approval, P3 schema evidence, and every P2 targ
             /explicit P4 approval evidence/i
         );
     }
-    for (const p3SchemaEvidence of [
-        undefined,
-        { approved: false, gate: 'P3', reference: 'P3-denied' },
-        { approved: true, gate: 'P4', reference: 'wrong-gate' },
-        { approved: true, gate: 'P3', reference: '' }
-    ]) {
-        await assert.rejects(deployV3WorkflowInventory({
-            ...options,
-            approvalEvidence: P4_APPROVAL,
-            p3SchemaEvidence,
-            targetWorkflowIds: completeIds
-        }), /explicit P3 schema evidence/i);
-    }
     await assert.rejects(
         deployV3WorkflowInventory({
             ...options,
-            approvalEvidence: P4_APPROVAL,
-            p3SchemaEvidence: P3_EVIDENCE,
+            approvalEvidence: p4ApprovalFor(artifact),
+            p3Artifact: artifact,
             targetWorkflowIds: incompleteIds
         }),
         /complete P2 target workflow IDs/i
     );
+    assert.equal(fetchCalls, 0);
+});
+
+test('P4 rejects substituted or tampered P3 artifacts before workflow filesystem or network I/O', async () => {
+    const inventory = getV3Inventory();
+    const completeIds = new Map(inventory.map(([name], index) => [name, `target-${index}`]));
+    const valid = JSON.parse(JSON.stringify(await createP3Artifact()));
+    const tampered = (mutate) => {
+        const artifact = structuredClone(valid);
+        mutate(artifact);
+        return artifact;
+    };
+    const cases = [
+        { label: 'missing artifact', artifact: undefined },
+        { label: 'Map substitution', artifact: dataTableIdMap() },
+        { label: 'wrong version', artifact: tampered(value => { value.version = 2; }) },
+        { label: 'wrong gate', artifact: tampered(value => { value.gate = 'P4'; }) },
+        { label: 'missing P3 evidence', artifact: tampered(value => { value.approvalReference = ''; }) },
+        {
+            label: 'canonical schema digest',
+            artifact: tampered(value => { value.canonicalSchemaDigest = '0'.repeat(64); })
+        },
+        { label: 'artifact digest', artifact: tampered(value => { value.artifactDigest = '0'.repeat(64); }) },
+        { label: 'table ID', artifact: tampered(value => { value.tables[0].id = 'substitute-id'; }) },
+        { label: 'table name', artifact: tampered(value => { value.tables[0].name = 'substitute_name'; }) },
+        {
+            label: 'table columns',
+            artifact: tampered(value => { value.tables[0].columns[0].type = 'number'; })
+        }
+    ];
+    let fetchCalls = 0;
+
+    for (const testCase of cases) {
+        await assert.rejects(deployV3WorkflowInventoryWithoutDefaults({
+            apiUrl: 'https://unused.invalid',
+            apiKey: 'test-key',
+            rootDir: '/path-that-must-not-be-read',
+            approvalEvidence: p4ApprovalFor(valid),
+            p3Artifact: testCase.artifact,
+            targetWorkflowIds: completeIds,
+            fetchImpl: async () => {
+                fetchCalls += 1;
+                throw new Error('fetch must not be called');
+            }
+        }), /P3 artifact|schema digest|artifact digest|approval reference|version|gate/i, testCase.label);
+    }
+
+    await assert.rejects(deployV3WorkflowInventoryWithoutDefaults({
+        apiUrl: 'https://unused.invalid',
+        apiKey: 'test-key',
+        rootDir: '/path-that-must-not-be-read',
+        approvalEvidence: p4ApprovalFor(valid),
+        p3SchemaEvidence: P3_EVIDENCE,
+        targetDataTableIds: dataTableIdMap(),
+        targetWorkflowIds: completeIds,
+        fetchImpl: async () => {
+            fetchCalls += 1;
+            throw new Error('fetch must not be called');
+        }
+    }), /P3 artifact/i);
+    assert.equal(fetchCalls, 0);
+});
+
+test('P4 approval binds the exact validated P3 artifact digest before filesystem or network I/O', async () => {
+    const inventory = getV3Inventory();
+    const targetWorkflowIds = new Map(inventory.map(([name], index) => [name, `target-${index}`]));
+    const artifact = JSON.parse(JSON.stringify(await createP3Artifact()));
+    let fetchCalls = 0;
+    const invoke = (p3Artifact, approvalEvidence) => deployV3WorkflowInventoryWithoutDefaults({
+        apiUrl: 'https://unused.invalid',
+        apiKey: 'test-key',
+        rootDir: '/path-that-must-not-be-read',
+        approvalEvidence,
+        p3Artifact,
+        targetWorkflowIds,
+        fetchImpl: async () => {
+            fetchCalls += 1;
+            throw new Error('fetch must not be called');
+        }
+    });
+
+    for (const approvedP3ArtifactDigest of [
+        undefined,
+        '0'.repeat(64),
+        artifact.artifactDigest.toUpperCase(),
+        `${artifact.artifactDigest}\u0000`
+    ]) {
+        await assert.rejects(
+            invoke(artifact, p4ApprovalFor(artifact, { approvedP3ArtifactDigest })),
+            /approved P3 artifact digest|approval evidence/i
+        );
+    }
+
+    const independentlyValidTamper = structuredClone(artifact);
+    independentlyValidTamper.tables[0].id = 'independently-recomputed-id';
+    recomputeArtifactDigest(independentlyValidTamper);
+    await assert.rejects(
+        invoke(independentlyValidTamper, p4ApprovalFor(artifact)),
+        /approved P3 artifact digest.*does not match|digest mismatch/i
+    );
+    assert.equal(fetchCalls, 0);
+});
+
+test('P4 artifact validation is key-order independent and bounded against hostile JSON-like input', async () => {
+    const inventory = getV3Inventory();
+    const targetWorkflowIds = new Map(inventory.map(([name], index) => [name, `target-${index}`]));
+    const valid = JSON.parse(JSON.stringify(await createP3Artifact()));
+    let fetchCalls = 0;
+    const invoke = artifact => deployV3WorkflowInventoryWithoutDefaults({
+        apiUrl: 'https://unused.invalid',
+        apiKey: 'test-key',
+        rootDir: '/path-that-must-not-be-read',
+        approvalEvidence: p4ApprovalFor(valid),
+        p3Artifact: artifact,
+        targetWorkflowIds,
+        fetchImpl: async () => {
+            fetchCalls += 1;
+            throw new Error('fetch must not be called');
+        }
+    });
+    const mutate = callback => {
+        const artifact = structuredClone(valid);
+        callback(artifact);
+        return artifact;
+    };
+
+    const reordered = {
+        tables: valid.tables.map(table => ({
+            columns: table.columns.map(column => ({ type: column.type, name: column.name })),
+            id: table.id,
+            name: table.name
+        })),
+        canonicalSchemaDigest: valid.canonicalSchemaDigest,
+        artifactDigest: valid.artifactDigest,
+        approvalReference: valid.approvalReference,
+        gate: valid.gate,
+        version: valid.version
+    };
+    await assert.rejects(invoke(reordered), /File not found/i);
+
+    const cycle = structuredClone(valid);
+    cycle.unexpected = cycle;
+    const customPrototype = structuredClone(valid);
+    Object.setPrototypeOf(customPrototype, { polluted: true });
+    const oversizedTables = structuredClone(valid);
+    oversizedTables.tables = new Array(100_000);
+    Object.defineProperty(oversizedTables.tables, 0, {
+        get() { throw new Error('table traversal occurred before length validation'); }
+    });
+    const oversizedColumns = structuredClone(valid);
+    oversizedColumns.tables[0].columns = new Array(100_000);
+    Object.defineProperty(oversizedColumns.tables[0].columns, 0, {
+        get() { throw new Error('column traversal occurred before length validation'); }
+    });
+    const oversizedArtifact = mutate(value => {
+        value.approvalReference = 'r'.repeat(4096);
+        value.tables.forEach((table, index) => { table.id = `${index}-${'i'.repeat(4094)}`; });
+    });
+    const customTablesArray = structuredClone(valid);
+    Object.setPrototypeOf(customTablesArray.tables, Object.create(Array.prototype));
+    const customColumnsArray = structuredClone(valid);
+    Object.setPrototypeOf(customColumnsArray.tables[0].columns, Object.create(Array.prototype));
+    const extraTablesArrayProperty = structuredClone(valid);
+    extraTablesArrayProperty.tables.extra = true;
+    const extraColumnsArrayProperty = structuredClone(valid);
+    extraColumnsArrayProperty.tables[0].columns.extra = true;
+    const tableAccessor = structuredClone(valid);
+    Object.defineProperty(tableAccessor.tables, 0, {
+        enumerable: true,
+        configurable: true,
+        get() { throw new Error('table accessor executed'); }
+    });
+    const columnAccessor = structuredClone(valid);
+    Object.defineProperty(columnAccessor.tables[0].columns, 0, {
+        enumerable: true,
+        configurable: true,
+        get() { throw new Error('column accessor executed'); }
+    });
+    const hostileCases = [
+        cycle,
+        customPrototype,
+        mutate(value => { value.extra = true; }),
+        mutate(value => { value.approvalReference = undefined; }),
+        mutate(value => { value.version = Number.POSITIVE_INFINITY; }),
+        mutate(value => { value.version = 1.5; }),
+        mutate(value => { value.approvalReference = ' P3-reference '; }),
+        mutate(value => { value.approvalReference = 'P3\u0000reference'; }),
+        mutate(value => { value.approvalReference = 'r'.repeat(4097); }),
+        mutate(value => { value.tables[0].id = ''; }),
+        mutate(value => { value.tables[0].id = 'id\u0000value'; }),
+        mutate(value => { value.tables[0].id = 'i'.repeat(4097); }),
+        mutate(value => { value.tables[0].extra = true; }),
+        mutate(value => { Object.setPrototypeOf(value.tables[0], { polluted: true }); }),
+        mutate(value => { value.tables[0].columns[0].extra = true; }),
+        mutate(value => { Object.setPrototypeOf(value.tables[0].columns[0], { polluted: true }); }),
+        customTablesArray,
+        customColumnsArray,
+        extraTablesArrayProperty,
+        extraColumnsArrayProperty,
+        tableAccessor,
+        columnAccessor,
+        oversizedTables,
+        oversizedColumns
+    ];
+
+    for (const artifact of hostileCases) {
+        await assert.rejects(
+            invoke(artifact),
+            error => error instanceof Error && !/Maximum call stack|traversal occurred|accessor executed/i.test(error.message)
+        );
+    }
+    await assert.rejects(invoke(oversizedArtifact), /exceeds.*byte limit/i);
     assert.equal(fetchCalls, 0);
 });
 
@@ -1275,7 +1886,6 @@ test('P4 resolves all IDs before credential maps and performs no PUT on prefligh
         apiKey: 'test-key',
         rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: ids,
         fetchImpl: async (_url, options = {}) => {
             methods.push(options.method || 'GET');
@@ -1309,7 +1919,6 @@ test('P4 completes every selector remap before the first PUT', async t => {
         apiKey: 'test-key',
         rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: ids,
         fetchImpl: async (_url, options = {}) => {
             if (options.method === 'PUT') putCalls += 1;
@@ -1319,25 +1928,34 @@ test('P4 completes every selector remap before the first PUT', async t => {
     assert.equal(putCalls, 0);
 });
 
-test('P4 deep-clones and remaps selectors and credentials before PUT, then confirms inactive', async t => {
+test('P4 deep-clones and remaps Data Tables, selectors, and credentials before PUT, then confirms inactive', async t => {
     const inventory = getV3Inventory();
     const callerName = inventory[0][0];
     const childName = inventory[1][0];
     const rootDir = createInventorySourceTree(t, name => name === callerName ? {
-        nodes: [{
-            name: 'Call child',
-            type: 'n8n-nodes-base.executeWorkflow',
-            parameters: {
-                workflowId: {
-                    value: `${childName}-source-id`,
-                    cachedResultName: childName,
-                    cachedResultUrl: `/workflow/${childName}-source-id`
+        nodes: [
+            {
+                name: 'Call child',
+                type: 'n8n-nodes-base.executeWorkflow',
+                parameters: {
+                    workflowId: {
+                        value: `${childName}-source-id`,
+                        cachedResultName: childName,
+                        cachedResultUrl: `/workflow/${childName}-source-id`
+                    }
+                },
+                credentials: {
+                    httpHeaderAuth: { id: 'b39tXWu6AGQsbY2C', name: 'Header Auth account 2' }
                 }
             },
-            credentials: {
-                httpHeaderAuth: { id: 'b39tXWu6AGQsbY2C', name: 'Header Auth account 2' }
+            {
+                name: 'Jobs table',
+                type: 'n8n-nodes-base.dataTable',
+                parameters: {
+                    dataTableId: { __rl: true, mode: 'name', value: 'stt_jobs_v3' }
+                }
             }
-        }]
+        ]
     } : {});
     const targetWorkflows = inventory.map(([name], index) => workflowDetail(`target-${index}`, name));
     targetWorkflows.push({
@@ -1356,7 +1974,6 @@ test('P4 deep-clones and remaps selectors and credentials before PUT, then confi
         apiKey: 'test-key',
         rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: ids,
         fetchImpl: async (url, options = {}) => {
             const method = options.method || 'GET';
@@ -1386,12 +2003,86 @@ test('P4 deep-clones and remaps selectors and credentials before PUT, then confi
         id: 'target-header-auth-id',
         name: 'Header Auth account 2'
     });
+    assert.deepEqual(putPayloads[0].nodes[1].parameters.dataTableId, {
+        __rl: true,
+        mode: 'id',
+        value: 'table-jobs'
+    });
     assert.equal(methods.filter(method => method === 'POST').length, 0);
     assert.equal(methods.filter(method => method === 'PUT').length, inventory.length);
     assert.equal(
         methods.slice(methods.indexOf('PUT')).filter(method => method === 'GET').length,
         inventory.length * 2
     );
+});
+
+test('P4 rejects an invalid source Data Table locator during joint preflight before any PUT', async t => {
+    const inventory = getV3Inventory();
+    const rootDir = createInventorySourceTree(t, name => name === inventory[0][0] ? {
+        nodes: [{
+            name: 'Source table ID',
+            type: 'n8n-nodes-base.dataTable',
+            parameters: {
+                dataTableId: { __rl: true, mode: 'id', value: 'source-table-id' }
+            }
+        }]
+    } : {});
+    const targets = inventory.map(([name], index) => workflowDetail(`target-${index}`, name));
+    const ids = new Map(targets.map(workflow => [workflow.name, workflow.id]));
+    let putCalls = 0;
+
+    await assert.rejects(deployV3WorkflowInventory({
+        apiUrl: 'https://unused.invalid',
+        apiKey: 'test-key',
+        rootDir,
+        approvalEvidence: P4_APPROVAL,
+        targetWorkflowIds: ids,
+        fetchImpl: async (_url, options = {}) => {
+            if (options.method === 'PUT') putCalls += 1;
+            return response({ data: targets, nextCursor: null });
+        }
+    }), /invalid authoritative Data Table placeholder/i);
+    assert.equal(putCalls, 0);
+});
+
+test('P4 stops later PUTs when post-PUT GET returns a non-P3 Data Table target ID', async t => {
+    const inventory = getV3Inventory();
+    const rootDir = createInventorySourceTree(t, name => name === inventory[0][0] ? {
+        nodes: [{
+            name: 'Jobs table',
+            type: 'n8n-nodes-base.dataTable',
+            parameters: {
+                dataTableId: { __rl: true, mode: 'name', value: 'stt_jobs_v3' }
+            }
+        }]
+    } : {});
+    const targets = inventory.map(([name], index) => workflowDetail(`target-${index}`, name));
+    const ids = new Map(targets.map(workflow => [workflow.name, workflow.id]));
+    const targetById = new Map(targets.map(workflow => [workflow.id, workflow]));
+    const putIds = [];
+
+    await assert.rejects(deployV3WorkflowInventory({
+        apiUrl: 'https://unused.invalid',
+        apiKey: 'test-key',
+        rootDir,
+        approvalEvidence: P4_APPROVAL,
+        targetWorkflowIds: ids,
+        fetchImpl: async (url, options = {}) => {
+            const method = options.method || 'GET';
+            if (method === 'GET' && url.includes('?')) {
+                return response({ data: targets, nextCursor: null });
+            }
+            const target = targetById.get(url.split('/').pop());
+            if (method === 'PUT') {
+                putIds.push(target.id);
+                Object.assign(target, JSON.parse(options.body), { active: false });
+                target.nodes[0].parameters.dataTableId.value = 'wrong-target-table-id';
+                return response(target);
+            }
+            return response(target);
+        }
+    }), /approved P3 target ID|does not match expected deployable content/i);
+    assert.deepEqual(putIds, ['target-0']);
 });
 
 test('P4 treats exact deployed content as completed and accepts only safe executionOrder normalization', async t => {
@@ -1414,7 +2105,6 @@ test('P4 treats exact deployed content as completed and accepts only safe execut
         apiKey: 'test-key',
         rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: ids,
         fetchImpl: async (url, options = {}) => {
             if (options.method === 'PUT') putCalls += 1;
@@ -1440,7 +2130,6 @@ test('P4 rechecks a pending target immediately before PUT and rejects an interve
         apiKey: 'test-key',
         rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: ids,
         fetchImpl: async (url, options = {}) => {
             const method = options.method || 'GET';
@@ -1481,7 +2170,6 @@ test('P4 pre-PUT failures include recovery metadata and never overwrite the fail
             apiKey: 'test-key',
             rootDir,
             approvalEvidence: P4_APPROVAL,
-            p3SchemaEvidence: P3_EVIDENCE,
             targetWorkflowIds: ids,
             fetchImpl: async (url, options = {}) => {
                 const method = options.method || 'GET';
@@ -1531,7 +2219,6 @@ test('P4 replans latest credential authority before the first PUT and rejects dr
         apiKey: 'test-key',
         rootDir: fixture.rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: fixture.ids,
         fetchImpl: async (url, options = {}) => {
             const method = options.method || 'GET';
@@ -1573,7 +2260,6 @@ test('P4 ignores unrelated workflow add, remove, and reorder during pre-mutation
         apiKey: 'test-key',
         rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: ids,
         fetchImpl: async (url, options = {}) => {
             const method = options.method || 'GET';
@@ -1628,7 +2314,6 @@ test('P4 still fails closed when a required static selector authority disappears
         apiKey: 'test-key',
         rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: ids,
         fetchImpl: async (url, options = {}) => {
             if ((options.method || 'GET') === 'GET' && url.includes('?')) {
@@ -1666,7 +2351,6 @@ test('P4 rechecks an initially completed target before skip and rejects divergen
         apiKey: 'test-key',
         rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: ids,
         fetchImpl: async (url, options = {}) => {
             const method = options.method || 'GET';
@@ -1684,8 +2368,72 @@ test('P4 rechecks an initially completed target before skip and rejects divergen
             }
             return response(target);
         }
-    }), /completed target.*diverged|does not match expected deployable content/i);
+    }), error => {
+        assert.match(error.message, /completed target.*diverged|does not match expected deployable content/i);
+        assert.equal(error.failedWorkflowName, inventory[0][0]);
+        assert.equal(error.failedWorkflowId, 'target-0');
+        assert.deepEqual(error.completedWorkflowIds, []);
+        assert.deepEqual(error.pendingWorkflowIds, inventory.map((_, index) => `target-${index}`));
+        return true;
+    });
     assert.equal(putCalls, 0);
+});
+
+test('P4 completed-skip recovery metadata covers GET failure, identity drift, and locator drift', async t => {
+    const inventory = getV3Inventory();
+
+    for (const failureMode of ['network', 'identity', 'locator']) {
+        await t.test(failureMode, async () => {
+            const firstName = inventory[0][0];
+            const locatorNode = {
+                id: 'jobs-node',
+                name: 'Jobs table',
+                type: 'n8n-nodes-base.dataTable',
+                parameters: { dataTableId: { __rl: true, mode: 'name', value: 'stt_jobs_v3' } }
+            };
+            const rootDir = createInventorySourceTree(t, name => (
+                failureMode === 'locator' && name === firstName ? { nodes: [locatorNode] } : {}
+            ));
+            const targets = inventory.map(([name], index) => workflowDetail(`target-${index}`, name, {
+                nodes: failureMode === 'locator' && name === firstName
+                    ? [{
+                        ...structuredClone(locatorNode),
+                        parameters: {
+                            dataTableId: { __rl: true, mode: 'id', value: 'table-jobs' }
+                        }
+                    }]
+                    : [{ name: 'Source', type: 'n8n-nodes-base.noOp', parameters: {} }]
+            }));
+            const ids = new Map(targets.map(workflow => [workflow.name, workflow.id]));
+            const targetById = new Map(targets.map(workflow => [workflow.id, workflow]));
+
+            await assert.rejects(deployV3WorkflowInventory({
+                apiUrl: 'https://unused.invalid',
+                apiKey: 'test-key',
+                rootDir,
+                approvalEvidence: P4_APPROVAL,
+                targetWorkflowIds: ids,
+                fetchImpl: async (url, options = {}) => {
+                    if ((options.method || 'GET') === 'GET' && url.includes('?')) {
+                        return response({ data: targets, nextCursor: null });
+                    }
+                    const target = targetById.get(url.split('/').pop());
+                    if (target.id !== 'target-0') return response(target);
+                    if (failureMode === 'network') throw new Error('completed readback network failure');
+                    if (failureMode === 'identity') return response({ ...target, name: 'Drifted identity' });
+                    const drifted = structuredClone(target);
+                    drifted.nodes[0].parameters.dataTableId.value = 'table-summaries';
+                    return response(drifted);
+                }
+            }), error => {
+                assert.equal(error.failedWorkflowName, firstName);
+                assert.equal(error.failedWorkflowId, 'target-0');
+                assert.deepEqual(error.completedWorkflowIds, []);
+                assert.deepEqual(error.pendingWorkflowIds, inventory.map((_, index) => `target-${index}`));
+                return true;
+            });
+        });
+    }
 });
 
 test('P4 accepts description null returned by post-PUT GET when source description is omitted', async t => {
@@ -1700,7 +2448,6 @@ test('P4 accepts description null returned by post-PUT GET when source descripti
         apiKey: 'test-key',
         rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: ids,
         fetchImpl: async (url, options = {}) => {
             const method = options.method || 'GET';
@@ -1730,7 +2477,6 @@ test('P4 final inventory verification rejects drift after all per-workflow check
         apiKey: 'test-key',
         rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: ids,
         fetchImpl: async (url, options = {}) => {
             const method = options.method || 'GET';
@@ -1761,7 +2507,6 @@ test('P4 final authority verification rejects a changed credential map with reco
         apiKey: 'test-key',
         rootDir: fixture.rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: fixture.ids,
         fetchImpl: async (url, options = {}) => {
             const method = options.method || 'GET';
@@ -1799,7 +2544,6 @@ test('P4 final authority verification rejects missing and ambiguous credential r
             apiKey: 'test-key',
             rootDir: fixture.rootDir,
             approvalEvidence: P4_APPROVAL,
-            p3SchemaEvidence: P3_EVIDENCE,
             targetWorkflowIds: fixture.ids,
             fetchImpl: async (url, options = {}) => {
                 const method = options.method || 'GET';
@@ -1872,7 +2616,6 @@ test('P4 PUT failures expose recovery metadata and reruns PUT only pending workf
             apiKey: 'test-key',
             rootDir,
             approvalEvidence: P4_APPROVAL,
-            p3SchemaEvidence: P3_EVIDENCE,
             targetWorkflowIds: ids,
             fetchImpl
         };
@@ -1955,7 +2698,6 @@ test('P4 verifies full deployed identity and content after every PUT', async t =
             apiKey: 'test-key',
             rootDir,
             approvalEvidence: P4_APPROVAL,
-            p3SchemaEvidence: P3_EVIDENCE,
             targetWorkflowIds: ids,
             fetchImpl: async (url, options = {}) => {
                 const method = options.method || 'GET';
@@ -2002,7 +2744,6 @@ test('P4 fails closed before PUT when a credential is missing or ambiguous', asy
             apiKey: 'test-key',
             rootDir,
             approvalEvidence: P4_APPROVAL,
-            p3SchemaEvidence: P3_EVIDENCE,
             targetWorkflowIds: ids,
             fetchImpl: async (_url, options = {}) => {
                 if (options.method === 'PUT') putCalls += 1;
@@ -2031,7 +2772,6 @@ test('P4 only PUTs an inactive empty inert P2 skeleton and verifies it stays ina
             apiKey: 'test-key',
             rootDir,
             approvalEvidence: P4_APPROVAL,
-            p3SchemaEvidence: P3_EVIDENCE,
             targetWorkflowIds: ids,
             fetchImpl: async (_url, options = {}) => {
                 if (options.method === 'PUT') putCalls += 1;
@@ -2048,7 +2788,6 @@ test('P4 only PUTs an inactive empty inert P2 skeleton and verifies it stays ina
         apiKey: 'test-key',
         rootDir,
         approvalEvidence: P4_APPROVAL,
-        p3SchemaEvidence: P3_EVIDENCE,
         targetWorkflowIds: ids,
         fetchImpl: async (url, options = {}) => {
             if ((options.method || 'GET') === 'GET' && url.includes('?')) {

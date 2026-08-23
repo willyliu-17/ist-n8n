@@ -16,4 +16,11 @@ const V3_WORKFLOW_INVENTORY = Object.freeze([
     ['IST bot entry v3', 'workflows/ist_bot_entry_v3_IstBotEntryV3A01']
 ].map(tuple => Object.freeze(tuple)));
 
-module.exports = { V3_WORKFLOW_INVENTORY };
+const V3_DATA_TABLE_NAMES = Object.freeze([
+    'suspect_stt_candidates_v3',
+    'stt_jobs_v3',
+    'summary_requests_v3',
+    'automation_errors_v3'
+]);
+
+module.exports = { V3_WORKFLOW_INVENTORY, V3_DATA_TABLE_NAMES };
