@@ -50,6 +50,108 @@ function buildWorkflowNameByIdMap(workflows) {
     return workflowNames;
 }
 
+function credentialKey(type, name) {
+    return `${type}\u0000${name}`;
+}
+
+function isValidCredentialMetadataPart(value) {
+    return (
+        typeof value === 'string' &&
+        value.trim().length > 0 &&
+        !/\p{Cc}/u.test(value)
+    );
+}
+
+function assertCredentialReferenceMetadata(reference) {
+    if (
+        !reference || typeof reference !== 'object' || Array.isArray(reference) ||
+        !isValidCredentialMetadataPart(reference.type) ||
+        !isValidCredentialMetadataPart(reference.name) ||
+        !isValidCredentialMetadataPart(reference.id)
+    ) {
+        throw new Error('Invalid credential reference metadata');
+    }
+}
+
+function collectCredentialReferences(workflows) {
+    const references = new Map();
+
+    for (const workflow of workflows) {
+        for (const node of workflow.nodes || []) {
+            for (const [type, reference] of Object.entries(node.credentials || {})) {
+                try {
+                    if (!reference || typeof reference !== 'object' || Array.isArray(reference)) {
+                        throw new Error('Invalid credential reference metadata');
+                    }
+                    assertCredentialReferenceMetadata({
+                        type,
+                        name: reference?.name,
+                        id: reference?.id
+                    });
+                } catch {
+                    throw new Error(
+                        `Invalid credential reference metadata in workflow "${workflow.name || '<unknown>'}" ` +
+                        `node "${node.name || '<unknown>'}"`
+                    );
+                }
+
+                const metadata = { type, name: reference.name, id: reference.id };
+                references.set(`${credentialKey(type, reference.name)}\u0000${reference.id}`, metadata);
+            }
+        }
+    }
+
+    return [...references.values()];
+}
+
+function buildCredentialReferenceMap(targetWorkflows, requiredReferences) {
+    const targetIdsByKey = new Map();
+
+    for (const reference of collectCredentialReferences(targetWorkflows)) {
+        const key = credentialKey(reference.type, reference.name);
+        if (!targetIdsByKey.has(key)) targetIdsByKey.set(key, new Set());
+        targetIdsByKey.get(key).add(reference.id);
+    }
+
+    const credentialIds = new Map();
+    for (const reference of requiredReferences) {
+        assertCredentialReferenceMetadata(reference);
+        const key = credentialKey(reference.type, reference.name);
+        const targetIds = targetIdsByKey.get(key);
+        if (!targetIds || targetIds.size === 0) {
+            throw new Error(
+                `Missing target credential reference for type "${reference.type}" and name "${reference.name}"`
+            );
+        }
+        if (targetIds.size > 1) {
+            throw new Error(
+                `Ambiguous credential reference for type "${reference.type}" and name "${reference.name}"`
+            );
+        }
+        credentialIds.set(key, targetIds.values().next().value);
+    }
+
+    return credentialIds;
+}
+
+function remapCredentialReferences(nodes, credentialIds) {
+    const remappedNodes = structuredClone(nodes);
+
+    for (const node of remappedNodes) {
+        for (const [type, reference] of Object.entries(node.credentials || {})) {
+            const key = credentialKey(type, reference.name);
+            if (!credentialIds.has(key)) {
+                throw new Error(
+                    `Missing target credential reference for type "${type}" and name "${reference.name}"`
+                );
+            }
+            reference.id = credentialIds.get(key);
+        }
+    }
+
+    return remappedNodes;
+}
+
 function isExpression(value) {
     return typeof value === 'string' && value.startsWith('=');
 }
@@ -207,12 +309,14 @@ function remapExecuteWorkflowNodes(nodes, workflowIds, sourceWorkflowNames = new
 }
 
 function createWorkflowPayload(workflow, nodes = workflow.nodes) {
-    return {
+    const payload = {
         name: workflow.name,
         nodes,
         connections: workflow.connections,
         settings: workflow.settings
     };
+    if (workflow.description !== undefined) payload.description = workflow.description;
+    return payload;
 }
 
 function parseCreatedWorkflowId(workflow) {
@@ -227,6 +331,9 @@ module.exports = {
     assertUniqueRequestedWorkflowNames,
     buildRequestedSourceIdNameMap,
     buildWorkflowNameByIdMap,
+    collectCredentialReferences,
+    buildCredentialReferenceMap,
+    remapCredentialReferences,
     collectRequiredWorkflowNames,
     validateExecuteWorkflowSelectors,
     remapExecuteWorkflowNodes,
