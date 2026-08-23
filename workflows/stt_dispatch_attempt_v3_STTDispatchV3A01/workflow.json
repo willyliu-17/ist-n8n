@@ -1,0 +1,971 @@
+{
+  "id": "STTDispatchV3A01",
+  "name": "STT: dispatch attempt v3",
+  "description": "Inactive soft-CAS STT dispatcher. P5 must confirm STT_CALLBACK_URL is HTTPS with the fixed /webhook/stt-callback-v3 path before any activation.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "attemptKey", "type": "string" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "id": "fce89231-9871-4128-b472-cdb399c5e816",
+      "name": "Start"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Start').first().json.attemptKey }}" }
+        ] },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [240, 0],
+      "id": "9361b1bb-8d59-4ac5-a8ed-14c9493a2539",
+      "name": "Read All Attempt Rows"
+    },
+    {
+      "parameters": { "maxItems": 1 },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [480, 0],
+      "id": "c89cf187-2e28-4a2d-8306-9a004657df8a",
+      "name": "Limit Attempt Context"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Read All Attempt Rows').first().json.requestKey }}" }
+        ] },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [720, 0],
+      "id": "36bb981a-30a5-43f0-8d46-2b86d3e3d7a9",
+      "name": "Read Summary Request Rows",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Canonical/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0],
+      "id": "5190e7da-50e2-42a7-843f-36672687d89c",
+      "name": "Plan Canonical Reconciliation"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "a5072054-a986-478b-ba31-0cfd201e86da",
+              "leftValue": "={{ $json.reconciliationAction }}",
+              "rightValue": "manual_review",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [720, 0],
+      "id": "20031aab-121e-46ce-8bc1-1b98119a314b",
+      "name": "Is Manual Review Conflict"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [960, -240],
+      "id": "d5f019df-e976-430f-ae31-7d420503133d",
+      "name": "Freeze Conflict Plan"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" },
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
+          { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" }
+        ] },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "manual_review",
+            "manualReviewReason": "multiple_canonical_checkpoint_conflict",
+            "manualReviewAtIso": "={{ $now.toUTC().toISO() }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [960, -240],
+      "id": "d057f25a-95fa-43d8-ba15-3d5e59bd9632",
+      "name": "Freeze Canonical Conflict",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "maxItems": 1 },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [1200, -240],
+      "id": "5ca77e5e-ece5-4f1c-8c47-cf3ece8726cf",
+      "name": "Limit Conflict Patch"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Start').first().json.attemptKey }}" }
+        ] },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1440, -240],
+      "id": "23d57479-a49f-43f4-80f7-d13e36128fad",
+      "name": "Re-read Manual Review State"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Final_State/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, -240],
+      "id": "9b2e501c-0c83-4b45-91ae-6c59a1fc9d44",
+      "name": "Verify Frozen Conflict"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "4a11881a-2dba-4ed8-86e1-b7bbaf1030b2",
+              "leftValue": "={{ $json.reconciliationAction }}",
+              "rightValue": "reconcile",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [960, 80],
+      "id": "664a693e-4364-43c1-a69d-17a4a45c78b0",
+      "name": "Needs Reconciliation"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" },
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" },
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.expectedCanonicalRowID }}" }
+        ] },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}",
+            "canonicalRowID": "={{ $json.desiredCanonicalRowID }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1200, 0],
+      "id": "f53c6023-d006-4c17-8c01-68e638c5316d",
+      "name": "Apply Reconciliation"
+    },
+    {
+      "parameters": { "maxItems": 1 },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [1440, 0],
+      "id": "18d6a020-4d8e-447e-b62c-2d46198e4c8f",
+      "name": "Limit Reconciliation Writes"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Start').first().json.attemptKey }}" }
+        ] },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1680, 0],
+      "id": "b1bfd8ac-6aa0-4bba-aefa-49d7fe7fde1f",
+      "name": "Re-read After Reconciliation"
+    },
+    {
+      "parameters": { "maxItems": 1 },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [1920, 0],
+      "id": "7a71e880-c91b-4e4f-a724-fd4a070064e1",
+      "name": "Limit Reconciled Context"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Re-read After Reconciliation').first().json.requestKey }}" }
+        ] },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [2160, 0],
+      "id": "16c89225-5600-46b6-a7fd-0accef79a7fb",
+      "name": "Read Summary Rows After Reconciliation",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Canonical/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 0],
+      "id": "043e7422-ae88-4e62-8554-12f68d1f130b",
+      "name": "Verify Reconciled Canonical"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "1f2913b9-a519-4654-b2f6-1e3d8fb06701",
+              "leftValue": "={{ $json.reconciliationAction }}",
+              "rightValue": "manual_review",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [2160, 0],
+      "id": "73562dbb-3aea-41f2-987a-2fb632afec44",
+      "name": "Post-Reconciliation Conflict"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "f40ae7ef-c1bf-43b5-ac4e-a8c5e3bbb8e8",
+              "leftValue": "={{ $json.reconciliationAction }}",
+              "rightValue": "ready",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [2400, 80],
+      "id": "c526a7dc-44cb-4efa-b7c2-6a4ff6e26ea0",
+      "name": "Reconciliation Complete"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Start').first().json.attemptKey }}" },
+          { "keyName": "status", "condition": "eq", "keyValue": "queued" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" }
+        ] },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "dispatching",
+            "dispatchLeaseOwner": "={{ $execution.id }}",
+            "dispatchLeaseUntilIso": "={{ $now.plus({ minutes: 5 }).toUTC().toISO() }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [2640, 160],
+      "id": "b7cf1a4a-faaa-41c7-a21f-96405c34ac36",
+      "name": "Claim Canonical Attempt"
+    },
+    {
+      "parameters": { "maxItems": 1 },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [2880, 160],
+      "id": "5bc6fd4b-76cc-4c8e-a33c-6681160f0ef9",
+      "name": "Limit Claim"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Start').first().json.attemptKey }}" }
+        ] },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [3120, 160],
+      "id": "7c5a1ea3-d60d-40c2-a8d4-40c29434a058",
+      "name": "Re-read Claimed Attempt"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Require_Canonical_Owner/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3360, 160],
+      "id": "a4d85098-df9b-4bf5-9250-fdfa333866fc",
+      "name": "Require Canonical Owner"
+    },
+    {
+      "parameters": {
+        "action": "generate",
+        "dataPropertyName": "callbackToken",
+        "encodingType": "hex",
+        "stringLength": 64
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [3600, 160],
+      "id": "7933cff8-08bc-4855-bfed-04bd2ed2116c",
+      "name": "Generate Callback Token"
+    },
+    {
+      "parameters": {
+        "action": "hash",
+        "type": "SHA256",
+        "binaryData": false,
+        "value": "={{ $json.callbackToken }}",
+        "dataPropertyName": "callbackTokenHash",
+        "encoding": "hex"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [3840, 160],
+      "id": "75bc4503-25ed-44d2-b348-56f5da6e9421",
+      "name": "Hash Callback Token"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
+          { "keyName": "status", "condition": "eq", "keyValue": "dispatching" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+          { "keyName": "dispatchLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" },
+          { "keyName": "dispatchLeaseUntilIso", "condition": "eq", "keyValue": "={{ $('Require Canonical Owner').first().json.dispatchLeaseUntilIso }}" }
+        ] },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "callbackTokenHash": "={{ $json.callbackTokenHash }}",
+            "callbackTokenExpiresAtIso": "={{ $now.plus({ hours: 2 }).toUTC().toISO() }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [4080, 160],
+      "id": "20d25574-e3fe-4245-bd9e-a0330cdbf202",
+      "name": "Persist Token Hash"
+    },
+    {
+      "parameters": { "maxItems": 1 },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [4320, 160],
+      "id": "bfc93e30-07da-40b9-a797-1ab7c3f21bd2",
+      "name": "Limit Token Patch"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Start').first().json.attemptKey }}" }
+        ] },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [4560, 160],
+      "id": "9123fcd3-2af2-4179-820c-f529bfee2415",
+      "name": "Re-read Before Submit"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Require_Canonical_Owner/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4800, 160],
+      "id": "000f479b-5ddb-4434-9cfe-3dfa26e5da4d",
+      "name": "Require Canonical Owner Before Submit"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "18ebe545-667b-4577-9def-b70559e1364d",
+              "leftValue": "={{ $json.callbackTokenHash }}",
+              "rightValue": "={{ $('Hash Callback Token').first().json.callbackTokenHash }}",
+              "operator": { "type": "string", "operation": "equals" }
+            },
+            {
+              "id": "8a6f17e3-c442-4e3c-b0a2-19bee8fa443b",
+              "leftValue": "={{ DateTime.fromISO($json.callbackTokenExpiresAtIso).toMillis() }}",
+              "rightValue": "={{ $now.toMillis() }}",
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [5040, 160],
+      "id": "4a11881a-2dba-4ed8-86e1-b7bbaf1030b2",
+      "name": "Token Hash Persisted"
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [
+          { "id": "callback_url", "name": "callbackUrl", "value": "={{ $vars.STT_CALLBACK_URL }}", "type": "string" },
+          { "id": "callback_token", "name": "callbackToken", "value": "={{ $('Hash Callback Token').first().json.callbackToken }}", "type": "string" }
+        ] },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [5280, 160],
+      "id": "1f2913b9-a519-4654-b2f6-1e3d8fb06701",
+      "name": "Attach Callback URL"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_VDS_Payload/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5520, 160],
+      "id": "f40ae7ef-c1bf-43b5-ac4e-a8c5e3bbb8e8",
+      "name": "Build VDS Payload"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://stt-api.17app.co/api/v1/stream/conversions/segment",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "redirect": { "redirect": {} },
+          "response": { "response": { "fullResponse": true, "neverError": true, "responseFormat": "json" } }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [5760, 160],
+      "id": "18ebe545-667b-4577-9def-b70559e1364d",
+      "name": "Submit VDS Segment",
+      "credentials": {
+        "httpHeaderAuth": { "id": "b39tXWu6AGQsbY2C", "name": "Header Auth account 2" }
+      },
+      "retryOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [
+          { "id": "transport_error", "name": "transportError", "value": true, "type": "boolean" }
+        ] },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [6000, 360],
+      "id": "8a6f17e3-c442-4e3c-b0a2-19bee8fa443b",
+      "name": "Mark Transport Outcome"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Classify_ACK/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6240, 160],
+      "id": "6476c0f4-db4b-4e4a-af0c-2a7dccc3b466",
+      "name": "Classify ACK"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [{
+            "id": "09be319a-5480-493b-8151-b00856fd3e3a",
+            "leftValue": "={{ $json.classification }}",
+            "rightValue": "accepted",
+            "operator": { "type": "string", "operation": "equals" }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [6480, 160],
+      "id": "1d6ac3de-9bf4-4a49-9040-1696cc94ec93",
+      "name": "Is Accepted"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [{
+            "id": "1d096642-8ed7-4fd6-a18e-6da27cc01ac9",
+            "leftValue": "={{ $json.status }}",
+            "rightValue": "retry_pending",
+            "operator": { "type": "string", "operation": "equals" }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [6720, 240],
+      "id": "8e921616-7562-428a-8e74-be034cf0e280",
+      "name": "Is Retry Pending"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [{
+            "id": "cef9438e-47fc-4caa-806e-c7162a59329e",
+            "leftValue": "={{ $json.status }}",
+            "rightValue": "failed",
+            "operator": { "type": "string", "operation": "equals" }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [6960, 320],
+      "id": "3b050c24-3df2-4ed2-ad00-f6f2f5ea9472",
+      "name": "Is Failed"
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
+          { "keyName": "status", "condition": "eq", "keyValue": "dispatching" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+          { "keyName": "dispatchLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" },
+          { "keyName": "dispatchLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.dispatchLeaseUntilIso }}" }
+        ] },
+        "columns": { "mappingMode": "defineBelow", "value": {
+          "status": "waiting_callback", "submittedAtIso": "={{ $json.submittedAtIso }}",
+          "callbackDeadlineAtIso": "={{ $json.callbackDeadlineAtIso }}", "dispatchLeaseOwner": "",
+          "dispatchLeaseUntilIso": "", "errorCode": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+        }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1,
+      "position": [6720, 0], "id": "4d10b1a5-5764-433b-af25-9fad14ae51b3", "name": "Patch Accepted",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1,
+      "position": [7440, 0], "id": "59da3518-4a72-4c6e-9e3a-71871ca2c809", "name": "Limit Accepted Patch"
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
+          { "keyName": "status", "condition": "eq", "keyValue": "dispatching" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+          { "keyName": "dispatchLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" },
+          { "keyName": "dispatchLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.dispatchLeaseUntilIso }}" }
+        ] },
+        "columns": { "mappingMode": "defineBelow", "value": {
+          "status": "retry_pending", "nextRetryAtIso": "={{ $json.nextRetryAtIso }}", "errorCode": "={{ $json.errorCode }}",
+          "dispatchLeaseOwner": "", "dispatchLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+        }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1,
+      "position": [6960, 160], "id": "053af361-602b-430e-8b1f-0e5fde48a115", "name": "Patch Retry Pending",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1,
+      "position": [7440, 160], "id": "83f1e230-a5ed-4648-b87b-dc0fa0919b7e", "name": "Limit Retry Pending Patch"
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
+          { "keyName": "status", "condition": "eq", "keyValue": "dispatching" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+          { "keyName": "dispatchLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" },
+          { "keyName": "dispatchLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.dispatchLeaseUntilIso }}" }
+        ] },
+        "columns": { "mappingMode": "defineBelow", "value": {
+          "status": "failed", "nextRetryAtIso": "", "errorCode": "={{ $json.errorCode }}",
+          "dispatchLeaseOwner": "", "dispatchLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+        }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1,
+      "position": [7200, 240], "id": "01744c75-08bf-41d6-a382-36a06121cef3", "name": "Patch Failed",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1,
+      "position": [7440, 320], "id": "5cabff87-c305-47e0-ac1e-ee7dad485e06", "name": "Limit Failed Patch"
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
+          { "keyName": "status", "condition": "eq", "keyValue": "dispatching" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+          { "keyName": "dispatchLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" },
+          { "keyName": "dispatchLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.dispatchLeaseUntilIso }}" }
+        ] },
+        "columns": { "mappingMode": "defineBelow", "value": {
+          "status": "manual_review", "manualReviewReason": "vds_submit_outcome_ambiguous",
+          "manualReviewAtIso": "={{ $json.manualReviewAtIso }}", "nextRetryAtIso": "",
+          "dispatchLeaseOwner": "", "dispatchLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+        }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1,
+      "position": [7200, 400], "id": "20f0612e-e95e-4fcb-b71d-f880ee82d55c", "name": "Patch Manual Review",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1,
+      "position": [7440, 480], "id": "e7f2121e-d0c8-4c90-ae49-98502d2e3e3a", "name": "Limit Manual Review Patch"
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Start').first().json.attemptKey }}" }
+        ] },
+        "returnAll": true, "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1,
+      "position": [7680, 240], "id": "a5072054-a986-478b-ba31-0cfd201e86da", "name": "Re-read Final State"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Final_State/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [7920, 240],
+      "id": "c6f47c8a-6bb2-43ab-a2c1-2255e4f70441",
+      "name": "Verify Final State"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [{
+            "id": "42e947ea-f64a-4aee-bf52-4eb06f6b1810",
+            "leftValue": "={{ $json.action }}",
+            "rightValue": "fallback",
+            "operator": { "type": "string", "operation": "equals" }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [8160, 240],
+      "id": "42e947ea-f64a-4aee-bf52-4eb06f6b1810",
+      "name": "Needs Final State Fallback"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" },
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
+          { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" },
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.expectedCanonicalRowID }}" },
+          { "keyName": "dispatchLeaseOwner", "condition": "eq", "keyValue": "={{ $json.expectedDispatchLeaseOwner }}" },
+          { "keyName": "dispatchLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.expectedDispatchLeaseUntilIso }}" }
+        ] },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $json.desiredStatus }}",
+            "manualReviewReason": "vds_submit_result_patch_unconfirmed",
+            "manualReviewAtIso": "={{ $now.toUTC().toISO() }}",
+            "nextRetryAtIso": "",
+            "dispatchLeaseOwner": "",
+            "dispatchLeaseUntilIso": "",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [8400, 160],
+      "id": "73d20cc7-e32b-4bc0-8df7-d89bb2619191",
+      "name": "Patch Final State Unconfirmed",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "maxItems": 1 },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [8640, 160],
+      "id": "8b6bc4ca-0cbb-44d2-aac9-df3331b237cd",
+      "name": "Limit Final State Fallback"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Start').first().json.attemptKey }}" }
+        ] },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [8880, 160],
+      "id": "e06cdbaf-9545-44f4-b9f0-b0bb71e1305c",
+      "name": "Re-read Final Fallback"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Final_State/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [9120, 160],
+      "id": "a10b18b7-d25a-4cc5-9584-0d38c086aebd",
+      "name": "Verify Final Fallback"
+    }
+  ],
+  "connections": {
+    "Start": { "main": [[{ "node": "Read All Attempt Rows", "type": "main", "index": 0 }]] },
+    "Read All Attempt Rows": { "main": [[{ "node": "Limit Attempt Context", "type": "main", "index": 0 }]] },
+    "Limit Attempt Context": { "main": [[{ "node": "Read Summary Request Rows", "type": "main", "index": 0 }]] },
+    "Read Summary Request Rows": { "main": [[{ "node": "Plan Canonical Reconciliation", "type": "main", "index": 0 }]] },
+    "Plan Canonical Reconciliation": { "main": [[{ "node": "Is Manual Review Conflict", "type": "main", "index": 0 }]] },
+    "Is Manual Review Conflict": { "main": [
+      [{ "node": "Freeze Conflict Plan", "type": "main", "index": 0 }],
+      [{ "node": "Needs Reconciliation", "type": "main", "index": 0 }]
+    ] },
+    "Freeze Conflict Plan": { "main": [[{ "node": "Freeze Canonical Conflict", "type": "main", "index": 0 }]] },
+    "Freeze Canonical Conflict": { "main": [[{ "node": "Limit Conflict Patch", "type": "main", "index": 0 }]] },
+    "Limit Conflict Patch": { "main": [[{ "node": "Re-read Manual Review State", "type": "main", "index": 0 }]] },
+    "Re-read Manual Review State": { "main": [[{ "node": "Verify Frozen Conflict", "type": "main", "index": 0 }]] },
+    "Needs Reconciliation": { "main": [
+      [{ "node": "Apply Reconciliation", "type": "main", "index": 0 }],
+      [{ "node": "Claim Canonical Attempt", "type": "main", "index": 0 }]
+    ] },
+    "Apply Reconciliation": { "main": [[{ "node": "Limit Reconciliation Writes", "type": "main", "index": 0 }]] },
+    "Limit Reconciliation Writes": { "main": [[{ "node": "Re-read After Reconciliation", "type": "main", "index": 0 }]] },
+    "Re-read After Reconciliation": { "main": [[{ "node": "Limit Reconciled Context", "type": "main", "index": 0 }]] },
+    "Limit Reconciled Context": { "main": [[{ "node": "Read Summary Rows After Reconciliation", "type": "main", "index": 0 }]] },
+    "Read Summary Rows After Reconciliation": { "main": [[{ "node": "Verify Reconciled Canonical", "type": "main", "index": 0 }]] },
+    "Verify Reconciled Canonical": { "main": [[{ "node": "Post-Reconciliation Conflict", "type": "main", "index": 0 }]] },
+    "Post-Reconciliation Conflict": { "main": [
+      [{ "node": "Freeze Conflict Plan", "type": "main", "index": 0 }],
+      [{ "node": "Reconciliation Complete", "type": "main", "index": 0 }]
+    ] },
+    "Reconciliation Complete": { "main": [[{ "node": "Claim Canonical Attempt", "type": "main", "index": 0 }], []] },
+    "Claim Canonical Attempt": { "main": [[{ "node": "Limit Claim", "type": "main", "index": 0 }]] },
+    "Limit Claim": { "main": [[{ "node": "Re-read Claimed Attempt", "type": "main", "index": 0 }]] },
+    "Re-read Claimed Attempt": { "main": [[{ "node": "Require Canonical Owner", "type": "main", "index": 0 }]] },
+    "Require Canonical Owner": { "main": [[{ "node": "Generate Callback Token", "type": "main", "index": 0 }]] },
+    "Generate Callback Token": { "main": [[{ "node": "Hash Callback Token", "type": "main", "index": 0 }]] },
+    "Hash Callback Token": { "main": [[{ "node": "Persist Token Hash", "type": "main", "index": 0 }]] },
+    "Persist Token Hash": { "main": [[{ "node": "Limit Token Patch", "type": "main", "index": 0 }]] },
+    "Limit Token Patch": { "main": [[{ "node": "Re-read Before Submit", "type": "main", "index": 0 }]] },
+    "Re-read Before Submit": { "main": [[{ "node": "Require Canonical Owner Before Submit", "type": "main", "index": 0 }]] },
+    "Require Canonical Owner Before Submit": { "main": [[{ "node": "Token Hash Persisted", "type": "main", "index": 0 }]] },
+    "Token Hash Persisted": { "main": [[{ "node": "Attach Callback URL", "type": "main", "index": 0 }], []] },
+    "Attach Callback URL": { "main": [[{ "node": "Build VDS Payload", "type": "main", "index": 0 }]] },
+    "Build VDS Payload": { "main": [[{ "node": "Submit VDS Segment", "type": "main", "index": 0 }]] },
+    "Submit VDS Segment": { "main": [
+      [{ "node": "Classify ACK", "type": "main", "index": 0 }],
+      [{ "node": "Mark Transport Outcome", "type": "main", "index": 0 }]
+    ] },
+    "Mark Transport Outcome": { "main": [[{ "node": "Classify ACK", "type": "main", "index": 0 }]] },
+    "Classify ACK": { "main": [[{ "node": "Is Accepted", "type": "main", "index": 0 }]] },
+    "Is Accepted": { "main": [
+      [{ "node": "Patch Accepted", "type": "main", "index": 0 }],
+      [{ "node": "Is Retry Pending", "type": "main", "index": 0 }]
+    ] },
+    "Is Retry Pending": { "main": [
+      [{ "node": "Patch Retry Pending", "type": "main", "index": 0 }],
+      [{ "node": "Is Failed", "type": "main", "index": 0 }]
+    ] },
+    "Is Failed": { "main": [
+      [{ "node": "Patch Failed", "type": "main", "index": 0 }],
+      [{ "node": "Patch Manual Review", "type": "main", "index": 0 }]
+    ] },
+    "Patch Accepted": { "main": [[{ "node": "Limit Accepted Patch", "type": "main", "index": 0 }]] },
+    "Limit Accepted Patch": { "main": [[{ "node": "Re-read Final State", "type": "main", "index": 0 }]] },
+    "Patch Retry Pending": { "main": [[{ "node": "Limit Retry Pending Patch", "type": "main", "index": 0 }]] },
+    "Limit Retry Pending Patch": { "main": [[{ "node": "Re-read Final State", "type": "main", "index": 0 }]] },
+    "Patch Failed": { "main": [[{ "node": "Limit Failed Patch", "type": "main", "index": 0 }]] },
+    "Limit Failed Patch": { "main": [[{ "node": "Re-read Final State", "type": "main", "index": 0 }]] },
+    "Patch Manual Review": { "main": [[{ "node": "Limit Manual Review Patch", "type": "main", "index": 0 }]] },
+    "Limit Manual Review Patch": { "main": [[{ "node": "Re-read Final State", "type": "main", "index": 0 }]] },
+    "Re-read Final State": { "main": [[{ "node": "Verify Final State", "type": "main", "index": 0 }]] },
+    "Verify Final State": { "main": [[{ "node": "Needs Final State Fallback", "type": "main", "index": 0 }]] },
+    "Needs Final State Fallback": { "main": [
+      [{ "node": "Patch Final State Unconfirmed", "type": "main", "index": 0 }],
+      []
+    ] },
+    "Patch Final State Unconfirmed": { "main": [[{ "node": "Limit Final State Fallback", "type": "main", "index": 0 }]] },
+    "Limit Final State Fallback": { "main": [[{ "node": "Re-read Final Fallback", "type": "main", "index": 0 }]] },
+    "Re-read Final Fallback": { "main": [[{ "node": "Verify Final Fallback", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  }
+}
