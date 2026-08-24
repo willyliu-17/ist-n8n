@@ -1,0 +1,6240 @@
+{
+  "id": "AutoRepairV3A001",
+  "name": "Automation: retry and repair v3",
+  "description": "Inactive bounded repair scheduler. Automatic runs never resolve manual review; a separately approved Production entrypoint is required. Fire-and-forget calls are not asserted to be idempotent.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "99e35008-692e-42c3-a5e0-0024b5d7fd38",
+      "name": "Schedule Repair Tick",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [];"
+      },
+      "id": "154e2b76-9a81-4cab-8e22-62280bd76f0a",
+      "name": "Repair Side Effect Sink",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5040,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "dispatching"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "aa8aeb55-842c-47af-ad5b-90f7585dfb11",
+      "name": "Read Expired Dispatch Candidates",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        -400
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'bounded:expired_dispatch_lease' } }));"
+      },
+      "id": "a1f1c001-0001-4001-8001-000000000001",
+      "name": "Tag Expired Dispatch Bounded Scan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "a1f1c002-0002-4002-8002-000000000002",
+      "name": "Plan Bounded Expired Dispatch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind }}",
+              "rightValue": "candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1f1c003-0003-4003-8003-000000000003",
+      "name": "Route Bounded Expired Dispatch",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "261a7d21-9f41-4dbf-82b6-76d710d1e4e0",
+      "name": "Limit Expired Dispatch Candidates 50",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        840,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "f64d5a66-32dc-4cd8-a191-73a9d8bfc122",
+      "name": "Re-read Expired Dispatch Attempt",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        -400
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "a1f1c000-0001-4000-8000-000000000001",
+      "name": "Merge Expired Dispatch Candidate And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1050,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const candidate = $input.all().map(({ json }) => json).find((r) => r && r.kind === 'candidate') || {};\nconst nowIso = candidate.nowIso || new Date().toISOString();\nconst rawRows = $input.all().map(({ json }) => json).filter((r) => r && r.id && r.kind !== 'candidate');\nreturn rawRows.map((row) => ({ json: { ...row, nowIso, repairMode: 'actual:expired_dispatch' } }));"
+      },
+      "id": "a1f1c004-0004-4004-8004-000000000004",
+      "name": "Tag Expired Dispatch Actual Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "a1f1c005-0005-4005-8005-000000000005",
+      "name": "Plan Expired Dispatch Actual",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1260,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.plan.filters.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.plan.filters.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "dispatching"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.plan.filters.canonicalRowID }}"
+            },
+            {
+              "keyName": "dispatchLeaseOwner",
+              "condition": "eq",
+              "keyValue": "={{ $json.plan.filters.dispatchLeaseOwner }}"
+            },
+            {
+              "keyName": "dispatchLeaseUntilIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.plan.filters.dispatchLeaseUntilIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $json.plan.desired.status }}",
+            "manualReviewReason": "={{ $json.plan.desired.manualReviewReason }}",
+            "manualReviewAtIso": "={{ $json.plan.desired.manualReviewAtIso }}",
+            "dispatchLeaseOwner": "",
+            "dispatchLeaseUntilIso": "",
+            "updatedAtIso": "={{ $json.plan.desired.updatedAtIso }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a07d4850-ce7f-43dd-9a4e-d6af9acdbc9d",
+      "name": "Freeze Expired Dispatch Manual Review",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1400,
+        -400
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "2ecb7287-6dd8-4ce4-a856-f1d8a04aea3d",
+      "name": "Limit Expired Dispatch Patch",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "971263a6-750f-41ca-89ae-10e3fd20db90",
+      "name": "Verify Expired Dispatch Manual Review",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        -400
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "waiting_callback"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "12f6d8ad-4514-4871-8b47-c4319a8954a8",
+      "name": "Read Callback Deadline Candidates",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        -280
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'bounded:callback_deadline' } }));"
+      },
+      "id": "a1f1c006-0006-4006-8006-000000000006",
+      "name": "Tag Callback Deadline Bounded Scan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "a1f1c007-0007-4007-8007-000000000007",
+      "name": "Plan Bounded Callback Deadline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind }}",
+              "rightValue": "candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1f1c008-0008-4008-8008-000000000008",
+      "name": "Route Bounded Callback Deadline",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "82ee8f6c-b37d-42f2-b79e-b344768c963d",
+      "name": "Limit Callback Deadline Candidates 50",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        840,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "becc3a6f-314a-4fca-bbb4-8e62e2b7d8ae",
+      "name": "Re-read Callback Deadline Attempt",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        -280
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "a1f1c000-0002-4000-8000-000000000002",
+      "name": "Merge Callback Deadline Candidate And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1050,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const candidate = $input.all().map(({ json }) => json).find((r) => r && r.kind === 'candidate') || {};\nconst nowIso = candidate.nowIso || new Date().toISOString();\nconst rawRows = $input.all().map(({ json }) => json).filter((r) => r && r.id && r.kind !== 'candidate');\nreturn rawRows.map((row) => ({ json: { ...row, nowIso, repairMode: 'actual:callback_deadline' } }));"
+      },
+      "id": "a1f1c009-0009-4009-8009-000000000009",
+      "name": "Tag Callback Deadline Actual Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "a1f1c010-0010-4010-8010-000000000010",
+      "name": "Plan Callback Deadline Actual",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1260,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.plan.filters.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.plan.filters.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "waiting_callback"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.plan.filters.canonicalRowID }}"
+            },
+            {
+              "keyName": "callbackDeadlineAtIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.plan.filters.callbackDeadlineAtIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $json.plan.desired.status }}",
+            "errorCode": "={{ $json.plan.desired.errorCode }}",
+            "nextRetryAtIso": "={{ $json.plan.desired.nextRetryAtIso }}",
+            "updatedAtIso": "={{ $json.plan.desired.updatedAtIso }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "5f81e15e-8b41-4143-b0b8-d8a50eab6f96",
+      "name": "Patch Callback Deadline",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1400,
+        -280
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "44dd3ea7-80ed-4392-8e70-713806b0e879",
+      "name": "Limit Callback Deadline Patch",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "704377ad-6bb1-4bb4-af57-881912b4bc0c",
+      "name": "Verify Callback Deadline Patch",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        -280
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": []
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "3ec0b99c-41dd-4d4f-9048-cbf1a92077de",
+      "name": "Read Retry Materialization Candidates",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        -120
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'bounded:retry_materialization' } }));"
+      },
+      "id": "e5c322b4-107b-4ee8-a5ae-2a1ccd324d40",
+      "name": "Tag Retry Materialization Bounded Scan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "145f5830-caaa-4770-9a03-95617d8e18b0",
+      "name": "Plan Bounded Retry Materialization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind }}",
+              "rightValue": "candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "466795a7-13ac-4a7f-9257-7da4f8ee6c82",
+      "name": "Route Bounded Retry Materialization",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "c72b28ce-7d3e-45d5-85ce-d997ecc5a616",
+      "name": "Limit Retry Materialization Candidates 50",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        840,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "d8120eb3-4d8b-4f2a-9e43-cb8f3dcdb0e4",
+      "name": "Read Retry Same Attempt",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        -120
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "731ce2a7-7b00-47c9-9754-cb5ce8905756",
+      "name": "Read Retry Summary Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1140,
+        -60
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "16ff7ba7-8966-4c67-9ab2-3dbecef81dac",
+      "name": "Merge Retry Claim Attempt And Summary",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1300,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_claim' } }));"
+      },
+      "id": "a1f1c000-0003-4000-8000-000000000003",
+      "name": "Tag Retry Claim",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1370,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "1a1d1fe3-453f-4979-b637-1b39b54dd043",
+      "name": "Plan Exact Retry Claim",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, __planCarrier: true, __planPhase: 'retry-claim', repairMode: 'retry_verify_claim' } }));"
+      },
+      "id": "263774d4-66e1-441f-95e0-b3c2c8e8cb83",
+      "name": "Carry Retry Claim Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.status }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.canonicalRowID }}"
+            },
+            {
+              "keyName": "nextRetryAtIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.nextRetryAtIso }}"
+            },
+            {
+              "keyName": "retryLeaseOwner",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.retryLeaseOwner }}"
+            },
+            {
+              "keyName": "retryLeaseUntilIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.retryLeaseUntilIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "retry_materializing",
+            "retryLeaseOwner": "={{ $json.leaseOwner }}",
+            "retryLeaseUntilIso": "={{ $json.retryLeaseUntilIso }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "eec54b19-3b71-46ef-a74b-c9cc6ebd0dd1",
+      "name": "Claim Retry Materialization Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1740,
+        -180
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "a95e57b6-d77e-4ecd-bebe-6ce8a5b455ea",
+      "name": "Limit Retry Claim",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "091181e5-f980-44cf-8efc-dae5f3957933",
+      "name": "Re-read Retry Claim Owner",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2060,
+        -180
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "1f34ec78-adf6-4c09-8924-bf9e8b8772d5",
+      "name": "Merge Retry Claim Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2220,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_claim' } }));"
+      },
+      "id": "a1f1c000-0004-4000-8000-000000000004",
+      "name": "Tag Verify Retry Claim Owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "7590b7f1-dd60-4f52-a4a2-e3c2efcb076d",
+      "name": "Verify Retry Claim Owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2380,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.nextAttemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "1ded44d5-6686-4dd4-8bc0-ebfbbf22fc04",
+      "name": "Read Next Retry Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2540,
+        -180
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "19709787-05f8-4f83-8f6b-438274ca4466",
+      "name": "Merge Retry Next Carrier And Rows",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2700,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.oldAttempt ? $json.oldAttempt.requestKey : $json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "03781ebb-79ef-49be-93c7-f6449f68f4a5",
+      "name": "Read Next Retry Summary Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2860,
+        -60
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "fc73ff56-4ae5-43cf-9c0e-1cf49bfae27b",
+      "name": "Merge Retry Next Context And Summary",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3020,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_plan_next' } }));"
+      },
+      "id": "a1f1c000-0005-4000-8000-000000000005",
+      "name": "Tag Next Retry Attempt Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3090,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "4e3d9b73-ff35-49fe-a3f0-23a21bc0d871",
+      "name": "Plan Next Retry Attempt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3160,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.nextPlan.action }}",
+              "rightValue": "insert",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9f6ba8e1-34a0-4e64-bcb8-b773a64c37eb",
+      "name": "Route Next Retry Insert",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3320,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json.expectedNext, ...json, __planCarrier: true, __planPhase: 'retry-next-insert', repairMode: 'retry_verify_next' } }));"
+      },
+      "id": "57a9b095-e3e1-4851-b81f-9d6326c7eb42",
+      "name": "Carry Next Retry Insert Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3500,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "attemptKey": "={{ $json.attemptKey }}",
+            "logicalJobKey": "={{ $json.logicalJobKey }}",
+            "requestKey": "={{ $json.requestKey }}",
+            "requestType": "={{ $json.requestType }}",
+            "attempt": "={{ $json.attempt }}",
+            "role": "={{ $json.role }}",
+            "streamID": "={{ $json.streamID }}",
+            "mode": "={{ $json.mode }}",
+            "durationMinutes": "={{ $json.durationMinutes }}",
+            "streamContextJson": "={{ $json.streamContextJson }}",
+            "status": "queued",
+            "callbackTokenHash": "",
+            "reconciliationStatus": "pending",
+            "canonicalRowID": "",
+            "dispatchLeaseOwner": "",
+            "dispatchLeaseUntilIso": "",
+            "submittedAtIso": "",
+            "callbackDeadlineAtIso": "",
+            "manualReviewReason": "",
+            "manualReviewAtIso": "",
+            "manualReviewResolution": "",
+            "callbackTokenExpiresAtIso": "",
+            "consumedAtIso": "",
+            "channel": "={{ $json.channel }}",
+            "threadTS": "={{ $json.threadTS }}",
+            "processingMessageTS": "={{ $json.processingMessageTS }}",
+            "dialogue": "",
+            "language": "",
+            "errorCode": "",
+            "nextRetryAtIso": "",
+            "retryLeaseOwner": "",
+            "retryLeaseUntilIso": "",
+            "duplicateCount": 0,
+            "presentationStatus": "pending",
+            "presentationLeaseOwner": "",
+            "presentationLeaseUntilIso": "",
+            "presentationAttempt": 0,
+            "presentationNextRetryAtIso": "",
+            "presentationErrorCode": "",
+            "transcriptUploadID": "",
+            "analysisUploadID": "",
+            "processingMessageUpdatedAtIso": "",
+            "createdAtIso": "={{ $now.toUTC().toISO() }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ac7251b3-25db-4d14-89ef-2296a36ff86d",
+      "name": "Insert Next Retry Attempt",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3680,
+        -320
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "b84e3eb0-0b4f-4386-8dc0-2a733b0043ef",
+      "name": "Limit Next Retry Insert",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        3840,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "199fff67-8957-451e-87f7-ecdd231e4dc4",
+      "name": "Re-read Next Retry Insert Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4000,
+        -320
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "c1cd6bd3-32ba-4926-89c7-d6b56df44a12",
+      "name": "Merge Insert Retry Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4180,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_next' } }));"
+      },
+      "id": "a1f1c000-0006-4000-8000-000000000006",
+      "name": "Tag Verify Next Retry Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4400,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.nextPlan.action }}",
+              "rightValue": "reconcile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bd92ffe2-4c92-4404-92a9-85a99bdf71b9",
+      "name": "Route Next Retry Reconcile",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3500,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().flatMap(({ json }) => (json.nextPlan.mutations || []).map((mutation) => ({ json: { ...json, mutation, __planCarrier: true, __planPhase: 'retry-next-reconcile', repairMode: 'retry_verify_next' } })));"
+      },
+      "id": "f88586ea-c0cb-413b-8fbf-f83835e3baa8",
+      "name": "Carry Next Retry Reconcile Mutations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3680,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedReconciliationStatus }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedCanonicalRowID }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "={{ $json.mutation.desiredReconciliationStatus }}",
+            "canonicalRowID": "={{ $json.mutation.desiredCanonicalRowID }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ee2ec84c-b299-476d-bf57-c0ef6840f0bf",
+      "name": "Reconcile Next Retry Attempt Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3840,
+        -160
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "f31f1121-40d3-4a0b-b32e-2f2aae1b4bb1",
+      "name": "Limit Next Retry Reconciliation",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "3c258313-6b7d-4f43-99c6-13aaa8c6d468",
+      "name": "Re-read Reconcile Next Retry Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4160,
+        -160
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "eab41ab3-f954-42e8-b7fa-7784f9d176d9",
+      "name": "Merge Reconcile Retry Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4320,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_next' } }));"
+      },
+      "id": "a1f1c000-0007-4000-8000-000000000007",
+      "name": "Tag Verify Next Retry Reconcile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4480,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.nextPlan.action }}",
+              "rightValue": "manual_review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4a7a1e6d-9ece-4af0-b30b-4e6519aaea10",
+      "name": "Route Next Retry Manual Review",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3680,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().flatMap(({ json }) => (json.nextPlan.mutations || []).map((mutation) => ({ json: { ...json, mutation, __planCarrier: true, __planPhase: 'retry-next-freeze', repairMode: 'retry_verify_freeze' } })));"
+      },
+      "id": "42ba26f4-7c31-4093-8bb7-c7ee967dbb53",
+      "name": "Carry Next Retry Freeze Mutations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedCanonicalRowID }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "manual_review",
+            "manualReviewReason": "multiple_canonical_checkpoint_conflict",
+            "manualReviewAtIso": "={{ $now.toUTC().toISO() }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "3d0bda0a-638a-49e2-b1c3-a8e7f3c24e3d",
+      "name": "Freeze Next Retry Checkpoint Conflict Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4000,
+        -40
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "5d416f5c-9db4-49a3-baa1-06daf222fdb9",
+      "name": "Limit Next Retry Freeze",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        4160,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "cd086ecd-ed7e-4b64-af23-9d1203e53174",
+      "name": "Re-read Freeze Next Retry Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4320,
+        -40
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "05ed703e-21dd-4074-83a9-572155393774",
+      "name": "Merge Freeze Retry Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_freeze' } }));"
+      },
+      "id": "a1f1c000-0009-4000-8000-000000000009",
+      "name": "Tag Verify Next Retry Freeze",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "febf1202-5b9e-4902-a354-f5b1878fc15a",
+      "name": "Verify Next Retry Freeze",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.nextAttemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "d78350d6-ad83-44ea-ac48-000d5d2bdb95",
+      "name": "Re-read Ready Next Retry Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3840,
+        100
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "894b00dd-f47b-4970-a3d5-e3b0f9672277",
+      "name": "Merge Ready Next Retry Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4040,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_next' } }));"
+      },
+      "id": "a1f1c000-0008-4000-8000-000000000008",
+      "name": "Tag Verify Next Retry Ready",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4200,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "bad0352a-c6d7-4f5b-92fc-e4a079c68248",
+      "name": "Verify Next Retry Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4640,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_plan_old_transition' } }));"
+      },
+      "id": "a1f1c000-0010-4000-8000-000000000010",
+      "name": "Tag Plan Auto Retry Old Transition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4740,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "533c252b-9e5d-470c-9efa-ccc74d5967da",
+      "name": "Plan Auto Retry Old Transition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4840,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.transition.filters.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.transition.filters.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "retry_materializing"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.transition.filters.canonicalRowID }}"
+            },
+            {
+              "keyName": "retryLeaseOwner",
+              "condition": "eq",
+              "keyValue": "={{ $json.transition.filters.retryLeaseOwner }}"
+            },
+            {
+              "keyName": "retryLeaseUntilIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.transition.filters.retryLeaseUntilIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "retry_materialized",
+            "retryLeaseOwner": "",
+            "retryLeaseUntilIso": "",
+            "manualReviewResolution": "={{ $json.transition.desired.manualReviewResolution }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "8959f6bf-6ece-42d4-930d-c2cead055305",
+      "name": "Transition Old Retry Materialized Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5020,
+        -260
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "ec2ae664-a85d-488c-9f43-036199853e7a",
+      "name": "Limit Old Retry Transition",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        5180,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "18f4b30f-a283-48ed-baa4-1ba55eef2f9d",
+      "name": "Re-read Old Retry Transition",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5340,
+        -260
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.manualReviewResolution.slice('retry_created:'.length) }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "dd2b44b2-8eb5-4fd6-a59b-6bf583b20629",
+      "name": "Re-read Next Retry Transition",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5520,
+        -300
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "df1c71cb-1a4d-4a32-a2b0-c70ec728d45b",
+      "name": "Merge Old And Next Retry Rereads",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        5700,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "a0f3b6aa-ee8a-4b3e-8985-82caa76c902e",
+      "name": "Merge Retry Old Carrier And Rereads",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        5880,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_old' } }));"
+      },
+      "id": "a1f1c000-0011-4000-8000-000000000011",
+      "name": "Tag Verify Auto Retry Old Transition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5970,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "f505d92f-cb26-4c4c-957c-a19bf473cafb",
+      "name": "Verify Auto Retry Old Transition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6060,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "aced86c1-7a87-4257-87aa-f20470145187",
+      "name": "Re-read Next Before Retry Dispatch",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        6240,
+        -200
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all().map(({ json }) => json).filter((row) => row && row.id);\nif (rows.length === 0) throw new Error('Retry dispatch preflight rows not found');\nconst canonicals = rows.filter((row) => row.reconciliationStatus === 'canonical' && row.canonicalRowID === row.id);\nif (canonicals.length !== 1) throw new Error('Retry dispatch preflight requires exactly one canonical');\nconst canonical = canonicals[0];\nif (canonical.status !== 'queued' || canonical.dispatchLeaseOwner !== '' || canonical.dispatchLeaseUntilIso !== '') throw new Error('Retry dispatch preflight failed');\nif (rows.some((row) => row.attemptKey !== canonical.attemptKey || (row.id !== canonical.id && (row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== canonical.id)))) throw new Error('Retry dispatch preflight row set mismatch');\nreturn [{ json: { attemptKey: canonical.attemptKey } }];"
+      },
+      "id": "b68467aa-46f5-466c-a476-4304685fd3f1",
+      "name": "Preflight Canonical Next Retry Dispatch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6420,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "STTDispatchV3A01",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/STTDispatchV3A01",
+          "cachedResultName": "STT: dispatch attempt v3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "attemptKey": "={{ $json.attemptKey }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "392169de-2356-4af8-8a8f-f1b0383e69bc",
+      "name": "Dispatch Canonical Next Retry Attempt",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        6600,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "creating"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "a9f8d74a-d406-467f-99b6-80d919b5a29e",
+      "name": "Read Creation Lease Candidates",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        80
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'bounded:creation_lease' } }));"
+      },
+      "id": "8dc439b2-2495-43a6-ad97-8a770e72953f",
+      "name": "Tag Creation Lease Bounded Scan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "411a886b-0656-4ce6-817f-10c71d54d520",
+      "name": "Plan Bounded Creation Lease",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind }}",
+              "rightValue": "candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "333f3d65-6f69-47cb-92a4-30bbfbd9f9da",
+      "name": "Route Bounded Creation Lease",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "99a90d6a-f6af-449a-b99c-67aef9ca5158",
+      "name": "Limit Creation Lease Candidates 50",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        840,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "b43e0d90-a04d-420b-8bdf-3e4c411b6f57",
+      "name": "Re-read Creating Request",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        80
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "c1f1c001-0001-4001-8001-000000000001",
+      "name": "Read Creation Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1140,
+        140
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "c1f1c002-0002-4002-8002-000000000002",
+      "name": "Merge Creation Request And Attempts",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1300,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'creation_preflight' } }));"
+      },
+      "id": "a1f1c000-0012-4000-8000-000000000012",
+      "name": "Tag Preflight Creation Orchestrator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1370,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "1a0e7275-ef33-49fb-b345-534166525c2b",
+      "name": "Preflight Creation Orchestrator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "SummaryOrchV3A01",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/SummaryOrchV3A01",
+          "cachedResultName": "Summary: orchestrate request v3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "requestKey": "={{ $json.requestKey }}",
+            "requestType": "={{ $json.requestType }}",
+            "orderedStreams": "={{ $json.orderedStreams }}",
+            "existingDialogues": "={{ $json.existingDialogues }}",
+            "channel": "={{ $json.channel }}",
+            "threadTS": "={{ $json.threadTS }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "c0b5b813-fd09-4929-b2ca-669cd5d29984",
+      "name": "Resume Creating Request Orchestrator",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1600,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "ready"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "91bd1ec4-d7e0-4f1a-9dc2-0d64bb9e6e38",
+      "name": "Read Summary Missed Event Candidates",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        200
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'bounded:summary_lease' } }));"
+      },
+      "id": "db9fa160-92fe-4186-896c-e95f96e4bf40",
+      "name": "Tag Summary Missed Event Bounded Scan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "9695c1dc-3375-483a-b754-c40b838ecdcc",
+      "name": "Plan Bounded Summary Missed Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind }}",
+              "rightValue": "candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "26eb1ea2-a2a6-465b-85ee-014248243a65",
+      "name": "Route Bounded Summary Missed Event",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "f6a07599-0696-4a6e-8562-5306132a16cf",
+      "name": "Limit Summary Missed Event Candidates 50",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        840,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "aa2e40f8-8644-4796-86c9-c2c568c6ef5f",
+      "name": "Re-read Summary Missed Event",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        200
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "b1f1c001-0001-4001-8001-000000000001",
+      "name": "Read Summary Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1140,
+        260
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "b1f1c002-0002-4002-8002-000000000002",
+      "name": "Merge Summary Request And Attempts",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'summary_preflight' } }));"
+      },
+      "id": "a1f1c000-0013-4000-8000-000000000013",
+      "name": "Tag Preflight Summary Coordinator Call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1370,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "ab4f29f8-ee52-4dfd-8a1b-9b680a9f5d42",
+      "name": "Preflight Summary Coordinator Call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "SummaryCoordV3A1",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/SummaryCoordV3A1",
+          "cachedResultName": "Summary: coordinator v3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "requestKey": "={{ $json.requestKey }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "1844b1d8-d6dd-4cdd-84c7-3d1ed8105887",
+      "name": "Run Summary Coordinator Missed Event",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "completed"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "36d876ac-ce7f-4f96-b249-124323f8dc78",
+      "name": "Read Presentation Repair Candidates",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        320
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'bounded:presentation_lease' } }));"
+      },
+      "id": "a7756af3-851d-4148-ae05-042617c05357",
+      "name": "Tag Presentation Repair Bounded Scan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "f77e4951-99f6-4bbc-8297-3142dc37ed11",
+      "name": "Plan Bounded Presentation Repair",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind }}",
+              "rightValue": "candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0a066a7a-696b-4898-9081-7b4c359c6090",
+      "name": "Route Bounded Presentation Repair",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "839af1ce-2143-4a79-8cb1-60987399063d",
+      "name": "Limit Presentation Repair Candidates 50",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        840,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "0e2a77da-3df1-482c-9641-73cc7a3a5841",
+      "name": "Re-read Presentation Repair Attempt",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        320
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "a3f1c001-0001-4001-8001-000000000001",
+      "name": "Read Presentation Summary Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1140,
+        380
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "a3f1c002-0002-4002-8002-000000000002",
+      "name": "Merge Presentation Attempt And Summary",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1300,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'presentation_plan' } }));"
+      },
+      "id": "a1f1c000-0014-4000-8000-000000000014",
+      "name": "Tag Plan Presentation Repair",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1370,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "832ebd3f-bbb8-4beb-bccc-aec1da7e13a2",
+      "name": "Plan Presentation Repair",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "completed"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.canonicalRowID }}"
+            },
+            {
+              "keyName": "presentationStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.presentationStatus }}"
+            },
+            {
+              "keyName": "presentationAttempt",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.presentationAttempt }}"
+            },
+            {
+              "keyName": "presentationLeaseOwner",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.presentationLeaseOwner }}"
+            },
+            {
+              "keyName": "presentationLeaseUntilIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.presentationLeaseUntilIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "presentationStatus": "pending",
+            "presentationLeaseOwner": "",
+            "presentationLeaseUntilIso": "",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a3f1c003-0003-4003-8003-000000000003",
+      "name": "Patch Presentation Repair",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1600,
+        280
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "a3f1c004-0004-4004-8004-000000000004",
+      "name": "Limit Presentation Repair Patch",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "a3f1c005-0005-4005-8005-000000000005",
+      "name": "Re-read Presentation Repair Patch",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1920,
+        280
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "a3f1c006-0006-4006-8006-000000000006",
+      "name": "Merge Presentation Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2080,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'presentation_verify' } }));"
+      },
+      "id": "a1f1c000-0015-4000-8000-000000000015",
+      "name": "Tag Verify Presentation Repair",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "a3f1c007-0007-4007-8007-000000000007",
+      "name": "Verify Presentation Repair",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "STTListenerV3A01",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/STTListenerV3A01",
+          "cachedResultName": "STT result listener v3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "attemptKey": "={{ $json.attemptKey }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "81fcf514-ebf7-42e2-a324-e08eb3962269",
+      "name": "Run Presentation Owner Repair",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2400,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "pending"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "1ed2952d-1873-4dc1-8537-7b25284fe542",
+      "name": "Read Duplicate Key Candidates",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        440
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'bounded:duplicate_deterministic_keys' } }));"
+      },
+      "id": "3c4083ea-29b1-4028-ac3b-a553200a2d4c",
+      "name": "Tag Duplicate Key Bounded Scan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "3e0747f8-9a0d-42ac-8927-767ead2a1b5d",
+      "name": "Plan Bounded Duplicate Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind }}",
+              "rightValue": "candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d849d253-4848-4a32-a148-401ebd3d7c03",
+      "name": "Route Bounded Duplicate Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "771c5307-a1d2-4582-b47d-cb2d9cbf9592",
+      "name": "Limit Duplicate Key Candidates 50",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        840,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "d1f1c001-0001-4001-8001-000000000001",
+      "name": "Re-read Duplicate Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        440
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "d1f1c002-0002-4002-8002-000000000002",
+      "name": "Read Duplicate Summary Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1140,
+        500
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "d1f1c003-0003-4003-8003-000000000003",
+      "name": "Merge Duplicate Attempt And Summary",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1300,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'duplicate_plan' } }));"
+      },
+      "id": "a1f1c000-0016-4000-8000-000000000016",
+      "name": "Tag Plan Duplicate Key Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1370,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "d1f1c004-0004-4004-8004-000000000004",
+      "name": "Plan Duplicate Key Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "reconcile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d1f1c005-0005-4005-8005-000000000005",
+      "name": "Route Duplicate Key Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedReconciliationStatus }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedCanonicalRowID }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "={{ $json.mutation.desiredReconciliationStatus }}",
+            "canonicalRowID": "={{ $json.mutation.desiredCanonicalRowID }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "d1f1c006-0006-4006-8006-000000000006",
+      "name": "Reconcile Duplicate Attempt Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1780,
+        400
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "d1f1c007-0007-4007-8007-000000000007",
+      "name": "Limit Duplicate Reconciliation",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1940,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedCanonicalRowID }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "manual_review",
+            "manualReviewReason": "multiple_canonical_checkpoint_conflict",
+            "manualReviewAtIso": "={{ $now.toUTC().toISO() }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "d1f1c008-0008-4008-8008-000000000008",
+      "name": "Freeze Duplicate Checkpoint Conflict Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1780,
+        480
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "d1f1c009-0009-4009-8009-000000000009",
+      "name": "Limit Duplicate Freeze",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1940,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "d1f1c010-0010-4010-8010-000000000010",
+      "name": "Re-read Duplicate Attempt Rows After Mutation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2100,
+        440
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "d1f1c011-0011-4011-8011-000000000011",
+      "name": "Merge Duplicate Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2260,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'duplicate_verify' } }));"
+      },
+      "id": "a1f1c000-0017-4000-8000-000000000017",
+      "name": "Tag Verify Duplicate Key Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "d1f1c012-0012-4012-8012-000000000012",
+      "name": "Verify Duplicate Key Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "automation_errors_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "499e7943-c5d0-4d31-bd34-e9f105349ac2",
+      "name": "Read Cap Error Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        720
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "0e7709fb-efb0-45b2-842b-517accf37adc",
+      "name": "Merge Cap Error Carrier And Rows",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1140,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'cap_error_rows' } }));"
+      },
+      "id": "a1f1c000-0018-4000-8000-000000000018",
+      "name": "Tag Plan Cap Error Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "bb1c51b3-9371-430c-bc26-e63905ceffe9",
+      "name": "Plan Cap Error Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3041641d-d922-4178-ab47-a579af1c24b5",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "insert_pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "55d3b7a4-955d-445d-bfe2-05488168f8e3",
+      "name": "Is Absent Cap Error",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1460,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "automation_errors_v3"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "errorKey": "={{ $json.errorKey }}",
+            "component": "={{ $json.component }}",
+            "reconciliationStatus": "pending",
+            "canonicalRowID": "",
+            "requestKey": "={{ $json.requestKey }}",
+            "logicalJobKey": "={{ $json.logicalJobKey }}",
+            "attemptKey": "={{ $json.attemptKey }}",
+            "executionID": "={{ $json.executionID }}",
+            "workflowName": "={{ $json.workflowName }}",
+            "nodeName": "={{ $json.nodeName }}",
+            "errorCode": "={{ $json.errorCode }}",
+            "messageMasked": "={{ $json.messageMasked }}",
+            "retryable": "={{ $json.retryable }}",
+            "createdAtIso": "={{ $json.createdAtIso }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "da669cf5-d500-4239-a4a5-4925d49a1107",
+      "name": "Insert Pending Cap Error",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1660,
+        480
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "396e0c90-0dac-45e4-b48e-b22c6b043d28",
+      "name": "Limit Pending Cap Error Insert",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1820,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "automation_errors_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "ea6131ee-694e-45c7-8dae-d26b5df2e721",
+      "name": "Re-read After Pending Cap Error Insert",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        480
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'pending_cap_canonical' } }));"
+      },
+      "id": "a1f1c000-0019-4000-8000-000000000019",
+      "name": "Tag Plan Pending Cap Error Canonical",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2060,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "2aa88610-0548-4172-bdd6-0f0b623be33e",
+      "name": "Plan Pending Cap Error Canonical",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2140,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "automation_errors_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedCanonicalRowID }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}",
+            "canonicalRowID": "={{ $json.desiredCanonicalRowID }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "13df20a3-5b55-4cad-99af-c55105b4a363",
+      "name": "Canonicalize Pending Cap Error",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2300,
+        480
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "e72fb76a-148e-4dfd-b2fb-0d6c102c98d5",
+      "name": "Limit Pending Cap Error Canonical",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        2460,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "automation_errors_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "2b34a6c2-88ae-46f8-8d40-3732c2f3e7b6",
+      "name": "Re-read Pending Cap Error Canonical",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2620,
+        480
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'verify_cap_reconciliation' } }));"
+      },
+      "id": "a1f1c000-0020-4000-8000-000000000020",
+      "name": "Tag Verify Pending Cap Error Canonical",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2700,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "a1f1c000-0021-4000-8000-000000000021",
+      "name": "Verify Pending Cap Error Canonical",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2780,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b469abe2-239c-45e8-a043-fbf2d75cbc18",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "reconcile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5aa14640-10f3-4bef-bb22-19fd816a9426",
+      "name": "Needs Cap Error Reconciliation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1660,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "automation_errors_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedCanonicalRowID }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}",
+            "canonicalRowID": "={{ $json.desiredCanonicalRowID }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "fbbec586-eaef-404b-950f-58683b0f50e5",
+      "name": "Reconcile Cap Error Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1860,
+        640
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "85bc87c4-8e74-4066-9375-2c97b787d6c6",
+      "name": "Limit Cap Error Reconciliation",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        2020,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "automation_errors_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "bff63301-42be-41a9-8d33-a82f0710127e",
+      "name": "Re-read After Cap Error Reconciliation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2180,
+        640
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'verify_cap_reconciliation' } }));"
+      },
+      "id": "a1f1c000-0022-4000-8000-000000000022",
+      "name": "Tag Verify Cap Error Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2260,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "52fd9062-f3aa-4435-a1b4-c0999c864ad8",
+      "name": "Verify Cap Error Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "automation_errors_v3"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "errorKey": "={{ $json.errorKey }}",
+            "component": "={{ $json.component }}",
+            "reconciliationStatus": "duplicate",
+            "canonicalRowID": "={{ $json.canonicalRowID }}",
+            "requestKey": "={{ $json.requestKey }}",
+            "logicalJobKey": "={{ $json.logicalJobKey }}",
+            "attemptKey": "={{ $json.attemptKey }}",
+            "executionID": "={{ $json.executionID }}",
+            "workflowName": "={{ $json.workflowName }}",
+            "nodeName": "={{ $json.nodeName }}",
+            "errorCode": "={{ $json.errorCode }}",
+            "messageMasked": "={{ $json.messageMasked }}",
+            "retryable": "={{ $json.retryable }}",
+            "createdAtIso": "={{ $json.createdAtIso }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "390af45a-9f2e-40b3-839f-6b0e4ef796e6",
+      "name": "Insert Duplicate Cap Error",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2980,
+        720
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "63d1b591-7e96-415b-b81a-fe07ec591fcd",
+      "name": "Limit Duplicate Cap Error Insert",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        3140,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "automation_errors_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "b60e5f0e-e82f-4982-8961-2fc42ff6eaa5",
+      "name": "Re-read Duplicate Cap Error",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3300,
+        720
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'verify_duplicate_cap' } }));"
+      },
+      "id": "a1f1c000-0023-4000-8000-000000000023",
+      "name": "Tag Verify Duplicate Cap Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3380,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "400bbeba-dfa6-44db-b94f-feb6cca3e837",
+      "name": "Verify Duplicate Cap Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3460,
+        720
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Repair Tick": {
+      "main": [
+        [
+          {
+            "node": "Read Expired Dispatch Candidates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Callback Deadline Candidates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Retry Materialization Candidates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Creation Lease Candidates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Summary Missed Event Candidates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Presentation Repair Candidates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Duplicate Key Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Expired Dispatch Candidates": {
+      "main": [
+        [
+          {
+            "node": "Tag Expired Dispatch Bounded Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Expired Dispatch Bounded Scan": {
+      "main": [
+        [
+          {
+            "node": "Plan Bounded Expired Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Bounded Expired Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Route Bounded Expired Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Bounded Expired Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Limit Expired Dispatch Candidates 50",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Cap Error Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Cap Error Carrier And Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Expired Dispatch Candidates 50": {
+      "main": [
+        [
+          {
+            "node": "Merge Expired Dispatch Candidate And Reread",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Re-read Expired Dispatch Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Expired Dispatch Attempt": {
+      "main": [
+        [
+          {
+            "node": "Merge Expired Dispatch Candidate And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Expired Dispatch Candidate And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Expired Dispatch Actual Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Expired Dispatch Actual Plan": {
+      "main": [
+        [
+          {
+            "node": "Plan Expired Dispatch Actual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Expired Dispatch Actual": {
+      "main": [
+        [
+          {
+            "node": "Freeze Expired Dispatch Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freeze Expired Dispatch Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Limit Expired Dispatch Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Expired Dispatch Patch": {
+      "main": [
+        [
+          {
+            "node": "Verify Expired Dispatch Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Expired Dispatch Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Repair Side Effect Sink",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Callback Deadline Candidates": {
+      "main": [
+        [
+          {
+            "node": "Tag Callback Deadline Bounded Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Callback Deadline Bounded Scan": {
+      "main": [
+        [
+          {
+            "node": "Plan Bounded Callback Deadline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Bounded Callback Deadline": {
+      "main": [
+        [
+          {
+            "node": "Route Bounded Callback Deadline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Bounded Callback Deadline": {
+      "main": [
+        [
+          {
+            "node": "Limit Callback Deadline Candidates 50",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Cap Error Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Cap Error Carrier And Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Callback Deadline Candidates 50": {
+      "main": [
+        [
+          {
+            "node": "Merge Callback Deadline Candidate And Reread",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Re-read Callback Deadline Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Callback Deadline Attempt": {
+      "main": [
+        [
+          {
+            "node": "Merge Callback Deadline Candidate And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Callback Deadline Candidate And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Callback Deadline Actual Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Callback Deadline Actual Plan": {
+      "main": [
+        [
+          {
+            "node": "Plan Callback Deadline Actual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Callback Deadline Actual": {
+      "main": [
+        [
+          {
+            "node": "Patch Callback Deadline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patch Callback Deadline": {
+      "main": [
+        [
+          {
+            "node": "Limit Callback Deadline Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Callback Deadline Patch": {
+      "main": [
+        [
+          {
+            "node": "Verify Callback Deadline Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Callback Deadline Patch": {
+      "main": [
+        [
+          {
+            "node": "Repair Side Effect Sink",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Retry Materialization Candidates": {
+      "main": [
+        [
+          {
+            "node": "Tag Retry Materialization Bounded Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Retry Materialization Bounded Scan": {
+      "main": [
+        [
+          {
+            "node": "Plan Bounded Retry Materialization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Bounded Retry Materialization": {
+      "main": [
+        [
+          {
+            "node": "Route Bounded Retry Materialization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Bounded Retry Materialization": {
+      "main": [
+        [
+          {
+            "node": "Limit Retry Materialization Candidates 50",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Cap Error Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Cap Error Carrier And Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Retry Materialization Candidates 50": {
+      "main": [
+        [
+          {
+            "node": "Read Retry Same Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Retry Same Attempt": {
+      "main": [
+        [
+          {
+            "node": "Read Retry Summary Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry Claim Attempt And Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Retry Summary Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry Claim Attempt And Summary",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Retry Claim Attempt And Summary": {
+      "main": [
+        [
+          {
+            "node": "Tag Retry Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Retry Claim": {
+      "main": [
+        [
+          {
+            "node": "Plan Exact Retry Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Exact Retry Claim": {
+      "main": [
+        [
+          {
+            "node": "Carry Retry Claim Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Retry Claim Plan": {
+      "main": [
+        [
+          {
+            "node": "Claim Retry Materialization Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry Claim Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Retry Materialization Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Retry Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Retry Claim": {
+      "main": [
+        [
+          {
+            "node": "Re-read Retry Claim Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Retry Claim Owner": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry Claim Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Retry Claim Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Retry Claim Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Retry Claim Owner": {
+      "main": [
+        [
+          {
+            "node": "Verify Retry Claim Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Retry Claim Owner": {
+      "main": [
+        [
+          {
+            "node": "Read Next Retry Attempt Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry Next Carrier And Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Next Retry Attempt Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry Next Carrier And Rows",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Retry Next Carrier And Rows": {
+      "main": [
+        [
+          {
+            "node": "Read Next Retry Summary Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry Next Context And Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Next Retry Summary Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry Next Context And Summary",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Retry Next Context And Summary": {
+      "main": [
+        [
+          {
+            "node": "Tag Next Retry Attempt Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Next Retry Attempt Plan": {
+      "main": [
+        [
+          {
+            "node": "Plan Next Retry Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Next Retry Attempt": {
+      "main": [
+        [
+          {
+            "node": "Route Next Retry Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Next Retry Insert": {
+      "main": [
+        [
+          {
+            "node": "Carry Next Retry Insert Plan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Next Retry Reconcile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Next Retry Insert Plan": {
+      "main": [
+        [
+          {
+            "node": "Insert Next Retry Attempt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Insert Retry Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Next Retry Attempt": {
+      "main": [
+        [
+          {
+            "node": "Limit Next Retry Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Next Retry Insert": {
+      "main": [
+        [
+          {
+            "node": "Re-read Next Retry Insert Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Next Retry Insert Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Insert Retry Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Insert Retry Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Next Retry Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Next Retry Insert": {
+      "main": [
+        [
+          {
+            "node": "Verify Next Retry Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Next Retry Reconcile": {
+      "main": [
+        [
+          {
+            "node": "Carry Next Retry Reconcile Mutations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Next Retry Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Next Retry Reconcile Mutations": {
+      "main": [
+        [
+          {
+            "node": "Reconcile Next Retry Attempt Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Reconcile Retry Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reconcile Next Retry Attempt Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Next Retry Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Next Retry Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Re-read Reconcile Next Retry Attempt Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Reconcile Next Retry Attempt Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Reconcile Retry Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Reconcile Retry Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Next Retry Reconcile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Next Retry Reconcile": {
+      "main": [
+        [
+          {
+            "node": "Verify Next Retry Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Next Retry Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Carry Next Retry Freeze Mutations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Re-read Ready Next Retry Attempt Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Ready Next Retry Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Next Retry Freeze Mutations": {
+      "main": [
+        [
+          {
+            "node": "Freeze Next Retry Checkpoint Conflict Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Freeze Retry Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freeze Next Retry Checkpoint Conflict Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Next Retry Freeze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Next Retry Freeze": {
+      "main": [
+        [
+          {
+            "node": "Re-read Freeze Next Retry Attempt Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Freeze Next Retry Attempt Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Freeze Retry Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Freeze Retry Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Next Retry Freeze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Next Retry Freeze": {
+      "main": [
+        [
+          {
+            "node": "Verify Next Retry Freeze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Next Retry Freeze": {
+      "main": [
+        [
+          {
+            "node": "Repair Side Effect Sink",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Ready Next Retry Attempt Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Ready Next Retry Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Ready Next Retry Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Next Retry Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Next Retry Ready": {
+      "main": [
+        [
+          {
+            "node": "Verify Next Retry Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Next Retry Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Tag Plan Auto Retry Old Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Plan Auto Retry Old Transition": {
+      "main": [
+        [
+          {
+            "node": "Plan Auto Retry Old Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Auto Retry Old Transition": {
+      "main": [
+        [
+          {
+            "node": "Transition Old Retry Materialized Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry Old Carrier And Rereads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transition Old Retry Materialized Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Old Retry Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Old Retry Transition": {
+      "main": [
+        [
+          {
+            "node": "Re-read Old Retry Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Old Retry Transition": {
+      "main": [
+        [
+          {
+            "node": "Re-read Next Retry Transition",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Old And Next Retry Rereads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Next Retry Transition": {
+      "main": [
+        [
+          {
+            "node": "Merge Old And Next Retry Rereads",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Old And Next Retry Rereads": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry Old Carrier And Rereads",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Retry Old Carrier And Rereads": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Auto Retry Old Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Auto Retry Old Transition": {
+      "main": [
+        [
+          {
+            "node": "Verify Auto Retry Old Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Auto Retry Old Transition": {
+      "main": [
+        [
+          {
+            "node": "Re-read Next Before Retry Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Next Before Retry Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Preflight Canonical Next Retry Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preflight Canonical Next Retry Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Dispatch Canonical Next Retry Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch Canonical Next Retry Attempt": {
+      "main": [
+        [
+          {
+            "node": "Repair Side Effect Sink",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Creation Lease Candidates": {
+      "main": [
+        [
+          {
+            "node": "Tag Creation Lease Bounded Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Creation Lease Bounded Scan": {
+      "main": [
+        [
+          {
+            "node": "Plan Bounded Creation Lease",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Bounded Creation Lease": {
+      "main": [
+        [
+          {
+            "node": "Route Bounded Creation Lease",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Bounded Creation Lease": {
+      "main": [
+        [
+          {
+            "node": "Limit Creation Lease Candidates 50",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Cap Error Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Cap Error Carrier And Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Creation Lease Candidates 50": {
+      "main": [
+        [
+          {
+            "node": "Re-read Creating Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Creating Request": {
+      "main": [
+        [
+          {
+            "node": "Read Creation Attempt Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Creation Request And Attempts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Creation Attempt Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Creation Request And Attempts",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Creation Request And Attempts": {
+      "main": [
+        [
+          {
+            "node": "Tag Preflight Creation Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Preflight Creation Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Preflight Creation Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preflight Creation Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Resume Creating Request Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume Creating Request Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Repair Side Effect Sink",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Summary Missed Event Candidates": {
+      "main": [
+        [
+          {
+            "node": "Tag Summary Missed Event Bounded Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Summary Missed Event Bounded Scan": {
+      "main": [
+        [
+          {
+            "node": "Plan Bounded Summary Missed Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Bounded Summary Missed Event": {
+      "main": [
+        [
+          {
+            "node": "Route Bounded Summary Missed Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Bounded Summary Missed Event": {
+      "main": [
+        [
+          {
+            "node": "Limit Summary Missed Event Candidates 50",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Cap Error Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Cap Error Carrier And Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Summary Missed Event Candidates 50": {
+      "main": [
+        [
+          {
+            "node": "Re-read Summary Missed Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Summary Missed Event": {
+      "main": [
+        [
+          {
+            "node": "Read Summary Attempt Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Summary Request And Attempts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Summary Attempt Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Summary Request And Attempts",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Summary Request And Attempts": {
+      "main": [
+        [
+          {
+            "node": "Tag Preflight Summary Coordinator Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Preflight Summary Coordinator Call": {
+      "main": [
+        [
+          {
+            "node": "Preflight Summary Coordinator Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preflight Summary Coordinator Call": {
+      "main": [
+        [
+          {
+            "node": "Run Summary Coordinator Missed Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Summary Coordinator Missed Event": {
+      "main": [
+        [
+          {
+            "node": "Repair Side Effect Sink",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Presentation Repair Candidates": {
+      "main": [
+        [
+          {
+            "node": "Tag Presentation Repair Bounded Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Presentation Repair Bounded Scan": {
+      "main": [
+        [
+          {
+            "node": "Plan Bounded Presentation Repair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Bounded Presentation Repair": {
+      "main": [
+        [
+          {
+            "node": "Route Bounded Presentation Repair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Bounded Presentation Repair": {
+      "main": [
+        [
+          {
+            "node": "Limit Presentation Repair Candidates 50",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Cap Error Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Cap Error Carrier And Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Presentation Repair Candidates 50": {
+      "main": [
+        [
+          {
+            "node": "Re-read Presentation Repair Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Presentation Repair Attempt": {
+      "main": [
+        [
+          {
+            "node": "Read Presentation Summary Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Presentation Attempt And Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Presentation Summary Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Presentation Attempt And Summary",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Presentation Attempt And Summary": {
+      "main": [
+        [
+          {
+            "node": "Tag Plan Presentation Repair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Plan Presentation Repair": {
+      "main": [
+        [
+          {
+            "node": "Plan Presentation Repair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Presentation Repair": {
+      "main": [
+        [
+          {
+            "node": "Patch Presentation Repair",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Presentation Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patch Presentation Repair": {
+      "main": [
+        [
+          {
+            "node": "Limit Presentation Repair Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Presentation Repair Patch": {
+      "main": [
+        [
+          {
+            "node": "Re-read Presentation Repair Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Presentation Repair Patch": {
+      "main": [
+        [
+          {
+            "node": "Merge Presentation Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Presentation Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Presentation Repair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Presentation Repair": {
+      "main": [
+        [
+          {
+            "node": "Verify Presentation Repair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Presentation Repair": {
+      "main": [
+        [
+          {
+            "node": "Run Presentation Owner Repair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Presentation Owner Repair": {
+      "main": [
+        [
+          {
+            "node": "Repair Side Effect Sink",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Duplicate Key Candidates": {
+      "main": [
+        [
+          {
+            "node": "Tag Duplicate Key Bounded Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Duplicate Key Bounded Scan": {
+      "main": [
+        [
+          {
+            "node": "Plan Bounded Duplicate Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Bounded Duplicate Key": {
+      "main": [
+        [
+          {
+            "node": "Route Bounded Duplicate Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Bounded Duplicate Key": {
+      "main": [
+        [
+          {
+            "node": "Limit Duplicate Key Candidates 50",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Cap Error Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Cap Error Carrier And Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Duplicate Key Candidates 50": {
+      "main": [
+        [
+          {
+            "node": "Re-read Duplicate Attempt Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Duplicate Attempt Rows": {
+      "main": [
+        [
+          {
+            "node": "Read Duplicate Summary Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Duplicate Attempt And Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Duplicate Summary Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Duplicate Attempt And Summary",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Duplicate Attempt And Summary": {
+      "main": [
+        [
+          {
+            "node": "Tag Plan Duplicate Key Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Plan Duplicate Key Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Plan Duplicate Key Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Duplicate Key Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Route Duplicate Key Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Duplicate Key Action": {
+      "main": [
+        [
+          {
+            "node": "Reconcile Duplicate Attempt Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Duplicate Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Freeze Duplicate Checkpoint Conflict Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Duplicate Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reconcile Duplicate Attempt Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Duplicate Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Duplicate Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Re-read Duplicate Attempt Rows After Mutation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freeze Duplicate Checkpoint Conflict Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Duplicate Freeze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Duplicate Freeze": {
+      "main": [
+        [
+          {
+            "node": "Re-read Duplicate Attempt Rows After Mutation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Duplicate Attempt Rows After Mutation": {
+      "main": [
+        [
+          {
+            "node": "Merge Duplicate Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Duplicate Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Duplicate Key Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Duplicate Key Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Verify Duplicate Key Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Duplicate Key Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Repair Side Effect Sink",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Cap Error Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Cap Error Carrier And Rows",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Cap Error Carrier And Rows": {
+      "main": [
+        [
+          {
+            "node": "Tag Plan Cap Error Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Plan Cap Error Rows": {
+      "main": [
+        [
+          {
+            "node": "Plan Cap Error Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Cap Error Rows": {
+      "main": [
+        [
+          {
+            "node": "Is Absent Cap Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Absent Cap Error": {
+      "main": [
+        [
+          {
+            "node": "Insert Pending Cap Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs Cap Error Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Pending Cap Error": {
+      "main": [
+        [
+          {
+            "node": "Limit Pending Cap Error Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Pending Cap Error Insert": {
+      "main": [
+        [
+          {
+            "node": "Re-read After Pending Cap Error Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read After Pending Cap Error Insert": {
+      "main": [
+        [
+          {
+            "node": "Tag Plan Pending Cap Error Canonical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Plan Pending Cap Error Canonical": {
+      "main": [
+        [
+          {
+            "node": "Plan Pending Cap Error Canonical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Pending Cap Error Canonical": {
+      "main": [
+        [
+          {
+            "node": "Canonicalize Pending Cap Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canonicalize Pending Cap Error": {
+      "main": [
+        [
+          {
+            "node": "Limit Pending Cap Error Canonical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Pending Cap Error Canonical": {
+      "main": [
+        [
+          {
+            "node": "Re-read Pending Cap Error Canonical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Pending Cap Error Canonical": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Pending Cap Error Canonical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Pending Cap Error Canonical": {
+      "main": [
+        [
+          {
+            "node": "Verify Pending Cap Error Canonical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Pending Cap Error Canonical": {
+      "main": [
+        [
+          {
+            "node": "Repair Side Effect Sink",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Cap Error Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Reconcile Cap Error Rows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Duplicate Cap Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reconcile Cap Error Rows": {
+      "main": [
+        [
+          {
+            "node": "Limit Cap Error Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Cap Error Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Re-read After Cap Error Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read After Cap Error Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Cap Error Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Cap Error Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Verify Cap Error Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Cap Error Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Insert Duplicate Cap Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Duplicate Cap Error": {
+      "main": [
+        [
+          {
+            "node": "Limit Duplicate Cap Error Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Duplicate Cap Error Insert": {
+      "main": [
+        [
+          {
+            "node": "Re-read Duplicate Cap Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Duplicate Cap Error": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Duplicate Cap Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Duplicate Cap Error": {
+      "main": [
+        [
+          {
+            "node": "Verify Duplicate Cap Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Duplicate Cap Error": {
+      "main": [
+        [
+          {
+            "node": "Repair Side Effect Sink",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  }
+}
