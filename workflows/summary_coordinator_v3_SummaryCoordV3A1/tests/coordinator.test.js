@@ -1,0 +1,483 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const test = require('node:test');
+const {
+  aggregateLogicalJobs, planRequestReconciliation, planRequestResolution, runRequestResolution,
+  validateRequestRows, verifyRequestReconciliation,
+} = require('../nodes/Aggregate_Logical_Jobs/jsCode');
+const { buildSummaryInput } = require('../nodes/Build_Summary_Input/jsCode');
+const { planAllFailedWrite, planCoverageWrite, verifyCoverageWrite } = require('../nodes/Plan_Coverage_Write/jsCode');
+const { planClaim } = require('../nodes/Plan_Claim/jsCode');
+const { verifyClaim } = require('../nodes/Verify_Claim/jsCode');
+const { splitPlanAndRows, verifyPlan, verifyCarrierInput: verifyInitialCarrierInput } = require('../nodes/Verify_Initial_Plan/jsCode');
+const { verifyCarrierInput: verifyClaimTimeCarrierInput } = require('../nodes/Verify_Claim_Time_Plan/jsCode');
+const { verifyCarrierInput: verifyPreflightCarrierInput } = require('../nodes/Verify_Preflight_Plan/jsCode');
+const { splitPlanAndRows: splitCoverageCarrierAndRows } = require('../nodes/Verify_Request_Write/jsCode');
+const { preflightAI, runPreflightRuntime } = require('../nodes/Preflight_AI/jsCode');
+
+const NOW = '2026-08-24T00:00:00.000Z';
+const LATER = '2026-08-24T00:10:00.000Z';
+const KEY = 'summary:req-001';
+const STREAMS = [
+  { role: 'current', liveStreamID: '9001', mode: 'fromStart', streamContext: { liveStreamID: '9001', eligible: true, beginTime: 1787360400, endTime: 1787364000 } },
+  { role: 'previous', liveStreamID: '9000', mode: 'fromEnd', streamContext: { liveStreamID: '9000', eligible: true, beginTime: 1787360400, endTime: 1787364000 } },
+];
+const expected = STREAMS.map((stream) => `${KEY}:${stream.role}:${stream.liveStreamID}:${stream.mode}`);
+function request(overrides = {}) {
+  return { id: 'request-a', createdAt: NOW, updatedAt: NOW, requestKey: KEY, requestType: 'suspect', status: 'waiting_stt', reconciliationStatus: 'canonical', canonicalRowID: 'request-a', orderedStreamsJson: JSON.stringify(STREAMS), existingDialoguesJson: '{}', expectedLogicalJobKeysJson: JSON.stringify(expected), channel: 'C0A4JJJKJMD', threadTS: '1787364000.000001', leaseOwner: '', leaseUntilIso: '', ...overrides };
+}
+function attempt(role = 'current', overrides = {}) {
+  const stream = STREAMS.find((item) => item.role === role);
+  const logicalJobKey = `${KEY}:${role}:${stream.liveStreamID}:${stream.mode}`;
+  const number = overrides.attempt || 1;
+  const id = overrides.id || `attempt-${role}-${number}`;
+  return { id, createdAt: NOW, updatedAt: NOW, requestKey: KEY, requestType: 'suspect', logicalJobKey, attemptKey: `${logicalJobKey}:${number}`, attempt: number, role, streamID: String(stream.liveStreamID), mode: stream.mode, streamContextJson: JSON.stringify(stream.streamContext), status: 'completed', dialogue: `${role} dialogue`, reconciliationStatus: 'canonical', canonicalRowID: id, manualReviewResolution: '', ...overrides };
+}
+function manual(id, stage = 'ready', checkpoint = '') {
+  return request({ id, canonicalRowID: id, status: 'manual_review', manualReviewOriginalStage: stage, summaryMarkdown: checkpoint, createdAt: id === 'request-a' ? NOW : LATER, manualReviewResolution: '', manualResolutionDecisionID: '', manualResolutionWinnerRowID: '' });
+}
+
+test('validates complete request system linkage and immutable JSON', () => {
+  validateRequestRows([request()], KEY);
+  assert.throws(() => validateRequestRows([request({ channel: 'C09bad' }) , request({ id: 'request-b', canonicalRowID: 'request-b' })], KEY), /immutable replay/);
+  assert.throws(() => validateRequestRows([request({ orderedStreamsJson: '[]' })], KEY), /immutable fields mismatch/);
+});
+test('preserves an existing canonical and elects earliest only when absent', () => {
+  const permanent = planRequestReconciliation([request({ id: 'request-z', canonicalRowID: 'request-z' }), request({ id: 'request-a', reconciliationStatus: 'pending', canonicalRowID: '', createdAt: LATER })], KEY);
+  assert.equal(permanent.winnerRowID, 'request-z');
+  assert.equal(planRequestReconciliation([request({ id: 'request-b', reconciliationStatus: 'pending', canonicalRowID: '' }), request({ id: 'request-a', reconciliationStatus: 'pending', canonicalRowID: '' })], KEY).winnerRowID, 'request-a');
+});
+test('reconciles clean multiple canonicals and exact verifier rejects incomplete mutations', () => {
+  const rows = [request({ id: 'request-b', canonicalRowID: 'request-b' }), request({ id: 'request-a', canonicalRowID: 'request-a' })];
+  const plan = planRequestReconciliation(rows, KEY);
+  assert.equal(plan.action, 'reconcile'); assert.equal(plan.winnerRowID, 'request-a');
+  assert.throws(() => verifyRequestReconciliation(rows, plan), /verification failed/);
+  rows[0].reconciliationStatus = 'duplicate'; rows[0].canonicalRowID = 'request-a';
+  assert.equal(verifyRequestReconciliation(rows, plan).id, 'request-a');
+});
+test('freezes checkpoint-bearing multiple canonicals', () => {
+  const plan = planRequestReconciliation([request({ id: 'request-a', canonicalRowID: 'request-a', status: 'ready' }), request({ id: 'request-b', canonicalRowID: 'request-b', status: 'summary_dispatching', summaryMarkdown: 'checkpoint' })], KEY);
+  assert.equal(plan.action, 'manual_review'); assert.equal(plan.mutations.length, 2);
+});
+test('freezes all competing canonicals when a duplicate or pending row carries a checkpoint', () => {
+  const canonicals = [request({ id: 'request-a', canonicalRowID: 'request-a', status: 'ready' }), request({ id: 'request-b', canonicalRowID: 'request-b', status: 'ready' })];
+  for (const noncanonical of [request({ id: 'request-c', reconciliationStatus: 'duplicate', canonicalRowID: 'request-a', summaryMarkdown: 'checkpoint' }), request({ id: 'request-c', reconciliationStatus: 'pending', canonicalRowID: '', summaryMarkdown: 'checkpoint' })]) {
+    const plan = planRequestReconciliation([...canonicals, noncanonical], KEY);
+    assert.equal(plan.action, 'manual_review');
+    assert.deepEqual(plan.mutations.map(({ id }) => id), ['request-a', 'request-b']);
+  }
+});
+test('aggregates lowest completed nonempty dialogue in ordered streams', () => {
+  const result = aggregateLogicalJobs(request(), [attempt('current', { attempt: 2, id: 'attempt-current-2', canonicalRowID: 'attempt-current-2', dialogue: 'later' }), attempt('current'), attempt('previous')]);
+  assert.equal(result.coverageStatus, 'complete'); assert.equal(result.streams[0].dialogue, 'current dialogue');
+  assert.deepEqual(result.availableRoles, ['current', 'previous']);
+});
+test('reports partial and all_failed terminal coverage', () => {
+  assert.equal(aggregateLogicalJobs(request(), [attempt('current'), attempt('previous', { status: 'failed', dialogue: '' })]).coverageStatus, 'partial');
+  assert.equal(aggregateLogicalJobs(request(), [attempt('current', { status: 'failed', dialogue: '' }), attempt('previous', { status: 'timed_out', dialogue: '' })]).action, 'all_failed');
+});
+test('pending and unresolved manual block coverage', () => {
+  assert.equal(aggregateLogicalJobs(request(), [attempt('current', { status: 'queued', dialogue: '' }), attempt('previous')]).action, 'pending');
+  assert.equal(aggregateLogicalJobs(request(), [attempt('current', { status: 'manual_review', dialogue: '' }), attempt('previous')]).action, 'pending');
+});
+test('resolved manual and retry_materialized follow exact next canonical attempt', () => {
+  const old = attempt('current', { status: 'retry_materialized', dialogue: '', manualReviewResolution: `retry_created:${expected[0]}:2` });
+  const next = attempt('current', { attempt: 2, id: 'attempt-current-2', canonicalRowID: 'attempt-current-2', status: 'completed', dialogue: 'retried' });
+  const result = aggregateLogicalJobs(request(), [old, next, attempt('previous')]);
+  assert.equal(result.coverageStatus, 'complete'); assert.equal(result.streams[0].dialogue, 'retried');
+});
+test('broken retry chains and malformed attempts fail closed', () => {
+  assert.throws(() => aggregateLogicalJobs(request(), [attempt('current', { status: 'retry_materialized', dialogue: '', manualReviewResolution: 'retry_created:wrong:2' }), attempt('previous')]), /broken retry/);
+  assert.throws(() => aggregateLogicalJobs(request(), [attempt('current', { attemptKey: 'bad' }), attempt('previous')]), /identity/);
+});
+test('coverage writes only waiting_stt exact snapshot to ready', () => {
+  const aggregate = aggregateLogicalJobs(request(), [attempt('current'), attempt('previous', { status: 'failed', dialogue: '' })]);
+  const plan = planCoverageWrite(request(), aggregate);
+  assert.equal(plan.action, 'write_ready'); assert.equal(plan.desired.coverageStatus, 'partial');
+  const written = { ...request(), ...plan.desired };
+  assert.equal(verifyCoverageWrite([written], plan).status, 'ready');
+});
+test('coverage ready replay verifies exact primitive JSON and other states noop', () => {
+  const aggregate = aggregateLogicalJobs(request(), [attempt('current'), attempt('previous', { status: 'failed', dialogue: '' })]);
+  const snapshot = { coverageStatus: 'partial', availableRolesJson: '["current"]', missingRolesJson: '["previous"]', failedLogicalJobKeysJson: JSON.stringify([expected[1]]) };
+  assert.equal(planCoverageWrite(request({ status: 'ready', ...snapshot }), aggregate).action, 'replay');
+  assert.equal(planCoverageWrite(request({ status: 'summary_dispatching' }), aggregate).action, 'noop');
+  assert.throws(() => verifyCoverageWrite([{ ...request(), ...snapshot }], planCoverageWrite(request({ status: 'ready', ...snapshot }), aggregate)), /mismatch/);
+  for (const field of Object.keys(snapshot)) {
+    const mismatched = { ...snapshot, [field]: field === 'coverageStatus' ? 'complete' : '[]' };
+    assert.throws(() => planCoverageWrite(request({ status: 'ready', ...mismatched }), aggregate), new RegExp(`ready coverage replay mismatch: ${field}`));
+  }
+});
+test('all-failed plan writes fixed failure and clears lease', () => {
+  const plan = planAllFailedWrite(request({ leaseOwner: 'old', leaseUntilIso: LATER }));
+  const written = { ...request(), ...plan.desired };
+  assert.equal(verifyCoverageWrite([written], plan).errorCode, 'SUMMARY_ALL_STT_LOGICAL_JOBS_FAILED');
+  assert.equal(planAllFailedWrite(request({ status: 'ready' })).expected.status, 'ready');
+  assert.deepEqual(planAllFailedWrite(request({ status: 'failed', errorCode: 'SUMMARY_ALL_STT_LOGICAL_JOBS_FAILED' })), { action: 'noop', reason: 'all_failed_persisted', id: 'request-a', requestKey: KEY });
+});
+test('initial claim has exact empty lease snapshot and five-minute UTC ISO', () => {
+  const plan = planClaim(request({ status: 'ready' }), NOW, 'exec-a');
+  assert.equal(plan.action, 'initial'); assert.equal(plan.leaseUntilIso, '2026-08-24T00:05:00.000Z'); assert.equal(plan.expectedLeaseOwner, '');
+});
+test('retry-due claim snapshots exact due fields and rejects future due', () => {
+  const due = planClaim(request({ status: 'summary_retry_pending', nextRetryAtIso: NOW }), NOW, 'exec-a');
+  assert.equal(due.action, 'retry_due'); assert.equal(due.expectedNextRetryAtIso, NOW); assert.equal(due.expectedLeaseOwner, '');
+  assert.equal(planClaim(request({ status: 'summary_retry_pending', nextRetryAtIso: NOW, leaseOwner: 'old', leaseUntilIso: NOW }), NOW, 'exec-a').action, 'retry_due');
+  assert.equal(planClaim(request({ status: 'summary_retry_pending', nextRetryAtIso: NOW, leaseOwner: 'foreign', leaseUntilIso: LATER }), NOW, 'exec-a').action, 'noop');
+  assert.equal(planClaim(request({ status: 'summary_retry_pending', nextRetryAtIso: NOW, leaseOwner: 'exec-a', leaseUntilIso: LATER }), NOW, 'exec-a').action, 'noop');
+  assert.throws(() => planClaim(request({ status: 'summary_retry_pending', nextRetryAtIso: NOW, leaseOwner: 'old', leaseUntilIso: '' }), NOW, 'exec-a'), /lease pair is malformed/);
+  assert.throws(() => planClaim(request({ status: 'summary_retry_pending', nextRetryAtIso: NOW, leaseOwner: '', leaseUntilIso: NOW }), NOW, 'exec-a'), /lease pair is malformed/);
+  assert.equal(planClaim(request({ status: 'summary_retry_pending', nextRetryAtIso: LATER }), NOW, 'exec-a').action, 'noop');
+});
+test('phase carrier split rejects missing, mixed, duplicate, empty, and partial plan inputs', () => {
+  const carrier = { id: 'request-a', __planCarrier: true, __planPhase: 'initial', __planAction: 'reconcile', action: 'reconcile' };
+  const row = request({ id: 'request-a' });
+  assert.deepEqual(splitPlanAndRows([carrier, row], 'initial').plans.map(({ id }) => id), ['request-a']);
+  assert.throws(() => splitPlanAndRows([row], 'initial'), /missing plan carrier/);
+  assert.throws(() => splitPlanAndRows([carrier], 'initial'), /missing plan carrier/);
+  assert.throws(() => splitPlanAndRows([carrier, { ...carrier }, row, request({ id: 'request-b' })], 'initial'), /duplicate plan carrier/);
+  assert.throws(() => splitPlanAndRows([{ ...carrier, __planPhase: 'claim' }, row], 'initial'), /mixed phase/);
+  assert.throws(() => splitPlanAndRows([{ ...carrier, __planAction: 'manual_review' }, row], 'initial'), /mixed action/);
+  assert.throws(() => verifyPlan([row], [
+    { id: 'request-a', desiredReconciliationStatus: 'canonical', desiredCanonicalRowID: 'request-a' },
+    { id: 'request-b', desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: 'request-a' },
+  ], 'reconcile', KEY), /partial/);
+});
+test('expired claim requires nonempty expired lease and strict millisecond ISO', () => {
+  assert.equal(planClaim(request({ status: 'summary_dispatching', leaseOwner: 'old', leaseUntilIso: NOW }), NOW, 'exec-a').action, 'expired');
+  assert.throws(() => planClaim(request({ status: 'summary_dispatching', leaseOwner: 'old', leaseUntilIso: '2026-08-24T00:00:00Z' }), NOW, 'exec-a'), /invalid lease expiry/);
+  assert.throws(() => planClaim(request({ status: 'summary_dispatching', leaseUntilIso: NOW }), NOW, 'exec-a'), /lease owner/);
+});
+test('claim verifier requires one current canonical owner and exact unexpired lease', () => {
+  const row = request({ status: 'summary_dispatching', leaseOwner: 'exec-a', leaseUntilIso: LATER });
+  assert.equal(verifyClaim([row], KEY, 'exec-a', NOW, LATER).id, 'request-a');
+  assert.throws(() => verifyClaim([row, request({ id: 'request-b', canonicalRowID: 'request-b', status: 'summary_dispatching', leaseOwner: 'exec-a', leaseUntilIso: LATER })], KEY, 'exec-a', NOW), /exactly one/);
+});
+test('pre-AI re-reconciles clean races and freezes checkpoint conflicts', () => {
+  const clean = [request({ id: 'request-a', status: 'summary_dispatching', leaseOwner: 'exec-a', leaseUntilIso: LATER }), request({ id: 'request-b', canonicalRowID: 'request-b', reconciliationStatus: 'canonical', status: 'summary_dispatching', leaseOwner: 'exec-a', leaseUntilIso: LATER })];
+  assert.equal(preflightAI(clean, [attempt('current'), attempt('previous')], KEY, 'exec-a', NOW).action, 'reconcile');
+  const conflict = clean.map((row) => ({ ...row })); conflict[1].summaryMarkdown = 'checkpoint';
+  assert.equal(preflightAI(conflict, [attempt('current'), attempt('previous')], KEY, 'exec-a', NOW).action, 'manual_review');
+});
+test('pre-AI only permits owned usable coverage and never all_failed', () => {
+  const coverage = aggregateLogicalJobs(request(), [attempt('current'), attempt('previous')]);
+  const claimed = request({ status: 'summary_dispatching', leaseOwner: 'exec-a', leaseUntilIso: LATER, coverageStatus: coverage.coverageStatus, availableRolesJson: JSON.stringify(coverage.availableRoles), missingRolesJson: JSON.stringify(coverage.missingRoles), failedLogicalJobKeysJson: JSON.stringify(coverage.failedLogicalJobKeys) });
+  assert.equal(preflightAI([claimed], [attempt('current'), attempt('previous')], KEY, 'exec-a', NOW).action, 'ai');
+  assert.throws(() => preflightAI([claimed], [attempt('current', { status: 'failed', dialogue: '' }), attempt('previous', { status: 'failed', dialogue: '' })], KEY, 'exec-a', NOW), /not usable/);
+  assert.throws(() => preflightAI([claimed], [attempt('current'), attempt('previous')], KEY, 'other', NOW), /owner gate/);
+});
+test('preflight runtime wrapper calls pure validation and blocks pending, manual, failed, and coverage drift', () => {
+  const coverage = aggregateLogicalJobs(request(), [attempt('current'), attempt('previous')]);
+  const claimed = request({ status: 'summary_dispatching', leaseOwner: 'exec-a', leaseUntilIso: LATER, coverageStatus: coverage.coverageStatus, availableRolesJson: JSON.stringify(coverage.availableRoles), missingRolesJson: JSON.stringify(coverage.missingRoles), failedLogicalJobKeysJson: JSON.stringify(coverage.failedLogicalJobKeys) });
+  assert.equal(runPreflightRuntime([claimed], [attempt('current'), attempt('previous')], KEY, 'exec-a', NOW)[0].action, 'ai');
+  assert.throws(() => runPreflightRuntime([claimed], [attempt('current', { status: 'queued', dialogue: '' }), attempt('previous')], KEY, 'exec-a', NOW), /not usable/);
+  assert.throws(() => runPreflightRuntime([claimed], [attempt('current', { status: 'manual_review', dialogue: '' }), attempt('previous')], KEY, 'exec-a', NOW), /not usable/);
+  assert.throws(() => runPreflightRuntime([claimed], [attempt('current', { status: 'failed', dialogue: '' }), attempt('previous', { status: 'failed', dialogue: '' })], KEY, 'exec-a', NOW), /not usable/);
+  assert.throws(() => runPreflightRuntime([{ ...claimed, availableRolesJson: '[]' }], [attempt('current'), attempt('previous')], KEY, 'exec-a', NOW), /persisted coverage mismatch/);
+});
+test('rejects malformed request context and corrupted attempt duplicate linkage', () => {
+  assert.throws(() => validateRequestRows([request({ orderedStreamsJson: JSON.stringify([{ ...STREAMS[0], streamContext: [] }, STREAMS[1]]) })], KEY), /invalid ordered stream/);
+  const corrupted = [attempt('current'), { ...attempt('current', { id: 'attempt-current-duplicate', canonicalRowID: 'wrong', reconciliationStatus: 'duplicate' }) }, attempt('previous')];
+  assert.throws(() => aggregateLogicalJobs(request(), corrupted), /duplicate canonical linkage/);
+  assert.throws(() => runPreflightRuntime([request({ createdAt: 'bad', status: 'summary_dispatching', leaseOwner: 'exec-a', leaseUntilIso: LATER })], [attempt('current'), attempt('previous')], KEY, 'exec-a', NOW), /invalid createdAt/);
+});
+test('AI input is a natural resolved allowlist without storage fields', () => {
+  const aggregate = aggregateLogicalJobs(request(), [attempt('current'), attempt('previous', { status: 'failed', dialogue: '' })]);
+  const input = buildSummaryInput(request({ leaseOwner: 'secret', reconciliationStatus: 'canonical' }), aggregate);
+  assert.deepEqual(Object.keys(input), ['requestKey', 'requestType', 'channel', 'threadTS', 'coverageStatus', 'availableRoles', 'missingRoles', 'failedLogicalJobKeys', 'streams']);
+  assert.doesNotMatch(JSON.stringify(input), /leaseOwner|canonicalRowID|streamContextJson/);
+});
+test('manual resolution selects one checkpoint and identical earliest checkpoint', () => {
+  assert.equal(planRequestResolution([manual('request-a'), manual('request-b', 'ready', 'checkpoint')], { approved: true, approvalRef: 'P10-1', decisionID: 'd1' }).winnerRowID, 'request-b');
+  const plan = planRequestResolution([manual('request-a', 'ready', 'same'), manual('request-b', 'ready', 'same')], { approved: true, approvalRef: 'P10-2', decisionID: 'd2' });
+  assert.equal(plan.selectionReason, 'identical_checkpoints_system_earliest'); assert.equal(plan.winnerRowID, 'request-a');
+});
+test('manual conflicting checkpoint requires explicit winner and approval reference', () => {
+  const rows = [manual('request-a', 'ready', 'one'), manual('request-b', 'ready', 'two')];
+  assert.throws(() => planRequestResolution(rows, { approved: true, approvalRef: 'P10-3', decisionID: 'd3' }), /explicit winner/);
+  assert.throws(() => planRequestResolution(rows, { approved: true, decisionID: 'd3', winnerRowID: 'request-a' }), /approval reference/);
+  assert.equal(planRequestResolution(rows, { approved: true, approvalRef: 'P10-3', decisionID: 'd3', winnerRowID: 'request-b' }).winnerRowID, 'request-b');
+});
+test('manual failed decision follows fixed canonical protocol without attempts', () => {
+  const result = runRequestResolution([manual('request-a', 'ready', 'one'), manual('request-b', 'ready', 'two')], { approved: true, approvalRef: 'P10-4', decisionID: 'd4', decision: 'failed' });
+  assert.equal(result.winner.status, 'failed'); assert.equal(result.winner.manualReviewResolution, 'request_failed:checkpoint_conflict'); assert.equal(result.sideEffectCalls, 0);
+});
+test('manual resolution restores all allowed original stages', () => {
+  for (const stage of ['ready', 'summary_dispatching', 'summary_retry_pending', 'completed']) {
+    const result = runRequestResolution([manual('request-a', stage, 'checkpoint'), manual('request-b', stage)], { approved: true, approvalRef: `P10-${stage}`, decisionID: `d-${stage}` });
+    assert.equal(result.winner.status, stage); assert.equal(result.winner.manualReviewOriginalStage, stage);
+  }
+});
+test('manual loser partial failure retries same immutable winner with zero side effects', () => {
+  const rows = [manual('request-a', 'ready', 'same'), manual('request-b', 'ready', 'same'), manual('request-c', 'ready', 'same')];
+  const approval = { approved: true, approvalRef: 'P10-5', decisionID: 'd5' };
+  const first = runRequestResolution(rows, approval, { failLoserID: 'request-c' });
+  assert.equal(first.winner.status, 'manual_review'); assert.equal(first.winner.manualReviewResolution, '');
+  const retry = runRequestResolution(first.rows, approval);
+  assert.equal(retry.winner.id, 'request-a'); assert.ok(retry.losers.every((row) => row.reconciliationStatus === 'duplicate')); assert.equal(retry.sideEffectCalls, 0);
+});
+test('manual crash before final patch reuses fixed winner and finalizes invariant', () => {
+  const rows = [manual('request-a', 'summary_dispatching', 'same'), manual('request-b', 'summary_dispatching', 'same')];
+  const approval = { approved: true, approvalRef: 'P10-6', decisionID: 'd6' };
+  const crash = runRequestResolution(rows, approval, { crashBeforeWinnerFinalPatch: true });
+  assert.equal(crash.canonicalRows.length, 1); assert.equal(crash.winner.manualReviewResolution, '');
+  const retry = runRequestResolution(crash.rows, approval, { resolutionIso: NOW });
+  assert.equal(retry.winner.status, 'summary_dispatching'); assert.equal(retry.winner.leaseUntilIso, NOW); assert.equal(retry.sideEffectCallsBeforeFinalPatch, 0);
+});
+
+const workflow = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'workflow.json'), 'utf8'));
+const byName = new Map(workflow.nodes.map((node) => [node.name, node]));
+const successors = (name) => (workflow.connections[name]?.main || []).flat().map(({ node }) => node);
+const reachable = (from, target, seen = new Set()) => {
+  if (from === target) return true;
+  if (seen.has(from)) return false;
+  seen.add(from);
+  return successors(from).some((next) => reachable(next, target, seen));
+};
+const conditionKeys = (name) => byName.get(name).parameters.filters.conditions.map(({ keyName }) => keyName);
+
+test('workflow has the typed single request-key coordinator contract and authoritative tables', () => {
+  assert.deepEqual(byName.get('Start').parameters.workflowInputs.values, [{ name: 'requestKey', type: 'string' }]);
+  const tables = workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.dataTable').map((node) => node.parameters.dataTableId.value);
+  assert.ok(tables.every((name) => ['summary_requests_v3', 'stt_jobs_v3'].includes(name)));
+  assert.equal(workflow.active, false);
+  assert.equal(workflow.isArchived, false);
+});
+
+test('every Data Table update is exact, retained by alwaysOutputData, and immediately limited', () => {
+  for (const node of workflow.nodes.filter((node) => node.type === 'n8n-nodes-base.dataTable' && node.parameters.operation === 'update')) {
+    assert.equal(node.alwaysOutputData, true, node.name);
+    assert.equal(node.parameters.matchType, 'allConditions', node.name);
+    assert.ok(conditionKeys(node.name).includes('id'), node.name);
+    assert.ok(successors(node.name).every((next) => byName.get(next).type === 'n8n-nodes-base.limit'), node.name);
+  }
+});
+
+test('all request and attempt reads preserve zero-row execution for helper filtering', () => {
+  for (const node of workflow.nodes.filter((node) => node.type === 'n8n-nodes-base.dataTable' && node.parameters.operation === 'get')) {
+    assert.equal(node.alwaysOutputData, true, node.name);
+    assert.equal(node.parameters.returnAll, true, node.name);
+  }
+});
+
+test('plan carriers are mutation-branch only and pair exactly with their update and Merge input 0', () => {
+  const pairs = [
+    ['Carry Initial Conflict', 'Freeze Competing Canonicals', 'Merge Initial Plan And Reread'],
+    ['Carry Initial Reconcile', 'Apply Request Reconciliation', 'Merge Initial Plan And Reread'],
+    ['Carry Coverage Ready', 'Write Terminal Coverage Ready', 'Merge Coverage Ready Plan And Reread'],
+    ['Carry Coverage Failure', 'Fail All Failed Request', 'Merge Coverage Failure Plan And Reread'],
+    ['Carry Claim-Time Conflict', 'Freeze Claim-Time Canonicals', 'Merge Claim-Time Plan And Reread'],
+    ['Carry Claim-Time Reconcile', 'Apply Claim-Time Reconciliation', 'Merge Claim-Time Plan And Reread'],
+    ['Carry Initial Claim Plan', 'Claim Initial Exact', 'Merge Claim Plan And Reread'],
+    ['Carry Retry Claim Plan', 'Claim Retry Due Exact', 'Merge Claim Plan And Reread'],
+    ['Carry Expired Claim Plan', 'Claim Expired Exact', 'Merge Claim Plan And Reread'],
+    ['Carry Pre-AI Reconcile', 'Apply Pre-AI Reconciliation', 'Merge Pre-AI Plan And Reread'],
+    ['Carry Pre-AI Conflict', 'Freeze Pre-AI Canonicals', 'Merge Pre-AI Plan And Reread'],
+  ];
+  for (const [carrier, update, merge] of pairs) {
+    const outputs = workflow.connections[carrier].main[0];
+    assert.deepEqual(outputs.map(({ node }) => node), [update, merge], carrier);
+    assert.equal(outputs[1].index, 0, carrier);
+    assert.equal(byName.get(update).type, 'n8n-nodes-base.dataTable', carrier);
+  }
+});
+
+test('every mutation is immediately limited and each reread reaches only its Merge input 1', () => {
+  const pairs = [
+    ['Freeze Competing Canonicals', 'Limit Conflict Patch', 'Re-read Frozen Request', 'Merge Initial Plan And Reread'],
+    ['Apply Request Reconciliation', 'Limit Reconciliation Patch', 'Re-read Reconciled Request', 'Merge Initial Plan And Reread'],
+    ['Write Terminal Coverage Ready', 'Limit Coverage Patch', 'Re-read Coverage Request', 'Merge Coverage Ready Plan And Reread'],
+    ['Fail All Failed Request', 'Limit Failure Patch', 'Re-read Failed Request', 'Merge Coverage Failure Plan And Reread'],
+    ['Freeze Claim-Time Canonicals', 'Limit Claim-Time Conflict', 'Re-read Claim-Time Frozen Request', 'Merge Claim-Time Plan And Reread'],
+    ['Apply Claim-Time Reconciliation', 'Limit Claim-Time Reconciliation', 'Re-read Claim-Time Reconciliation', 'Merge Claim-Time Plan And Reread'],
+    ['Claim Initial Exact', 'Limit Claim', 'Re-read Claimed Request', 'Merge Claim Plan And Reread'],
+    ['Claim Retry Due Exact', 'Limit Claim', 'Re-read Claimed Request', 'Merge Claim Plan And Reread'],
+    ['Claim Expired Exact', 'Limit Claim', 'Re-read Claimed Request', 'Merge Claim Plan And Reread'],
+    ['Apply Pre-AI Reconciliation', 'Limit Pre-AI Reconciliation', 'Re-read Pre-AI Reconciliation', 'Merge Pre-AI Plan And Reread'],
+    ['Freeze Pre-AI Canonicals', 'Limit Pre-AI Conflict', 'Re-read Pre-AI Frozen Request', 'Merge Pre-AI Plan And Reread'],
+  ];
+  for (const [write, limit, reread, merge] of pairs) {
+    assert.deepEqual(successors(write), [limit], write);
+    assert.deepEqual(successors(limit), [reread], limit);
+    assert.deepEqual(workflow.connections[reread].main[0], [{ node: merge, type: 'main', index: 1 }], reread);
+  }
+});
+
+test('every plan Merge is append v3.2 and has exactly one verifier', () => {
+  const verifiers = new Map([
+    ['Merge Initial Plan And Reread', 'Verify Request Reconciliation'],
+    ['Merge Coverage Ready Plan And Reread', 'Verify Request Write'],
+    ['Merge Coverage Failure Plan And Reread', 'Verify All Failed Request'],
+    ['Merge Claim-Time Plan And Reread', 'Verify Claim-Time Reconciliation'],
+    ['Merge Claim Plan And Reread', 'Verify Claimed Owner'],
+    ['Merge Pre-AI Plan And Reread', 'Verify Pre-AI Reconciliation'],
+  ]);
+  for (const [merge, verifier] of verifiers) {
+    const node = byName.get(merge);
+    assert.deepEqual(node.parameters, { mode: 'append', numberInputs: 2 }, merge);
+    assert.equal(node.typeVersion, 3.2, merge);
+    assert.deepEqual(successors(merge), [verifier], merge);
+  }
+});
+
+test('three exact claim branches are reachable and retain their plan lease snapshots', () => {
+  for (const name of ['Claim Initial Exact', 'Claim Retry Due Exact', 'Claim Expired Exact']) {
+    const keys = conditionKeys(name);
+    assert.ok(['id', 'requestKey', 'status', 'reconciliationStatus', 'canonicalRowID', 'leaseOwner', 'leaseUntilIso'].every((key) => keys.includes(key)), name);
+    assert.deepEqual(successors(name), ['Limit Claim']);
+    assert.ok(reachable('Start', name));
+    assert.match(JSON.stringify(byName.get(name).parameters.columns.value), /leaseUntilIso/);
+  }
+  assert.ok(conditionKeys('Claim Retry Due Exact').includes('nextRetryAtIso'));
+});
+
+test('claim and routing switches have explicit fallback terminals', () => {
+  for (const name of ['Route Coverage Write', 'Route Claim Reconciliation', 'Select Exact Claim Branch', 'Route Preflight AI']) {
+    assert.equal(byName.get(name).parameters.options.fallbackOutput, 3, name);
+    assert.equal(successors(name)[3], 'Drop Side Effect Output', name);
+  }
+  assert.equal(byName.get('Route Initial Reconciliation').parameters.options.fallbackOutput, 4);
+  assert.equal(successors('Route Initial Reconciliation')[4], 'Drop Side Effect Output');
+});
+
+test('noop and fallback outputs cannot reach a carrier or Merge', () => {
+  const terminals = [
+    ['Route Initial Reconciliation', 4],
+    ['Route Coverage Write', 3],
+    ['Route Claim Reconciliation', 3],
+    ['Select Exact Claim Branch', 3],
+    ['Route Preflight AI', 3],
+  ];
+  const guarded = workflow.nodes.filter(({ name }) => name.startsWith('Carry ') || name.startsWith('Merge ')).map(({ name }) => name);
+  for (const [router, output] of terminals) {
+    const target = workflow.connections[router].main[output][0].node;
+    assert.equal(target, 'Drop Side Effect Output', router);
+    for (const node of guarded) assert.equal(reachable(target, node), false, `${router} -> ${node}`);
+  }
+});
+
+test('initial all_failed aggregate reaches failure planning and cannot reach claim or AI', () => {
+  const route = byName.get('Route Initial Reconciliation');
+  assert.equal(route.parameters.rules.values.length, 4);
+  assert.equal(successors('Route Initial Reconciliation')[3], 'Plan Coverage Write');
+  assert.ok(reachable('Plan Coverage Write', 'Fail All Failed Request'));
+  assert.equal(reachable('Verify All Failed Request', 'Plan Summary Claim'), false);
+  assert.equal(reachable('Verify All Failed Request', 'Run AI Summary'), false);
+});
+
+test('claim-time reconciliation blocks all claim branches until one verified canonical is ready', () => {
+  assert.deepEqual(successors('Read Request For Claim'), ['Plan Claim Reconciliation']);
+  assert.deepEqual(successors('Plan Claim Reconciliation'), ['Route Claim Reconciliation']);
+  assert.deepEqual(successors('Route Claim Reconciliation').slice(0, 3), ['Carry Claim-Time Conflict', 'Carry Claim-Time Reconcile', 'Plan Summary Claim']);
+  assert.deepEqual(successors('Verify Claim-Time Reconciliation'), ['Read Request For Claim']);
+});
+
+test('verifiers use only direct carrier and reread inputs, never named execution state', () => {
+  for (const file of ['Verify_Initial_Plan', 'Verify_Preflight_Plan', 'Verify_Claim_Time_Plan', 'Verify_Request_Write', 'Verify_Claim']) {
+    const code = fs.readFileSync(path.join(__dirname, '..', 'nodes', file, 'jsCode.js'), 'utf8');
+    assert.doesNotMatch(code, /\$\('(?:Planner|Apply|Freeze)/, file);
+    assert.doesNotMatch(code, /\.isExecuted/, file);
+    assert.doesNotMatch(code, /\$\(/, file);
+    assert.doesNotMatch(code, /\$runIndex/, file);
+  }
+});
+
+test('coverage loop back to initial reconciliation preserves the direct carrier split contract', () => {
+  const carrier = { id: 'request-a', requestKey: KEY, action: 'write_ready', __planCarrier: true, __planPhase: 'coverage', __planAction: 'write_ready', desired: { status: 'ready' } };
+  const row = request({ status: 'ready' });
+  const { plan, rows } = splitCoverageCarrierAndRows([carrier, row]);
+  assert.equal(plan.action, 'write_ready');
+  assert.deepEqual(rows, [row]);
+  assert.deepEqual(successors('Verify Request Write'), ['Read All Request Rows']);
+});
+
+test('preflight and build runtime use pure verified aggregate without parallel election or loose recomputation', () => {
+  const preflightCode = fs.readFileSync(path.join(__dirname, '..', 'nodes', 'Preflight_AI', 'jsCode.js'), 'utf8');
+  const buildCode = fs.readFileSync(path.join(__dirname, '..', 'nodes', 'Build_Summary_Input', 'jsCode.js'), 'utf8');
+  assert.match(preflightCode, /const result = preflightAI\(/);
+  assert.doesNotMatch(preflightCode, /localeCompare/);
+  assert.match(buildCode, /buildSummaryInput\(\$json, \$json\)/);
+  assert.doesNotMatch(buildCode, /Re-read Attempts Before AI/);
+});
+
+test('waiting_stt coverage is exact-patched to ready before any claim planning', () => {
+  assert.ok(conditionKeys('Write Terminal Coverage Ready').includes('status'));
+  assert.equal(byName.get('Write Terminal Coverage Ready').parameters.columns.value.status, 'ready');
+  assert.ok(reachable('Write Terminal Coverage Ready', 'Verify Request Write'));
+  assert.ok(reachable('Verify Request Write', 'Plan Summary Claim'));
+});
+
+test('all-failed writes a fixed failure, verifies it, and cannot reach AI', () => {
+  assert.equal(byName.get('Fail All Failed Request').parameters.columns.value.errorCode, 'SUMMARY_ALL_STT_LOGICAL_JOBS_FAILED');
+  assert.deepEqual(successors('Verify All Failed Request'), ['Drop Side Effect Output']);
+  assert.equal(reachable('Verify All Failed Request', 'Run AI Summary'), false);
+});
+
+test('pre-AI repeats full request reconciliation and reacquires the verified owner gate', () => {
+  assert.ok(reachable('Verify Claimed Owner', 'Re-read Request Before AI'));
+  assert.ok(reachable('Re-read Request Before AI', 'Preflight AI'));
+  assert.deepEqual(successors('Verify Pre-AI Reconciliation'), ['Re-read Request Before AI']);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'nodes', 'Preflight_AI', 'jsCode.js'), 'utf8'), /pre-AI owner gate failed/);
+});
+
+test('AI dispatch uses the exact natural allowlist, fire-and-forget selector, and empty sink', () => {
+  const ai = byName.get('Run AI Summary');
+  assert.equal(ai.parameters.workflowId.value, 'AISummaryV3A0001');
+  assert.equal(ai.parameters.workflowId.cachedResultName, 'AI SUMMARY v3');
+  assert.equal(ai.parameters.options.waitForSubWorkflow, false);
+  assert.deepEqual(Object.keys(ai.parameters.workflowInputs.value), ['requestKey', 'requestType', 'channel', 'threadTS', 'coverageStatus', 'availableRoles', 'missingRoles', 'failedLogicalJobKeys', 'streams']);
+  assert.deepEqual(successors('Run AI Summary'), ['Drop Side Effect Output']);
+});
+
+test('all reconciliation verifiers terminalize verified freezes and only emit a canonical for reconcile', () => {
+  const verifiers = [
+    ['initial', 'Verify Request Reconciliation', 'Plan Summary Claim', verifyInitialCarrierInput],
+    ['claim-time', 'Verify Claim-Time Reconciliation', 'Plan Summary Claim', verifyClaimTimeCarrierInput],
+    ['pre-ai', 'Verify Pre-AI Reconciliation', 'Run AI Summary', verifyPreflightCarrierInput],
+  ];
+  for (const [phase, node, blockedTarget, verifyCarrierInput] of verifiers) {
+    const carrier = (id, action, extra = {}) => ({ id, requestKey: KEY, action, __planCarrier: true, __planPhase: phase, __planAction: action, ...extra });
+    const frozen = (id) => request({ id, canonicalRowID: id, status: 'manual_review', manualReviewReason: 'multiple_canonical_checkpoint_conflict' });
+    const frozenOutput = verifyCarrierInput([
+      carrier('request-a', 'manual_review'), carrier('request-b', 'manual_review'),
+      frozen('request-a'), frozen('request-b'),
+    ], phase);
+    assert.deepEqual(frozenOutput, [], `${phase} manual freeze`);
+    assert.equal(frozenOutput.length > 0 && reachable(node, blockedTarget), false, `${phase} freeze cannot reach ${blockedTarget}`);
+    const canonical = request();
+    assert.deepEqual(verifyCarrierInput([
+      carrier('request-a', 'reconcile', { desiredReconciliationStatus: 'canonical', desiredCanonicalRowID: 'request-a' }),
+      carrier('request-b', 'reconcile', { desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: 'request-a' }),
+      canonical,
+      request({ id: 'request-b', reconciliationStatus: 'duplicate', canonicalRowID: 'request-a' }),
+    ], phase), [canonical], `${phase} reconcile`);
+    assert.ok(successors(node).length > 0, node);
+  }
+  assert.equal(byName.has('Claim Initial Summary'), false);
+});
+
+test('no path can call AI before a verified soft-CAS claim', () => {
+  assert.ok(reachable('Verify Claimed Owner', 'Run AI Summary'));
+  assert.equal(reachable('Read All Request Rows', 'Run AI Summary'), true);
+  assert.deepEqual(successors('Build Summary Input'), ['Run AI Summary']);
+  assert.ok(reachable('Limit Claim', 'Verify Claimed Owner'));
+});
+
+test('workflow has valid UUIDv4 IDs, external helpers, valid connection targets, and no dead nodes', () => {
+  const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const names = new Set(workflow.nodes.map(({ name }) => name));
+  assert.ok(workflow.nodes.every(({ id }) => uuidV4.test(id)));
+  assert.equal(new Set(workflow.nodes.map(({ id }) => id)).size, workflow.nodes.length);
+  for (const targets of Object.values(workflow.connections)) for (const output of targets.main || []) for (const target of output) assert.ok(names.has(target.node));
+  for (const node of workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.code')) {
+    const ref = node.parameters.jsCode;
+    assert.match(ref, /^__EXTERNAL_FILE__:\/\//, node.name);
+    assert.ok(fs.existsSync(path.join(__dirname, '..', ref.replace('__EXTERNAL_FILE__://', ''))), node.name);
+  }
+  const seen = new Set();
+  const walk = (name) => { if (seen.has(name)) return; seen.add(name); successors(name).forEach(walk); };
+  walk('Start');
+  assert.deepEqual([...names].filter((name) => !seen.has(name)), []);
+  assert.deepEqual(workflow.settings, { executionOrder: 'v1', saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none', saveManualExecutions: false, saveExecutionProgress: false });
+});
