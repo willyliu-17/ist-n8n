@@ -18,6 +18,8 @@ const workflowDirs = [
   'workflows/automation_retry_and_repair_v3_AutoRepairV3A001',
   'workflows/automation_error_handler_v3_AutomationErrorV3A1',
   'workflows/ai_summary_v3_AISummaryV3A0001',
+  'workflows/collect_suspect_streamid_v3_CollectSuspectV3',
+  'workflows/ist_bot_entry_v3_IstBotEntryV3A01',
 ];
 
 const testFiles = [
@@ -33,6 +35,8 @@ const testFiles = [
   'workflows/automation_error_handler_v3_AutomationErrorV3A1/tests/error-handler.test.js',
   'workflows/automation_retry_and_repair_v3_AutoRepairV3A001/tests/repair.test.js',
   'workflows/ai_summary_v3_AISummaryV3A0001/tests/summary.test.js',
+  'workflows/collect_suspect_streamid_v3_CollectSuspectV3/tests/routing.test.js',
+  'workflows/ist_bot_entry_v3_IstBotEntryV3A01/tests/routing.test.js',
 ];
 
 function run(command, args) {
