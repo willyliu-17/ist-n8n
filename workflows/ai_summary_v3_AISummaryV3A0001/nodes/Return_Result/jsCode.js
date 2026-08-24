@@ -1,0 +1,1 @@
+return $input.all().map(({ json }) => ({ json: { requestKey: json.requestKey, status: json.status, coverageStatus: json.coverageStatus, summaryMessageTS: json.summaryMessageTS, summaryUploadID: json.summaryUploadID } }));

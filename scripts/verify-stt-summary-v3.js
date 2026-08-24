@@ -17,6 +17,7 @@ const workflowDirs = [
   'workflows/summary_coordinator_v3_SummaryCoordV3A1',
   'workflows/automation_retry_and_repair_v3_AutoRepairV3A001',
   'workflows/automation_error_handler_v3_AutomationErrorV3A1',
+  'workflows/ai_summary_v3_AISummaryV3A0001',
 ];
 
 const testFiles = [
@@ -31,6 +32,7 @@ const testFiles = [
   'workflows/summary_coordinator_v3_SummaryCoordV3A1/tests/coordinator.test.js',
   'workflows/automation_error_handler_v3_AutomationErrorV3A1/tests/error-handler.test.js',
   'workflows/automation_retry_and_repair_v3_AutoRepairV3A001/tests/repair.test.js',
+  'workflows/ai_summary_v3_AISummaryV3A0001/tests/summary.test.js',
 ];
 
 function run(command, args) {
