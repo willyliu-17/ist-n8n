@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { collectDataTableReferences } = require('../../../scripts/deploy-utils');
 
 const schema = require('../nodes/State_Schema/schema.json');
 const {
@@ -362,34 +363,59 @@ test('externalizes a self-contained manifest that exactly matches the canonical 
 
 test('runs four read-only by-name Data Table probes with zero-row continuation', () => {
   const workflow = readWorkflow();
-  const probe = workflow.nodes.find(({ name }) => name === 'Probe Table by Name');
+  const probes = workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.dataTable');
 
-  assert.deepEqual(probe.parameters, {
-    resource: 'row',
-    operation: 'get',
-    dataTableId: { __rl: true, mode: 'name', value: '={{ $json.tableName }}' },
-    matchType: 'anyCondition',
-    filters: { conditions: [{ keyName: 'id', condition: 'isNotEmpty' }] },
-    returnAll: false,
-    limit: 1,
-    options: {},
-  });
-  assert.equal(probe.type, 'n8n-nodes-base.dataTable');
-  assert.equal(probe.typeVersion, 1.1);
-  assert.equal(probe.alwaysOutputData, true);
-  assert.equal(JSON.stringify(probe).includes('dt_'), false);
+  assert.deepEqual(probes.map(({ parameters }) => parameters.dataTableId.value), EXPECTED_TABLES);
+  assert.equal(probes.length, EXPECTED_TABLES.length);
+  for (const probe of probes) {
+    assert.equal(probe.parameters.resource, 'row');
+    assert.equal(probe.parameters.operation, 'get');
+    assert.deepEqual(probe.parameters.dataTableId, {
+      __rl: true,
+      mode: 'name',
+      value: probe.parameters.dataTableId.value,
+    });
+    assert.equal(probe.parameters.matchType, 'anyCondition');
+    assert.deepEqual(probe.parameters.filters, { conditions: [{ keyName: 'id', condition: 'isNotEmpty' }] });
+    assert.equal(probe.parameters.returnAll, false);
+    assert.equal(probe.parameters.limit, 1);
+    assert.deepEqual(probe.parameters.options, {});
+    assert.equal(probe.typeVersion, 1.1);
+    assert.equal(probe.alwaysOutputData, true);
+  }
+  assert.equal(JSON.stringify(probes).includes('={{'), false);
+  assert.equal(JSON.stringify(probes).includes('dt_'), false);
+  assert.deepEqual(
+    collectDataTableReferences([workflow]).map(({ tableName }) => tableName),
+    EXPECTED_TABLES,
+  );
 });
 
 test('connects manifest, probes, and an expectation-only report without schema claims', () => {
   const workflow = readWorkflow();
   const report = workflow.nodes.find(({ name }) => name === 'Report Expected Schema');
+  const router = workflow.nodes.find(({ name }) => name === 'Route Expected Table');
+  const barrier = workflow.nodes.find(({ name }) => name === 'Wait for Table Probes');
   const serializedReport = JSON.stringify(report).toLowerCase();
 
   assert.deepEqual(workflow.connections, {
     'Manual Trigger': { main: [[{ node: 'Build Provisioning Manifest', type: 'main', index: 0 }]] },
-    'Build Provisioning Manifest': { main: [[{ node: 'Probe Table by Name', type: 'main', index: 0 }]] },
-    'Probe Table by Name': { main: [[{ node: 'Report Expected Schema', type: 'main', index: 0 }]] },
+    'Build Provisioning Manifest': { main: [[{ node: 'Route Expected Table', type: 'main', index: 0 }]] },
+    'Route Expected Table': { main: [
+      [{ node: 'Probe Suspect Candidates', type: 'main', index: 0 }],
+      [{ node: 'Probe STT Jobs', type: 'main', index: 0 }],
+      [{ node: 'Probe Summary Requests', type: 'main', index: 0 }],
+      [{ node: 'Probe Automation Errors', type: 'main', index: 0 }],
+    ] },
+    'Probe Suspect Candidates': { main: [[{ node: 'Wait for Table Probes', type: 'main', index: 0 }]] },
+    'Probe STT Jobs': { main: [[{ node: 'Wait for Table Probes', type: 'main', index: 1 }]] },
+    'Probe Summary Requests': { main: [[{ node: 'Wait for Table Probes', type: 'main', index: 2 }]] },
+    'Probe Automation Errors': { main: [[{ node: 'Wait for Table Probes', type: 'main', index: 3 }]] },
+    'Wait for Table Probes': { main: [[{ node: 'Report Expected Schema', type: 'main', index: 0 }]] },
   });
+  assert.deepEqual(router.parameters.rules.values.map(({ conditions }) => conditions.conditions[0].rightValue), EXPECTED_TABLES);
+  assert.equal(router.parameters.options.fallbackOutput, 'none');
+  assert.deepEqual(barrier.parameters, { mode: 'append', numberInputs: 4 });
   assert.ok(report);
   assert.equal(report.type, 'n8n-nodes-base.code');
   assert.equal(report.typeVersion, 2);
