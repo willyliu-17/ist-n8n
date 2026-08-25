@@ -1949,6 +1949,17 @@ test('P4 deep-clones and remaps Data Tables, selectors, and credentials before P
                 }
             },
             {
+                name: 'Call existing inference workflow',
+                type: 'n8n-nodes-base.executeWorkflow',
+                parameters: {
+                    workflowId: {
+                        value: 'external-inference-source-id',
+                        cachedResultName: 'Existing inference workflow',
+                        cachedResultUrl: '/workflow/external-inference-source-id'
+                    }
+                }
+            },
+            {
                 name: 'Jobs table',
                 type: 'n8n-nodes-base.dataTable',
                 parameters: {
@@ -1965,6 +1976,11 @@ test('P4 deep-clones and remaps Data Tables, selectors, and credentials before P
             httpHeaderAuth: { id: 'target-header-auth-id', name: 'Header Auth account 2' }
         } }]
     });
+    targetWorkflows.push(workflowDetail(
+        'external-inference-target-id',
+        'Existing inference workflow',
+        { nodes: [{ name: 'Existing inference node' }] }
+    ));
     const ids = new Map(targetWorkflows.slice(0, inventory.length).map(workflow => [workflow.name, workflow.id]));
     const putPayloads = [];
     const methods = [];
@@ -2003,7 +2019,12 @@ test('P4 deep-clones and remaps Data Tables, selectors, and credentials before P
         id: 'target-header-auth-id',
         name: 'Header Auth account 2'
     });
-    assert.deepEqual(putPayloads[0].nodes[1].parameters.dataTableId, {
+    assert.equal(putPayloads[0].nodes[1].parameters.workflowId.value, 'external-inference-target-id');
+    assert.equal(
+        putPayloads[0].nodes[1].parameters.workflowId.cachedResultUrl,
+        '/workflow/external-inference-target-id'
+    );
+    assert.deepEqual(putPayloads[0].nodes[2].parameters.dataTableId, {
         __rl: true,
         mode: 'id',
         value: 'table-jobs'

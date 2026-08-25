@@ -658,9 +658,16 @@ function buildV3DeploymentPlan(
 ) {
     const targetsByName = validateP2TargetIdentity(targetWorkflows, targetWorkflowIds);
     const targetWorkflowNames = buildWorkflowNameByIdMap(targetWorkflows);
+    const requiredWorkflowNames = collectRequiredWorkflowNames(workflows);
+    const selectorWorkflowIds = buildWorkflowIdMap(targetWorkflows, requiredWorkflowNames);
+    for (const [name, id] of targetWorkflowIds) {
+        if (selectorWorkflowIds.get(name) !== id) {
+            throw new Error(`P4 selector authority does not match the approved P2 target ID for "${name}"`);
+        }
+    }
     validateExecuteWorkflowSelectors(
         workflows,
-        targetWorkflowIds,
+        selectorWorkflowIds,
         sourceWorkflowNames,
         targetWorkflowNames
     );
@@ -670,7 +677,7 @@ function buildV3DeploymentPlan(
         const tableRemappedNodes = remapDataTableReferences(clonedWorkflow.nodes, targetDataTableIds);
         const selectorRemappedNodes = remapExecuteWorkflowNodes(
             tableRemappedNodes,
-            targetWorkflowIds,
+            selectorWorkflowIds,
             sourceWorkflowNames,
             targetWorkflowNames
         );
