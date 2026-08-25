@@ -1,0 +1,1310 @@
+{
+  "id": "QueryLogsV3A0001",
+  "name": "Query Steam Logs v3",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "streamID"
+            },
+            {
+              "name": "channel"
+            },
+            {
+              "name": "target_thread_ts"
+            }
+          ]
+        }
+      },
+      "id": "e8d56779-5139-47c4-9e11-b12a8d28ccd1",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -3232,
+        -608
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "18f5d023-3b1a-4632-84b2-034876212501",
+              "name": "streamID",
+              "value": "={{ $json.streamID ? $json.streamID : $node[\"Start\"].json.positionals[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "9f76238b-1809-4623-8321-765187219803",
+              "name": "channelId",
+              "value": "={{ (() => { const value = $json.channel ?? $node[\"Start\"].json.channel; if (value !== 'C0A4JJJKJMD') throw new Error('Slack channel is not allowed'); return 'C0A4JJJKJMD'; })() }}",
+              "type": "string"
+            },
+            {
+              "id": "abc12345-6789-4012-3456-789012345678",
+              "name": "threadTs",
+              "value": "={{ (() => { const value = $json.target_thread_ts || $node[\"Start\"].json.event_ts; if (typeof value !== 'string' || !/^\\d{10,}\\.\\d{6}$/.test(value)) throw new Error('Invalid Slack thread timestamp'); return value; })() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3040,
+        -608
+      ],
+      "id": "5bfc75e0-3a6b-4859-8b2a-04a12a6e6e8d",
+      "name": "Normalize Input"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0A4JJJKJMD",
+          "mode": "id"
+        },
+        "text": "__EXTERNAL_FILE__://nodes/Send_a_logs1/text.md",
+        "otherOptions": {
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Normalize Input').first().json.threadTs }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -736,
+        -384
+      ],
+      "id": "a8a390b5-b5c8-4b2d-ba34-0cea05987ccc",
+      "name": "Send a logs1",
+      "webhookId": "75ee254e-256d-4ca3-872b-13aba5981e5e",
+      "alwaysOutputData": true,
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0A4JJJKJMD",
+          "mode": "id"
+        },
+        "text": "=StreamID: `{{ $('Normalize Input').item.json.streamID }}` not found",
+        "otherOptions": {
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Normalize Input').item.json.threadTs }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -2272,
+        336
+      ],
+      "id": "0259040e-7556-4ffd-96a6-077d07d9b969",
+      "name": "Send streamID not found1",
+      "webhookId": "75ee254e-256d-4ca3-872b-13aba5981e5e",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/Stream_comments1/sqlQuery.sql",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2272,
+        -192
+      ],
+      "id": "07867657-0ea8-491a-8b27-3398438de10e",
+      "name": "Stream comments1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=StreamCommentLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1872,
+        -272
+      ],
+      "id": "3556cc54-35eb-4d03-96b1-4499cbd7d9d2",
+      "name": "Convert to StreamCommentLog1"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/StreamerEventLog1/sqlQuery.sql",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2272,
+        -416
+      ],
+      "id": "08d9629f-87f7-4172-a5b2-70e2efceab22",
+      "name": "StreamerEventLog1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=StreamerEventLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1872,
+        -544
+      ],
+      "id": "4fbe33ee-5656-451a-ba4a-25b30c9d8fc1",
+      "name": "Convert to StreamerEventLog1"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/steamID_beginTime_and_endTime1/sqlQuery.sql",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2864,
+        -608
+      ],
+      "id": "53fc43ea-cbaf-42d8-86ed-09b1c6ebb911",
+      "name": "steamID beginTime and endTime1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/StreamerLog1/sqlQuery.sql",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2272,
+        -720
+      ],
+      "id": "0fb793bd-351c-47ed-bef1-64b8594c6afd",
+      "name": "StreamerLog1",
+      "notesInFlow": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=StreamerLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1872,
+        -832
+      ],
+      "id": "4364683f-e416-4f1f-a8de-79185b699dbf",
+      "name": "Convert to StreamerLog1"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "options": {
+          "channelId": "C0A4JJJKJMD",
+          "threadTs": "={{ $('Normalize Input').item.json.threadTs }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -1568,
+        -832
+      ],
+      "id": "85a9d52a-4c8e-40f8-855d-6be7f763cc42",
+      "name": "Upload StreamLog1",
+      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "options": {
+          "channelId": "C0A4JJJKJMD",
+          "threadTs": "={{ $('Normalize Input').item.json.threadTs }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -1568,
+        -544
+      ],
+      "id": "a0366880-d8ea-42b9-8fa3-2cc82872cd3c",
+      "name": "Upload StreamerEventLog1",
+      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "options": {
+          "channelId": "C0A4JJJKJMD",
+          "threadTs": "={{ $('Normalize Input').item.json.threadTs }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -1568,
+        -272
+      ],
+      "id": "ecf4563a-e82c-48f4-8024-33962fb4157c",
+      "name": "Upload StreamerCommentLog1",
+      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "abfe2e67-9473-4380-bae0-485261072c5c",
+              "leftValue": "={{ $json.LiveStreamID }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2064,
+        -720
+      ],
+      "id": "9a6f83f6-ab0e-44ce-b461-bdb49ade722d",
+      "name": "If LiveStreamID exist1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "abfe2e67-9473-4380-bae0-485261072c5c",
+              "leftValue": "={{ $json.triggerUserID }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2064,
+        -416
+      ],
+      "id": "bddd46cd-32e7-4a4a-9cce-853fb2bb2244",
+      "name": "if triggerUserID exist1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "abfe2e67-9473-4380-bae0-485261072c5c",
+              "leftValue": "={{ $json.s_streamID }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2064,
+        -192
+      ],
+      "id": "e7a40c19-faef-4534-b10e-06b3fcb423d9",
+      "name": "if streamID exist1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ec500057-8829-4b71-8159-2992e0f01019",
+              "leftValue": "={{ $json.liveStreamID }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2672,
+        -608
+      ],
+      "id": "748ec3cb-57e5-4847-93b2-0e6202f351b8",
+      "name": "If streamID exist1"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0A4JJJKJMD",
+          "mode": "id"
+        },
+        "text": "__EXTERNAL_FILE__://nodes/Send_a_message/text.md",
+        "otherOptions": {
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Normalize Input').first().json.threadTs }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -960,
+        -1312
+      ],
+      "id": "2b8afcb7-9895-4939-828b-a6365749c6f7",
+      "name": "Send a message",
+      "webhookId": "c5793150-5813-44af-ad73-b697e0e67db8",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/checker/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1440,
+        -1312
+      ],
+      "id": "8ee1392e-42be-42f0-af16-b4e313b92b78",
+      "name": "checker",
+      "alwaysOutputData": true,
+      "notesInFlow": false,
+      "executeOnce": true,
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Append_Condition_SEL/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2064,
+        -1312
+      ],
+      "id": "e8b7e66a-a925-4e81-ba98-72e1ec89891e",
+      "name": "Append Condition-SEL"
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Append_Condition_SE/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2064,
+        -1488
+      ],
+      "id": "ff4ff4fc-10ca-4f21-b7c5-76ae3f2c8796",
+      "name": "Append Condition-SE"
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1088,
+        -416
+      ],
+      "id": "ff5467ec-2bec-4665-8e28-00ab676eadb0",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"streamerLog\": {{ $json }}\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1344,
+        -704
+      ],
+      "id": "ebe44f7b-8f73-47a7-b721-bf915bf39627",
+      "name": "streamerLog"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"streamerEventLog\": {{ $json }}\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1344,
+        -400
+      ],
+      "id": "b0a865b2-98ee-4578-98bc-50b4699e180c",
+      "name": "streamerEventLog"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"streamCommentLog\": {{ $json }}\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1344,
+        -176
+      ],
+      "id": "e8f1db15-a109-4898-af99-10aa59383361",
+      "name": "streamCommentLog"
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Code/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        -384
+      ],
+      "id": "e5802aa0-9694-438c-889e-b78b3de287ed",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/MatomoLog/sqlQuery.sql",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2272,
+        48
+      ],
+      "id": "1733a518-e3fd-440c-bf00-6ab7b11d7d8c",
+      "name": "MatomoLog",
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "abfe2e67-9473-4380-bae0-485261072c5c",
+              "leftValue": "={{ $json.session_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2064,
+        48
+      ],
+      "id": "fdb59ec2-0430-4685-8e6f-d3fb9e1dc27d",
+      "name": "if session_id exist"
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=MatomoLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1872,
+        -48
+      ],
+      "id": "153a411c-3ba6-4424-857f-4884def8d653",
+      "name": "Convert to MatomoLog"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "options": {
+          "channelId": "C0A4JJJKJMD",
+          "threadTs": "={{ $('Normalize Input').item.json.threadTs }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -1568,
+        -48
+      ],
+      "id": "9f528676-880c-47e5-bc03-e33f228e68a5",
+      "name": "Upload MatomoLog",
+      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"matomoLog\": {{ $json }}\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1344,
+        64
+      ],
+      "id": "66ae653e-c045-4474-98d4-81ca2ffe688f",
+      "name": "MatomoLog1"
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Append_Condition_KEEPALIVE/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2064,
+        -1120
+      ],
+      "id": "169d1b30-4c87-4042-871b-906573aad61e",
+      "name": "Append Condition-KEEPALIVE"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/BACKEND_LOG___KEEPALIVE/sqlQuery.sql",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2272,
+        -960
+      ],
+      "id": "68c3c7f8-b146-4c24-a4e3-7e680508d2eb",
+      "name": "BACKEND LOG - KEEPALIVE",
+      "notesInFlow": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1648,
+        -1328
+      ],
+      "id": "510cf84a-26f4-4e4d-a1c2-30cd078e3001",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/compose_slack_message/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1216,
+        -1312
+      ],
+      "id": "f41e717d-9fa9-4cbb-be7b-8a6aa3fb8a41",
+      "name": "compose slack message"
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/output/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        -384
+      ],
+      "id": "2edbc874-b20f-4729-8124-034a5d858cf1",
+      "name": "output"
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "steamID beginTime and endTime1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stream comments1": {
+      "main": [
+        [
+          {
+            "node": "if streamID exist1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to StreamCommentLog1": {
+      "main": [
+        [
+          {
+            "node": "Upload StreamerCommentLog1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "StreamerEventLog1": {
+      "main": [
+        [
+          {
+            "node": "if triggerUserID exist1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append Condition-SEL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to StreamerEventLog1": {
+      "main": [
+        [
+          {
+            "node": "Upload StreamerEventLog1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "steamID beginTime and endTime1": {
+      "main": [
+        [
+          {
+            "node": "If streamID exist1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "StreamerLog1": {
+      "main": [
+        [
+          {
+            "node": "If LiveStreamID exist1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append Condition-SE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to StreamerLog1": {
+      "main": [
+        [
+          {
+            "node": "Upload StreamLog1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload StreamLog1": {
+      "main": [
+        [
+          {
+            "node": "streamerLog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload StreamerEventLog1": {
+      "main": [
+        [
+          {
+            "node": "streamerEventLog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload StreamerCommentLog1": {
+      "main": [
+        [
+          {
+            "node": "streamCommentLog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If LiveStreamID exist1": {
+      "main": [
+        [
+          {
+            "node": "Convert to StreamerLog1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "streamerLog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if triggerUserID exist1": {
+      "main": [
+        [
+          {
+            "node": "Convert to StreamerEventLog1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "streamerEventLog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if streamID exist1": {
+      "main": [
+        [
+          {
+            "node": "Convert to StreamCommentLog1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "streamCommentLog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If streamID exist1": {
+      "main": [
+        [
+          {
+            "node": "StreamerEventLog1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Stream comments1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "StreamerLog1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MatomoLog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "BACKEND LOG - KEEPALIVE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send streamID not found1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "checker": {
+      "main": [
+        [
+          {
+            "node": "compose slack message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Condition-SEL": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Append Condition-SE": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "streamerLog": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "streamerEventLog": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "streamCommentLog": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Send a logs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MatomoLog": {
+      "main": [
+        [
+          {
+            "node": "if session_id exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if session_id exist": {
+      "main": [
+        [
+          {
+            "node": "Convert to MatomoLog",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MatomoLog1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to MatomoLog": {
+      "main": [
+        [
+          {
+            "node": "Upload MatomoLog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload MatomoLog": {
+      "main": [
+        [
+          {
+            "node": "MatomoLog1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MatomoLog1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Append Condition-KEEPALIVE": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "BACKEND LOG - KEEPALIVE": {
+      "main": [
+        [
+          {
+            "node": "Append Condition-KEEPALIVE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "checker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "compose slack message": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a logs1": {
+      "main": [
+        [
+          {
+            "node": "output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": [
+    {
+      "updatedAt": "2025-10-31T00:33:05.881Z",
+      "createdAt": "2025-10-31T00:33:05.881Z",
+      "id": "boreCiHZYpl3eDGl",
+      "name": "ist-bot"
+    }
+  ]}
