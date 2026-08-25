@@ -23,4 +23,36 @@ const V3_DATA_TABLE_NAMES = Object.freeze([
     'automation_errors_v3'
 ]);
 
-module.exports = { V3_WORKFLOW_INVENTORY, V3_DATA_TABLE_NAMES };
+const V3_TENCENT_CALLBACK_EXCLUSION =
+    'workflows/tencent_realtime_vds_v3_TencentVDSV3A001';
+
+const V3_EXTERNAL_WORKFLOW_DEPENDENCIES = Object.freeze([
+    Object.freeze(['AI SUMMARY Inference SubWF', 'm8VcIoclFE2lVKrl']),
+    Object.freeze(['Debug STT service', 'sPQaAHyeLVGdi7oA'])
+]);
+
+const V3_OFFLINE_TEST_FILES = Object.freeze([
+    'scripts/deploy-utils.test.js',
+    'scripts/stt-summary-v3-offline.test.js',
+    'workflows/automation_provision_state_v3_AutomationProvV3A1/tests/contracts.test.js',
+    'workflows/stream_metadata_resolve_by_ids_v3_StreamMetaV3A001/tests/resolver.test.js',
+    'workflows/stt_dispatch_attempt_v3_STTDispatchV3A01/tests/dispatcher.test.js',
+    'workflows/stt_callback_ingress_v3_STTCallbackV3A1/tests/callback.test.js',
+    'workflows/stt_result_listener_v3_STTListenerV3A01/tests/presentation.test.js',
+    'workflows/req_stt_process_v3_ReqSTTProcessV3A/tests/adapter.test.js',
+    'workflows/summary_orchestrate_request_v3_SummaryOrchV3A01/tests/orchestrator.test.js',
+    'workflows/summary_coordinator_v3_SummaryCoordV3A1/tests/coordinator.test.js',
+    'workflows/automation_error_handler_v3_AutomationErrorV3A1/tests/error-handler.test.js',
+    'workflows/automation_retry_and_repair_v3_AutoRepairV3A001/tests/repair.test.js',
+    'workflows/ai_summary_v3_AISummaryV3A0001/tests/summary.test.js',
+    'workflows/collect_suspect_streamid_v3_CollectSuspectV3/tests/routing.test.js',
+    'workflows/ist_bot_entry_v3_IstBotEntryV3A01/tests/routing.test.js'
+]);
+
+module.exports = {
+    V3_WORKFLOW_INVENTORY,
+    V3_DATA_TABLE_NAMES,
+    V3_TENCENT_CALLBACK_EXCLUSION,
+    V3_EXTERNAL_WORKFLOW_DEPENDENCIES,
+    V3_OFFLINE_TEST_FILES
+};

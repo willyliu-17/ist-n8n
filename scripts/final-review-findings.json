@@ -1,0 +1,60 @@
+{
+  "manifest": "final-review-findings",
+  "items": [
+    {
+      "id": "multiple-canonical-conflict",
+      "specSections": ["design:9.2", "design:9.6", "addendum:7"],
+      "planTasks": [1, 4, 5, 6, 8, 9, 10, 11, 13, 15],
+      "tests": [
+        "concurrent-election",
+        "checkpoint-conflict",
+        "request-one-checkpoint-winner",
+        "request-identical-checkpoints",
+        "request-conflicting-checkpoints-failed",
+        "request-loser-partial-retry",
+        "request-pre-finalize-crash-retry"
+      ],
+      "gates": ["P10"]
+    },
+    {
+      "id": "manual-retry-resolution",
+      "specSections": ["design:9.3", "addendum:7"],
+      "planTasks": [9, 10, 13],
+      "tests": ["retry-created-resolution", "retry-success-summary"],
+      "gates": ["P7", "P10", "P13"]
+    },
+    {
+      "id": "p2-idempotent-exact-name-inventory",
+      "specSections": ["design:10.1", "addendum:5.1"],
+      "planTasks": [3, 13, 14],
+      "tests": ["p2-zero-create", "p2-inert-reuse", "p2-rerun", "p2-fail-closed"],
+      "gates": ["P2"]
+    },
+    {
+      "id": "data-table-runtime-locator-compatibility",
+      "specSections": ["design:3.4", "design:10.1", "addendum:5.3"],
+      "planTasks": [2, 3, 4, 13, 14],
+      "tests": [
+        "source-name-placeholder",
+        "p3-table-map-fail-closed",
+        "p4-data-table-remap",
+        "deployed-id-locator"
+      ],
+      "gates": ["P3", "P4"]
+    },
+    {
+      "id": "cross-midnight-fixed-algorithm",
+      "specSections": ["design:7.2", "addendum:2"],
+      "planTasks": [7, 12, 13],
+      "tests": ["explicit-base", "bounded-pairing-extension", "previous-fallback-window"],
+      "gates": ["P1"]
+    },
+    {
+      "id": "manifest-driven-finding-coverage",
+      "specSections": ["plan:final-review-findings"],
+      "planTasks": [1, 13],
+      "tests": ["manifest-completeness"],
+      "gates": []
+    }
+  ]
+}
