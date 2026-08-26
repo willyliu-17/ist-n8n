@@ -54,6 +54,49 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
    - Commit the changes to Git.
    **Important**: Always explicitly confirm the target environment before running this command.
 
+## Remote Incident Investigation SOP
+
+1. **Confirm the Target Environment**:
+   - Explicitly confirm Production or Staging before making any direct remote REST API request. Do not infer the target from an environment file, workflow ID, or previous session.
+   - Remote mutations, workflow activation, helper execution, and recovery side effects require explicit user approval.
+
+2. **Use the n8n REST API First**:
+   - Use the REST API rather than Playwright to inspect remote workflows and execution logs.
+   - Query `/api/v1/executions?workflowId=<id>` to locate relevant executions and `/api/v1/executions/<id>?includeData=true` to inspect the actual executed nodes, inputs, outputs, errors, and sub-execution metadata.
+   - Query `/api/v1/workflows/<id>` to verify the live workflow state and node configuration. Never assume the Git copy exactly matches the remote runtime.
+   - Never print API keys, credentials, callback secrets, raw user data, or unrelated execution payloads. Output only the minimum redacted evidence needed for diagnosis.
+
+3. **Trace the Exact Failure Boundary**:
+   - Identify the last successful node and the first failing node, then inspect the data crossing that boundary.
+   - Do not infer Slack, BigQuery, HTTP, or other node response shapes from documentation alone. Use the saved execution output from the affected n8n version as the authoritative runtime evidence.
+   - Follow sub-execution metadata when an Execute Sub-workflow node is involved; a successful parent execution does not prove that an asynchronous child succeeded.
+
+4. **Protect Data Table State**:
+   - Invoke `n8n-node-configuration` before configuring or changing a Data Table node.
+   - Treat `id`, `createdAt`, and `updatedAt` as auto-managed system columns. Never write them. Use primitive custom-column values only.
+   - Before any recovery mutation, read all rows for the deterministic key and confirm exactly one canonical self-linked row.
+   - Use an exact compare-and-swap update that includes the row identity, deterministic key, canonical linkage, status, lease snapshot, relevant checkpoint values, and an update snapshot such as `updatedAt`.
+   - Immediately re-read and verify the persisted row. Treat a zero-row or partial update as a failed recovery.
+
+5. **Avoid Duplicate Side Effects**:
+   - If an external side effect succeeded but response parsing or checkpoint persistence failed, recover the actual result from saved execution data and persist that verified checkpoint with exact CAS.
+   - Do not blindly rerun Slack posts, file uploads, AI calls, BigQuery jobs, webhooks, or other non-idempotent operations.
+   - On replay, inspect the executed node list and prove that persisted checkpoints skipped already completed side effects.
+
+6. **Clean Up Temporary Recovery Workflows**:
+   - Temporary helpers must be minimal, inactive by default, validated before use, and restricted to the approved target and deterministic key.
+   - Use a `finally` cleanup path to deactivate and delete every temporary helper after its single approved invocation, including when the invocation fails.
+   - Do not save helper payloads, execution dumps, or diagnostic output in the repository.
+
+7. **Verify Recovery End-to-End**:
+   - Do not rely only on the overall execution status. Inspect the final execution path, terminal node output, persisted state, and absence of unintended side effects.
+   - Run the lightest relevant local regression test and the repository verification gate when workflow files change.
+   - Record execution IDs and bounded, redacted result fields as evidence; do not retain complete remote payloads.
+
+8. **Use Playwright Only as a Fallback**:
+   - Use Playwright only when the REST API cannot expose the required evidence and the user approves the fallback.
+   - Never use browser automation to bypass API permissions, environment isolation, or approval requirements.
+
 ## Rules for AI Agents
 
 - **Environment Confirmation**: You **MUST ALWAYS** ask the user to explicitly confirm the target environment (Production or Staging) before executing `sync.js` or `deploy.js`. Never assume the environment.
