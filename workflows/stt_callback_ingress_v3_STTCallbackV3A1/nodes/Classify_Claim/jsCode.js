@@ -23,6 +23,11 @@ const LOGICAL_PROVENANCE_FIELDS = Object.freeze([
 const ALLOWED_UNCONSUMED_STATUSES = new Set(['waiting_callback', 'retry_pending', 'manual_review']);
 const RECONCILIATION_STATUSES = new Set(['pending', 'canonical', 'duplicate']);
 
+function systemRowID(value) {
+  if (typeof value === 'number') return Number.isSafeInteger(value) && value > 0;
+  return typeof value === 'string' && value !== '';
+}
+
 function parseIso(value, field) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) {
     throw new Error(`Invalid ${field}`);
@@ -56,7 +61,7 @@ function requireCanonical(rows) {
   const canonicalRows = rows.filter(({ reconciliationStatus }) => reconciliationStatus === 'canonical');
   if (canonicalRows.length !== 1) throw new Error('Expected exactly one canonical attempt');
   const canonical = canonicalRows[0];
-  if (canonical.canonicalRowID !== canonical.id) throw new Error('Canonical row does not point to itself');
+  if (canonical.canonicalRowID !== String(canonical.id)) throw new Error('Canonical row does not point to itself');
   return canonical;
 }
 
@@ -72,7 +77,7 @@ function validateLogicalRows(rows, expected) {
   const attempts = new Map();
   for (const row of meaningfulRows) {
     if (
-      typeof row.id !== 'string' || row.id === '' || ids.has(row.id) ||
+      !systemRowID(row.id) || ids.has(row.id) ||
       typeof row.attemptKey !== 'string' || row.attemptKey === '' ||
       !RECONCILIATION_STATUSES.has(row.reconciliationStatus)
     ) {
@@ -89,7 +94,7 @@ function validateLogicalRows(rows, expected) {
   const canonicalRows = [];
   for (const attemptRows of attempts.values()) {
     const canonicals = attemptRows.filter(({ reconciliationStatus }) => reconciliationStatus === 'canonical');
-    if (canonicals.length !== 1 || canonicals[0].canonicalRowID !== canonicals[0].id) {
+    if (canonicals.length !== 1 || canonicals[0].canonicalRowID !== String(canonicals[0].id)) {
       throw new Error('Logical attempt requires exactly one self-owned canonical row');
     }
     const canonical = canonicals[0];
@@ -97,7 +102,7 @@ function validateLogicalRows(rows, expected) {
     for (const row of attemptRows) {
       if (
         (row.reconciliationStatus === 'pending' && row.canonicalRowID !== '') ||
-        (row.reconciliationStatus === 'duplicate' && row.canonicalRowID !== canonical.id)
+        (row.reconciliationStatus === 'duplicate' && row.canonicalRowID !== String(canonical.id))
       ) {
         throw new Error('Invalid logical attempt canonical linkage');
       }

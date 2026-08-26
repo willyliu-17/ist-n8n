@@ -61,7 +61,7 @@ const P3_DATA_TABLE_IDS = new Map(P3_ARTIFACT.tables.map(({ name, id }) => [name
 
 function attempt(overrides = {}) {
   return {
-    id: 'row-a',
+    id: 1,
     createdAt: NOW,
     updatedAt: NOW,
     attemptKey: 'summary:req-001:current:9001:fromStart:1',
@@ -85,7 +85,7 @@ function attempt(overrides = {}) {
     }),
     status: 'queued',
     reconciliationStatus: 'canonical',
-    canonicalRowID: 'row-a',
+    canonicalRowID: '1',
     channel: 'C0A4JJJKJMD',
     threadTS: '1787364000.000001',
     processingMessageTS: '1787364001.000002',
@@ -285,6 +285,16 @@ test('accepts only the canonical mode, C0 channel, and fixed HTTPS callback path
   assert.throws(() => buildVdsPayload(attempt(), 'short', CALLBACK_URL), /token/i);
 });
 
+test('validates the fixed callback URL without the sandbox URL constructor', () => {
+  const originalURL = global.URL;
+  try {
+    global.URL = undefined;
+    assert.equal(buildVdsPayload(attempt(), TOKEN, CALLBACK_URL).webhookConfiguration.url, CALLBACK_URL);
+  } finally {
+    global.URL = originalURL;
+  }
+});
+
 test('keeps token only in callback body context and computes fixed time boundaries', () => {
   const payload = buildVdsPayload(attempt(), TOKEN, CALLBACK_URL, Date.parse(NOW));
 
@@ -335,9 +345,9 @@ test('routes every transport error to manual review without automatic retry', ()
 });
 
 test('preserves an existing canonical and elects system earliest only when absent', () => {
-  const existing = attempt({ id: 'row-z', canonicalRowID: 'row-z' });
+  const existing = attempt({ id: 26, canonicalRowID: '26' });
   const later = attempt({
-    id: 'row-a',
+    id: 1,
     createdAt: '2026-08-22T00:01:00.000Z',
     reconciliationStatus: 'pending',
     canonicalRowID: '',
@@ -345,31 +355,60 @@ test('preserves an existing canonical and elects system earliest only when absen
   const existingPlan = planCanonicalReconciliation([existing, later]);
 
   assert.equal(existingPlan.action, 'reconcile');
-  assert.equal(existingPlan.winnerRowID, 'row-z');
+  assert.equal(existingPlan.winnerRowID, 26);
   assert.deepEqual(existingPlan.mutations.map(({ id, desiredReconciliationStatus, desiredCanonicalRowID }) => ({
     id, desiredReconciliationStatus, desiredCanonicalRowID,
-  })), [{ id: 'row-a', desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: 'row-z' }]);
+  })), [{ id: 1, desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: '26' }]);
 
   const noCanonicalPlan = planCanonicalReconciliation([
-    attempt({ id: 'row-b', reconciliationStatus: 'pending', canonicalRowID: '' }),
-    attempt({ id: 'row-a', reconciliationStatus: 'pending', canonicalRowID: '' }),
+    attempt({ id: 2, reconciliationStatus: 'pending', canonicalRowID: '' }),
+    attempt({ id: 1, reconciliationStatus: 'pending', canonicalRowID: '' }),
   ]);
-  assert.equal(noCanonicalPlan.winnerRowID, 'row-a');
-  assert.equal(noCanonicalPlan.mutations.find(({ id }) => id === 'row-a').desiredReconciliationStatus, 'canonical');
-  assert.ok(noCanonicalPlan.mutations.filter(({ id }) => id !== 'row-a').every(({ desiredReconciliationStatus }) => desiredReconciliationStatus === 'duplicate'));
+  assert.equal(noCanonicalPlan.winnerRowID, 1);
+  assert.equal(noCanonicalPlan.mutations.find(({ id }) => id === 1).desiredReconciliationStatus, 'canonical');
+  assert.ok(noCanonicalPlan.mutations.filter(({ id }) => id !== 1).every(({ desiredReconciliationStatus }) => desiredReconciliationStatus === 'duplicate'));
+});
+
+test('accepts Production numeric system ids while retaining string canonical references', () => {
+  const canonical = attempt({ id: 2, canonicalRowID: '2' });
+  const duplicate = attempt({
+    id: 3,
+    reconciliationStatus: 'duplicate',
+    canonicalRowID: '2',
+  });
+  const plan = planCanonicalReconciliation([canonical, duplicate]);
+
+  assert.equal(plan.winnerRowID, 2);
+  assert.equal(typeof plan.winnerRowID, 'number');
+  assert.equal(plan.mutations.length, 0);
+
+  const elected = planCanonicalReconciliation([
+    attempt({ id: 3, reconciliationStatus: 'pending', canonicalRowID: '' }),
+    attempt({ id: 2, reconciliationStatus: 'pending', canonicalRowID: '' }),
+  ]);
+  assert.equal(elected.winnerRowID, 2);
+  assert.ok(elected.mutations.every(({ desiredCanonicalRowID }) => desiredCanonicalRowID === '2'));
+
+  for (const id of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, null, undefined]) {
+    assert.throws(
+      () => planCanonicalReconciliation([attempt({ id, canonicalRowID: String(id) })]),
+      /required system field|invalid reconciliation/i,
+      String(id),
+    );
+  }
 });
 
 test('demotes only clean canonical losers and freezes checkpoint conflicts', () => {
   const cleanRows = [
-    attempt({ id: 'row-b', canonicalRowID: 'row-b' }),
-    attempt({ id: 'row-a', canonicalRowID: 'row-a' }),
+    attempt({ id: 2, canonicalRowID: '2' }),
+    attempt({ id: 1, canonicalRowID: '1' }),
   ];
   const cleanPlan = planCanonicalReconciliation(cleanRows);
   assert.equal(cleanPlan.action, 'reconcile');
-  assert.equal(cleanPlan.winnerRowID, 'row-a');
-  assert.deepEqual(cleanPlan.mutations.map(({ id }) => id), ['row-b']);
+  assert.equal(cleanPlan.winnerRowID, 1);
+  assert.deepEqual(cleanPlan.mutations.map(({ id }) => id), [2]);
   assert.equal(cleanPlan.mutations[0].expectedReconciliationStatus, 'canonical');
-  assert.equal(cleanPlan.mutations[0].expectedCanonicalRowID, 'row-b');
+  assert.equal(cleanPlan.mutations[0].expectedCanonicalRowID, '2');
 
   assert.deepEqual(ATTEMPT_CHECKPOINT_FIELDS, EXPECTED_ATTEMPT_CHECKPOINT_FIELDS);
   assert.deepEqual(SUMMARY_CHECKPOINT_FIELDS, EXPECTED_SUMMARY_CHECKPOINT_FIELDS);
@@ -387,10 +426,10 @@ test('demotes only clean canonical losers and freezes checkpoint conflicts', () 
 
 test('freezes multiple canonicals when any noncanonical same-attempt row has an attempt checkpoint', () => {
   const rows = [
-    attempt({ id: 'row-b', canonicalRowID: 'row-b' }),
-    attempt({ id: 'row-a', canonicalRowID: 'row-a' }),
+    attempt({ id: 2, canonicalRowID: '2' }),
+    attempt({ id: 1, canonicalRowID: '1' }),
     attempt({
-      id: 'row-pending',
+      id: 4,
       reconciliationStatus: 'pending',
       canonicalRowID: '',
       submittedAtIso: '2026-08-22T00:00:01.000Z',
@@ -402,8 +441,8 @@ test('freezes multiple canonicals when any noncanonical same-attempt row has an 
 
 test('reads Summary checkpoints only from matching summary request rows', () => {
   const rows = [
-    attempt({ id: 'row-b', canonicalRowID: 'row-b' }),
-    attempt({ id: 'row-a', canonicalRowID: 'row-a' }),
+    attempt({ id: 2, canonicalRowID: '2' }),
+    attempt({ id: 1, canonicalRowID: '1' }),
   ];
 
   for (const checkpoint of EXPECTED_SUMMARY_CHECKPOINT_FIELDS) {
@@ -421,8 +460,8 @@ test('reads Summary checkpoints only from matching summary request rows', () => 
 
 test('fails closed before multiple-canonical decisions when attempt request keys differ', () => {
   const rows = [
-    attempt({ id: 'row-b', canonicalRowID: 'row-b' }),
-    attempt({ id: 'row-a', canonicalRowID: 'row-a', requestKey: 'summary:req-other' }),
+    attempt({ id: 2, canonicalRowID: '2' }),
+    attempt({ id: 1, canonicalRowID: '1', requestKey: 'summary:req-other' }),
   ];
 
   assert.throws(() => planCanonicalReconciliation(rows, []), /attempt request key mismatch/i);
@@ -432,9 +471,9 @@ test('fails closed before single-canonical duplicate reconciliation when request
   const rows = [
     attempt(),
     attempt({
-      id: 'row-duplicate',
+      id: 5,
       reconciliationStatus: 'duplicate',
-      canonicalRowID: 'row-a',
+      canonicalRowID: '1',
       requestKey: 'summary:req-other',
     }),
   ];
@@ -445,7 +484,7 @@ test('fails closed before single-canonical duplicate reconciliation when request
 test('fails closed when any attempt row has a missing request key', () => {
   const rows = [
     attempt(),
-    attempt({ id: 'row-pending', reconciliationStatus: 'pending', canonicalRowID: '', requestKey: undefined }),
+    attempt({ id: 4, reconciliationStatus: 'pending', canonicalRowID: '', requestKey: undefined }),
   ];
 
   assert.throws(() => planCanonicalReconciliation(rows, []), /invalid attempt request key/i);
@@ -455,7 +494,7 @@ test('rejects malformed reconciliation states before election or repair decision
   const cases = [
     ['unknown status', attempt({ reconciliationStatus: 'winner' })],
     ['canonical not self', attempt({ canonicalRowID: 'row-other' })],
-    ['pending with canonical target', attempt({ reconciliationStatus: 'pending', canonicalRowID: 'row-a' })],
+    ['pending with canonical target', attempt({ reconciliationStatus: 'pending', canonicalRowID: '1' })],
     ['duplicate without canonical target', attempt({ reconciliationStatus: 'duplicate', canonicalRowID: '' })],
     ['missing id', attempt({ id: '' })],
     ['missing createdAt', attempt({ createdAt: '' })],
@@ -500,12 +539,12 @@ test('handles already-applied, zero-CAS reread, mismatch, and fallback-CAS-miss 
   assert.equal(verifyFinalState([applied], expected, 'exec-1').action, 'verified');
   assert.deepEqual(verifyFinalState([ownedDispatching], expected, 'exec-1'), {
     action: 'fallback',
-    fallbackRowID: 'row-a',
-    id: 'row-a',
+    fallbackRowID: 1,
+    id: 1,
     attemptKey: expected.attemptKey,
     expectedStatus: 'dispatching',
     expectedReconciliationStatus: 'canonical',
-    expectedCanonicalRowID: 'row-a',
+    expectedCanonicalRowID: '1',
     expectedDispatchLeaseOwner: 'exec-1',
     expectedDispatchLeaseUntilIso: expected.dispatchLeaseUntilIso,
     desiredStatus: 'manual_review',
@@ -536,20 +575,20 @@ test('handles already-applied, zero-CAS reread, mismatch, and fallback-CAS-miss 
     dispatchLeaseOwner: '',
     dispatchLeaseUntilIso: '',
   };
-  assert.equal(confirmFinalFallback([confirmed], 'row-a').action, 'verified_fallback');
-  assert.throws(() => confirmFinalFallback([ownedDispatching], 'row-a'), /fallback.*unconfirmed|fallback.*mismatch/i);
-  assert.throws(() => confirmFinalFallback([{ ...confirmed, id: 'row-replacement', canonicalRowID: 'row-replacement' }], 'row-a'), /fallback row.*mismatch/i);
-  assert.throws(() => confirmFinalFallback([{ ...confirmed, nextRetryAtIso: '2026-08-22T00:05:00.000Z' }], 'row-a'), /fallback.*mismatch/i);
-  assert.throws(() => confirmFinalFallback([{ ...confirmed, manualReviewAtIso: '' }], 'row-a'), /manual review time/i);
-  assert.throws(() => confirmFinalFallback([{ ...confirmed, manualReviewAtIso: 'not-an-iso' }], 'row-a'), /manual review time/i);
+  assert.equal(confirmFinalFallback([confirmed], 1).action, 'verified_fallback');
+  assert.throws(() => confirmFinalFallback([ownedDispatching], 1), /fallback.*unconfirmed|fallback.*mismatch/i);
+  assert.throws(() => confirmFinalFallback([{ ...confirmed, id: 6, canonicalRowID: '6' }], 1), /fallback row.*mismatch/i);
+  assert.throws(() => confirmFinalFallback([{ ...confirmed, nextRetryAtIso: '2026-08-22T00:05:00.000Z' }], 1), /fallback.*mismatch/i);
+  assert.throws(() => confirmFinalFallback([{ ...confirmed, manualReviewAtIso: '' }], 1), /manual review time/i);
+  assert.throws(() => confirmFinalFallback([{ ...confirmed, manualReviewAtIso: 'not-an-iso' }], 1), /manual review time/i);
 });
 
 test('verifies every expected competing canonical was frozen without partial CAS', () => {
   const { verifyFrozenConflict } = loadStateVerifier();
-  const expected = [{ id: 'row-a' }, { id: 'row-b' }];
+  const expected = [{ id: 1 }, { id: 2 }];
   const frozen = expected.map(({ id }) => attempt({
     id,
-    canonicalRowID: id,
+    canonicalRowID: String(id),
     status: 'manual_review',
     manualReviewReason: 'multiple_canonical_checkpoint_conflict',
   }));
@@ -565,24 +604,24 @@ test('verifies every expected competing canonical was frozen without partial CAS
 test('uses the converged post-reconciliation conflict plan when a new canonical wins the race', () => {
   const { verifyFrozenConflict } = loadStateVerifier();
   const initialRows = [
-    attempt({ id: 'row-a', canonicalRowID: 'row-a' }),
-    attempt({ id: 'row-b', canonicalRowID: 'row-b' }),
+    attempt({ id: 1, canonicalRowID: '1' }),
+    attempt({ id: 2, canonicalRowID: '2' }),
   ];
   const initialPlan = planCanonicalReconciliation(initialRows, []);
   assert.equal(initialPlan.action, 'reconcile');
-  assert.deepEqual(initialPlan.mutations.map(({ id }) => id), ['row-b']);
+  assert.deepEqual(initialPlan.mutations.map(({ id }) => id), [2]);
 
   const racedRows = [
     ...initialRows,
     attempt({
-      id: 'row-c',
-      canonicalRowID: 'row-c',
+      id: 3,
+      canonicalRowID: '3',
       submittedAtIso: '2026-08-22T00:00:01.000Z',
     }),
   ];
   const convergedPlan = planCanonicalReconciliation(racedRows, []);
   assert.equal(convergedPlan.action, 'manual_review');
-  assert.deepEqual(convergedPlan.mutations.map(({ id }) => id), ['row-a', 'row-b', 'row-c']);
+  assert.deepEqual(convergedPlan.mutations.map(({ id }) => id), [1, 2, 3]);
 
   const frozen = racedRows.map((row) => ({
     ...row,
@@ -603,7 +642,7 @@ test('requires exactly one canonical row owned by the current dispatch lease', (
     dispatchLeaseUntilIso: '2026-08-22T00:05:00.000Z',
   });
   assert.deepEqual(requireCanonicalOwner([owned], 'exec-1', NOW), owned);
-  assert.throws(() => requireCanonicalOwner([owned, { ...owned, id: 'row-b' }], 'exec-1', NOW), /exactly one canonical/i);
+  assert.throws(() => requireCanonicalOwner([owned, { ...owned, id: 2 }], 'exec-1', NOW), /exactly one canonical/i);
   assert.throws(() => requireCanonicalOwner([owned], 'exec-2', NOW), /lease owner/i);
   assert.throws(() => requireCanonicalOwner([owned], 'exec-1', '2026-08-22T00:05:00.000Z'), /lease expired/i);
   assert.throws(() => requireCanonicalOwner([owned], 'exec-1', '2026-08-22T00:05:00.001Z'), /lease expired/i);
@@ -650,7 +689,7 @@ test('keeps authoritative source placeholders and remaps every Data Table to its
   assert.equal(collectDataTableReferences([workflow]).length, dataTableNodes.length);
   assert.ok(updates.length >= 7);
   for (const node of dataTableNodes) {
-    assert.equal(node.typeVersion, 1.1, node.name);
+    assert.equal(node.typeVersion, 1, node.name);
     assert.equal(node.parameters.dataTableId.__rl, true, node.name);
     assert.equal(node.parameters.dataTableId.mode, 'name', node.name);
     assert.ok(['stt_jobs_v3', 'summary_requests_v3'].includes(node.parameters.dataTableId.value), node.name);
@@ -810,12 +849,12 @@ test('persists only token hash and two-hour expiry before the VDS submit', () =>
   assert.deepEqual(targets(workflow, 'Build VDS Payload'), ['Submit VDS Segment']);
 });
 
-test('uses the fixed callback variable and exact VDS HTTP credential with disabled retry and a wired error output', () => {
+test('uses the deployment callback placeholder and exact VDS HTTP credential with disabled retry and a wired error output', () => {
   const workflow = readWorkflow();
   const attachUrl = nodeByName(workflow, 'Attach Callback URL');
   const request = nodeByName(workflow, 'Submit VDS Segment');
 
-  assert.equal(attachUrl.parameters.assignments.assignments[0].value, '={{ $vars.STT_CALLBACK_URL }}');
+  assert.equal(attachUrl.parameters.assignments.assignments[0].value, '__DEPLOY_STT_CALLBACK_URL__');
   assert.equal(request.parameters.method, 'POST');
   assert.equal(request.parameters.url, 'https://stt-api.17app.co/api/v1/stream/conversions/segment');
   assert.equal(request.parameters.authentication, 'genericCredentialType');
@@ -884,13 +923,10 @@ test('routes ACK classes to canonical final patches with Limit 1 and re-read', (
   assert.equal(fallback.alwaysOutputData, true);
 });
 
-test('disables retained execution payloads with settings supported by n8n 1.123.27', () => {
-  assert.deepEqual(readWorkflow().settings, {
-    executionOrder: 'v1',
-    saveDataSuccessExecution: 'none',
-    saveDataErrorExecution: 'none',
-    saveManualExecutions: false,
-    saveExecutionProgress: false,
+test('uses the approved execution retention settings', () => {
+  const settings = readWorkflow().settings;
+  assert.deepEqual(Object.fromEntries(['saveDataSuccessExecution', 'saveDataErrorExecution', 'saveManualExecutions', 'saveExecutionProgress'].map((key) => [key, settings[key]])), {
+    saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false,
   });
 });
 

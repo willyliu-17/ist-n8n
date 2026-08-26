@@ -14,13 +14,14 @@
           { "name": "mins", "type": "number" },
           { "name": "date", "type": "string" },
           { "name": "channel", "type": "string" },
+          { "name": "command_ts", "type": "string" },
           { "name": "target_thread_ts", "type": "string" }
         ] }
       },
       "id": "b596a7dc-b887-4f1d-b5d0-676641492162",
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.2,
+      "typeVersion": 1.1,
       "position": [0, 0]
     },
     {
@@ -252,7 +253,7 @@
       "id": "77aee305-cf7a-4d45-b1a8-a12e815c3d9b",
       "name": "Insert Attempt",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [1440, 0],
       "alwaysOutputData": true
     },
@@ -267,7 +268,7 @@
       "id": "21337778-c8c2-46f7-ae73-486528b33f89",
       "name": "Read All Attempt Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [1680, 0],
       "alwaysOutputData": true
     },
@@ -309,7 +310,7 @@
           { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
           { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" },
           { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" }
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }
         ] },
         "columns": { "mappingMode": "defineBelow", "value": {
           "status": "manual_review", "manualReviewReason": "multiple_canonical_checkpoint_conflict",
@@ -320,7 +321,7 @@
       "id": "6a197e47-a83f-45a9-847b-24b1ea3ccb77",
       "name": "Freeze Canonical Conflict",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [2640, -240],
       "alwaysOutputData": true
     },
@@ -343,7 +344,7 @@
       "id": "85dd01b5-679f-4df0-bc89-14c4daef4a90",
       "name": "Re-read Manual Review State",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [3120, -240],
       "alwaysOutputData": true
     },
@@ -388,7 +389,7 @@
       "id": "63acf6c0-adb5-472d-afc6-3c7e9458a04b",
       "name": "Apply Reconciliation",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [2640, 80],
       "alwaysOutputData": true
     },
@@ -411,7 +412,7 @@
       "id": "df57799a-d2ac-446a-8c05-881058fb6ca6",
       "name": "Re-read After Reconciliation",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [3120, 80],
       "alwaysOutputData": true
     },
@@ -539,9 +540,9 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "saveDataSuccessExecution": "none",
-    "saveDataErrorExecution": "none",
-    "saveManualExecutions": false,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
     "saveExecutionProgress": false
   },
   "staticData": null,

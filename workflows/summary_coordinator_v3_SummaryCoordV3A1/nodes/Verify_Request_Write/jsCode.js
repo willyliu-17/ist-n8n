@@ -1,5 +1,5 @@
 function canonical(rows, requestKey) {
-  const result = rows.filter((row) => row.id && row.requestKey === requestKey && row.reconciliationStatus === 'canonical' && row.canonicalRowID === row.id);
+  const result = rows.filter((row) => row.id && row.requestKey === requestKey && row.reconciliationStatus === 'canonical' && row.canonicalRowID === String(row.id));
   if (result.length !== 1) throw new Error('request reread does not contain exactly one canonical');
   return result[0];
 }

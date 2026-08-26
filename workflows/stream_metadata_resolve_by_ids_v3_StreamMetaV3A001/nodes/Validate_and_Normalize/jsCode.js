@@ -2,6 +2,7 @@ const ID_PATTERN = /^[0-9]{1,20}$/;
 const RFC3339_WITH_OFFSET = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-](\d{2}):(\d{2}))$/;
 const MAX_WINDOW_MS = 31 * 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_INT64 = BigInt('9223372036854775807');
 
 function parseRfc3339WithOffset(value, fieldName) {
   if (typeof value !== 'string') {
@@ -87,13 +88,25 @@ function validateAndNormalize(input, nowMs = Date.now()) {
   }
 
   const uniqueIDs = [...new Set(inputStreams.map((stream) => stream.liveStreamID))];
-  const idsSqlLiteral = `[${uniqueIDs.map((id) => `'${id}'`).join(',')}]`;
+  const stringIdsSqlLiteral = `[${uniqueIDs.map((id) => `'${id}'`).join(',')}]`;
+  let int64IdsSqlLiteral = null;
+  if (input.profile !== 'core') {
+    const int64IDs = uniqueIDs.map((id) => {
+      const value = BigInt(id);
+      if (value > MAX_INT64) {
+        throw new Error(`liveStreamID ${id} exceeds the BigQuery INT64 range`);
+      }
+      return value.toString();
+    });
+    int64IdsSqlLiteral = `[${int64IDs.join(',')}]`;
+  }
 
   return {
     profile: input.profile,
     inputStreams,
     uniqueIDs,
-    idsSqlLiteral,
+    stringIdsSqlLiteral,
+    int64IdsSqlLiteral,
     windowStart,
     windowEnd,
   };

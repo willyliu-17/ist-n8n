@@ -18,6 +18,10 @@ const SUMMARY_CHECKPOINT_FIELDS = Object.freeze([
 const ORIGINAL_STAGE_ALLOWLIST = new Set(['ready', 'summary_dispatching', 'summary_retry_pending', 'completed']);
 const RECONCILIATION_STATUSES = new Set(['pending', 'canonical', 'duplicate']);
 
+function systemRowID(value) {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
 function compareRows(left, right) {
   if (left.createdAt < right.createdAt) return -1;
   if (left.createdAt > right.createdAt) return 1;
@@ -49,17 +53,18 @@ function buildSummaryRow(normalized, executionID, nowIso = new Date().toISOStrin
 }
 
 function rowsFromItems(items) {
-  return items.map((item) => item?.json || item).filter((row) => row && typeof row.id === 'string' && row.id !== '');
+  return items.map((item) => item?.json || item).filter((row) => row && systemRowID(row.id));
 }
 
 function validateRows(rows, requestKey) {
   for (const row of rows) {
-    for (const field of ['id', 'createdAt', 'updatedAt']) {
+    if (!systemRowID(row.id)) throw new Error('Invalid request system field: id');
+    for (const field of ['createdAt', 'updatedAt']) {
       if (typeof row[field] !== 'string' || row[field] === '') throw new Error(`Invalid request system field: ${field}`);
     }
     if (row.requestKey !== requestKey) throw new Error('Request key mismatch');
     if (!RECONCILIATION_STATUSES.has(row.reconciliationStatus)) throw new Error('Invalid request reconciliation status');
-    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== row.id) throw new Error('Canonical request must point to itself');
+    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== String(row.id)) throw new Error('Canonical request must point to itself');
     if (row.reconciliationStatus === 'pending' && row.canonicalRowID !== '') throw new Error('Pending request must not point to canonical');
     if (row.reconciliationStatus === 'duplicate' && (typeof row.canonicalRowID !== 'string' || row.canonicalRowID === '')) {
       throw new Error('Duplicate request must point to canonical');
@@ -78,7 +83,7 @@ function mutation(row, winnerRowID, desiredReconciliationStatus) {
     id: row.id, requestKey: row.requestKey, expectedStatus: row.status,
     expectedReconciliationStatus: row.reconciliationStatus,
     expectedCanonicalRowID: row.canonicalRowID, desiredReconciliationStatus,
-    desiredCanonicalRowID: winnerRowID,
+    desiredCanonicalRowID: String(winnerRowID),
   };
 }
 
@@ -106,7 +111,7 @@ function planRequestReconciliation(rows, normalized) {
     const canonical = canonicalRows[0];
     assertImmutable(canonical, normalized);
     const mutations = rows.filter((row) => row.id !== canonical.id)
-      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== canonical.id)
+      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== String(canonical.id))
       .map((row) => mutation(row, canonical.id, 'duplicate'));
     return mutations.length ? { action: 'reconcile', winnerRowID: canonical.id, mutations }
       : { action: 'ready', winnerRowID: canonical.id, canonical, mutations: [] };
@@ -121,7 +126,7 @@ function planRequestReconciliation(rows, normalized) {
 
 function planCreationLease(canonical, executionID, nowIso = new Date().toISOString()) {
   if (canonical.status !== 'creating') return { action: 'accepted', canonical };
-  if (canonical.reconciliationStatus !== 'canonical' || canonical.canonicalRowID !== canonical.id) throw new Error('Creation lease requires canonical request');
+  if (canonical.reconciliationStatus !== 'canonical' || canonical.canonicalRowID !== String(canonical.id)) throw new Error('Creation lease requires canonical request');
   const owner = canonical.creationLeaseOwner || '';
   const until = canonical.creationLeaseUntilIso || '';
   const parsedUntil = until === '' ? Number.NEGATIVE_INFINITY : Date.parse(until);

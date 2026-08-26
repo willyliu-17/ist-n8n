@@ -11,7 +11,7 @@
         { "name": "orderedStreams", "type": "array" }, { "name": "existingDialogues", "type": "object" },
         { "name": "channel", "type": "string" }, { "name": "threadTS", "type": "string" }
       ] } },
-      "id": "00000001-0000-4000-8000-000000000001", "name": "Start", "type": "n8n-nodes-base.executeWorkflowTrigger", "typeVersion": 1.2, "position": [0, 0]
+      "id": "00000001-0000-4000-8000-000000000001", "name": "Start", "type": "n8n-nodes-base.executeWorkflowTrigger", "typeVersion": 1.1, "position": [0, 0]
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Normalize_Request/jsCode.js" },
@@ -19,7 +19,7 @@
     },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Normalize Request').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "00000003-0000-4000-8000-000000000003", "name": "Read All Request Rows", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [480, 0], "alwaysOutputData": true
+      "id": "00000003-0000-4000-8000-000000000003", "name": "Read All Request Rows", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [480, 0], "alwaysOutputData": true
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Request/jsCode.js" },
@@ -33,12 +33,12 @@
       "parameters": { "resource": "row", "operation": "insert", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "columns": { "mappingMode": "defineBelow", "value": {
         "requestKey": "={{ $json.requestKey }}", "requestType": "={{ $json.requestType }}", "status": "={{ $json.status }}", "creationLeaseOwner": "={{ $json.creationLeaseOwner }}", "reconciliationStatus": "={{ $json.reconciliationStatus }}", "canonicalRowID": "={{ $json.canonicalRowID }}", "creationLeaseUntilIso": "={{ $json.creationLeaseUntilIso }}", "orderedStreamsJson": "={{ $json.orderedStreamsJson }}", "existingDialoguesJson": "={{ $json.existingDialoguesJson }}", "expectedLogicalJobKeysJson": "={{ $json.expectedLogicalJobKeysJson }}", "channel": "={{ $json.channel }}", "threadTS": "={{ $json.threadTS }}", "coverageStatus": "={{ $json.coverageStatus }}", "availableRolesJson": "={{ $json.availableRolesJson }}", "missingRolesJson": "={{ $json.missingRolesJson }}", "failedLogicalJobKeysJson": "={{ $json.failedLogicalJobKeysJson }}", "leaseOwner": "={{ $json.leaseOwner }}", "leaseUntilIso": "={{ $json.leaseUntilIso }}", "summaryAttempt": "={{ $json.summaryAttempt }}", "nextRetryAtIso": "={{ $json.nextRetryAtIso }}", "errorCode": "={{ $json.errorCode }}", "inferenceResultJson": "={{ $json.inferenceResultJson }}", "summaryMarkdown": "={{ $json.summaryMarkdown }}", "summaryMessageTS": "={{ $json.summaryMessageTS }}", "summaryUploadID": "={{ $json.summaryUploadID }}", "manualReviewReason": "={{ $json.manualReviewReason }}", "manualReviewAtIso": "={{ $json.manualReviewAtIso }}", "manualReviewResolution": "={{ $json.manualReviewResolution }}", "manualReviewOriginalStage": "={{ $json.manualReviewOriginalStage }}", "manualResolutionWinnerRowID": "={{ $json.manualResolutionWinnerRowID }}", "manualResolutionDecisionID": "={{ $json.manualResolutionDecisionID }}", "createdAtIso": "={{ $json.createdAtIso }}", "updatedAtIso": "={{ $json.updatedAtIso }}"
       }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "id": "00000006-0000-4000-8000-000000000006", "name": "Insert Creating Request", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [1200, -160], "alwaysOutputData": true
+      "id": "00000006-0000-4000-8000-000000000006", "name": "Insert Creating Request", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [1200, -160], "alwaysOutputData": true
     },
     { "parameters": { "maxItems": 1 }, "id": "00000007-0000-4000-8000-000000000007", "name": "Limit Request Insert", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [1440, -160] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Normalize Request').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "00000008-0000-4000-8000-000000000008", "name": "Re-read Request Rows", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [1680, -160], "alwaysOutputData": true
+      "id": "00000008-0000-4000-8000-000000000008", "name": "Re-read Request Rows", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [1680, -160], "alwaysOutputData": true
     },
     {
       "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "10000009-0000-4000-8000-000000000009", "leftValue": "={{ $json.reconciliationAction }}", "rightValue": "manual_review", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
@@ -49,14 +49,14 @@
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $json.requestKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" }
+        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "manual_review", "manualReviewReason": "multiple_canonical_checkpoint_conflict", "manualReviewAtIso": "={{ $now.toUTC().toISO() }}", "manualReviewOriginalStage": "={{ $json.manualReviewOriginalStage }}", "creationLeaseOwner": "", "creationLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "id": "0000000b-0000-4000-8000-00000000000b", "name": "Freeze Competing Requests", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [1680, -400], "alwaysOutputData": true
+      "id": "0000000b-0000-4000-8000-00000000000b", "name": "Freeze Competing Requests", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [1680, -400], "alwaysOutputData": true
     },
     { "parameters": { "maxItems": 1 }, "id": "0000000c-0000-4000-8000-00000000000c", "name": "Limit Request Freeze", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [1920, -400] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Normalize Request').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "0000000d-0000-4000-8000-00000000000d", "name": "Re-read Frozen Requests", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [2160, -400], "alwaysOutputData": true
+      "id": "0000000d-0000-4000-8000-00000000000d", "name": "Re-read Frozen Requests", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2160, -400], "alwaysOutputData": true
     },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Conflicts/jsCode.js" }, "id": "0000000e-0000-4000-8000-00000000000e", "name": "Verify Frozen Requests", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [2400, -400] },
     {
@@ -69,12 +69,12 @@
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.expectedCanonicalRowID }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}", "canonicalRowID": "={{ $json.desiredCanonicalRowID }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "id": "00000010-0000-4000-8000-000000000010", "name": "Apply Request Reconciliation", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [1680, 0], "alwaysOutputData": true
+      "id": "00000010-0000-4000-8000-000000000010", "name": "Apply Request Reconciliation", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [1680, 0], "alwaysOutputData": true
     },
     { "parameters": { "maxItems": 1 }, "id": "00000011-0000-4000-8000-000000000011", "name": "Limit Request Reconciliation", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [1920, 0] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Normalize Request').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "00000012-0000-4000-8000-000000000012", "name": "Re-read Reconciled Requests", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [2160, 0], "alwaysOutputData": true
+      "id": "00000012-0000-4000-8000-000000000012", "name": "Re-read Reconciled Requests", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2160, 0], "alwaysOutputData": true
     },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Creation_Lease/jsCode.js" }, "id": "00000013-0000-4000-8000-000000000013", "name": "Plan Creation Lease", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1680, 160] },
     {
@@ -85,10 +85,10 @@
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $json.requestKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "creating" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "creationLeaseOwner", "condition": "eq", "keyValue": "={{ $json.expectedCreationLeaseOwner }}" },
+        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }, { "keyName": "creationLeaseOwner", "condition": "eq", "keyValue": "={{ $json.expectedCreationLeaseOwner }}" },
         { "keyName": "creationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.expectedCreationLeaseUntilIso }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "creationLeaseOwner": "={{ $execution.id }}", "creationLeaseUntilIso": "={{ $now.plus({ minutes: 5 }).toUTC().toISO() }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "id": "00000015-0000-4000-8000-000000000015", "name": "Claim Creation Lease", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [2160, 80], "alwaysOutputData": true
+      "id": "00000015-0000-4000-8000-000000000015", "name": "Claim Creation Lease", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2160, 80], "alwaysOutputData": true
     },
     { "parameters": { "maxItems": 1 }, "id": "00000016-0000-4000-8000-000000000016", "name": "Limit Creation Claim", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2400, 80] },
     {
@@ -97,16 +97,16 @@
     },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Normalize Request').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "00000018-0000-4000-8000-000000000018", "name": "Re-read Creation Owner", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [2640, 80], "alwaysOutputData": true
+      "id": "00000018-0000-4000-8000-000000000018", "name": "Re-read Creation Owner", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2640, 80], "alwaysOutputData": true
     },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Creation_Owner/jsCode.js" }, "id": "00000019-0000-4000-8000-000000000019", "name": "Verify Creation Owner", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [2880, 80] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Normalize Request').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "0000001a-0000-4000-8000-00000000001a", "name": "Read Existing Request Attempts", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [3120, 80], "alwaysOutputData": true
+      "id": "0000001a-0000-4000-8000-00000000001a", "name": "Read Existing Request Attempts", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [3120, 80], "alwaysOutputData": true
     },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Normalize Request').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "0000004a-0000-4000-8000-00000000004a", "name": "Read Summary Rows For Orphans", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [3240, 80], "alwaysOutputData": true
+      "id": "0000004a-0000-4000-8000-00000000004a", "name": "Read Summary Rows For Orphans", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [3240, 80], "alwaysOutputData": true
     },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Orphans/jsCode.js" }, "id": "0000001b-0000-4000-8000-00000000001b", "name": "Plan Orphan Cleanup", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [3360, 80] },
     {
@@ -120,7 +120,7 @@
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.expectedCanonicalRowID }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "={{ $json.desiredStatus }}", "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}", "canonicalRowID": "={{ $json.desiredCanonicalRowID }}", "manualReviewReason": "={{ $json.orphanAction === 'manual_review' ? 'unexpected_attempt_checkpoint_conflict' : '' }}", "manualReviewAtIso": "={{ $json.orphanAction === 'manual_review' ? $now.toUTC().toISO() : '' }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "id": "0000001e-0000-4000-8000-00000000001e", "name": "Apply Orphan Reconciliation", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [4080, -80], "alwaysOutputData": true
+      "id": "0000001e-0000-4000-8000-00000000001e", "name": "Apply Orphan Reconciliation", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4080, -80], "alwaysOutputData": true
     },
     {
       "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "1000004e-0000-4000-8000-00000000004e", "leftValue": "={{ $json.orphanAction }}", "rightValue": "delete", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
@@ -133,12 +133,12 @@
         { "keyName": "submittedAtIso", "condition": "eq", "keyValue": "={{ $json.expectedSubmittedAtIso }}" }, { "keyName": "callbackDeadlineAtIso", "condition": "eq", "keyValue": "={{ $json.expectedCallbackDeadlineAtIso }}" }, { "keyName": "consumedAtIso", "condition": "eq", "keyValue": "={{ $json.expectedConsumedAtIso }}" }, { "keyName": "dialogue", "condition": "eq", "keyValue": "={{ $json.expectedDialogue }}" },
         { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "={{ $json.expectedTranscriptUploadID }}" }, { "keyName": "analysisUploadID", "condition": "eq", "keyValue": "={{ $json.expectedAnalysisUploadID }}" }, { "keyName": "processingMessageUpdatedAtIso", "condition": "eq", "keyValue": "={{ $json.expectedProcessingMessageUpdatedAtIso }}" }
       ] }, "options": {} },
-      "id": "0000004d-0000-4000-8000-00000000004d", "name": "Delete Clean Orphan Rows", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [4200, -240], "alwaysOutputData": true
+      "id": "0000004d-0000-4000-8000-00000000004d", "name": "Delete Clean Orphan Rows", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4200, -240], "alwaysOutputData": true
     },
     { "parameters": { "maxItems": 1 }, "id": "0000001f-0000-4000-8000-00000000001f", "name": "Limit Orphan Cleanup", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [4320, -160] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Normalize Request').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "00000020-0000-4000-8000-000000000020", "name": "Re-read Orphan Cleanup", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [4560, -160], "alwaysOutputData": true
+      "id": "00000020-0000-4000-8000-000000000020", "name": "Re-read Orphan Cleanup", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4560, -160], "alwaysOutputData": true
     },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Orphans/jsCode.js" }, "id": "00000021-0000-4000-8000-000000000021", "name": "Verify Orphan Cleanup", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [4800, -160] },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Build_Attempts/jsCode.js" }, "id": "00000022-0000-4000-8000-000000000022", "name": "Build Attempts", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [4080, 80] },
@@ -149,11 +149,11 @@
     { "parameters": { "batchSize": 1, "options": {} }, "id": "00000024-0000-4000-8000-000000000024", "name": "Attempt Loop", "type": "n8n-nodes-base.splitInBatches", "typeVersion": 3, "position": [4560, 0] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "00000025-0000-4000-8000-000000000025", "name": "Read Attempt Key Rows", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [4800, 80], "alwaysOutputData": true
+      "id": "00000025-0000-4000-8000-000000000025", "name": "Read Attempt Key Rows", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4800, 80], "alwaysOutputData": true
     },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Attempt Loop').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "0000004b-0000-4000-8000-00000000004b", "name": "Read Summary Rows For Attempt", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [4920, 80], "alwaysOutputData": true
+      "id": "0000004b-0000-4000-8000-00000000004b", "name": "Read Summary Rows For Attempt", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4920, 80], "alwaysOutputData": true
     },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Attempts/jsCode.js" }, "id": "00000026-0000-4000-8000-000000000026", "name": "Plan Attempt Reconciliation", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5040, 80] },
     {
@@ -164,12 +164,12 @@
       "parameters": { "resource": "row", "operation": "insert", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "columns": { "mappingMode": "defineBelow", "value": {
         "attemptKey": "={{ $json.attemptKey }}", "logicalJobKey": "={{ $json.logicalJobKey }}", "requestKey": "={{ $json.requestKey }}", "requestType": "={{ $json.requestType }}", "attempt": "={{ $json.attempt }}", "role": "={{ $json.role }}", "streamID": "={{ $json.streamID }}", "mode": "={{ $json.mode }}", "durationMinutes": "={{ $json.durationMinutes }}", "streamContextJson": "={{ $json.streamContextJson }}", "status": "={{ $json.status }}", "callbackTokenHash": "={{ $json.callbackTokenHash }}", "reconciliationStatus": "={{ $json.reconciliationStatus }}", "canonicalRowID": "={{ $json.canonicalRowID }}", "dispatchLeaseOwner": "={{ $json.dispatchLeaseOwner }}", "dispatchLeaseUntilIso": "={{ $json.dispatchLeaseUntilIso }}", "submittedAtIso": "={{ $json.submittedAtIso }}", "callbackDeadlineAtIso": "={{ $json.callbackDeadlineAtIso }}", "manualReviewReason": "={{ $json.manualReviewReason }}", "manualReviewAtIso": "={{ $json.manualReviewAtIso }}", "manualReviewResolution": "={{ $json.manualReviewResolution }}", "callbackTokenExpiresAtIso": "={{ $json.callbackTokenExpiresAtIso }}", "consumedAtIso": "={{ $json.consumedAtIso }}", "channel": "={{ $json.channel }}", "threadTS": "={{ $json.threadTS }}", "processingMessageTS": "={{ $json.processingMessageTS }}", "dialogue": "={{ $json.dialogue }}", "language": "={{ $json.language }}", "errorCode": "={{ $json.errorCode }}", "nextRetryAtIso": "={{ $json.nextRetryAtIso }}", "retryLeaseOwner": "={{ $json.retryLeaseOwner }}", "retryLeaseUntilIso": "={{ $json.retryLeaseUntilIso }}", "duplicateCount": "={{ $json.duplicateCount }}", "presentationStatus": "={{ $json.presentationStatus }}", "presentationLeaseOwner": "={{ $json.presentationLeaseOwner }}", "presentationLeaseUntilIso": "={{ $json.presentationLeaseUntilIso }}", "presentationAttempt": "={{ $json.presentationAttempt }}", "presentationNextRetryAtIso": "={{ $json.presentationNextRetryAtIso }}", "presentationErrorCode": "={{ $json.presentationErrorCode }}", "transcriptUploadID": "={{ $json.transcriptUploadID }}", "analysisUploadID": "={{ $json.analysisUploadID }}", "processingMessageUpdatedAtIso": "={{ $json.processingMessageUpdatedAtIso }}", "createdAtIso": "={{ $json.createdAtIso }}", "updatedAtIso": "={{ $json.updatedAtIso }}"
       }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "id": "00000028-0000-4000-8000-000000000028", "name": "Insert Attempt One", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [5520, -80], "alwaysOutputData": true
+      "id": "00000028-0000-4000-8000-000000000028", "name": "Insert Attempt One", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [5520, -80], "alwaysOutputData": true
     },
     { "parameters": { "maxItems": 1 }, "id": "00000029-0000-4000-8000-000000000029", "name": "Limit Attempt Insert", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [5760, -80] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "0000002a-0000-4000-8000-00000000002a", "name": "Re-read Attempt Rows", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [6000, -80], "alwaysOutputData": true
+      "id": "0000002a-0000-4000-8000-00000000002a", "name": "Re-read Attempt Rows", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6000, -80], "alwaysOutputData": true
     },
     {
       "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "1000002b-0000-4000-8000-00000000002b", "leftValue": "={{ $json.reconciliationAction }}", "rightValue": "manual_review", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
@@ -179,14 +179,14 @@
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
-        { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" }
+        { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "manual_review", "manualReviewReason": "multiple_canonical_checkpoint_conflict", "manualReviewAtIso": "={{ $now.toUTC().toISO() }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "id": "0000002d-0000-4000-8000-00000000002d", "name": "Freeze Competing Attempts", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [6000, 320], "alwaysOutputData": true
+      "id": "0000002d-0000-4000-8000-00000000002d", "name": "Freeze Competing Attempts", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6000, 320], "alwaysOutputData": true
     },
     { "parameters": { "maxItems": 1 }, "id": "0000002e-0000-4000-8000-00000000002e", "name": "Limit Attempt Freeze", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [6240, 320] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "0000002f-0000-4000-8000-00000000002f", "name": "Re-read Frozen Attempts", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [6480, 320], "alwaysOutputData": true
+      "id": "0000002f-0000-4000-8000-00000000002f", "name": "Re-read Frozen Attempts", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6480, 320], "alwaysOutputData": true
     },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Conflicts/jsCode.js" }, "id": "00000030-0000-4000-8000-000000000030", "name": "Verify Frozen Attempts", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6720, 320] },
     {
@@ -199,18 +199,18 @@
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.expectedCanonicalRowID }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}", "canonicalRowID": "={{ $json.desiredCanonicalRowID }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "id": "00000032-0000-4000-8000-000000000032", "name": "Apply Attempt Reconciliation", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [6000, 160], "alwaysOutputData": true
+      "id": "00000032-0000-4000-8000-000000000032", "name": "Apply Attempt Reconciliation", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6000, 160], "alwaysOutputData": true
     },
     { "parameters": { "maxItems": 1 }, "id": "00000033-0000-4000-8000-000000000033", "name": "Limit Attempt Reconciliation", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [6240, 160] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "00000034-0000-4000-8000-000000000034", "name": "Re-read Reconciled Attempts", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [6480, 160], "alwaysOutputData": true
+      "id": "00000034-0000-4000-8000-000000000034", "name": "Re-read Reconciled Attempts", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6480, 160], "alwaysOutputData": true
     },
     { "parameters": {}, "id": "00000035-0000-4000-8000-000000000035", "name": "Attempt Ready", "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [6000, 0] },
     { "parameters": { "maxItems": 1 }, "id": "00000036-0000-4000-8000-000000000036", "name": "Limit Attempt Loop Done", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [4800, -160] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Normalize Request').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "00000037-0000-4000-8000-000000000037", "name": "Read Attempts For Coverage", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [5040, -160], "alwaysOutputData": true
+      "id": "00000037-0000-4000-8000-000000000037", "name": "Read Attempts For Coverage", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [5040, -160], "alwaysOutputData": true
     },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Coverage/jsCode.js" }, "id": "00000038-0000-4000-8000-000000000038", "name": "Verify Coverage", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5280, -160] },
     {
@@ -218,14 +218,14 @@
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $json.requestKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "creating" }, { "keyName": "creationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" },
         { "keyName": "creationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.creationLeaseUntilIso }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" }
+        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "={{ $json.status }}", "coverageStatus": "={{ $json.coverageStatus }}", "availableRolesJson": "={{ $json.availableRolesJson }}", "missingRolesJson": "={{ $json.missingRolesJson }}", "failedLogicalJobKeysJson": "={{ $json.failedLogicalJobKeysJson }}", "creationLeaseOwner": "", "creationLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "id": "00000039-0000-4000-8000-000000000039", "name": "Transition Request State", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [5520, -160], "alwaysOutputData": true
+      "id": "00000039-0000-4000-8000-000000000039", "name": "Transition Request State", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [5520, -160], "alwaysOutputData": true
     },
     { "parameters": { "maxItems": 1 }, "id": "0000003a-0000-4000-8000-00000000003a", "name": "Limit Request Transition", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [5760, -160] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Normalize Request').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "0000003b-0000-4000-8000-00000000003b", "name": "Re-read Transitioned Request", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [6000, -160], "alwaysOutputData": true
+      "id": "0000003b-0000-4000-8000-00000000003b", "name": "Re-read Transitioned Request", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6000, -160], "alwaysOutputData": true
     },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Request_State/jsCode.js" }, "id": "0000003c-0000-4000-8000-00000000003c", "name": "Verify Request Transition", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6240, -160] },
     {
@@ -253,7 +253,7 @@
     { "parameters": { "batchSize": 1, "options": {} }, "id": "00000047-0000-4000-8000-000000000047", "name": "Dispatch Verification Loop", "type": "n8n-nodes-base.splitInBatches", "typeVersion": 3, "position": [6960, -160] },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Dispatch Verification Loop').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "id": "00000048-0000-4000-8000-000000000048", "name": "Re-read Attempt Before Dispatch", "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [7200, -80], "alwaysOutputData": true
+      "id": "00000048-0000-4000-8000-000000000048", "name": "Re-read Attempt Before Dispatch", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7200, -80], "alwaysOutputData": true
     },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Dispatch_Attempt/jsCode.js" }, "id": "00000049-0000-4000-8000-000000000049", "name": "Verify Canonical Queued Dispatch", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [7440, -80] },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Drop_Side_Effect_Output/jsCode.js" }, "id": "0000004c-0000-4000-8000-00000000004c", "name": "Drop Side Effect Output", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [7680, -240] }
@@ -336,9 +336,9 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "saveDataSuccessExecution": "none",
-    "saveDataErrorExecution": "none",
-    "saveManualExecutions": false,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
     "saveExecutionProgress": false
   }
 }

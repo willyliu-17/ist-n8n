@@ -78,10 +78,21 @@ const CHANNEL = 'C0A4JJJKJMD';
 const STREAM_CONTEXT = JSON.stringify({
   liveStreamID: '9001', eligible: true, beginTime: 1787360400, endTime: 1787364000,
 });
+const systemIDs = new Map();
+
+function systemID(value) {
+  if (Number.isInteger(value) && value > 0) return value;
+  if (!systemIDs.has(value)) systemIDs.set(value, systemIDs.size + 1);
+  return systemIDs.get(value);
+}
+
+function referenceID(value) {
+  return systemIDs.has(value) ? String(systemID(value)) : value;
+}
 
 function attempt(overrides = {}) {
   const number = Number(overrides.attempt || 1);
-  const id = overrides.id || `attempt-${number}`;
+  const id = systemID(overrides.id || `attempt-${number}`);
   const base = {
     id,
     createdAt: NOW,
@@ -99,7 +110,7 @@ function attempt(overrides = {}) {
     status: 'retry_pending',
     callbackTokenHash: '',
     reconciliationStatus: 'canonical',
-    canonicalRowID: id,
+    canonicalRowID: String(id),
     dispatchLeaseOwner: '',
     dispatchLeaseUntilIso: '',
     submittedAtIso: '',
@@ -131,13 +142,16 @@ function attempt(overrides = {}) {
     createdAtIso: NOW,
     updatedAtIso: NOW,
     ...overrides,
+    id,
   };
-  if (!Object.hasOwn(overrides, 'canonicalRowID')) base.canonicalRowID = base.id;
+  base.canonicalRowID = Object.hasOwn(overrides, 'canonicalRowID')
+    ? referenceID(overrides.canonicalRowID)
+    : String(base.id);
   return base;
 }
 
 function request(overrides = {}) {
-  const id = overrides.id || 'request-a';
+  const id = systemID(overrides.id || 'request-a');
   const base = {
     id,
     createdAt: NOW,
@@ -182,15 +196,18 @@ function request(overrides = {}) {
     createdAtIso: NOW,
     updatedAtIso: NOW,
     ...overrides,
+    id,
   };
-  if (!Object.hasOwn(overrides, 'canonicalRowID')) base.canonicalRowID = base.id;
+  base.canonicalRowID = Object.hasOwn(overrides, 'canonicalRowID')
+    ? referenceID(overrides.canonicalRowID)
+    : String(base.id);
   return base;
 }
 
 function manual(id, stage = 'ready', checkpoint = '') {
   return request({
     id,
-    canonicalRowID: id,
+    canonicalRowID: String(systemID(id)),
     status: 'manual_review',
     manualReviewOriginalStage: stage,
     summaryMarkdown: checkpoint,
@@ -204,7 +221,7 @@ function manual(id, stage = 'ready', checkpoint = '') {
   });
 }
 
-test('primitives are validated and system (createdAt,id) order uses strict code units', () => {
+test('primitives are validated and system (createdAt,id) order uses strict numeric IDs', () => {
   assert.equal(validatePrimitive('x', 'f'), 'x');
   assert.equal(validatePrimitive(0, 'f'), 0);
   assert.equal(validatePrimitive(true, 'f'), true);
@@ -215,11 +232,11 @@ test('primitives are validated and system (createdAt,id) order uses strict code 
   assert.throws(() => strictIso('2026-08-24 00:00:00', 'x'), /Invalid x/);
   assert.equal(strictIso(NOW, 'x'), Date.parse(NOW));
 
-  const a = attempt({ id: 'row-a', createdAt: NOW });
-  const z = attempt({ id: 'row-Z', createdAt: NOW });
+  const a = attempt({ id: 2, createdAt: NOW });
+  const z = attempt({ id: 1, createdAt: NOW });
   assert.equal(compareRows(z, a), -1);
   assert.equal(compareRows(a, z), 1);
-  const earlier = attempt({ id: 'row-z', createdAt: '2026-08-23T00:00:00.000Z' });
+  const earlier = attempt({ id: 3, createdAt: '2026-08-23T00:00:00.000Z' });
   assert.equal(compareRows(earlier, a), -1);
   assert.throws(() => compareRows(attempt({ createdAt: 'bad' }), a), /Invalid createdAt/);
 });
@@ -244,7 +261,7 @@ test('full 44-field attempt schema matches the provisioned stt_jobs_v3 contract'
     'expectedLogicalJobKeysJson', 'channel', 'threadTS',
   ]);
   assert.ok(validateAttemptRow(attempt()));
-  assert.throws(() => validateAttemptRow(attempt({ id: '' })), /system field/);
+  assert.throws(() => validateAttemptRow({ ...attempt(), id: 0 }), /system field/);
   assert.throws(() => validateAttemptRow(attempt({ attemptKey: 'broken' })), /attempt identity/);
   assert.throws(() => validateAttemptRow(attempt({ channel: 'C09F0SYG57D' })), /channel/);
   assert.throws(() => validateAttemptRow(attempt({ mode: 'first' })), /mode/);
@@ -345,7 +362,7 @@ test('attempt failure patch clears dispatch lease and uses exact canonical CAS f
     id: dispatching.id,
     attemptKey: dispatching.attemptKey,
     reconciliationStatus: 'canonical',
-    canonicalRowID: dispatching.id,
+    canonicalRowID: String(dispatching.id),
     status: 'dispatching',
   });
   assert.equal(patch.desired.status, 'retry_pending');
@@ -378,11 +395,11 @@ test('summary failure patch atomically increments 1/2/3 with exact owner snapsho
   assert.equal(one.desired.leaseOwner, '');
   assert.equal(one.desired.leaseUntilIso, '');
   assert.deepEqual(one.filters, {
-    id: 'request-a',
+    id: systemID('request-a'),
     requestKey: KEY,
     status: 'summary_dispatching',
     reconciliationStatus: 'canonical',
-    canonicalRowID: 'request-a',
+    canonicalRowID: String(systemID('request-a')),
     leaseOwner: 'owner-1',
     leaseUntilIso: '2026-08-24T00:05:00.000Z',
     summaryAttempt: 0,
@@ -434,7 +451,7 @@ test('retry claim soft-CASes due retry_pending into a five-minute retry lease', 
     attemptKey: old.attemptKey,
     status: 'retry_pending',
     reconciliationStatus: 'canonical',
-    canonicalRowID: old.id,
+    canonicalRowID: String(old.id),
     nextRetryAtIso: NOW,
     retryLeaseOwner: '',
     retryLeaseUntilIso: '',
@@ -464,7 +481,7 @@ test('expired retry lease is reclaimed with the same deterministic key', () => {
     attemptKey: crashed.attemptKey,
     status: 'retry_materializing',
     reconciliationStatus: 'canonical',
-    canonicalRowID: crashed.id,
+    canonicalRowID: String(crashed.id),
     nextRetryAtIso: '2026-08-23T23:59:00.000Z',
     retryLeaseOwner: 'dead-exec',
     retryLeaseUntilIso: '2026-08-23T23:58:00.000Z',
@@ -524,14 +541,14 @@ test('next-row reconciliation reuses one canonical and elects system earliest wh
 
   const existing = attempt({
     attempt: 2,
-    id: 'next-z',
+    id: systemID('next-z'),
     attemptKey: `${LOGICAL}:2`,
-    canonicalRowID: 'next-z',
+    canonicalRowID: String(systemID('next-z')),
     status: 'queued',
   });
   const later = attempt({
     attempt: 2,
-    id: 'next-a',
+    id: systemID('next-a'),
     attemptKey: `${LOGICAL}:2`,
     createdAt: '2026-08-24T00:01:00.000Z',
     updatedAt: '2026-08-24T00:01:00.000Z',
@@ -541,16 +558,16 @@ test('next-row reconciliation reuses one canonical and elects system earliest wh
   });
   const plan = planNextAttemptReconciliation([existing, later], expected);
   assert.equal(plan.action, 'reconcile');
-  assert.equal(plan.winnerRowID, 'next-z');
+  assert.equal(plan.winnerRowID, systemID('next-z'));
   assert.deepEqual(plan.mutations.map(({ id, desiredReconciliationStatus, desiredCanonicalRowID }) => ({
     id, desiredReconciliationStatus, desiredCanonicalRowID,
-  })), [{ id: 'next-a', desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: 'next-z' }]);
+  })), [{ id: systemID('next-a'), desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: String(systemID('next-z')) }]);
 
   const elected = planNextAttemptReconciliation([
-    attempt({ attempt: 2, id: 'next-b', attemptKey: `${LOGICAL}:2`, reconciliationStatus: 'pending', canonicalRowID: '', status: 'queued' }),
-    attempt({ attempt: 2, id: 'next-a', attemptKey: `${LOGICAL}:2`, reconciliationStatus: 'pending', canonicalRowID: '', status: 'queued' }),
+    attempt({ attempt: 2, id: systemID('next-b'), attemptKey: `${LOGICAL}:2`, reconciliationStatus: 'pending', canonicalRowID: '', status: 'queued' }),
+    attempt({ attempt: 2, id: systemID('next-a'), attemptKey: `${LOGICAL}:2`, reconciliationStatus: 'pending', canonicalRowID: '', status: 'queued' }),
   ], expected);
-  assert.equal(elected.winnerRowID, 'next-a');
+  assert.equal(elected.winnerRowID, systemID('next-a'));
   assert.throws(
     () => planNextAttemptReconciliation([{ ...existing, requestKey: 'summary:req-other' }], expected),
     /Immutable attempt payload conflict|request key mismatch/i,
@@ -564,12 +581,12 @@ test('next-row reconciliation reuses one canonical and elects system earliest wh
 test('next-row duplicate and checkpoint conflicts reuse the same key', () => {
   const expected = buildNextAttempt(attempt({ attempt: 1 }), NOW);
   const competing = [
-    attempt({ attempt: 2, id: 'next-b', attemptKey: `${LOGICAL}:2`, canonicalRowID: 'next-b', status: 'queued' }),
-    attempt({ attempt: 2, id: 'next-a', attemptKey: `${LOGICAL}:2`, canonicalRowID: 'next-a', status: 'queued' }),
+    attempt({ attempt: 2, id: systemID('next-b'), attemptKey: `${LOGICAL}:2`, canonicalRowID: String(systemID('next-b')), status: 'queued' }),
+    attempt({ attempt: 2, id: systemID('next-a'), attemptKey: `${LOGICAL}:2`, canonicalRowID: String(systemID('next-a')), status: 'queued' }),
   ];
   const clean = planNextAttemptReconciliation(competing, expected, []);
   assert.equal(clean.action, 'reconcile');
-  assert.equal(clean.winnerRowID, 'next-a');
+  assert.equal(clean.winnerRowID, systemID('next-a'));
 
   for (const checkpoint of ATTEMPT_CHECKPOINT_FIELDS) {
     const rows = competing.map((row) => ({ ...row }));
@@ -590,24 +607,24 @@ test('next-row duplicate and checkpoint conflicts reuse the same key', () => {
 
 test('next-row verifier rejects zero-CAS, partial, and multiple canonicals', () => {
   const expected = buildNextAttempt(attempt({ attempt: 1 }), NOW);
-  const canonical = attempt({ attempt: 2, id: 'next-a', attemptKey: `${LOGICAL}:2`, canonicalRowID: 'next-a', status: 'queued' });
-  const duplicate = attempt({ attempt: 2, id: 'next-b', attemptKey: `${LOGICAL}:2`, reconciliationStatus: 'duplicate', canonicalRowID: 'next-a', status: 'queued' });
-  assert.equal(verifyNextRows([canonical, duplicate], { action: 'ready', winnerRowID: 'next-a' }).action, 'verified');
+  const canonical = attempt({ attempt: 2, id: systemID('next-a'), attemptKey: `${LOGICAL}:2`, canonicalRowID: String(systemID('next-a')), status: 'queued' });
+  const duplicate = attempt({ attempt: 2, id: systemID('next-b'), attemptKey: `${LOGICAL}:2`, reconciliationStatus: 'duplicate', canonicalRowID: String(systemID('next-a')), status: 'queued' });
+  assert.equal(verifyNextRows([canonical, duplicate], { action: 'ready', winnerRowID: systemID('next-a') }).action, 'verified');
   assert.throws(() => verifyNextRows([], {}), /rows not found/);
   assert.throws(() => verifyNextRows([duplicate], {}), /exactly one canonical/);
   assert.throws(
-    () => verifyNextRows([canonical, { ...duplicate, canonicalRowID: 'wrong' }], {}),
+    () => verifyNextRows([canonical, { ...duplicate, canonicalRowID: String(systemID('wrong')) }], {}),
     /loser linkage mismatch/,
   );
   const frozen = planNextAttemptReconciliation([
-    attempt({ attempt: 2, id: 'next-a', attemptKey: `${LOGICAL}:2`, canonicalRowID: 'next-a', status: 'queued' }),
-    attempt({ attempt: 2, id: 'next-b', attemptKey: `${LOGICAL}:2`, canonicalRowID: 'next-b', status: 'queued', submittedAtIso: NOW }),
+    attempt({ attempt: 2, id: systemID('next-a'), attemptKey: `${LOGICAL}:2`, canonicalRowID: String(systemID('next-a')), status: 'queued' }),
+    attempt({ attempt: 2, id: systemID('next-b'), attemptKey: `${LOGICAL}:2`, canonicalRowID: String(systemID('next-b')), status: 'queued', submittedAtIso: NOW }),
   ], expected, []);
   const frozenRows = frozen.mutations.map(({ id }) => attempt({
     attempt: 2,
     id,
     attemptKey: `${LOGICAL}:2`,
-    canonicalRowID: id,
+    canonicalRowID: String(id),
     status: 'manual_review',
     manualReviewReason: 'multiple_canonical_checkpoint_conflict',
   }));
@@ -628,7 +645,7 @@ test('old row transitions to retry_materialized only with an exact lease snapsho
     attemptKey: old.attemptKey,
     status: 'retry_materializing',
     reconciliationStatus: 'canonical',
-    canonicalRowID: old.id,
+    canonicalRowID: String(old.id),
     retryLeaseOwner: 'exec-repair',
     retryLeaseUntilIso: '2026-08-24T00:05:00.000Z',
   });
@@ -656,7 +673,7 @@ test('old row transitions to retry_materialized only with an exact lease snapsho
 test('retry materialization sequencing only dispatches after verified old transition', () => {
   const old = attempt({ attempt: 1, status: 'retry_materializing', retryLeaseOwner: 'r', retryLeaseUntilIso: '2026-08-24T00:05:00.000Z' });
   const expected = buildNextAttempt(attempt({ attempt: 1 }), NOW);
-  const inserted = attempt({ attempt: 2, id: 'next-a', attemptKey: `${LOGICAL}:2`, canonicalRowID: 'next-a', status: 'queued' });
+  const inserted = attempt({ attempt: 2, id: systemID('next-a'), attemptKey: `${LOGICAL}:2`, canonicalRowID: String(systemID('next-a')), status: 'queued' });
   const reconciled = planNextAttemptReconciliation([inserted], expected);
   assert.equal(reconciled.action, 'ready');
   const verified = verifyNextRows([inserted], reconciled);
@@ -685,7 +702,7 @@ test('approved manual resolution requires approval and can fail a manual attempt
     attemptKey: manualAttempt.attemptKey,
     status: 'manual_review',
     reconciliationStatus: 'canonical',
-    canonicalRowID: manualAttempt.id,
+    canonicalRowID: String(manualAttempt.id),
     manualReviewResolution: '',
   });
   assert.equal(failed.desired.status, 'failed');
@@ -710,7 +727,7 @@ test('approved manual retry builds a deterministic next row then transitions the
     attemptKey: manualAttempt.attemptKey,
     status: 'manual_review',
     reconciliationStatus: 'canonical',
-    canonicalRowID: manualAttempt.id,
+    canonicalRowID: String(manualAttempt.id),
     manualReviewResolution: '',
   });
   assert.equal(transition.desired.status, 'retry_materialized');
@@ -745,16 +762,16 @@ test('manual review rows are excluded from automatic repair plans', () => {
 
 test('request resolution selects only-checkpoint, identical-earliest, and explicit winners', () => {
   const one = planRequestResolution([manual('request-a'), manual('request-b', 'ready', 'checkpoint')], { approved: true, approvalRef: 'P10-r1', decisionID: 'd1' });
-  assert.equal(one.winnerRowID, 'request-b');
+  assert.equal(one.winnerRowID, systemID('request-b'));
   assert.equal(one.selectionReason, 'only_checkpoint');
   const identical = planRequestResolution([manual('request-a', 'ready', 'same'), manual('request-b', 'ready', 'same')], { approved: true, approvalRef: 'P10-r2', decisionID: 'd2' });
-  assert.equal(identical.winnerRowID, 'request-a');
+  assert.equal(identical.winnerRowID, systemID('request-a'));
   assert.equal(identical.selectionReason, 'identical_checkpoints_system_earliest');
   const conflicting = [manual('request-a', 'ready', 'one'), manual('request-b', 'ready', 'two')];
   assert.throws(() => planRequestResolution(conflicting, { approved: true, approvalRef: 'P10-r3', decisionID: 'd3' }), /explicit winner/);
-  assert.throws(() => planRequestResolution(conflicting, { approved: true, decisionID: 'd3', winnerRowID: 'request-a' }), /approval reference/);
-  const explicit = planRequestResolution(conflicting, { approved: true, approvalRef: 'P10-r3', decisionID: 'd3', winnerRowID: 'request-b' });
-  assert.equal(explicit.winnerRowID, 'request-b');
+  assert.throws(() => planRequestResolution(conflicting, { approved: true, decisionID: 'd3', winnerRowID: systemID('request-a') }), /approval reference/);
+  const explicit = planRequestResolution(conflicting, { approved: true, approvalRef: 'P10-r3', decisionID: 'd3', winnerRowID: String(systemID('request-b')) });
+  assert.equal(explicit.winnerRowID, systemID('request-b'));
   assert.equal(explicit.selectionReason, 'explicit_checkpoint_winner');
 });
 
@@ -773,7 +790,7 @@ test('request resolution restores every allowed original stage with exact lease 
     const result = runRequestResolution([manual('request-a', stage, 'checkpoint'), manual('request-b', stage)], { approved: true, approvalRef: `P10-${stage}`, decisionID: `d-${stage}` });
     assert.equal(result.winner.status, stage, stage);
     assert.equal(result.winner.manualReviewOriginalStage, stage, stage);
-    assert.equal(result.winner.manualReviewResolution, `winner_selected:request-a:resume:${stage}`, stage);
+    assert.equal(result.winner.manualReviewResolution, `winner_selected:${systemID('request-a')}:resume:${stage}`, stage);
     if (stage === 'summary_dispatching') {
       assert.equal(result.winner.leaseOwner, '');
       assert.equal(result.winner.leaseUntilIso, RESOLUTION_EPOCH_ISO);
@@ -788,14 +805,14 @@ test('request resolution restores every allowed original stage with exact lease 
 test('request loser partial failure and pre-final crash retry the same immutable winner', () => {
   const rows = [manual('request-a', 'ready', 'same'), manual('request-b', 'ready', 'same'), manual('request-c', 'ready', 'same')];
   const approval = { approved: true, approvalRef: 'P10-r5', decisionID: 'd5' };
-  const partial = runRequestResolution(rows, approval, { failLoserID: 'request-c' });
+  const partial = runRequestResolution(rows, approval, { failLoserID: systemID('request-c') });
   assert.equal(partial.winner.status, 'manual_review');
   assert.equal(partial.winner.manualReviewResolution, '');
   assert.equal(partial.sideEffectCalls, 0);
   const retried = runRequestResolution(partial.rows, approval);
-  assert.equal(retried.winner.id, 'request-a');
+  assert.equal(retried.winner.id, systemID('request-a'));
   assert.equal(retried.reElected, false);
-  assert.ok(retried.losers.every((row) => row.reconciliationStatus === 'duplicate' && row.canonicalRowID === 'request-a'));
+  assert.ok(retried.losers.every((row) => row.reconciliationStatus === 'duplicate' && row.canonicalRowID === String(systemID('request-a'))));
   assert.equal(retried.sideEffectCallsBeforeFinalPatch, 0);
 
   const crashRows = [manual('request-a', 'summary_dispatching', 'same'), manual('request-b', 'summary_dispatching', 'same')];
@@ -803,7 +820,7 @@ test('request loser partial failure and pre-final crash retry the same immutable
   assert.equal(crash.canonicalRows.length, 1);
   assert.equal(crash.winner.manualReviewResolution, '');
   const finalRun = runRequestResolution(crash.rows, { approved: true, approvalRef: 'P10-r6', decisionID: 'd6' }, { resolutionIso: NOW });
-  assert.equal(finalRun.winner.id, 'request-a');
+  assert.equal(finalRun.winner.id, systemID('request-a'));
   assert.equal(finalRun.winner.status, 'summary_dispatching');
   assert.equal(finalRun.winner.leaseUntilIso, NOW);
   assert.equal(finalRun.sideEffectCallsBeforeFinalPatch, 0);
@@ -814,13 +831,13 @@ test('request resolution produces masked audits without summary content and reje
     manual('request-a', 'ready', 'checkpoint'),
     manual('request-b', 'ready'),
     request({
-      id: 'request-c',
+      id: systemID('request-c'),
       status: 'manual_review',
       reconciliationStatus: 'duplicate',
-      canonicalRowID: 'request-a',
+      canonicalRowID: String(systemID('request-a')),
       manualReviewOriginalStage: 'ready',
       manualResolutionDecisionID: 'd7',
-      manualResolutionWinnerRowID: 'request-a',
+      manualResolutionWinnerRowID: String(systemID('request-a')),
       leaseOwner: '',
       leaseUntilIso: '',
     }),
@@ -857,7 +874,7 @@ test('presentation repair converts due retry and expired presenting to claimable
     id: due.id,
     attemptKey: due.attemptKey,
     reconciliationStatus: 'canonical',
-    canonicalRowID: due.id,
+    canonicalRowID: String(due.id),
     status: 'completed',
     presentationStatus: 'retry_pending',
     presentationAttempt: 1,
@@ -948,14 +965,14 @@ test('expired dispatch lease is never auto-resent and routes to manual review', 
 
 test('repair scan plans every class deterministically in fixed order', () => {
   const rows = [
-    attempt({ id: 'cb', status: 'waiting_callback', callbackDeadlineAtIso: NOW }),
-    attempt({ id: 'disp', status: 'dispatching', dispatchLeaseOwner: 'x', dispatchLeaseUntilIso: NOW }),
-    attempt({ id: 'retry', status: 'retry_pending', nextRetryAtIso: NOW }),
-    attempt({ id: 'pres', status: 'completed', presentationStatus: 'retry_pending', presentationAttempt: 1, presentationNextRetryAtIso: NOW }),
+    attempt({ id: systemID('cb'), status: 'waiting_callback', callbackDeadlineAtIso: NOW }),
+    attempt({ id: systemID('disp'), status: 'dispatching', dispatchLeaseOwner: 'x', dispatchLeaseUntilIso: NOW }),
+    attempt({ id: systemID('retry'), status: 'retry_pending', nextRetryAtIso: NOW }),
+    attempt({ id: systemID('pres'), status: 'completed', presentationStatus: 'retry_pending', presentationAttempt: 1, presentationNextRetryAtIso: NOW }),
   ];
   const reqs = [
-    request({ id: 'req-ready', status: 'ready', leaseOwner: '', leaseUntilIso: '' }),
-    request({ id: 'req-creating', status: 'creating', creationLeaseOwner: 'dead', creationLeaseUntilIso: NOW }),
+    request({ id: systemID('req-ready'), status: 'ready', leaseOwner: '', leaseUntilIso: '' }),
+    request({ id: systemID('req-creating'), status: 'creating', creationLeaseOwner: 'dead', creationLeaseUntilIso: NOW }),
   ];
   const scan = planRepairScan({ attemptRows: rows, requestRows: reqs, nowIso: NOW, leaseOwner: 'repair' });
   const classes = scan.plans.map((plan) => plan.repairClass);
@@ -1020,28 +1037,28 @@ test('creation repair rebuilds the exact orchestrator input from persisted JSON'
 
 test('scan treats creation, summary, presentation, and duplicate classes as one bounded planner', () => {
   const duplicateAttempts = [
-    attempt({ id: 'dup-a', attemptKey: `${LOGICAL}:1`, canonicalRowID: 'dup-a', status: 'queued' }),
-    attempt({ id: 'dup-b', attemptKey: `${LOGICAL}:1`, canonicalRowID: 'dup-b', status: 'queued' }),
+    attempt({ id: systemID('dup-a'), attemptKey: `${LOGICAL}:1`, canonicalRowID: String(systemID('dup-a')), status: 'queued' }),
+    attempt({ id: systemID('dup-b'), attemptKey: `${LOGICAL}:1`, canonicalRowID: String(systemID('dup-b')), status: 'queued' }),
   ];
   const scan = planRepairScan({
     attemptRows: duplicateAttempts,
-    requestRows: [request({ id: 'req-ready', status: 'ready', leaseOwner: '', leaseUntilIso: '' })],
+    requestRows: [request({ id: systemID('req-ready'), status: 'ready', leaseOwner: '', leaseUntilIso: '' })],
     nowIso: NOW,
     leaseOwner: 'repair',
   });
   const duplicatePlan = scan.plans.find((plan) => plan.repairClass === 'duplicate_deterministic_keys');
   assert.equal(duplicatePlan.action, 'reconcile');
-  assert.equal(duplicatePlan.winnerRowID, 'dup-a');
+  assert.equal(duplicatePlan.winnerRowID, systemID('dup-a'));
   assert.ok(scan.plans.some((plan) => plan.repairClass === 'summary_lease' && plan.action === 'call_coordinator'));
   assert.ok(scan.capErrors.length === 0);
 });
 
 test('scan candidate ordering within a class is deterministic by system (createdAt,id)', () => {
-  const late = attempt({ id: 'cb-b', status: 'waiting_callback', callbackDeadlineAtIso: NOW, createdAt: '2026-08-24T00:00:01.000Z', updatedAt: '2026-08-24T00:00:01.000Z' });
-  const early = attempt({ id: 'cb-a', status: 'waiting_callback', callbackDeadlineAtIso: NOW, createdAt: NOW, updatedAt: NOW });
+  const late = attempt({ id: systemID('cb-b'), status: 'waiting_callback', callbackDeadlineAtIso: NOW, createdAt: '2026-08-24T00:00:01.000Z', updatedAt: '2026-08-24T00:00:01.000Z' });
+  const early = attempt({ id: systemID('cb-a'), status: 'waiting_callback', callbackDeadlineAtIso: NOW, createdAt: NOW, updatedAt: NOW });
   const scan = planRepairScan({ attemptRows: [late, early], requestRows: [], nowIso: NOW, leaseOwner: 'repair' });
   const callbackPlans = scan.plans.filter((plan) => plan.repairClass === 'callback_deadline');
-  assert.deepEqual(callbackPlans.map((plan) => plan.filters.id), ['cb-a', 'cb-b']);
+  assert.deepEqual(callbackPlans.map((plan) => plan.filters.id), [systemID('cb-a'), systemID('cb-b')]);
 });
 
 test('attempt 3 retryable failure patch is terminal failed with cleared dispatch lease', () => {
@@ -1078,10 +1095,10 @@ test('runtime has one inactive five-minute Schedule Trigger and no manual trigge
   assert.equal(workflow.nodes.some(({ type }) => type.endsWith('manualTrigger')), false);
 });
 
-test('runtime retains no execution payloads', () => {
+test('runtime uses approved execution retention', () => {
   assert.deepEqual(workflow.settings, {
-    executionOrder: 'v1', saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none',
-    saveManualExecutions: false, saveExecutionProgress: false,
+    executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all',
+    saveManualExecutions: true, saveExecutionProgress: false,
   });
 });
 
@@ -1338,15 +1355,15 @@ test('D3 old verifier fails closed on a partial old transition', () => {
 test('D3 old verifier fails closed on a replaced old canonical', () => {
   const old = attempt({ status: 'retry_materializing', retryLeaseOwner: 'repair', retryLeaseUntilIso: LATER });
   const transition = planAutoRetryOldTransition(old, `${LOGICAL}:2`, NOW);
-  const replacement = attempt({ id: 'replacement', status: 'retry_materialized', retryLeaseOwner: '', retryLeaseUntilIso: '', manualReviewResolution: `retry_created:${LOGICAL}:2` });
+  const replacement = attempt({ id: systemID('replacement'), status: 'retry_materialized', retryLeaseOwner: '', retryLeaseUntilIso: '', manualReviewResolution: `retry_created:${LOGICAL}:2` });
   assert.throws(() => verifyOldTransition([replacement], transition), /identity mismatch/);
 });
 
 test('D3 next verifier fails closed on zero, partial, and mismatched next rows', () => {
-  const canonical = attempt({ attempt: 2, id: 'next', attemptKey: `${LOGICAL}:2`, status: 'queued', canonicalRowID: 'next' });
-  assert.throws(() => verifyNextRows([], { action: 'ready', winnerRowID: 'next' }), /rows not found/);
-  assert.throws(() => verifyNextRows([{ ...canonical, reconciliationStatus: 'duplicate', canonicalRowID: 'other' }], { action: 'ready', winnerRowID: 'next' }), /exactly one canonical/);
-  assert.throws(() => verifyNextRows([canonical], { action: 'ready', winnerRowID: 'other' }), /winner mismatch/);
+  const canonical = attempt({ attempt: 2, id: systemID('next'), attemptKey: `${LOGICAL}:2`, status: 'queued', canonicalRowID: String(systemID('next')) });
+  assert.throws(() => verifyNextRows([], { action: 'ready', winnerRowID: systemID('next') }), /rows not found/);
+  assert.throws(() => verifyNextRows([{ ...canonical, reconciliationStatus: 'duplicate', canonicalRowID: String(systemID('other')) }], { action: 'ready', winnerRowID: systemID('next') }), /exactly one canonical/);
+  assert.throws(() => verifyNextRows([canonical], { action: 'ready', winnerRowID: systemID('other') }), /winner mismatch/);
 });
 
 test('D3 old transition requires the exact retry resolution and cleared lease', () => {
@@ -1375,10 +1392,10 @@ function bounded(className, rows) {
 
 test('bounded planner sorts candidates by strict createdAt and id', () => {
   const rows = [
-    attempt({ id: 'row-z', status: 'waiting_callback', callbackDeadlineAtIso: NOW }),
-    attempt({ id: 'row-a', status: 'waiting_callback', callbackDeadlineAtIso: NOW }),
+    attempt({ id: systemID('row-z'), status: 'waiting_callback', callbackDeadlineAtIso: NOW }),
+    attempt({ id: systemID('row-a'), status: 'waiting_callback', callbackDeadlineAtIso: NOW }),
   ];
-  assert.deepEqual(bounded('callback_deadline', rows).map(({ locator }) => locator.id), ['row-a', 'row-z']);
+  assert.deepEqual(bounded('callback_deadline', rows).map(({ locator }) => locator.id), [systemID('row-z'), systemID('row-a')]);
 });
 
 test('bounded planner emits exactly fifty eligible candidates without cap error', () => {
@@ -1449,7 +1466,7 @@ test('bounded predicates fail closed on malformed due dates', () => {
 
 test('each class is independently bounded', () => {
   const callbacks = Array.from({ length: 51 }, (_, index) => attempt({ id: `cb-${index}`, status: 'waiting_callback', callbackDeadlineAtIso: NOW }));
-  const dispatch = attempt({ id: 'dispatch', status: 'dispatching', dispatchLeaseOwner: 'dead', dispatchLeaseUntilIso: NOW });
+  const dispatch = attempt({ id: systemID('dispatch'), status: 'dispatching', dispatchLeaseOwner: 'dead', dispatchLeaseUntilIso: NOW });
   assert.equal(bounded('callback_deadline', callbacks).filter((item) => item.kind === 'candidate').length, 50);
   assert.equal(bounded('expired_dispatch_lease', [dispatch]).filter((item) => item.kind === 'candidate').length, 1);
 });
@@ -1605,8 +1622,8 @@ test('Subtask E: all due predicates fail closed on invalid or malformed timestam
 test('Subtask E: class independence: overflow in one class leaves other classes at their true candidate counts', () => {
   const cbRows = Array.from({ length: 60 }, (_, index) => attempt({ id: `cb-${index}`, status: 'waiting_callback', callbackDeadlineAtIso: NOW }));
   const dispRows = [
-    attempt({ id: 'disp-1', status: 'dispatching', dispatchLeaseOwner: 'd1', dispatchLeaseUntilIso: NOW }),
-    attempt({ id: 'disp-2', status: 'dispatching', dispatchLeaseOwner: 'd2', dispatchLeaseUntilIso: NOW }),
+    attempt({ id: systemID('disp-1'), status: 'dispatching', dispatchLeaseOwner: 'd1', dispatchLeaseUntilIso: NOW }),
+    attempt({ id: systemID('disp-2'), status: 'dispatching', dispatchLeaseOwner: 'd2', dispatchLeaseUntilIso: NOW }),
   ];
   const retryRows = Array.from({ length: 10 }, (_, index) => attempt({ id: `ret-${index}`, status: 'retry_pending', nextRetryAtIso: NOW }));
 
@@ -1641,7 +1658,7 @@ test('Subtask E: expired dispatch runtime plan sets manual_review with cleared d
     attemptKey: row.attemptKey,
     status: 'dispatching',
     reconciliationStatus: 'canonical',
-    canonicalRowID: row.id,
+    canonicalRowID: String(row.id),
     dispatchLeaseOwner: 'dead-owner',
     dispatchLeaseUntilIso: NOW,
   });
@@ -1664,7 +1681,7 @@ test('Subtask E: callback deadline attempt 1 produces retry_pending with +1 minu
     attemptKey: row.attemptKey,
     status: 'waiting_callback',
     reconciliationStatus: 'canonical',
-    canonicalRowID: row.id,
+    canonicalRowID: String(row.id),
     callbackDeadlineAtIso: NOW,
   });
 });
@@ -1705,54 +1722,54 @@ test('Subtask E: cap error absent rows plan inserts pending error', () => {
 
 test('Subtask E: cap error pending insert canonicalization elects earliest row as canonical and non-winners as duplicate', () => {
   const candidate = planRepairCapError('expired_dispatch_lease', 51, NOW);
-  const row1 = { ...candidate, id: 'err-row-a', createdAt: NOW, reconciliationStatus: 'pending', canonicalRowID: '' };
-  const row2 = { ...candidate, id: 'err-row-b', createdAt: LATER, reconciliationStatus: 'pending', canonicalRowID: '' };
+  const row1 = { ...candidate, id: systemID('err-row-a'), createdAt: NOW, reconciliationStatus: 'pending', canonicalRowID: '' };
+  const row2 = { ...candidate, id: systemID('err-row-b'), createdAt: LATER, reconciliationStatus: 'pending', canonicalRowID: '' };
   const mutations = planPendingCapErrorCanonical([row2, row1]);
   assert.equal(mutations.length, 2);
-  const m1 = mutations.find((m) => m.id === 'err-row-a');
-  const m2 = mutations.find((m) => m.id === 'err-row-b');
+  const m1 = mutations.find((m) => m.id === systemID('err-row-a'));
+  const m2 = mutations.find((m) => m.id === systemID('err-row-b'));
   assert.equal(m1.desiredReconciliationStatus, 'canonical');
-  assert.equal(m1.desiredCanonicalRowID, 'err-row-a');
+  assert.equal(m1.desiredCanonicalRowID, String(systemID('err-row-a')));
   assert.equal(m2.desiredReconciliationStatus, 'duplicate');
-  assert.equal(m2.desiredCanonicalRowID, 'err-row-a');
+  assert.equal(m2.desiredCanonicalRowID, String(systemID('err-row-a')));
 });
 
 test('Subtask E: cap error single existing canonical plans insert duplicate error', () => {
   const candidate = planRepairCapError('expired_dispatch_lease', 51, NOW);
-  const canonical = { ...candidate, id: 'err-canon-1', createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: 'err-canon-1' };
+  const canonical = { ...candidate, id: systemID('err-canon-1'), createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('err-canon-1')) };
   const plan = planCapErrorRows([canonical], candidate);
   assert.equal(plan.length, 1);
   assert.equal(plan[0].action, 'insert_duplicate');
-  assert.equal(plan[0].canonicalRowID, 'err-canon-1');
+  assert.equal(plan[0].canonicalRowID, String(systemID('err-canon-1')));
 });
 
 test('Subtask E: cap error multiple canonicals plans reconciliation of losers to duplicate', () => {
   const candidate = planRepairCapError('expired_dispatch_lease', 51, NOW);
-  const c1 = { ...candidate, id: 'err-a', createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: 'err-a' };
-  const c2 = { ...candidate, id: 'err-b', createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: 'err-b' };
+  const c1 = { ...candidate, id: systemID('err-a'), createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('err-a')) };
+  const c2 = { ...candidate, id: systemID('err-b'), createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('err-b')) };
   const plan = planCapErrorRows([c1, c2], candidate);
   assert.equal(plan.length, 1);
   assert.equal(plan[0].action, 'reconcile');
-  assert.equal(plan[0].id, 'err-b');
+  assert.equal(plan[0].id, systemID('err-b'));
   assert.equal(plan[0].desiredReconciliationStatus, 'duplicate');
-  assert.equal(plan[0].desiredCanonicalRowID, 'err-a');
+  assert.equal(plan[0].desiredCanonicalRowID, String(systemID('err-a')));
 });
 
 test('Subtask E: cap error immutable payload drift fails closed with error', () => {
   const candidate = planRepairCapError('expired_dispatch_lease', 51, NOW);
-  const drifted = { ...candidate, id: 'err-a', createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: 'err-a', messageMasked: 'tampered' };
+  const drifted = { ...candidate, id: systemID('err-a'), createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('err-a')), messageMasked: 'tampered' };
   assert.throws(() => planCapErrorRows([drifted], candidate), /immutable masked error payload drift/);
 });
 
 test('Subtask E: cap error verifier fails closed on invalid canonical or duplicate linkage', () => {
-  const validCanonical = { id: 'err-a', errorKey: 'err:v1:test', reconciliationStatus: 'canonical', canonicalRowID: 'err-a' };
-  const validDuplicate = { id: 'err-b', errorKey: 'err:v1:test', reconciliationStatus: 'duplicate', canonicalRowID: 'err-a' };
-  assert.deepEqual(verifyCapErrorReconciliation([validCanonical, validDuplicate]), [{ canonicalRowID: 'err-a' }]);
-  assert.deepEqual(verifyDuplicateCapError([validCanonical, validDuplicate]), [{ errorKey: 'err:v1:test', canonicalRowID: 'err-a' }]);
+  const validCanonical = { id: systemID('err-a'), errorKey: 'err:v1:test', reconciliationStatus: 'canonical', canonicalRowID: String(systemID('err-a')) };
+  const validDuplicate = { id: systemID('err-b'), errorKey: 'err:v1:test', reconciliationStatus: 'duplicate', canonicalRowID: String(systemID('err-a')) };
+  assert.deepEqual(verifyCapErrorReconciliation([validCanonical, validDuplicate]), [{ canonicalRowID: String(systemID('err-a')) }]);
+  assert.deepEqual(verifyDuplicateCapError([validCanonical, validDuplicate]), [{ errorKey: 'err:v1:test', canonicalRowID: String(systemID('err-a')) }]);
 
   assert.throws(() => verifyCapErrorReconciliation([]), /error reconciliation verification failed/);
-  assert.throws(() => verifyCapErrorReconciliation([{ ...validCanonical, canonicalRowID: 'wrong' }]), /error reconciliation verification failed/);
-  assert.throws(() => verifyCapErrorReconciliation([validCanonical, { ...validDuplicate, canonicalRowID: 'wrong' }]), /error reconciliation verification failed/);
+  assert.throws(() => verifyCapErrorReconciliation([{ ...validCanonical, canonicalRowID: String(systemID('wrong')) }]), /error reconciliation verification failed/);
+  assert.throws(() => verifyCapErrorReconciliation([validCanonical, { ...validDuplicate, canonicalRowID: String(systemID('wrong')) }]), /error reconciliation verification failed/);
   assert.throws(() => verifyDuplicateCapError([]), /duplicate error verification failed/);
   assert.throws(() => verifyDuplicateCapError([validCanonical, { ...validDuplicate, reconciliationStatus: 'pending' }]), /duplicate error verification failed/);
 });
@@ -1855,7 +1872,7 @@ test('Subtask F: creation repair fails closed if expectedLogicalJobKeysJson does
 test('Subtask F: summary repair waiting_stt calls coordinator only when all logical jobs are terminal', () => {
   const req = request({ status: 'waiting_stt', leaseOwner: '', leaseUntilIso: '' });
   const completedAttempts = [
-    attempt({ id: 'att-1', attempt: 1, status: 'completed', dialogue: 'transcript text', canonicalRowID: 'att-1' }),
+    attempt({ id: systemID('att-1'), attempt: 1, status: 'completed', dialogue: 'transcript text', canonicalRowID: String(systemID('att-1')) }),
   ];
   const plan = planSummaryLease(req, NOW, completedAttempts);
   assert.equal(plan.action, 'call_coordinator');
@@ -1866,7 +1883,7 @@ test('Subtask F: summary repair waiting_stt calls coordinator only when all logi
 test('Subtask F: summary repair waiting_stt returns noop when logical jobs are pending', () => {
   const req = request({ status: 'waiting_stt', leaseOwner: '', leaseUntilIso: '' });
   const pendingAttempts = [
-    attempt({ id: 'att-1', attempt: 1, status: 'waiting_callback', canonicalRowID: 'att-1' }),
+    attempt({ id: systemID('att-1'), attempt: 1, status: 'waiting_callback', canonicalRowID: String(systemID('att-1')) }),
   ];
   const plan = planSummaryLease(req, NOW, pendingAttempts);
   assert.equal(plan.action, 'noop');
@@ -2057,17 +2074,17 @@ test('Subtask F: presentation repair returns noop when presentationAttempt >= 3'
 
 test('Subtask F: verifyPresentationRepair verifies completed pending attempt and fails closed on partial CAS', () => {
   const valid = attempt({
-    id: 'att-pres',
+    id: systemID('att-pres'),
     status: 'completed',
     presentationStatus: 'pending',
     presentationLeaseOwner: '',
     presentationLeaseUntilIso: '',
-    canonicalRowID: 'att-pres',
+    canonicalRowID: String(systemID('att-pres')),
   });
-  const plan = { filters: { id: 'att-pres' } };
+  const plan = { filters: { id: systemID('att-pres') } };
   const verified = verifyPresentationRepair([valid], plan);
   assert.equal(verified.action, 'verified');
-  assert.equal(verified.canonical.id, 'att-pres');
+  assert.equal(verified.canonical.id, systemID('att-pres'));
 
   assert.throws(() => verifyPresentationRepair([], plan), /Presentation repair rows not found/);
   assert.throws(() => verifyPresentationRepair([{ ...valid, presentationStatus: 'presenting' }], plan), /transition not verified/);
@@ -2087,46 +2104,46 @@ test('Subtask F: presentation owner call plans STTListenerV3A01 with attemptKey'
 });
 
 test('Subtask F: duplicate attempt reconciliation with single canonical elects canonical and demotes losers to duplicate', () => {
-  const c1 = attempt({ id: 'att-canon', reconciliationStatus: 'canonical', canonicalRowID: 'att-canon' });
-  const p1 = attempt({ id: 'att-pend', reconciliationStatus: 'pending', canonicalRowID: '' });
+  const c1 = attempt({ id: systemID('att-canon'), reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-canon')) });
+  const p1 = attempt({ id: systemID('att-pend'), reconciliationStatus: 'pending', canonicalRowID: '' });
   const plan = planSameKeyReconciliation([c1, p1], 'attempt', []);
   assert.equal(plan.action, 'reconcile');
-  assert.equal(plan.winnerRowID, 'att-canon');
+  assert.equal(plan.winnerRowID, systemID('att-canon'));
   assert.equal(plan.mutations.length, 1);
-  assert.equal(plan.mutations[0].id, 'att-pend');
+  assert.equal(plan.mutations[0].id, systemID('att-pend'));
   assert.equal(plan.mutations[0].desiredReconciliationStatus, 'duplicate');
-  assert.equal(plan.mutations[0].desiredCanonicalRowID, 'att-canon');
+  assert.equal(plan.mutations[0].desiredCanonicalRowID, String(systemID('att-canon')));
 });
 
 test('Subtask F: duplicate attempt reconciliation with zero canonicals elects earliest as canonical and demotes others', () => {
-  const p1 = attempt({ id: 'att-a', createdAt: NOW, reconciliationStatus: 'pending', canonicalRowID: '' });
-  const p2 = attempt({ id: 'att-b', createdAt: LATER, reconciliationStatus: 'pending', canonicalRowID: '' });
+  const p1 = attempt({ id: systemID('att-a'), createdAt: NOW, reconciliationStatus: 'pending', canonicalRowID: '' });
+  const p2 = attempt({ id: systemID('att-b'), createdAt: LATER, reconciliationStatus: 'pending', canonicalRowID: '' });
   const plan = planSameKeyReconciliation([p2, p1], 'attempt', []);
   assert.equal(plan.action, 'reconcile');
-  assert.equal(plan.winnerRowID, 'att-a');
+  assert.equal(plan.winnerRowID, systemID('att-a'));
   assert.equal(plan.mutations.length, 2);
-  const m1 = plan.mutations.find((m) => m.id === 'att-a');
-  const m2 = plan.mutations.find((m) => m.id === 'att-b');
+  const m1 = plan.mutations.find((m) => m.id === systemID('att-a'));
+  const m2 = plan.mutations.find((m) => m.id === systemID('att-b'));
   assert.equal(m1.desiredReconciliationStatus, 'canonical');
-  assert.equal(m1.desiredCanonicalRowID, 'att-a');
+  assert.equal(m1.desiredCanonicalRowID, String(systemID('att-a')));
   assert.equal(m2.desiredReconciliationStatus, 'duplicate');
-  assert.equal(m2.desiredCanonicalRowID, 'att-a');
+  assert.equal(m2.desiredCanonicalRowID, String(systemID('att-a')));
 });
 
 test('Subtask F: duplicate attempt reconciliation multiple canonicals without checkpoint elects earliest and demotes others', () => {
-  const c1 = attempt({ id: 'att-a', createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: 'att-a', status: 'queued' });
-  const c2 = attempt({ id: 'att-b', createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: 'att-b', status: 'queued' });
+  const c1 = attempt({ id: systemID('att-a'), createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-a')), status: 'queued' });
+  const c2 = attempt({ id: systemID('att-b'), createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-b')), status: 'queued' });
   const plan = planSameKeyReconciliation([c1, c2], 'attempt', []);
   assert.equal(plan.action, 'reconcile');
-  assert.equal(plan.winnerRowID, 'att-a');
+  assert.equal(plan.winnerRowID, systemID('att-a'));
   assert.equal(plan.mutations.length, 1);
-  assert.equal(plan.mutations[0].id, 'att-b');
+  assert.equal(plan.mutations[0].id, systemID('att-b'));
   assert.equal(plan.mutations[0].desiredReconciliationStatus, 'duplicate');
 });
 
 test('Subtask F: duplicate attempt reconciliation multiple canonicals with attempt checkpoint freezes all canonicals to manual_review', () => {
-  const c1 = attempt({ id: 'att-a', createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: 'att-a', status: 'completed', dialogue: 'saved text' });
-  const c2 = attempt({ id: 'att-b', createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: 'att-b', status: 'completed', dialogue: 'other text' });
+  const c1 = attempt({ id: systemID('att-a'), createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-a')), status: 'completed', dialogue: 'saved text' });
+  const c2 = attempt({ id: systemID('att-b'), createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-b')), status: 'completed', dialogue: 'other text' });
   const plan = planSameKeyReconciliation([c1, c2], 'attempt', []);
   assert.equal(plan.action, 'manual_review');
   assert.equal(plan.reason, 'multiple_canonical_checkpoint_conflict');
@@ -2138,29 +2155,29 @@ test('Subtask F: duplicate attempt reconciliation multiple canonicals with attem
 });
 
 test('Subtask F: duplicate attempt reconciliation multiple canonicals with summary checkpoint freezes all canonicals to manual_review', () => {
-  const c1 = attempt({ id: 'att-a', createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: 'att-a', status: 'queued' });
-  const c2 = attempt({ id: 'att-b', createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: 'att-b', status: 'queued' });
-  const sum = request({ summaryMarkdown: 'checkpoint markdown', reconciliationStatus: 'canonical', canonicalRowID: 'request-a' });
+  const c1 = attempt({ id: systemID('att-a'), createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-a')), status: 'queued' });
+  const c2 = attempt({ id: systemID('att-b'), createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-b')), status: 'queued' });
+  const sum = request({ summaryMarkdown: 'checkpoint markdown', reconciliationStatus: 'canonical', canonicalRowID: String(systemID('request-a')) });
   const plan = planSameKeyReconciliation([c1, c2], 'attempt', [sum]);
   assert.equal(plan.action, 'manual_review');
   assert.equal(plan.mutations.length, 2);
 });
 
 test('Subtask F: duplicate request reconciliation clean rows demotes losers to duplicate', () => {
-  const c1 = request({ id: 'req-a', createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: 'req-a', status: 'ready' });
-  const c2 = request({ id: 'req-b', createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: 'req-b', status: 'ready' });
+  const c1 = request({ id: systemID('req-a'), createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('req-a')), status: 'ready' });
+  const c2 = request({ id: systemID('req-b'), createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('req-b')), status: 'ready' });
   const plan = planSameKeyReconciliation([c1, c2], 'request', []);
   assert.equal(plan.action, 'reconcile');
-  assert.equal(plan.winnerRowID, 'req-a');
+  assert.equal(plan.winnerRowID, systemID('req-a'));
   assert.equal(plan.mutations.length, 1);
-  assert.equal(plan.mutations[0].id, 'req-b');
+  assert.equal(plan.mutations[0].id, systemID('req-b'));
   assert.equal(plan.mutations[0].desiredReconciliationStatus, 'duplicate');
-  assert.equal(plan.mutations[0].desiredCanonicalRowID, 'req-a');
+  assert.equal(plan.mutations[0].desiredCanonicalRowID, String(systemID('req-a')));
 });
 
 test('Subtask F: duplicate request reconciliation multiple canonicals with summary checkpoint freezes canonicals to manual_review', () => {
-  const c1 = request({ id: 'req-a', createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: 'req-a', status: 'ready', summaryMarkdown: 'saved' });
-  const c2 = request({ id: 'req-b', createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: 'req-b', status: 'ready', summaryMarkdown: 'other' });
+  const c1 = request({ id: systemID('req-a'), createdAt: NOW, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('req-a')), status: 'ready', summaryMarkdown: 'saved' });
+  const c2 = request({ id: systemID('req-b'), createdAt: LATER, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('req-b')), status: 'ready', summaryMarkdown: 'other' });
   const plan = planSameKeyReconciliation([c1, c2], 'request', []);
   assert.equal(plan.action, 'manual_review');
   assert.equal(plan.mutations.length, 2);
@@ -2169,26 +2186,26 @@ test('Subtask F: duplicate request reconciliation multiple canonicals with summa
 });
 
 test('Subtask F: verifySameKeyReconciliation verifies clean canonical winner and duplicate losers', () => {
-  const c1 = attempt({ id: 'att-a', reconciliationStatus: 'canonical', canonicalRowID: 'att-a' });
-  const d1 = attempt({ id: 'att-b', reconciliationStatus: 'duplicate', canonicalRowID: 'att-a' });
-  const verified = verifySameKeyReconciliation([c1, d1], { action: 'reconcile', winnerRowID: 'att-a' }, 'attempt');
+  const c1 = attempt({ id: systemID('att-a'), reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-a')) });
+  const d1 = attempt({ id: systemID('att-b'), reconciliationStatus: 'duplicate', canonicalRowID: String(systemID('att-a')) });
+  const verified = verifySameKeyReconciliation([c1, d1], { action: 'reconcile', winnerRowID: systemID('att-a') }, 'attempt');
   assert.equal(verified.action, 'verified');
-  assert.equal(verified.canonical.id, 'att-a');
+  assert.equal(verified.canonical.id, systemID('att-a'));
 });
 
 test('Subtask F: verifySameKeyReconciliation verifies frozen canonicals on checkpoint conflict', () => {
-  const f1 = attempt({ id: 'att-a', status: 'manual_review', manualReviewReason: 'multiple_canonical_checkpoint_conflict', reconciliationStatus: 'canonical', canonicalRowID: 'att-a' });
-  const f2 = attempt({ id: 'att-b', status: 'manual_review', manualReviewReason: 'multiple_canonical_checkpoint_conflict', reconciliationStatus: 'canonical', canonicalRowID: 'att-b' });
-  const verified = verifySameKeyReconciliation([f1, f2], { action: 'manual_review', mutations: [{ id: 'att-a' }, { id: 'att-b' }] }, 'attempt');
+  const f1 = attempt({ id: systemID('att-a'), status: 'manual_review', manualReviewReason: 'multiple_canonical_checkpoint_conflict', reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-a')) });
+  const f2 = attempt({ id: systemID('att-b'), status: 'manual_review', manualReviewReason: 'multiple_canonical_checkpoint_conflict', reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-b')) });
+  const verified = verifySameKeyReconciliation([f1, f2], { action: 'manual_review', mutations: [{ id: systemID('att-a') }, { id: systemID('att-b') }] }, 'attempt');
   assert.equal(verified.action, 'verified_frozen');
 });
 
 test('Subtask F: verifySameKeyReconciliation fails closed on partial CAS, winner mismatch, or bad linkage', () => {
-  const c1 = attempt({ id: 'att-a', reconciliationStatus: 'canonical', canonicalRowID: 'att-a' });
-  const broken = attempt({ id: 'att-b', reconciliationStatus: 'pending', canonicalRowID: '' });
-  assert.throws(() => verifySameKeyReconciliation([c1, broken], { action: 'reconcile', winnerRowID: 'att-a' }, 'attempt'), /loser linkage mismatch/);
-  assert.throws(() => verifySameKeyReconciliation([c1], { action: 'reconcile', winnerRowID: 'att-other' }, 'attempt'), /winner mismatch/);
-  assert.throws(() => verifySameKeyReconciliation([], { action: 'reconcile', winnerRowID: 'att-a' }, 'attempt'), /rows not found/);
+  const c1 = attempt({ id: systemID('att-a'), reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-a')) });
+  const broken = attempt({ id: systemID('att-b'), reconciliationStatus: 'pending', canonicalRowID: '' });
+  assert.throws(() => verifySameKeyReconciliation([c1, broken], { action: 'reconcile', winnerRowID: systemID('att-a') }, 'attempt'), /loser linkage mismatch/);
+  assert.throws(() => verifySameKeyReconciliation([c1], { action: 'reconcile', winnerRowID: systemID('att-other') }, 'attempt'), /winner mismatch/);
+  assert.throws(() => verifySameKeyReconciliation([], { action: 'reconcile', winnerRowID: systemID('att-a') }, 'attempt'), /rows not found/);
 });
 
 test('Subtask F: duplicate reconciliation produces zero calls to dispatcher, coordinator, or presenter', () => {
@@ -2280,32 +2297,32 @@ test('StageB: helper test: planRequestReconciliation is exported as a function',
 });
 
 test('StageB: helper test: planRequestReconciliation reconciles single canonical and demotes duplicate losers', () => {
-  const c1 = request({ id: 'req-1', status: 'ready', reconciliationStatus: 'canonical', canonicalRowID: 'req-1' });
-  const p1 = request({ id: 'req-2', status: 'ready', reconciliationStatus: 'pending', canonicalRowID: '' });
+  const c1 = request({ id: systemID('req-1'), status: 'ready', reconciliationStatus: 'canonical', canonicalRowID: String(systemID('req-1')) });
+  const p1 = request({ id: systemID('req-2'), status: 'ready', reconciliationStatus: 'pending', canonicalRowID: '' });
   const plan = planRequestReconciliation([c1, p1], KEY);
   assert.equal(plan.action, 'reconcile');
-  assert.equal(plan.winnerRowID, 'req-1');
+  assert.equal(plan.winnerRowID, systemID('req-1'));
   assert.equal(plan.mutations.length, 1);
-  assert.equal(plan.mutations[0].id, 'req-2');
+  assert.equal(plan.mutations[0].id, systemID('req-2'));
   assert.equal(plan.mutations[0].desiredReconciliationStatus, 'duplicate');
-  assert.equal(plan.mutations[0].desiredCanonicalRowID, 'req-1');
+  assert.equal(plan.mutations[0].desiredCanonicalRowID, String(systemID('req-1')));
 });
 
 test('StageB: helper test: planRequestReconciliation elects system earliest when no canonical exists', () => {
-  const p1 = request({ id: 'req-b', createdAt: LATER, reconciliationStatus: 'pending', canonicalRowID: '' });
-  const p2 = request({ id: 'req-a', createdAt: NOW, reconciliationStatus: 'pending', canonicalRowID: '' });
+  const p1 = request({ id: systemID('req-b'), createdAt: LATER, reconciliationStatus: 'pending', canonicalRowID: '' });
+  const p2 = request({ id: systemID('req-a'), createdAt: NOW, reconciliationStatus: 'pending', canonicalRowID: '' });
   const plan = planRequestReconciliation([p1, p2], KEY);
   assert.equal(plan.action, 'reconcile');
-  assert.equal(plan.winnerRowID, 'req-a');
+  assert.equal(plan.winnerRowID, systemID('req-a'));
   assert.equal(plan.mutations.length, 2);
-  const mWinner = plan.mutations.find((m) => m.id === 'req-a');
+  const mWinner = plan.mutations.find((m) => m.id === systemID('req-a'));
   assert.equal(mWinner.desiredReconciliationStatus, 'canonical');
-  assert.equal(mWinner.desiredCanonicalRowID, 'req-a');
+  assert.equal(mWinner.desiredCanonicalRowID, String(systemID('req-a')));
 });
 
 test('StageB: helper test: planRequestReconciliation freezes competing canonical requests on summary checkpoint conflict', () => {
-  const c1 = request({ id: 'req-1', status: 'ready', reconciliationStatus: 'canonical', canonicalRowID: 'req-1', summaryMarkdown: 'text1' });
-  const c2 = request({ id: 'req-2', status: 'ready', reconciliationStatus: 'canonical', canonicalRowID: 'req-2', summaryMarkdown: 'text2' });
+  const c1 = request({ id: systemID('req-1'), status: 'ready', reconciliationStatus: 'canonical', canonicalRowID: String(systemID('req-1')), summaryMarkdown: 'text1' });
+  const c2 = request({ id: systemID('req-2'), status: 'ready', reconciliationStatus: 'canonical', canonicalRowID: String(systemID('req-2')), summaryMarkdown: 'text2' });
   const plan = planRequestReconciliation([c1, c2], KEY);
   assert.equal(plan.action, 'manual_review');
   assert.equal(plan.reason, 'multiple_canonical_checkpoint_conflict');
@@ -2317,7 +2334,7 @@ test('StageB: helper test: planRequestReconciliation freezes competing canonical
 });
 
 test('StageB: helper test: planRequestReconciliation fails closed on mismatched requestKey or immutable conflict', () => {
-  const r1 = request({ id: 'req-1', requestKey: 'summary:other' });
+  const r1 = request({ id: systemID('req-1'), requestKey: 'summary:other' });
   assert.throws(() => planRequestReconciliation([r1], KEY), /Request key mismatch/);
   assert.throws(() => planRequestReconciliation([], KEY), /Request rows not found/);
 });
@@ -2481,11 +2498,11 @@ test('StageB: behavior test: Plan_Repairs presentation repair with due attempt p
 });
 
 test('StageB: behavior test: Plan_Repairs duplicate attempt reconciliation produces valid mutations', () => {
-  const c1 = attempt({ id: 'att-1', reconciliationStatus: 'canonical', canonicalRowID: 'att-1' });
-  const p1 = attempt({ id: 'att-2', reconciliationStatus: 'pending', canonicalRowID: '' });
+  const c1 = attempt({ id: systemID('att-1'), reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-1')) });
+  const p1 = attempt({ id: systemID('att-2'), reconciliationStatus: 'pending', canonicalRowID: '' });
   const plan = planSameKeyReconciliation([c1, p1], 'attempt', []);
   assert.equal(plan.action, 'reconcile');
-  assert.equal(plan.winnerRowID, 'att-1');
+  assert.equal(plan.winnerRowID, systemID('att-1'));
 });
 
 test('Followup 1: Plan_Repairs runtime requires uniform repairMode on all input items', () => {
@@ -2493,8 +2510,8 @@ test('Followup 1: Plan_Repairs runtime requires uniform repairMode on all input 
   // Missing repairMode fails
   assert.throws(() => {
     Function('$input', code)({
-      all: () => [{ json: { id: 'att-1' } }],
-      first: () => ({ json: { id: 'att-1' } }),
+      all: () => [{ json: { id: systemID('att-1') } }],
+      first: () => ({ json: { id: systemID('att-1') } }),
     });
   }, /repairMode/);
 
@@ -2502,10 +2519,10 @@ test('Followup 1: Plan_Repairs runtime requires uniform repairMode on all input 
   assert.throws(() => {
     Function('$input', code)({
       all: () => [
-        { json: { id: 'att-1', repairMode: 'retry_claim' } },
-        { json: { id: 'att-2', repairMode: 'retry_verify_claim' } },
+        { json: { id: systemID('att-1'), repairMode: 'retry_claim' } },
+        { json: { id: systemID('att-2'), repairMode: 'retry_verify_claim' } },
       ],
-      first: () => ({ json: { id: 'att-1', repairMode: 'retry_claim' } }),
+      first: () => ({ json: { id: systemID('att-1'), repairMode: 'retry_claim' } }),
     });
   }, /uniform/i);
 });
@@ -2536,8 +2553,8 @@ test('Followup 1: All nodes referencing Plan_Repairs receive explicit repairMode
 
 test('Followup 2: planBoundedClass outputs top-level flattened deterministic fields on candidate items', () => {
   const rows = [
-    attempt({ id: 'att-1', status: 'dispatching', dispatchLeaseOwner: 'd-1', dispatchLeaseUntilIso: NOW }),
-    request({ id: 'req-1', status: 'creating', creationLeaseOwner: '', creationLeaseUntilIso: '' }),
+    attempt({ id: systemID('att-1'), status: 'dispatching', dispatchLeaseOwner: 'd-1', dispatchLeaseUntilIso: NOW }),
+    request({ id: systemID('req-1'), status: 'creating', creationLeaseOwner: '', creationLeaseUntilIso: '' }),
   ];
   const dispatchCandidates = planBoundedClass('expired_dispatch_lease', [rows[0]], NOW);
   assert.equal(dispatchCandidates.length, 1);
@@ -2545,12 +2562,12 @@ test('Followup 2: planBoundedClass outputs top-level flattened deterministic fie
   assert.equal(dispCand.kind, 'candidate');
   assert.equal(dispCand.repairClass, 'expired_dispatch_lease');
   assert.equal(dispCand.nowIso, NOW);
-  assert.equal(dispCand.id, 'att-1');
+  assert.equal(dispCand.id, systemID('att-1'));
   assert.equal(dispCand.attemptKey, rows[0].attemptKey);
   assert.equal(dispCand.requestKey, rows[0].requestKey);
   assert.equal(dispCand.status, 'dispatching');
   assert.equal(dispCand.reconciliationStatus, 'canonical');
-  assert.equal(dispCand.canonicalRowID, 'att-1');
+  assert.equal(dispCand.canonicalRowID, String(systemID('att-1')));
   assert.ok(dispCand.locator && typeof dispCand.locator === 'object');
 
   const creationCandidates = planBoundedClass('creation_lease', [rows[1]], NOW);
@@ -2559,11 +2576,11 @@ test('Followup 2: planBoundedClass outputs top-level flattened deterministic fie
   assert.equal(reqCand.kind, 'candidate');
   assert.equal(reqCand.repairClass, 'creation_lease');
   assert.equal(reqCand.nowIso, NOW);
-  assert.equal(reqCand.id, 'req-1');
+  assert.equal(reqCand.id, systemID('req-1'));
   assert.equal(reqCand.requestKey, rows[1].requestKey);
   assert.equal(reqCand.status, 'creating');
   assert.equal(reqCand.reconciliationStatus, 'canonical');
-  assert.equal(reqCand.canonicalRowID, 'req-1');
+  assert.equal(reqCand.canonicalRowID, String(systemID('req-1')));
   assert.ok(reqCand.locator && typeof reqCand.locator === 'object');
 });
 
@@ -2605,12 +2622,12 @@ test('Followup 3: Expired dispatch and callback deadline preserve candidate and 
   // Tag Expired Dispatch Actual Plan preserves full raw row and nowIso
   const tagDispCode = node('Tag Expired Dispatch Actual Plan').parameters.jsCode;
   const candidate = { kind: 'candidate', nowIso: NOW, attemptKey: 'job:1' };
-  const rawRow = attempt({ id: 'att-1', status: 'dispatching', dispatchLeaseOwner: 'd-1', dispatchLeaseUntilIso: NOW });
+  const rawRow = attempt({ id: systemID('att-1'), status: 'dispatching', dispatchLeaseOwner: 'd-1', dispatchLeaseUntilIso: NOW });
   const taggedDisp = Function('$input', tagDispCode)({
     all: () => [{ json: candidate }, { json: rawRow }],
   });
   assert.equal(taggedDisp.length, 1);
-  assert.equal(taggedDisp[0].json.id, 'att-1');
+  assert.equal(taggedDisp[0].json.id, systemID('att-1'));
   assert.equal(taggedDisp[0].json.nowIso, NOW);
   assert.equal(taggedDisp[0].json.repairMode, 'actual:expired_dispatch');
   assert.equal(taggedDisp[0].json.status, 'dispatching');
@@ -2618,12 +2635,12 @@ test('Followup 3: Expired dispatch and callback deadline preserve candidate and 
   // Tag Callback Deadline Actual Plan preserves full raw row and nowIso
   const tagCbCode = node('Tag Callback Deadline Actual Plan').parameters.jsCode;
   const cbCandidate = { kind: 'candidate', nowIso: NOW, attemptKey: 'job:1' };
-  const cbRawRow = attempt({ id: 'att-2', status: 'waiting_callback', callbackDeadlineAtIso: NOW });
+  const cbRawRow = attempt({ id: systemID('att-2'), status: 'waiting_callback', callbackDeadlineAtIso: NOW });
   const taggedCb = Function('$input', tagCbCode)({
     all: () => [{ json: cbCandidate }, { json: cbRawRow }],
   });
   assert.equal(taggedCb.length, 1);
-  assert.equal(taggedCb[0].json.id, 'att-2');
+  assert.equal(taggedCb[0].json.id, systemID('att-2'));
   assert.equal(taggedCb[0].json.nowIso, NOW);
   assert.equal(taggedCb[0].json.repairMode, 'actual:callback_deadline');
   assert.equal(taggedCb[0].json.status, 'waiting_callback');
@@ -2653,8 +2670,8 @@ test('Followup 1 & 4: All 9 listed Plan_Repairs nodes execute correctly with tag
   }
 
   // 1. Plan Exact Retry Claim
-  const retryAtt = attempt({ id: 'att-1', status: 'retry_pending', nextRetryAtIso: NOW, retryLeaseOwner: '', retryLeaseUntilIso: '' });
-  const retrySummary = request({ id: 'req-1' });
+  const retryAtt = attempt({ id: systemID('att-1'), status: 'retry_pending', nextRetryAtIso: NOW, retryLeaseOwner: '', retryLeaseUntilIso: '' });
+  const retrySummary = request({ id: systemID('req-1') });
   const claimResult = executePlanRepairs([
     { ...retryAtt, repairMode: 'retry_claim' },
     { ...retrySummary, repairMode: 'retry_claim' },
@@ -2664,7 +2681,7 @@ test('Followup 1 & 4: All 9 listed Plan_Repairs nodes execute correctly with tag
   assert.equal(claimResult[0].json.repairMode, 'retry_verify_claim');
 
   // 2. Preflight Creation Orchestrator
-  const creatingReq = request({ id: 'req-2', status: 'creating', creationLeaseOwner: '', creationLeaseUntilIso: '' });
+  const creatingReq = request({ id: systemID('req-2'), status: 'creating', creationLeaseOwner: '', creationLeaseUntilIso: '' });
   const creationResult = executePlanRepairs([
     { ...creatingReq, repairMode: 'creation_preflight' },
   ]);
@@ -2672,7 +2689,7 @@ test('Followup 1 & 4: All 9 listed Plan_Repairs nodes execute correctly with tag
   assert.equal(creationResult[0].json.requestKey, creatingReq.requestKey);
 
   // 3. Preflight Summary Coordinator Call
-  const readyReq = request({ id: 'req-3', status: 'ready', leaseOwner: '', leaseUntilIso: '' });
+  const readyReq = request({ id: systemID('req-3'), status: 'ready', leaseOwner: '', leaseUntilIso: '' });
   const summaryResult = executePlanRepairs([
     { ...readyReq, repairMode: 'summary_preflight' },
   ]);
@@ -2680,7 +2697,7 @@ test('Followup 1 & 4: All 9 listed Plan_Repairs nodes execute correctly with tag
   assert.equal(summaryResult[0].json.requestKey, readyReq.requestKey);
 
   // 4. Plan Presentation Repair
-  const presAtt = attempt({ id: 'att-3', status: 'completed', presentationStatus: 'retry_pending', presentationNextRetryAtIso: NOW, presentationLeaseOwner: '', presentationLeaseUntilIso: '' });
+  const presAtt = attempt({ id: systemID('att-3'), status: 'completed', presentationStatus: 'retry_pending', presentationNextRetryAtIso: NOW, presentationLeaseOwner: '', presentationLeaseUntilIso: '' });
   const presResult = executePlanRepairs([
     { ...presAtt, repairMode: 'presentation_plan' },
   ]);
@@ -2688,8 +2705,8 @@ test('Followup 1 & 4: All 9 listed Plan_Repairs nodes execute correctly with tag
   assert.equal(presResult[0].json.action, 'claim');
 
   // 5. Plan Duplicate Key Reconciliation
-  const dupAtt1 = attempt({ id: 'att-4a', reconciliationStatus: 'canonical', canonicalRowID: 'att-4a' });
-  const dupAtt2 = attempt({ id: 'att-4b', reconciliationStatus: 'pending', canonicalRowID: '' });
+  const dupAtt1 = attempt({ id: systemID('att-4a'), reconciliationStatus: 'canonical', canonicalRowID: String(systemID('att-4a')) });
+  const dupAtt2 = attempt({ id: systemID('att-4b'), reconciliationStatus: 'pending', canonicalRowID: '' });
   const dupResult = executePlanRepairs([
     { ...dupAtt1, repairMode: 'duplicate_plan' },
     { ...dupAtt2, repairMode: 'duplicate_plan' },
@@ -2706,28 +2723,28 @@ test('Followup 1 & 4: All 9 listed Plan_Repairs nodes execute correctly with tag
   assert.equal(capResult[0].json.action, 'insert_pending');
 
   // 7. Plan Pending Cap Error Canonical
-  const pendingCapRow = { ...capCandidate, id: 'err-1', createdAt: NOW, reconciliationStatus: 'pending', canonicalRowID: '' };
+  const pendingCapRow = { ...capCandidate, id: systemID('err-1'), createdAt: NOW, reconciliationStatus: 'pending', canonicalRowID: '' };
   const pendingCapResult = executePlanRepairs([
     { ...pendingCapRow, repairMode: 'pending_cap_canonical' },
   ]);
   assert.equal(pendingCapResult.length, 1);
   assert.equal(pendingCapResult[0].json.desiredReconciliationStatus, 'canonical');
-  assert.equal(pendingCapResult[0].json.desiredCanonicalRowID, 'err-1');
+  assert.equal(pendingCapResult[0].json.desiredCanonicalRowID, String(systemID('err-1')));
 
   // 8. Verify Cap Error Reconciliation
-  const canonicalCapRow = { ...pendingCapRow, reconciliationStatus: 'canonical', canonicalRowID: 'err-1' };
+  const canonicalCapRow = { ...pendingCapRow, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('err-1')) };
   const verifyCapResult = executePlanRepairs([
     { ...canonicalCapRow, repairMode: 'verify_cap_reconciliation' },
   ]);
-  assert.deepEqual(verifyCapResult, [{ json: { canonicalRowID: 'err-1' } }]);
+  assert.deepEqual(verifyCapResult, [{ json: { canonicalRowID: String(systemID('err-1')) } }]);
 
   // 9. Verify Duplicate Cap Error
-  const duplicateCapRow = { ...pendingCapRow, id: 'err-2', createdAt: LATER, reconciliationStatus: 'duplicate', canonicalRowID: 'err-1' };
+  const duplicateCapRow = { ...pendingCapRow, id: systemID('err-2'), createdAt: LATER, reconciliationStatus: 'duplicate', canonicalRowID: String(systemID('err-1')) };
   const verifyDupCapResult = executePlanRepairs([
     { ...canonicalCapRow, repairMode: 'verify_duplicate_cap' },
     { ...duplicateCapRow, repairMode: 'verify_duplicate_cap' },
   ]);
-  assert.deepEqual(verifyDupCapResult, [{ json: { errorKey: canonicalCapRow.errorKey, canonicalRowID: 'err-1' } }]);
+  assert.deepEqual(verifyDupCapResult, [{ json: { errorKey: canonicalCapRow.errorKey, canonicalRowID: String(systemID('err-1')) } }]);
 });
 
 test('Followup 4: Simulation: Cap error overflow produces pending canonical on absent, and duplicate on existing canonical', () => {
@@ -2745,23 +2762,23 @@ test('Followup 4: Simulation: Cap error overflow produces pending canonical on a
   assert.equal(planAbsent[0].json.action, 'insert_pending');
 
   // Inserted row -> Reread -> Plan Pending Canonical
-  const insertedRow = { ...capCandidate, id: 'err-100', createdAt: NOW, reconciliationStatus: 'pending', canonicalRowID: '' };
+  const insertedRow = { ...capCandidate, id: systemID('err-100'), createdAt: NOW, reconciliationStatus: 'pending', canonicalRowID: '' };
   const planPending = runNode([{ ...insertedRow, repairMode: 'pending_cap_canonical' }]);
   assert.equal(planPending[0].json.desiredReconciliationStatus, 'canonical');
-  assert.equal(planPending[0].json.desiredCanonicalRowID, 'err-100');
+  assert.equal(planPending[0].json.desiredCanonicalRowID, String(systemID('err-100')));
 
   // Canonicalized row -> Verify Pending Cap Error Canonical -> Sink
-  const canonicalRow = { ...insertedRow, reconciliationStatus: 'canonical', canonicalRowID: 'err-100' };
+  const canonicalRow = { ...insertedRow, reconciliationStatus: 'canonical', canonicalRowID: String(systemID('err-100')) };
   const verifyPending = runNode([{ ...canonicalRow, repairMode: 'verify_cap_reconciliation' }]);
-  assert.deepEqual(verifyPending, [{ json: { canonicalRowID: 'err-100' } }]);
+  assert.deepEqual(verifyPending, [{ json: { canonicalRowID: String(systemID('err-100')) } }]);
 
   // Case 2: Existing Canonical Cap Error
   const existingDbRow = {
-    id: 'err-100',
+    id: systemID('err-100'),
     errorKey: capCandidate.errorKey,
     component: capCandidate.component,
     reconciliationStatus: 'canonical',
-    canonicalRowID: 'err-100',
+    canonicalRowID: String(systemID('err-100')),
     requestKey: '',
     logicalJobKey: '',
     attemptKey: '',
@@ -2780,7 +2797,5 @@ test('Followup 4: Simulation: Cap error overflow produces pending canonical on a
     { ...existingDbRow, repairMode: 'cap_error_rows' },
   ]);
   assert.equal(planExisting[0].json.action, 'insert_duplicate');
-  assert.equal(planExisting[0].json.canonicalRowID, 'err-100');
+  assert.equal(planExisting[0].json.canonicalRowID, String(systemID('err-100')));
 });
-
-

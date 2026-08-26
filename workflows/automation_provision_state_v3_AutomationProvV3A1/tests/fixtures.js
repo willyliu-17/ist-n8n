@@ -117,14 +117,14 @@ function reconcileRows(rows) {
   const canonical = {
     ...canonicalSource,
     reconciliationStatus: 'canonical',
-    canonicalRowID: canonicalSource.id,
+    canonicalRowID: String(canonicalSource.id),
   };
   const duplicates = rows
     .filter(({ id }) => id !== canonical.id)
     .map((row) => ({
       ...row,
       reconciliationStatus: 'duplicate',
-      canonicalRowID: canonical.id,
+      canonicalRowID: String(canonical.id),
     }));
 
   return { canonical, duplicates };

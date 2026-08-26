@@ -106,6 +106,7 @@ function normalizedInput(overrides = {}) {
     mins: 5,
     date: '',
     channel: CHANNEL,
+    command_ts: THREAD_TS,
     target_thread_ts: THREAD_TS,
     ...overrides,
   }, '2026-08-22T04:00:00+08:00');
@@ -114,16 +115,16 @@ function normalizedInput(overrides = {}) {
 function attemptRow(overrides = {}) {
   return {
     ...buildAttempt(normalizedInput(), resolverContext(), { message: { ts: '1787364001.000002' } }, NOW),
-    id: 'row-a',
+    id: 1,
     createdAt: NOW,
     updatedAt: NOW,
     reconciliationStatus: 'canonical',
-    canonicalRowID: 'row-a',
+    canonicalRowID: '1',
     ...overrides,
   };
 }
 
-test('declares exactly the six typed command inputs and no streamContext', () => {
+test('declares exactly the seven typed command inputs and no streamContext', () => {
   const workflow = readWorkflow();
   const values = nodeByName(workflow, 'Start').parameters.workflowInputs.values;
   assert.deepEqual(values, [
@@ -132,6 +133,7 @@ test('declares exactly the six typed command inputs and no streamContext', () =>
     { name: 'mins', type: 'number' },
     { name: 'date', type: 'string' },
     { name: 'channel', type: 'string' },
+    { name: 'command_ts', type: 'string' },
     { name: 'target_thread_ts', type: 'string' },
   ]);
   assert.equal(nodeByName(workflow, 'Start').parameters.inputSource, 'workflowInputs');
@@ -158,6 +160,9 @@ test('strictly validates streamID, C0 channel, Slack timestamp, mins, and date',
   }
   for (const target_thread_ts of ['', '1787364000', '1787364000.1', 'abc.000001', 1787364000]) {
     assert.throws(() => normalizedInput({ target_thread_ts }), /Slack timestamp/i, String(target_thread_ts));
+  }
+  for (const command_ts of ['', '1787364000', '1787364000.1', 'abc.000001', 1787364000]) {
+    assert.throws(() => normalizedInput({ command_ts }), /command_ts.*Slack timestamp/i, String(command_ts));
   }
   for (const mins of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, '5', null]) {
     assert.throws(() => normalizedInput({ mins }), /mins/i, String(mins));
@@ -359,7 +364,7 @@ test('builds deterministic attempt 1 with the exact Task 1 primitive schema defa
   const context = resolverContext();
   const first = buildAttempt(normalizedInput({ mode: 'first' }), context, { message: { ts: '1787364001.000002' } }, NOW);
   const last = buildAttempt(normalizedInput({ mode: 'last' }), context, { ts: '1787364001.000002' }, NOW);
-  assert.equal(first.logicalJobKey, `stt:${THREAD_TS}:9001:fromStart`);
+  assert.equal(first.logicalJobKey, `stt:${THREAD_TS}:${THREAD_TS}:9001:fromStart`);
   assert.equal(first.attemptKey, `${first.logicalJobKey}:1`);
   assert.equal(first.requestKey, first.logicalJobKey);
   assert.equal(first.requestType, 'standalone_stt');
@@ -371,7 +376,7 @@ test('builds deterministic attempt 1 with the exact Task 1 primitive schema defa
   assert.equal(first.canonicalRowID, '');
   assert.equal(first.processingMessageTS, '1787364001.000002');
   assert.equal(last.mode, 'fromEnd');
-  assert.equal(last.logicalJobKey, `stt:${THREAD_TS}:9001:fromEnd`);
+  assert.equal(last.logicalJobKey, `stt:${THREAD_TS}:${THREAD_TS}:9001:fromEnd`);
   assert.deepEqual(Object.keys(first), ATTEMPT_FIELDS);
   const taskOneFields = JSON.parse(fs.readFileSync(schemaPath, 'utf8')).stt_jobs_v3.map(({ name }) => name);
   assert.deepEqual(ATTEMPT_FIELDS, taskOneFields);
@@ -381,35 +386,54 @@ test('builds deterministic attempt 1 with the exact Task 1 primitive schema defa
   }
 });
 
+test('uses command timestamp for request identity while preserving the thread root', () => {
+  const firstCommandTS = '1787364001.000002';
+  const secondCommandTS = '1787364002.000003';
+  const firstInput = normalizedInput({ command_ts: firstCommandTS });
+  const repeatedInput = normalizedInput({ command_ts: firstCommandTS });
+  const secondInput = normalizedInput({ command_ts: secondCommandTS });
+  const slack = { message: { ts: '1787364003.000004' } };
+
+  const first = buildAttempt(firstInput, resolverContext(), slack, NOW);
+  const repeated = buildAttempt(repeatedInput, resolverContext(), slack, NOW);
+  const second = buildAttempt(secondInput, resolverContext(), slack, NOW);
+
+  assert.equal(first.threadTS, THREAD_TS);
+  assert.equal(first.logicalJobKey, `stt:${THREAD_TS}:${firstCommandTS}:9001:fromStart`);
+  assert.equal(repeated.logicalJobKey, first.logicalJobKey);
+  assert.equal(second.logicalJobKey, `stt:${THREAD_TS}:${secondCommandTS}:9001:fromStart`);
+  assert.notEqual(second.requestKey, first.requestKey);
+});
+
 test('preserves an existing canonical and elects system earliest only when absent', () => {
-  const existing = attemptRow({ id: 'row-z', canonicalRowID: 'row-z' });
+  const existing = attemptRow({ id: 26, canonicalRowID: '26' });
   const later = attemptRow({
-    id: 'row-a', createdAt: '2026-08-22T00:01:00.000Z', updatedAt: '2026-08-22T00:01:00.000Z',
+    id: 1, createdAt: '2026-08-22T00:01:00.000Z', updatedAt: '2026-08-22T00:01:00.000Z',
     reconciliationStatus: 'pending', canonicalRowID: '',
   });
   const existingPlan = planCanonicalReconciliation([existing, later]);
-  assert.equal(existingPlan.winnerRowID, 'row-z');
+  assert.equal(existingPlan.winnerRowID, 26);
   assert.deepEqual(existingPlan.mutations.map(({ id, desiredReconciliationStatus, desiredCanonicalRowID }) => ({
     id, desiredReconciliationStatus, desiredCanonicalRowID,
-  })), [{ id: 'row-a', desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: 'row-z' }]);
+  })), [{ id: 1, desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: '26' }]);
 
   const noCanonical = planCanonicalReconciliation([
-    attemptRow({ id: 'row-b', reconciliationStatus: 'pending', canonicalRowID: '' }),
-    attemptRow({ id: 'row-a', reconciliationStatus: 'pending', canonicalRowID: '' }),
+    attemptRow({ id: 2, reconciliationStatus: 'pending', canonicalRowID: '' }),
+    attemptRow({ id: 1, reconciliationStatus: 'pending', canonicalRowID: '' }),
   ]);
-  assert.equal(noCanonical.winnerRowID, 'row-a');
-  assert.equal(noCanonical.mutations.find(({ id }) => id === 'row-a').desiredReconciliationStatus, 'canonical');
+  assert.equal(noCanonical.winnerRowID, 1);
+  assert.equal(noCanonical.mutations.find(({ id }) => id === 1).desiredReconciliationStatus, 'canonical');
 });
 
 test('converges clean multiple canonicals and fails closed on any checkpoint conflict', () => {
   const rows = [
-    attemptRow({ id: 'row-b', canonicalRowID: 'row-b' }),
-    attemptRow({ id: 'row-a', canonicalRowID: 'row-a' }),
+    attemptRow({ id: 2, canonicalRowID: '2' }),
+    attemptRow({ id: 1, canonicalRowID: '1' }),
   ];
   const clean = planCanonicalReconciliation(rows);
   assert.equal(clean.action, 'reconcile');
-  assert.equal(clean.winnerRowID, 'row-a');
-  assert.deepEqual(clean.mutations.map(({ id }) => id), ['row-b']);
+  assert.equal(clean.winnerRowID, 1);
+  assert.deepEqual(clean.mutations.map(({ id }) => id), [2]);
   for (const checkpoint of CHECKPOINT_FIELDS) {
     const conflicted = rows.map((row) => ({ ...row }));
     conflicted[0][checkpoint] = `${checkpoint}-value`;
@@ -472,6 +496,10 @@ test('resolves metadata before Slack and attempt creation, then inserts and re-r
   assert.deepEqual(incomingSources(workflow, 'Resolve Final Stream Context'), ['Final Lookup Context']);
   assert.deepEqual(incomingSources(workflow, 'Require Eligible Stream Context'), ['Resolve Final Stream Context']);
   assert.deepEqual(incomingSources(workflow, 'Create Processing Message'), ['Require Eligible Stream Context']);
+  assert.equal(
+    nodeByName(workflow, 'Create Processing Message').parameters.otherOptions.thread_ts.replyValues.thread_ts,
+    "={{ $('Normalize Standalone Input').first().json.target_thread_ts }}",
+  );
   for (const discoveryNode of ['Resolve Base Discovery', 'Resolve Previous Fallback Discovery', 'Plan Base Discovery Window', 'Plan Fallback Discovery Window']) {
     assert.notDeepEqual(targets(workflow, discoveryNode), ['Create Processing Message']);
   }
@@ -482,7 +510,7 @@ test('uses exact-name stt_jobs_v3 placeholders and complete insert mapping only'
   const dataTables = workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.dataTable');
   assert.ok(dataTables.length >= 5);
   for (const node of dataTables) {
-    assert.equal(node.typeVersion, 1.1, node.name);
+    assert.equal(node.typeVersion, 1, node.name);
     assert.deepEqual(node.parameters.dataTableId, { __rl: true, mode: 'name', value: 'stt_jobs_v3' }, node.name);
   }
   const insert = nodeByName(workflow, 'Insert Attempt');

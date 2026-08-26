@@ -3,7 +3,7 @@ const CLAIM_PREFIX = 'root_claim|';
 const CLAIM_MS = 5 * 60 * 1000;
 
 function requireCanonical(row) {
-  if (!row?.id || row.reconciliationStatus !== 'canonical' || row.canonicalRowID !== row.id) {
+  if (!Number.isSafeInteger(row?.id) || row.id <= 0 || row.reconciliationStatus !== 'canonical' || row.canonicalRowID !== String(row.id)) {
     throw new Error('Candidate root ownership requires one canonical self-linked row');
   }
   return row;
@@ -41,7 +41,7 @@ function matchingCanonical(rows, plan) {
   const matches = rows.filter((row) => row?.id === plan.id
     && row.candidateKey === plan.candidateKey
     && row.reconciliationStatus === 'canonical'
-    && row.canonicalRowID === row.id);
+    && row.canonicalRowID === String(row.id));
   if (matches.length !== 1) throw new Error('Candidate root canonical row is missing or ambiguous');
   return matches[0];
 }

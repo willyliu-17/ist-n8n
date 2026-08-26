@@ -4,6 +4,10 @@ const CHECKPOINT_FIELDS = Object.freeze([
 ]);
 const RECONCILIATION_STATUSES = new Set(['pending', 'canonical', 'duplicate']);
 
+function systemRowID(value) {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
 function compareRows(left, right) {
   if (left.createdAt < right.createdAt) return -1;
   if (left.createdAt > right.createdAt) return 1;
@@ -23,12 +27,13 @@ function validateRows(rows) {
   if (typeof attemptKey !== 'string' || attemptKey === '') throw new Error('Invalid attempt key');
   if (typeof requestKey !== 'string' || requestKey === '') throw new Error('Invalid request key');
   for (const row of rows) {
-    for (const field of ['id', 'createdAt', 'updatedAt']) {
+    if (!systemRowID(row.id)) throw new Error('Invalid required system field: id');
+    for (const field of ['createdAt', 'updatedAt']) {
       if (typeof row[field] !== 'string' || row[field] === '') throw new Error(`Invalid required system field: ${field}`);
     }
     if (row.attemptKey !== attemptKey || row.requestKey !== requestKey) throw new Error('Invalid same-key row set');
     if (!RECONCILIATION_STATUSES.has(row.reconciliationStatus)) throw new Error('Invalid reconciliation status');
-    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== row.id) throw new Error('Canonical row must point to itself');
+    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== String(row.id)) throw new Error('Canonical row must point to itself');
     if (row.reconciliationStatus === 'pending' && row.canonicalRowID !== '') throw new Error('Pending row must not have a canonical row ID');
     if (row.reconciliationStatus === 'duplicate' && (typeof row.canonicalRowID !== 'string' || row.canonicalRowID === '')) {
       throw new Error('Duplicate row must point to a canonical row');
@@ -43,7 +48,7 @@ function mutation(row, winnerRowID, desiredReconciliationStatus) {
     expectedReconciliationStatus: row.reconciliationStatus,
     expectedCanonicalRowID: row.canonicalRowID,
     desiredReconciliationStatus,
-    desiredCanonicalRowID: winnerRowID,
+    desiredCanonicalRowID: String(winnerRowID),
   };
 }
 
@@ -69,7 +74,7 @@ function planCanonicalReconciliation(rows) {
     const canonical = canonicalRows[0];
     const mutations = rows
       .filter((row) => row.id !== canonical.id)
-      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== canonical.id)
+      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== String(canonical.id))
       .map((row) => mutation(row, canonical.id, 'duplicate'));
     return mutations.length === 0
       ? { action: 'ready', winnerRowID: canonical.id, canonical, mutations: [] }
@@ -90,7 +95,7 @@ function verifyFrozenConflict(rows, expectedMutations) {
   const canonicalRows = rows.filter((row) => row.reconciliationStatus === 'canonical');
   if (canonicalRows.length !== expectedIDs.length) throw new Error('Canonical conflict set changed');
   for (const row of canonicalRows) {
-    if (!expectedIDs.includes(row.id) || row.canonicalRowID !== row.id || row.status !== 'manual_review'
+    if (!expectedIDs.includes(row.id) || row.canonicalRowID !== String(row.id) || row.status !== 'manual_review'
       || row.manualReviewReason !== 'multiple_canonical_checkpoint_conflict'
       || typeof row.manualReviewAtIso !== 'string' || !Number.isFinite(Date.parse(row.manualReviewAtIso))) {
       throw new Error('Canonical conflict was not frozen exactly');

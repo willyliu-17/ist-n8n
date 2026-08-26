@@ -18,7 +18,7 @@ function requireCanonical(rows) {
   const canonicalRows = rows.filter(({ reconciliationStatus }) => reconciliationStatus === 'canonical');
   if (canonicalRows.length !== 1) throw new Error('Final state requires exactly one canonical row');
   const canonical = canonicalRows[0];
-  if (canonical.canonicalRowID !== canonical.id) throw new Error('Final canonical row does not point to itself');
+  if (canonical.canonicalRowID !== String(canonical.id)) throw new Error('Final canonical row does not point to itself');
   return canonical;
 }
 
@@ -60,7 +60,7 @@ function verifyFinalState(rows, expected, owner) {
     attemptKey: canonical.attemptKey,
     expectedStatus: 'dispatching',
     expectedReconciliationStatus: 'canonical',
-    expectedCanonicalRowID: canonical.id,
+    expectedCanonicalRowID: String(canonical.id),
     expectedDispatchLeaseOwner: owner,
     expectedDispatchLeaseUntilIso: canonical.dispatchLeaseUntilIso,
     desiredStatus: 'manual_review',
@@ -70,7 +70,7 @@ function verifyFinalState(rows, expected, owner) {
 
 function confirmFinalFallback(rows, expectedRowID) {
   const canonical = requireCanonical(rows);
-  if (typeof expectedRowID !== 'string' || !expectedRowID || canonical.id !== expectedRowID) {
+  if (!Number.isSafeInteger(expectedRowID) || expectedRowID <= 0 || canonical.id !== expectedRowID) {
     throw new Error('Final fallback row ID mismatch');
   }
   if (
@@ -99,7 +99,7 @@ function verifyFrozenConflict(rows, expectedItems) {
     throw new Error('Invalid expected competing canonical rows');
   }
   const expectedIds = expectedItems.map(({ id }) => id);
-  if (expectedIds.some((id) => typeof id !== 'string' || !id) || new Set(expectedIds).size !== expectedIds.length) {
+  if (expectedIds.some((id) => !Number.isSafeInteger(id) || id <= 0) || new Set(expectedIds).size !== expectedIds.length) {
     throw new Error('Invalid expected competing canonical IDs');
   }
   const canonicalRows = rows.filter(({ reconciliationStatus }) => reconciliationStatus === 'canonical');
@@ -111,7 +111,7 @@ function verifyFrozenConflict(rows, expectedItems) {
   }
   for (const row of canonicalRows) {
     if (
-      row.canonicalRowID !== row.id ||
+      row.canonicalRowID !== String(row.id) ||
       row.status !== 'manual_review' ||
       row.manualReviewReason !== 'multiple_canonical_checkpoint_conflict'
     ) {

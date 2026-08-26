@@ -20,6 +20,12 @@ function requiredString(value, fieldName) {
   return value;
 }
 
+function requiredSlackTimestamp(value, fieldName) {
+  const timestamp = requiredString(value, fieldName);
+  if (!SLACK_TIMESTAMP_PATTERN.test(timestamp)) throw new Error(`${fieldName} must be a Slack timestamp`);
+  return timestamp;
+}
+
 function processingMessageTimestamp(slack) {
   const value = slack?.message?.ts ?? slack?.ts;
   if (typeof value !== 'string' || !SLACK_TIMESTAMP_PATTERN.test(value)) {
@@ -30,7 +36,8 @@ function processingMessageTimestamp(slack) {
 
 function buildAttempt(input, streamContext, slack, nowIso = new Date().toISOString()) {
   const streamID = requiredString(input?.streamID, 'streamID');
-  const threadTS = requiredString(input?.target_thread_ts, 'target_thread_ts');
+  const commandTS = requiredSlackTimestamp(input?.command_ts, 'command_ts');
+  const threadTS = requiredSlackTimestamp(input?.target_thread_ts, 'target_thread_ts');
   const mode = requiredString(input?.mode, 'mode');
   if (!CANONICAL_MODES.has(mode)) throw new Error('mode must be canonical');
   if (input.channel !== CHANNEL) throw new Error('Invalid channel');
@@ -44,7 +51,7 @@ function buildAttempt(input, streamContext, slack, nowIso = new Date().toISOStri
   }
   const parsedNow = Date.parse(nowIso);
   if (typeof nowIso !== 'string' || !Number.isFinite(parsedNow)) throw new Error('nowIso must be valid');
-  const logicalJobKey = `stt:${threadTS}:${streamID}:${mode}`;
+  const logicalJobKey = `stt:${threadTS}:${commandTS}:${streamID}:${mode}`;
   const attempt = {
     attemptKey: `${logicalJobKey}:1`, logicalJobKey, requestKey: logicalJobKey,
     requestType: 'standalone_stt', attempt: 1, role: 'summary_item', streamID, mode,

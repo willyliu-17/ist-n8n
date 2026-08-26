@@ -27,7 +27,7 @@ function requireCanonical(rows) {
   const canonicalRows = rows.filter(({ reconciliationStatus }) => reconciliationStatus === 'canonical');
   if (canonicalRows.length !== 1) throw new Error('Callback state requires exactly one canonical row');
   const canonical = canonicalRows[0];
-  if (canonical.canonicalRowID !== canonical.id) throw new Error('Callback canonical row does not point to itself');
+  if (canonical.canonicalRowID !== String(canonical.id)) throw new Error('Callback canonical row does not point to itself');
   return canonical;
 }
 
@@ -84,7 +84,7 @@ function verifyFrozenConflict(rows, expectedItems) {
     throw new Error('Invalid frozen conflict inputs');
   }
   const expectedIds = expectedItems.map(({ id }) => id);
-  if (expectedIds.some((id) => typeof id !== 'string' || !id) || new Set(expectedIds).size !== expectedIds.length) {
+  if (expectedIds.some((id) => typeof id !== 'number' || !Number.isSafeInteger(id) || id <= 0) || new Set(expectedIds).size !== expectedIds.length) {
     throw new Error('Invalid frozen conflict IDs');
   }
   const canonicalRows = rows.filter(({ reconciliationStatus }) => reconciliationStatus === 'canonical');
@@ -96,7 +96,7 @@ function verifyFrozenConflict(rows, expectedItems) {
   }
   for (const row of canonicalRows) {
     if (
-      row.canonicalRowID !== row.id || row.status !== 'manual_review' ||
+      row.canonicalRowID !== String(row.id) || row.status !== 'manual_review' ||
       row.manualReviewReason !== 'multiple_canonical_checkpoint_conflict' ||
       !isExactIso(row.manualReviewAtIso)
     ) {

@@ -33,7 +33,9 @@ test('validates input and uses strict numeric IDs', () => {
     profile: 'stt',
   }, Date.parse('2026-08-21T00:00:00.000Z'));
   assert.equal(result.inputStreams[0].liveStreamID, '00123');
-  assert.equal(result.idsSqlLiteral, "['00123']");
+  assert.deepEqual(result.uniqueIDs, ['00123']);
+  assert.equal(result.stringIdsSqlLiteral, "['00123']");
+  assert.equal(result.int64IdsSqlLiteral, '[123]');
 });
 
 test('deduplicates query IDs while preserving original indexes and duplicates', () => {
@@ -43,12 +45,38 @@ test('deduplicates query IDs while preserving original indexes and duplicates', 
     { liveStreamID: '123' },
   ]);
   assert.deepEqual(result.uniqueIDs, ['123', '456']);
-  assert.equal(result.idsSqlLiteral, "['123','456']");
+  assert.equal(result.stringIdsSqlLiteral, "['123','456']");
+  assert.equal(result.int64IdsSqlLiteral, null);
   assert.deepEqual(result.inputStreams, [
     { inputIndex: 0, liveStreamID: '123' },
     { inputIndex: 1, liveStreamID: '456' },
     { inputIndex: 2, liveStreamID: '123' },
   ]);
+});
+
+test('builds profile-specific SQL ID literals', () => {
+  const streams = [{ liveStreamID: '123' }, { liveStreamID: '456' }];
+  const core = normalize('core', streams);
+  const stt = normalize('stt', streams);
+  const vds = normalize('vds', streams);
+
+  assert.equal(core.stringIdsSqlLiteral, "['123','456']");
+  assert.equal(core.int64IdsSqlLiteral, null);
+  assert.equal(stt.stringIdsSqlLiteral, "['123','456']");
+  assert.equal(stt.int64IdsSqlLiteral, '[123,456]');
+  assert.equal(vds.stringIdsSqlLiteral, "['123','456']");
+  assert.equal(vds.int64IdsSqlLiteral, '[123,456]');
+});
+
+test('enforces the BigQuery INT64 upper bound only for STT and VDS', () => {
+  const maximum = [{ liveStreamID: '9223372036854775807' }];
+  const overflow = [{ liveStreamID: '9223372036854775808' }];
+
+  assert.equal(normalize('stt', maximum).int64IdsSqlLiteral, '[9223372036854775807]');
+  assert.equal(normalize('vds', maximum).int64IdsSqlLiteral, '[9223372036854775807]');
+  assert.throws(() => normalize('stt', overflow), /BigQuery INT64 range/);
+  assert.throws(() => normalize('vds', overflow), /BigQuery INT64 range/);
+  assert.equal(normalize('core', overflow).stringIdsSqlLiteral, "['9223372036854775808']");
 });
 
 test('creates a deterministic default 30-day window', () => {
@@ -218,12 +246,19 @@ test('builds external files and enforces workflow topology', () => {
       value: "={{ $('Validate and Normalize').first().json.windowEnd }}",
     },
   ];
-  const idInterpolation = "{{ $('Validate and Normalize').first().json.idsSqlLiteral }}";
   const queryNodes = workflow.nodes.filter((node) => node.type === 'n8n-nodes-base.googleBigQuery');
   assert.deepEqual(queryNodes.map((node) => node.name), ['Query Core', 'Query STT', 'Query VDS']);
+  const expectedIDInterpolations = {
+    'Query Core': ["{{ $('Validate and Normalize').first().json.stringIdsSqlLiteral }}"],
+    'Query STT': [
+      "{{ $('Validate and Normalize').first().json.stringIdsSqlLiteral }}",
+      "{{ $('Validate and Normalize').first().json.int64IdsSqlLiteral }}",
+    ],
+    'Query VDS': ["{{ $('Validate and Normalize').first().json.int64IdsSqlLiteral }}"],
+  };
   for (const node of queryNodes) {
     assert.ok(node.parameters.sqlQuery.startsWith('='));
-    assert.deepEqual(node.parameters.sqlQuery.match(/\{\{[\s\S]*?\}\}/g), [idInterpolation]);
+    assert.deepEqual(node.parameters.sqlQuery.match(/\{\{[\s\S]*?\}\}/g), expectedIDInterpolations[node.name]);
     assert.deepEqual(node.parameters.options.queryParameters.namedParameters, expectedParameters);
   }
 });
@@ -236,16 +271,26 @@ test('keeps SQL fixed, narrow, parameterized, and batch-only', () => {
   };
   assert.match(sqlFiles.core, /`media17-1119\.MatomoDataMart\.LiveStreamWithViewerInfo`/);
   assert.match(sqlFiles.stt, /`media17-1119\.mongodb\.LiveStreamV2`/);
+  assert.match(sqlFiles.stt, /FROM `media17-1119\.MatomoDataMart\.LiveStreamWithViewerInfo`/);
+  assert.match(sqlFiles.stt, /NULLIF\(TRIM\(streamer\.openID\), ''\) AS openID/);
+  assert.match(sqlFiles.stt, /LEFT JOIN identity\s+ON identity\.liveStreamID = CAST\(stream\.liveStreamID AS STRING\)\s+AND identity\.userID = stream\.userID/);
+  assert.doesNotMatch(sqlFiles.stt, /`media17-1119\.mongodb\.User`/);
+  assert.doesNotMatch(sqlFiles.stt, /正在開播|SPLIT\(caption/);
   assert.match(sqlFiles.vds, /`media17-1119\.mongodb\.LiveStreamV2`/);
 
-  for (const sql of Object.values(sqlFiles)) {
+  for (const [profile, sql] of Object.entries(sqlFiles)) {
     assert.doesNotMatch(sql, /SELECT\s+\*/i);
-    assert.match(sql, /IN\s+UNNEST\(\{\{ \$\('Validate and Normalize'\)\.first\(\)\.json\.idsSqlLiteral \}\}\)/);
     assert.match(sql, /TIMESTAMP\(@window_start\)/);
     assert.match(sql, /TIMESTAMP\(@window_end\)/);
-    assert.equal((sql.match(/\bSELECT\b/gi) || []).length, 1);
+    assert.equal((sql.match(/\bSELECT\b/gi) || []).length, profile === 'stt' ? 2 : 1);
     assert.doesNotMatch(sql, /\$json|\$node|Start/);
   }
+  assert.match(sqlFiles.core, /IN\s+UNNEST\(\{\{ \$\('Validate and Normalize'\)\.first\(\)\.json\.stringIdsSqlLiteral \}\}\)/);
+  assert.match(sqlFiles.stt, /IN\s+UNNEST\(\{\{ \$\('Validate and Normalize'\)\.first\(\)\.json\.int64IdsSqlLiteral \}\}\)/);
+  assert.match(sqlFiles.stt, /IN\s+UNNEST\(\{\{ \$\('Validate and Normalize'\)\.first\(\)\.json\.stringIdsSqlLiteral \}\}\)/);
+  assert.match(sqlFiles.vds, /IN\s+UNNEST\(\{\{ \$\('Validate and Normalize'\)\.first\(\)\.json\.int64IdsSqlLiteral \}\}\)/);
+  assert.doesNotMatch(sqlFiles.core, /int64IdsSqlLiteral/);
+  assert.doesNotMatch(sqlFiles.vds, /stringIdsSqlLiteral/);
   assert.match(sqlFiles.core, /beginTime >= TIMESTAMP\(@window_start\)/);
   assert.match(sqlFiles.core, /beginTime < TIMESTAMP\(@window_end\)/);
   assert.match(sqlFiles.stt, /beginTime >= UNIX_SECONDS\(TIMESTAMP\(@window_start\)\)/);
@@ -253,12 +298,14 @@ test('keeps SQL fixed, narrow, parameterized, and batch-only', () => {
 
   const projectedFields = {
     core: ['liveStreamID', 'userID', 'openID', 'beginTime', 'endTime', 'duration', 'closeBy', 'streamMode', 'vliverModel', 'isOBS'],
-    stt: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'duration', 'caption', 'region', 'vliverModel', 'appVersion', 'deviceType', 'closeBy', 'streamMode', 'deviceModel', 'osVersion', 'publicIP', 'ipRegion', 'openID'],
+    stt: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'duration', 'region', 'vliverModel', 'appVersion', 'deviceType', 'openID'],
     vds: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'publishSec', 'region', 'ipRegion'],
   };
   for (const [profile, sql] of Object.entries(sqlFiles)) {
-    const userIDSource = profile === 'core' ? 'streamerID' : 'userID';
-    assert.match(sql, new RegExp(`ORDER BY\\s+beginTime DESC,\\s+endTime DESC,\\s+${userIDSource} DESC,\\s+TO_JSON_STRING\\(STRUCT\\(`));
+    const orderFields = profile === 'stt'
+      ? 'stream\\.beginTime DESC,\\s+stream\\.endTime DESC,\\s+stream\\.userID DESC'
+      : `beginTime DESC,\\s+endTime DESC,\\s+${profile === 'core' ? 'streamerID' : 'userID'} DESC`;
+    assert.match(sql, new RegExp(`ORDER BY\\s+${orderFields},\\s+TO_JSON_STRING\\(STRUCT\\(`));
     const fingerprint = sql.match(/TO_JSON_STRING\(STRUCT\(([\s\S]*?)\)\) DESC\s*\) = 1/);
     assert.ok(fingerprint, `${profile} must have a deterministic projected-fields fingerprint`);
     for (const field of projectedFields[profile]) {

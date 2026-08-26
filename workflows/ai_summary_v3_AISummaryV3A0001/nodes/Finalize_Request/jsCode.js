@@ -3,6 +3,7 @@ const TS = /^\d{10,}\.\d{6}$/;
 const CHECKPOINTS = ['inferenceResultJson', 'summaryMarkdown', 'summaryUploadID', 'summaryMessageTS'];
 
 function text(value) { return typeof value === 'string' ? value.trim() : ''; }
+function systemRowID(value) { return Number.isInteger(value) && value > 0; }
 function json(value, name) {
   try { return JSON.parse(value); } catch { throw new Error(`invalid persisted ${name}`); }
 }
@@ -26,12 +27,13 @@ function validateInput(input) {
 function hasCheckpoint(row) { return CHECKPOINTS.some((key) => text(row[key])); }
 function reconcile(rows, input) {
   const own = rows.filter((row) => row.requestKey === input.requestKey);
-  const canonical = own.filter((row) => row.reconciliationStatus === 'canonical' && row.canonicalRowID === row.id);
+  if (own.some((row) => !systemRowID(row.id))) throw new Error('invalid request system row id');
+  const canonical = own.filter((row) => row.reconciliationStatus === 'canonical' && row.canonicalRowID === String(row.id));
   if (canonical.length !== 1) {
     if (canonical.length > 1 && own.some(hasCheckpoint)) return { action: 'freeze', rows: canonical };
     if (canonical.length > 1) {
       const winner = [...canonical].sort((a, b) => String(a.createdAtIso).localeCompare(String(b.createdAtIso)))[0];
-      return { action: 'reconcile', winner, rows: canonical, mutations: canonical.filter((candidate) => candidate.id !== winner.id).map((candidate) => ({ id: candidate.id, desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: winner.id })) };
+      return { action: 'reconcile', winner, rows: canonical, mutations: canonical.filter((candidate) => candidate.id !== winner.id).map((candidate) => ({ id: candidate.id, desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: String(winner.id) })) };
     }
     throw new Error('exactly one canonical self-link is required');
   }
@@ -44,7 +46,7 @@ function reconcile(rows, input) {
   return { action: 'owner', row };
 }
 function ownerConditions(row) {
-  return { id: row.id, requestKey: row.requestKey, status: 'summary_dispatching', reconciliationStatus: 'canonical', canonicalRowID: row.id, leaseOwner: row.leaseOwner, leaseUntilIso: row.leaseUntilIso };
+  return { id: row.id, requestKey: row.requestKey, status: 'summary_dispatching', reconciliationStatus: 'canonical', canonicalRowID: String(row.id), leaseOwner: row.leaseOwner, leaseUntilIso: row.leaseUntilIso };
 }
 function stagePlan(row, stage, payload = {}) {
   const fields = stage === 'inference' ? ['inferenceResultJson', 'summaryMarkdown'] : stage === 'upload' ? ['summaryUploadID'] : ['summaryMessageTS'];
@@ -76,5 +78,5 @@ function verify(row, plan) {
 }
 function result(row) { return { requestKey: row.requestKey, status: row.status, coverageStatus: row.coverageStatus, summaryMessageTS: row.summaryMessageTS, summaryUploadID: row.summaryUploadID }; }
 
-if (typeof module !== 'undefined') module.exports = { CHANNEL, validateInput, reconcile, ownerConditions, stagePlan, checkpointPlan, failurePlan, completePlan, verify, result };
+if (typeof module !== 'undefined') module.exports = { CHANNEL, validateInput, reconcile, ownerConditions, stagePlan, checkpointPlan, failurePlan, completePlan, systemRowID, verify, result };
 if (typeof $input !== 'undefined') return $input.all().map(({ json: input }) => ({ json: validateInput(input) }));

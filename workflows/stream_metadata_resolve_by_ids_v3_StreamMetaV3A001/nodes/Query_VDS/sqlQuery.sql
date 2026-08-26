@@ -7,7 +7,7 @@
   region,
   deviceInfo.ipRegion AS ipRegion
 FROM `media17-1119.mongodb.LiveStreamV2`
-WHERE liveStreamID IN UNNEST({{ $('Validate and Normalize').first().json.idsSqlLiteral }})
+WHERE liveStreamID IN UNNEST({{ $('Validate and Normalize').first().json.int64IdsSqlLiteral }})
   AND beginTime >= UNIX_SECONDS(TIMESTAMP(@window_start))
   AND beginTime < UNIX_SECONDS(TIMESTAMP(@window_end))
 QUALIFY ROW_NUMBER() OVER (

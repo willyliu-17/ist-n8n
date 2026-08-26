@@ -68,18 +68,20 @@ const POSTCLAIM_FAILURE_SOURCE = Object.fromEntries(Object.entries(FAILURE_CATEG
   .flatMap(([constant, category]) => category.sources.map((source) => [source, constant])));
 
 function row(overrides = {}) {
-  return {
-    id: 'row-a', createdAt: NOW, updatedAt: NOW,
+  const result = {
+    id: 1, createdAt: NOW, updatedAt: NOW,
     attemptKey: ATTEMPT_KEY, requestKey: 'summary:req-001', logicalJobKey: 'summary:req-001:current:9001:fromStart',
     requestType: 'suspect', role: 'current', attempt: 1, streamID: '9001', mode: 'fromStart', durationMinutes: 5,
     status: 'completed', dialogue: 'hello world', language: 'en', channel: 'C0A4JJJKJMD',
     threadTS: '1787364000.000001', processingMessageTS: '1787364001.000002',
-    reconciliationStatus: 'canonical', canonicalRowID: 'row-a', presentationStatus: 'pending',
+    reconciliationStatus: 'canonical', canonicalRowID: '1', presentationStatus: 'pending',
     presentationLeaseOwner: '', presentationLeaseUntilIso: '', presentationAttempt: 0,
     presentationNextRetryAtIso: '', presentationErrorCode: '', transcriptUploadID: '', analysisUploadID: '',
     processingMessageUpdatedAtIso: '', submittedAtIso: '', callbackDeadlineAtIso: '', consumedAtIso: '',
     ...overrides,
   };
+  if (!Object.hasOwn(overrides, 'canonicalRowID')) result.canonicalRowID = String(result.id);
+  return result;
 }
 
 function node(name) {
@@ -210,6 +212,28 @@ test('claims exact canonical completed pending row then Limit 1 and re-read owne
   assert.deepEqual(targets('Re-read Presentation Claim'), ['Require Presentation Owner']);
 });
 
+test('keeps production system IDs numeric and canonical references string across every Data Table filter', () => {
+  const plan = state.planCanonicalReconciliation([
+    row({ id: 2, reconciliationStatus: 'pending', canonicalRowID: '' }),
+    row({ id: 1, reconciliationStatus: 'pending', canonicalRowID: '' }),
+  ]);
+  assert.deepEqual(plan.mutations.map(({ id, desiredCanonicalRowID }) => [id, desiredCanonicalRowID]), [[2, '1'], [1, '1']]);
+  assert.throws(() => state.planCanonicalReconciliation([row({ id: '1', canonicalRowID: '1' })]), /system field: id/);
+  assert.throws(() => reconciliation.planCanonicalReconciliation([row({ id: '1', canonicalRowID: '1' })]), /Invalid same-attempt rows/);
+
+  for (const table of workflow.nodes.filter(({ type, parameters }) => (
+    type === 'n8n-nodes-base.dataTable' && parameters.filters?.conditions
+  ))) {
+    for (const condition of table.parameters.filters.conditions) {
+      if (condition.keyName === 'id') assert.doesNotMatch(condition.keyValue, /String\(/, table.name);
+      if (condition.keyName === 'canonicalRowID') assert.match(condition.keyValue, /String\(/, table.name);
+    }
+  }
+  const guardSource = fs.readFileSync(path.join(workflowDir, 'nodes', 'Guard_Side_Effect', 'jsCode.js'), 'utf8');
+  assert.match(guardSource, /expectedCanonicalRowID: String\(row\.id\)/);
+  assert.match(guardSource, /desiredCanonicalRowID: String\(winner\.id\)/);
+});
+
 test('requires full reconciliation owner guard before every Slack side effect', () => {
   assert.deepEqual(targets('Select Next Stage'), ['All Stages Checkpointed']);
   assert.deepEqual(targets('All Stages Checkpointed', 1), ['Read Before Side Effect']);
@@ -274,18 +298,18 @@ test('routes every fallible node by phase without recursive failure handling', (
 });
 
 test('preserves canonical permanence and clean conflict convergence', () => {
-  const later = row({ id: 'row-z', createdAt: '2026-08-22T00:01:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' });
+  const later = row({ id: 26, createdAt: '2026-08-22T00:01:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' });
   const permanent = reconciliation.planCanonicalReconciliation([row(), later]);
   assert.equal(permanent.action, 'reconcile');
-  assert.equal(permanent.mutations[0].desiredCanonicalRowID, 'row-a');
+  assert.equal(permanent.mutations[0].desiredCanonicalRowID, '1');
 
   const clean = reconciliation.planCanonicalReconciliation([
-    row({ id: 'row-b', canonicalRowID: 'row-b', dialogue: '', submittedAtIso: '', status: 'queued' }),
-    row({ id: 'row-a', canonicalRowID: 'row-a', dialogue: '', submittedAtIso: '', status: 'queued' }),
+    row({ id: 2, canonicalRowID: '2', dialogue: '', submittedAtIso: '', status: 'queued' }),
+    row({ id: 1, canonicalRowID: '1', dialogue: '', submittedAtIso: '', status: 'queued' }),
   ]);
   assert.equal(clean.action, 'reconcile');
-  assert.equal(clean.mutations[0].id, 'row-b');
-  assert.equal(clean.mutations[0].desiredCanonicalRowID, 'row-a');
+  assert.equal(clean.mutations[0].id, 2);
+  assert.equal(clean.mutations[0].desiredCanonicalRowID, '1');
   assert.equal(clean.mutations[0].expectedStatus, 'queued');
   for (const name of ['Apply Initial Reconciliation', 'Apply Side Effect Reconciliation']) {
     assert.equal(filters(name).status.keyValue, '={{ $json.expectedStatus }}', name);
@@ -298,8 +322,8 @@ test('preserves canonical permanence and clean conflict convergence', () => {
 
 test('freezes all competing canonicals with any attempt or Summary checkpoint and reaches zero Slack', () => {
   for (const fixture of [
-    [row({ id: 'row-a', canonicalRowID: 'row-a' }), row({ id: 'row-b', canonicalRowID: 'row-b' })],
-    [row({ id: 'row-a', canonicalRowID: 'row-a', dialogue: '' }), row({ id: 'row-b', canonicalRowID: 'row-b', dialogue: '' })],
+    [row({ id: 1, canonicalRowID: '1' }), row({ id: 2, canonicalRowID: '2' })],
+    [row({ id: 1, canonicalRowID: '1', dialogue: '' }), row({ id: 2, canonicalRowID: '2', dialogue: '' })],
   ]) {
     const plan = reconciliation.planCanonicalReconciliation(fixture, fixture[0].dialogue ? [] : [{ requestKey: 'summary:req-001', summaryUploadID: 'F-SUMMARY' }]);
     assert.equal(plan.action, 'manual_review');
@@ -309,15 +333,15 @@ test('freezes all competing canonicals with any attempt or Summary checkpoint an
   for (const slack of ['Upload Transcript File', 'Upload Analysis File', 'Update Processing Message']) assert.equal(reachableFromFreeze.has(slack), false);
   assert.deepEqual(targets('Re-read Frozen Conflict'), ['Verify Full Freeze']);
   const frozen = (fixture, overrides = {}) => row({
-    id: fixture, canonicalRowID: fixture, status: 'manual_review',
+    id: fixture, canonicalRowID: String(fixture), status: 'manual_review',
     manualReviewReason: 'multiple_canonical_checkpoint_conflict', manualReviewAtIso: NOW,
     presentationLeaseOwner: '', presentationLeaseUntilIso: '',
     ...overrides,
   });
-  assert.deepEqual(state.verifyFrozenConflict([frozen('row-a'), frozen('row-b')], ['row-a', 'row-b']).map(({ id }) => id), ['row-a', 'row-b']);
-  assert.throws(() => state.verifyFrozenConflict([frozen('row-a')], ['row-a', 'row-b']), /incomplete/);
-  assert.throws(() => state.verifyFrozenConflict([frozen('row-a'), frozen('row-c')], ['row-a', 'row-b']), /identity/);
-  assert.throws(() => state.verifyFrozenConflict([frozen('row-a'), frozen('row-b', { presentationLeaseOwner: 'exec-1' })], ['row-a', 'row-b']));
+  assert.deepEqual(state.verifyFrozenConflict([frozen(1), frozen(2)], [1, 2]).map(({ id }) => id), [1, 2]);
+  assert.throws(() => state.verifyFrozenConflict([frozen(1)], [1, 2]), /incomplete/);
+  assert.throws(() => state.verifyFrozenConflict([frozen(1), frozen(3)], [1, 2]), /identity/);
+  assert.throws(() => state.verifyFrozenConflict([frozen(1), frozen(2, { presentationLeaseOwner: 'exec-1' })], [1, 2]));
 });
 
 test('skips persisted checkpoints and recovers in strict stage order', () => {
@@ -335,15 +359,15 @@ test('requires the exact unexpired owner and fails closed on conflicts or zero-C
     presentationStatus: 'presenting', presentationLeaseOwner: 'exec-1',
     presentationLeaseUntilIso: '2026-08-22T00:05:00.000Z', presentationAttempt: 1,
   });
-  assert.equal(state.requireCanonicalOwner([presenting], 'exec-1', NOW).id, 'row-a');
+  assert.equal(state.requireCanonicalOwner([presenting], 'exec-1', NOW).id, 1);
   assert.throws(() => state.requireCanonicalOwner([presenting], 'exec-2', NOW), /owner mismatch/);
   assert.throws(() => state.requireCanonicalOwner([presenting], 'exec-1', '2026-08-22T00:05:00.000Z'), /expired/);
   assert.throws(() => state.requireCanonicalOwner([
     presenting,
-    row({ id: 'row-b', canonicalRowID: 'row-b', presentationStatus: 'presenting', presentationLeaseOwner: 'exec-1', presentationLeaseUntilIso: '2026-08-22T00:05:00.000Z' }),
+    row({ id: 2, canonicalRowID: '2', presentationStatus: 'presenting', presentationLeaseOwner: 'exec-1', presentationLeaseUntilIso: '2026-08-22T00:05:00.000Z' }),
   ], 'exec-1', NOW), /exactly one/);
   assert.throws(() => state.verifyTerminalPresentation([presenting], {
-    id: 'row-a', presentationStatus: 'retry_pending', presentationAttempt: 1,
+    id: 1, presentationStatus: 'retry_pending', presentationAttempt: 1,
     presentationNextRetryAtIso: '2026-08-22T00:01:00.000Z', presentationErrorCode: 'x',
   }), /mismatch/);
 });
@@ -374,7 +398,7 @@ test('verifies the exact checkpoint value and full claim provenance', () => {
   });
   assert.equal(state.verifyExactCheckpoint([expected], expected).transcriptUploadID, 'F1');
   for (const changed of [
-    { id: 'row-b', canonicalRowID: 'row-b' }, { attemptKey: 'summary:req-001:current:9001:fromStart:2' },
+    { id: 2, canonicalRowID: '2' }, { attemptKey: 'summary:req-001:current:9001:fromStart:2' },
     { status: 'manual_review' }, { presentationStatus: 'pending' }, { presentationLeaseOwner: 'exec-2' },
     { presentationLeaseUntilIso: '2026-08-22T00:06:00.000Z' }, { presentationAttempt: 2 },
     { transcriptUploadID: 'F2' },
@@ -402,24 +426,24 @@ test('verifies completion against the original claim and exact checkpoint snapsh
   const completed = {
     ...checkpoint, presentationStatus: 'completed', presentationLeaseOwner: '', presentationLeaseUntilIso: '',
   };
-  assert.equal(state.verifyCompletion([completed], expectation).id, 'row-a');
+  assert.equal(state.verifyCompletion([completed], expectation).id, 1);
   assert.deepEqual(targets('All Stages Checkpointed'), ['Prepare Completion Snapshot']);
   assert.deepEqual(targets('Prepare Completion Snapshot'), ['Complete Presentation']);
 
   assert.throws(() => state.verifyCompletion([], expectation), /not found/);
   assert.throws(() => state.verifyCompletion([
     completed,
-    { ...completed, id: 'row-b', canonicalRowID: 'row-b' },
+    { ...completed, id: 2, canonicalRowID: '2' },
   ], expectation), /exactly one/);
   assert.throws(() => state.verifyCompletion([
-    { ...completed, id: 'row-b', canonicalRowID: 'row-b' },
+    { ...completed, id: 2, canonicalRowID: '2' },
   ], expectation), /mismatch/);
 
   for (const field of ['id', 'attemptKey', 'attempt', 'presentationAttempt', ...state.COMPLETION_PROVENANCE_FIELDS]) {
     const value = completed[field];
     const changed = typeof value === 'number' ? value + 1 : `${value}-drift`;
     const candidate = { ...completed, [field]: changed };
-    if (field === 'id') candidate.canonicalRowID = changed;
+    if (field === 'id') candidate.canonicalRowID = String(changed);
     assert.throws(() => state.verifyCompletion([candidate], expectation), field);
   }
   for (const field of state.PRESENTATION_CHECKPOINT_FIELDS) {
@@ -499,7 +523,7 @@ test('failure owner verification uses latest persisted checkpoints and fails clo
   assert.throws(() => state.verifyFailureOwnerSnapshot([], claim, invalidContext, 'exec-1', NOW));
   assert.throws(() => state.verifyFailureOwnerSnapshot([
     claim,
-    { ...claim, id: 'row-b', canonicalRowID: 'row-b' },
+    { ...claim, id: 2, canonicalRowID: '2' },
   ], claim, invalidContext, 'exec-1', NOW));
   assert.throws(() => state.verifyFailureOwnerSnapshot(
     [{ ...claim, presentationLeaseOwner: 'exec-2' }], claim,
@@ -637,7 +661,7 @@ test('uses exact owner/checkpoint CAS and Limit/re-read for every presentation w
   assert.equal(failureFilters.attemptKey.keyValue, '={{ $json.attemptKey }}');
   assert.equal(failureFilters.status.keyValue, 'completed');
   assert.equal(failureFilters.reconciliationStatus.keyValue, 'canonical');
-  assert.equal(failureFilters.canonicalRowID.keyValue, '={{ $json.id }}');
+  assert.equal(failureFilters.canonicalRowID.keyValue, '={{ String($json.id) }}');
   assert.equal(failureFilters.presentationStatus.keyValue, 'presenting');
   assert.equal(failureFilters.presentationLeaseOwner.keyValue, '={{ $execution.id }}');
   assert.equal(failureFilters.presentationLeaseUntilIso.keyValue, '={{ $json.presentationLeaseUntilIso }}');
@@ -664,10 +688,10 @@ test('has no callback body, Webhook references, raw token, STT core writer, or n
   for (const name of presentationWrites) assert.equal('status' in node(name).parameters.columns.value, false, name);
 });
 
-test('uses supported execution retention settings and unique UUIDv4 node IDs', () => {
+test('uses approved execution retention and unique UUIDv4 node IDs', () => {
   assert.deepEqual(workflow.settings, {
-    executionOrder: 'v1', saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none',
-    saveManualExecutions: false, saveExecutionProgress: false,
+    executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all',
+    saveManualExecutions: true, saveExecutionProgress: false,
   });
   const ids = workflow.nodes.map(({ id }) => id);
   assert.equal(new Set(ids).size, ids.length);

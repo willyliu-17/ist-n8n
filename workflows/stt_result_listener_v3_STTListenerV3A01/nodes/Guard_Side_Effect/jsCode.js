@@ -5,7 +5,7 @@ const { attemptKey, requestKey } = attempts[0];
 for (const row of attempts) {
   if (!row.id || !row.createdAt || !row.updatedAt || row.attemptKey !== attemptKey || row.requestKey !== requestKey) throw new Error('Invalid same-attempt rows before side effect');
   if (!['pending', 'canonical', 'duplicate'].includes(row.reconciliationStatus)) throw new Error('Invalid reconciliation status before side effect');
-  if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== row.id) throw new Error('Invalid canonical linkage before side effect');
+  if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== String(row.id)) throw new Error('Invalid canonical linkage before side effect');
   if (row.reconciliationStatus === 'pending' && row.canonicalRowID !== '') throw new Error('Invalid pending linkage before side effect');
   if (row.reconciliationStatus === 'duplicate' && !row.canonicalRowID) throw new Error('Invalid duplicate linkage before side effect');
 }
@@ -16,12 +16,12 @@ const present = (value) => value !== undefined && value !== null && value !== ''
 const canonical = attempts.filter((row) => row.reconciliationStatus === 'canonical');
 if (canonical.length === 1) {
   const winner = canonical[0];
-  const staleRows = attempts.filter((row) => row.id !== winner.id && (row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== winner.id));
+  const staleRows = attempts.filter((row) => row.id !== winner.id && (row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== String(winner.id)));
   if (staleRows.length) {
     return staleRows.map((row) => ({ json: {
       id: row.id, attemptKey: row.attemptKey, expectedStatus: row.status,
       expectedReconciliationStatus: row.reconciliationStatus, expectedCanonicalRowID: row.canonicalRowID || '',
-      desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: winner.id,
+      desiredReconciliationStatus: 'duplicate', desiredCanonicalRowID: String(winner.id),
       reconciliationAction: 'reconcile',
     } }));
   }
@@ -30,8 +30,8 @@ if (canonical.length !== 1) {
   if (canonical.length > 1 && (attempts.some((row) => attemptCheckpoints.some((field) => present(row[field]))) || summaries.some((row) => summaryCheckpoints.some((field) => present(row[field]))))) {
     return canonical.map((row) => ({ json: {
       id: row.id, attemptKey: row.attemptKey, expectedStatus: row.status,
-      expectedReconciliationStatus: 'canonical', expectedCanonicalRowID: row.id,
-      desiredReconciliationStatus: 'canonical', desiredCanonicalRowID: row.id,
+      expectedReconciliationStatus: 'canonical', expectedCanonicalRowID: String(row.id),
+      desiredReconciliationStatus: 'canonical', desiredCanonicalRowID: String(row.id),
       reconciliationAction: 'manual_review',
     } }));
   }
@@ -40,13 +40,13 @@ if (canonical.length !== 1) {
   return attempts.filter((row) => row.id !== winner.id || row.reconciliationStatus !== 'canonical').map((row) => ({ json: {
     id: row.id, attemptKey: row.attemptKey, expectedStatus: row.status,
     expectedReconciliationStatus: row.reconciliationStatus, expectedCanonicalRowID: row.canonicalRowID || '',
-    desiredReconciliationStatus: row.id === winner.id ? 'canonical' : 'duplicate', desiredCanonicalRowID: winner.id,
+    desiredReconciliationStatus: row.id === winner.id ? 'canonical' : 'duplicate', desiredCanonicalRowID: String(winner.id),
     reconciliationAction: 'reconcile',
   } }));
 }
 const row = canonical[0];
 const now = new Date().toISOString();
-if (row.canonicalRowID !== row.id || row.status !== 'completed' || !String(row.dialogue || '').trim()) throw new Error('Invalid canonical owner state');
+if (row.canonicalRowID !== String(row.id) || row.status !== 'completed' || !String(row.dialogue || '').trim()) throw new Error('Invalid canonical owner state');
 if (row.id !== $('Require Presentation Owner').first().json.id) throw new Error('Claimed canonical ID changed');
 if (row.presentationStatus !== 'presenting' || row.presentationLeaseOwner !== $execution.id) throw new Error('Presentation owner mismatch');
 if (!row.presentationLeaseUntilIso || Date.parse(row.presentationLeaseUntilIso) <= Date.parse(now) || new Date(Date.parse(row.presentationLeaseUntilIso)).toISOString() !== row.presentationLeaseUntilIso) throw new Error('Presentation lease expired');

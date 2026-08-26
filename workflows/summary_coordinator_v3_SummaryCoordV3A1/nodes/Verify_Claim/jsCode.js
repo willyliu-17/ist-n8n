@@ -5,7 +5,7 @@ function validIso(value, name) {
   return millis;
 }
 function verifyClaim(rows, requestKey, owner, now, expectedLeaseUntilIso) {
-  const canonical = rows.filter((row) => row?.id && row.requestKey === requestKey && row.reconciliationStatus === 'canonical' && row.canonicalRowID === row.id);
+  const canonical = rows.filter((row) => row?.id && row.requestKey === requestKey && row.reconciliationStatus === 'canonical' && row.canonicalRowID === String(row.id));
   if (canonical.length !== 1) throw new Error('claim reread requires exactly one canonical request');
   const row = canonical[0];
   if (row.status !== 'summary_dispatching' || row.leaseOwner !== owner) throw new Error('claim owner mismatch');

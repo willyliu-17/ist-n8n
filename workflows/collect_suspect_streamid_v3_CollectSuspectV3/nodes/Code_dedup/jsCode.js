@@ -1,6 +1,10 @@
 const CHANNEL = 'C0A4JJJKJMD';
 const STREAM_ID_PATTERN = /^[0-9]{1,20}$/;
 
+function systemRowID(value) {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
 function requiredStreamID(value, fieldName) {
   const normalized = String(value ?? '').trim();
   if (!STREAM_ID_PATTERN.test(normalized)) throw new Error(`${fieldName} must be a numeric stream ID`);
@@ -56,7 +60,7 @@ function planCandidateReconciliation(rows) {
   if (!Array.isArray(rows) || rows.length === 0) throw new Error('candidate rows are required');
   const candidateKey = rows[0].candidateKey;
   for (const row of rows) {
-    if (!row.id || !row.createdAt || row.candidateKey !== candidateKey) throw new Error('invalid candidate reconciliation row');
+    if (!systemRowID(row.id) || !row.createdAt || row.candidateKey !== candidateKey) throw new Error('invalid candidate reconciliation row');
     if (!['pending', 'canonical', 'duplicate'].includes(row.reconciliationStatus)) throw new Error('invalid candidate reconciliation status');
   }
   const canonicals = rows.filter(({ reconciliationStatus }) => reconciliationStatus === 'canonical');
@@ -66,15 +70,15 @@ function planCandidateReconciliation(rows) {
   const winner = [...(canonicals.length ? canonicals : rows)].sort(compareSystemOrder)[0];
   const mutations = rows
     .filter((row) => row.id === winner.id
-      ? row.reconciliationStatus !== 'canonical' || row.canonicalRowID !== row.id
-      : row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== winner.id)
+      ? row.reconciliationStatus !== 'canonical' || row.canonicalRowID !== String(row.id)
+      : row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== String(winner.id))
     .map((row) => ({
       id: row.id,
       candidateKey,
       expectedReconciliationStatus: row.reconciliationStatus,
       expectedCanonicalRowID: row.canonicalRowID || '',
       desiredReconciliationStatus: row.id === winner.id ? 'canonical' : 'duplicate',
-      desiredCanonicalRowID: row.id === winner.id ? row.id : winner.id,
+      desiredCanonicalRowID: String(row.id === winner.id ? row.id : winner.id),
     }));
   return { canonical: winner, mutations };
 }

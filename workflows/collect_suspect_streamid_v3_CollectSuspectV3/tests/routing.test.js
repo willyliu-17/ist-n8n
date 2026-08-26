@@ -113,27 +113,47 @@ test('deduplicates provenance and preserves an existing candidate canonical', ()
   assert.equal(candidates[0].canonicalRowID, '');
 
   const rows = [
-    { ...candidates[0], id: 'row-z', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: 'row-z' },
-    { ...candidates[0], id: 'row-a', createdAt: '2026-08-22T00:01:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' },
+    { ...candidates[0], id: 2, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: '2' },
+    { ...candidates[0], id: 1, createdAt: '2026-08-22T00:01:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' },
   ];
   const plan = planCandidateReconciliation(rows);
-  assert.equal(plan.canonical.id, 'row-z');
+  assert.equal(plan.canonical.id, 2);
   assert.equal(plan.mutations[0].desiredReconciliationStatus, 'duplicate');
-  assert.equal(plan.mutations[0].desiredCanonicalRowID, 'row-z');
+  assert.equal(plan.mutations[0].desiredCanonicalRowID, '2');
 });
 
 test('chooses system earliest candidate only when no canonical exists', () => {
   const rows = [
-    { id: 'row-b', candidateKey: 'candidate-1', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' },
-    { id: 'row-a', candidateKey: 'candidate-1', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' },
+    { id: 2, candidateKey: 'candidate-1', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' },
+    { id: 1, candidateKey: 'candidate-1', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' },
   ];
-  assert.equal(planCandidateReconciliation(rows).canonical.id, 'row-a');
+  assert.equal(planCandidateReconciliation(rows).canonical.id, 1);
+});
+
+test('requires numeric production system IDs and string canonical references at every Data Table boundary', () => {
+  const rows = [
+    { id: 2, candidateKey: 'candidate-1', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' },
+    { id: 1, candidateKey: 'candidate-1', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' },
+  ];
+  const plan = planCandidateReconciliation(rows);
+  assert.deepEqual(plan.mutations.map(({ id, desiredCanonicalRowID }) => [id, desiredCanonicalRowID]), [[2, '1'], [1, '1']]);
+  assert.throws(() => planCandidateReconciliation([{ ...rows[0], id: '2' }]), /invalid candidate reconciliation row/);
+
+  const workflow = readWorkflow();
+  for (const table of workflow.nodes.filter(({ type, parameters }) => (
+    type === 'n8n-nodes-base.dataTable' && parameters.filters?.conditions
+  ))) {
+    for (const condition of table.parameters.filters.conditions) {
+      if (condition.keyName === 'id') assert.doesNotMatch(condition.keyValue, /String\(/, table.name);
+      if (condition.keyName === 'canonicalRowID') assert.match(condition.keyValue, /String\(/, table.name);
+    }
+  }
 });
 
 test('claims candidate root before Slack and rejects a losing or zero-CAS owner', () => {
   const row = {
-    id: 'row-1', candidateKey: 'candidate-1', createdAt: '2026-08-22T00:00:00.000Z',
-    reconciliationStatus: 'canonical', canonicalRowID: 'row-1', threadTS: '',
+    id: 1, candidateKey: 'candidate-1', createdAt: '2026-08-22T00:00:00.000Z',
+    reconciliationStatus: 'canonical', canonicalRowID: '1', threadTS: '',
   };
   const first = planRootOwnership(row, 'execution-1', '2026-08-22T00:00:00.000Z');
   const second = planRootOwnership(row, 'execution-2', '2026-08-22T00:00:00.000Z');
@@ -147,8 +167,8 @@ test('claims candidate root before Slack and rejects a losing or zero-CAS owner'
 
 test('requires a valid exact Slack root checkpoint before resolver eligibility', () => {
   const row = {
-    id: 'row-1', candidateKey: 'candidate-1', createdAt: '2026-08-22T00:00:00.000Z',
-    reconciliationStatus: 'canonical', canonicalRowID: 'row-1', threadTS: '',
+    id: 1, candidateKey: 'candidate-1', createdAt: '2026-08-22T00:00:00.000Z',
+    reconciliationStatus: 'canonical', canonicalRowID: '1', threadTS: '',
   };
   const claim = planRootOwnership(row, 'execution-1', '2026-08-22T00:00:00.000Z');
   const owner = verifyRootClaim(claim, [{ ...row, threadTS: claim.desiredThreadTS }]);

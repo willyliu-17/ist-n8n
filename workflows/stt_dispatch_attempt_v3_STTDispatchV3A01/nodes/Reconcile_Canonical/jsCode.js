@@ -28,6 +28,10 @@ function hasCheckpoint(row, fields) {
   return fields.some((field) => row[field] !== undefined && row[field] !== null && row[field] !== '');
 }
 
+function systemRowID(value) {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
 function mutation(row, winnerRowID, desiredReconciliationStatus) {
   return {
     id: row.id,
@@ -35,7 +39,7 @@ function mutation(row, winnerRowID, desiredReconciliationStatus) {
     expectedReconciliationStatus: row.reconciliationStatus || '',
     expectedCanonicalRowID: row.canonicalRowID || '',
     desiredReconciliationStatus,
-    desiredCanonicalRowID: winnerRowID,
+    desiredCanonicalRowID: String(winnerRowID),
   };
 }
 
@@ -46,14 +50,15 @@ function validateRows(rows) {
   if (typeof attemptKey !== 'string' || !attemptKey) throw new Error('Invalid attempt key');
   if (typeof requestKey !== 'string' || !requestKey) throw new Error('Invalid attempt request key');
   for (const row of rows) {
-    for (const field of ['id', 'createdAt', 'updatedAt']) {
+    if (!systemRowID(row.id)) throw new Error('Invalid required system field: id');
+    for (const field of ['createdAt', 'updatedAt']) {
       if (typeof row[field] !== 'string' || !row[field]) throw new Error(`Invalid required system field: ${field}`);
     }
     if (row.attemptKey !== attemptKey) throw new Error('Invalid same-key row set');
     if (typeof row.requestKey !== 'string' || !row.requestKey) throw new Error('Invalid attempt request key');
     if (row.requestKey !== requestKey) throw new Error('Attempt request key mismatch');
     if (!RECONCILIATION_STATUSES.has(row.reconciliationStatus)) throw new Error('Invalid reconciliation status');
-    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== row.id) {
+    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== String(row.id)) {
       throw new Error('Canonical row does not point to itself');
     }
     if (row.reconciliationStatus === 'pending' && row.canonicalRowID !== '') {
@@ -89,7 +94,7 @@ function planCanonicalReconciliation(attemptRows, summaryRows = []) {
     const hasSummaryCheckpoint = meaningfulSummaryRows.some((row) => hasCheckpoint(row, SUMMARY_CHECKPOINT_FIELDS));
     if (hasAttemptCheckpoint || hasSummaryCheckpoint) {
       for (const row of canonicalRows) {
-        if (row.canonicalRowID !== row.id) throw new Error('Canonical row does not point to itself');
+        if (row.canonicalRowID !== String(row.id)) throw new Error('Canonical row does not point to itself');
       }
       return {
         action: 'manual_review',
@@ -104,7 +109,7 @@ function planCanonicalReconciliation(attemptRows, summaryRows = []) {
 
     const [winner, ...losers] = [...canonicalRows].sort(compareRows);
     for (const row of canonicalRows) {
-      if (row.canonicalRowID !== row.id) throw new Error('Canonical row does not point to itself');
+        if (row.canonicalRowID !== String(row.id)) throw new Error('Canonical row does not point to itself');
     }
     return {
       action: 'reconcile',
@@ -115,10 +120,10 @@ function planCanonicalReconciliation(attemptRows, summaryRows = []) {
 
   if (canonicalRows.length === 1) {
     const canonical = canonicalRows[0];
-    if (canonical.canonicalRowID !== canonical.id) throw new Error('Canonical row does not point to itself');
+    if (canonical.canonicalRowID !== String(canonical.id)) throw new Error('Canonical row does not point to itself');
     const mutations = attemptRows
       .filter((row) => row.id !== canonical.id)
-      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== canonical.id)
+      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== String(canonical.id))
       .map((row) => mutation(row, canonical.id, 'duplicate'));
     return mutations.length > 0
       ? { action: 'reconcile', winnerRowID: canonical.id, mutations }

@@ -1,7 +1,9 @@
 function parseSlackResponse(combined) {
   if (!combined || combined.kind !== 'carrier' || !combined.input || !combined.row) throw new Error('Slack response lost direct carrier');
   if (combined.ok === false || combined.error) throw new Error('invalid Slack response');
-  const value = combined.nextStage === 'upload' ? combined.id : combined.ts;
+  const value = combined.nextStage === 'upload'
+    ? combined.id
+    : combined.message_timestamp || combined.message?.ts || combined.ts;
   if (typeof value !== 'string' || !value.trim()) throw new Error('invalid Slack response');
   return { ...combined, checkpointField: combined.nextStage === 'upload' ? 'summaryUploadID' : 'summaryMessageTS', checkpointValue: value };
 }

@@ -3,6 +3,7 @@ const SUMMARY_CHECKPOINTS = ['inferenceResultJson', 'summaryMarkdown', 'summaryU
 const statuses = new Set(['pending', 'canonical', 'duplicate']);
 const present = (value) => value !== undefined && value !== null && value !== '';
 const compare = (a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+const systemRowID = (value) => typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 
 function planCanonicalReconciliation(rawRows, rawSummaries = []) {
   const rows = rawRows.filter((row) => row && Object.keys(row).length);
@@ -11,10 +12,10 @@ function planCanonicalReconciliation(rawRows, rawSummaries = []) {
   const { attemptKey, requestKey } = rows[0];
   if (typeof attemptKey !== 'string' || !attemptKey || typeof requestKey !== 'string' || !requestKey) throw new Error('Invalid attempt identity');
   for (const row of rows) {
-    if (!row.id || !row.createdAt || !row.updatedAt || row.attemptKey !== attemptKey || row.requestKey !== requestKey) throw new Error('Invalid same-attempt rows');
+    if (!systemRowID(row.id) || !row.createdAt || !row.updatedAt || row.attemptKey !== attemptKey || row.requestKey !== requestKey) throw new Error('Invalid same-attempt rows');
     if (typeof row.status !== 'string' || !row.status.trim() || row.status !== row.status.trim()) throw new Error('Invalid attempt status');
     if (!statuses.has(row.reconciliationStatus)) throw new Error('Invalid reconciliation status');
-    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== row.id) throw new Error('Invalid canonical linkage');
+    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== String(row.id)) throw new Error('Invalid canonical linkage');
     if (row.reconciliationStatus === 'pending' && row.canonicalRowID !== '') throw new Error('Invalid pending linkage');
     if (row.reconciliationStatus === 'duplicate' && !row.canonicalRowID) throw new Error('Invalid duplicate linkage');
   }
@@ -24,7 +25,7 @@ function planCanonicalReconciliation(rawRows, rawSummaries = []) {
     id: row.id, attemptKey, expectedStatus: row.status,
     expectedReconciliationStatus: row.reconciliationStatus,
     expectedCanonicalRowID: row.canonicalRowID || '',
-    desiredReconciliationStatus: desired, desiredCanonicalRowID: winner,
+    desiredReconciliationStatus: desired, desiredCanonicalRowID: String(winner),
   });
   if (canonical.length > 1) {
     const checkpoint = rows.some((row) => ATTEMPT_CHECKPOINTS.some((field) => present(row[field])))
@@ -36,7 +37,7 @@ function planCanonicalReconciliation(rawRows, rawSummaries = []) {
   if (canonical.length === 1) {
     const winner = canonical[0];
     const mutations = rows.filter((row) => row.id !== winner.id)
-      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== winner.id)
+      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== String(winner.id))
       .map((row) => mutation(row, winner.id, 'duplicate'));
     return mutations.length ? { action: 'reconcile', mutations } : { action: 'ready', canonical: winner, mutations: [] };
   }

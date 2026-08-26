@@ -64,7 +64,7 @@
       "id": "aa8aeb55-842c-47af-ad5b-90f7585dfb11",
       "name": "Read Expired Dispatch Candidates",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         240,
         -400
@@ -168,7 +168,7 @@
       "id": "f64d5a66-32dc-4cd8-a191-73a9d8bfc122",
       "name": "Re-read Expired Dispatch Attempt",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         980,
         -400
@@ -286,7 +286,7 @@
       "id": "a07d4850-ce7f-43dd-9a4e-d6af9acdbc9d",
       "name": "Freeze Expired Dispatch Manual Review",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1400,
         -400
@@ -331,7 +331,7 @@
       "id": "971263a6-750f-41ca-89ae-10e3fd20db90",
       "name": "Verify Expired Dispatch Manual Review",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1680,
         -400
@@ -363,7 +363,7 @@
       "id": "12f6d8ad-4514-4871-8b47-c4319a8954a8",
       "name": "Read Callback Deadline Candidates",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         240,
         -280
@@ -467,7 +467,7 @@
       "id": "becc3a6f-314a-4fca-bbb4-8e62e2b7d8ae",
       "name": "Re-read Callback Deadline Attempt",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         980,
         -280
@@ -578,7 +578,7 @@
       "id": "5f81e15e-8b41-4143-b0b8-d8a50eab6f96",
       "name": "Patch Callback Deadline",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1400,
         -280
@@ -623,7 +623,7 @@
       "id": "704377ad-6bb1-4bb4-af57-881912b4bc0c",
       "name": "Verify Callback Deadline Patch",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1680,
         -280
@@ -649,7 +649,7 @@
       "id": "3ec0b99c-41dd-4d4f-9048-cbf1a92077de",
       "name": "Read Retry Materialization Candidates",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         240,
         -120
@@ -753,7 +753,7 @@
       "id": "d8120eb3-4d8b-4f2a-9e43-cb8f3dcdb0e4",
       "name": "Read Retry Same Attempt",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         980,
         -120
@@ -785,7 +785,7 @@
       "id": "731ce2a7-7b00-47c9-9754-cb5ce8905756",
       "name": "Read Retry Summary Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1140,
         -60
@@ -920,7 +920,7 @@
       "id": "eec54b19-3b71-46ef-a74b-c9cc6ebd0dd1",
       "name": "Claim Retry Materialization Exact",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1740,
         -180
@@ -965,7 +965,7 @@
       "id": "091181e5-f980-44cf-8efc-dae5f3957933",
       "name": "Re-read Retry Claim Owner",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         2060,
         -180
@@ -1039,7 +1039,7 @@
       "id": "1ded44d5-6686-4dd4-8bc0-ebfbbf22fc04",
       "name": "Read Next Retry Attempt Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         2540,
         -180
@@ -1085,7 +1085,7 @@
       "id": "03781ebb-79ef-49be-93c7-f6449f68f4a5",
       "name": "Read Next Retry Summary Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         2860,
         -60
@@ -1246,7 +1246,7 @@
       "id": "ac7251b3-25db-4d14-89ef-2296a36ff86d",
       "name": "Insert Next Retry Attempt",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         3680,
         -320
@@ -1291,7 +1291,7 @@
       "id": "199fff67-8957-451e-87f7-ecdd231e4dc4",
       "name": "Re-read Next Retry Insert Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         4000,
         -320
@@ -1427,7 +1427,7 @@
       "id": "ee2ec84c-b299-476d-bf57-c0ef6840f0bf",
       "name": "Reconcile Next Retry Attempt Exact",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         3840,
         -160
@@ -1472,7 +1472,7 @@
       "id": "3c258313-6b7d-4f43-99c6-13aaa8c6d468",
       "name": "Re-read Reconcile Next Retry Attempt Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         4160,
         -160
@@ -1609,7 +1609,7 @@
       "id": "3d0bda0a-638a-49e2-b1c3-a8e7f3c24e3d",
       "name": "Freeze Next Retry Checkpoint Conflict Exact",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         4000,
         -40
@@ -1654,7 +1654,7 @@
       "id": "cd086ecd-ed7e-4b64-af23-9d1203e53174",
       "name": "Re-read Freeze Next Retry Attempt Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         4320,
         -40
@@ -1728,7 +1728,7 @@
       "id": "d78350d6-ad83-44ea-ac48-000d5d2bdb95",
       "name": "Re-read Ready Next Retry Attempt Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         3840,
         100
@@ -1873,7 +1873,7 @@
       "id": "8959f6bf-6ece-42d4-930d-c2cead055305",
       "name": "Transition Old Retry Materialized Exact",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         5020,
         -260
@@ -1918,7 +1918,7 @@
       "id": "18f4b30f-a283-48ed-baa4-1ba55eef2f9d",
       "name": "Re-read Old Retry Transition",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         5340,
         -260
@@ -1950,7 +1950,7 @@
       "id": "dd2b44b2-8eb5-4fd6-a59b-6bf583b20629",
       "name": "Re-read Next Retry Transition",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         5520,
         -300
@@ -2038,7 +2038,7 @@
       "id": "aced86c1-7a87-4257-87aa-f20470145187",
       "name": "Re-read Next Before Retry Dispatch",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         6240,
         -200
@@ -2048,7 +2048,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const rows = $input.all().map(({ json }) => json).filter((row) => row && row.id);\nif (rows.length === 0) throw new Error('Retry dispatch preflight rows not found');\nconst canonicals = rows.filter((row) => row.reconciliationStatus === 'canonical' && row.canonicalRowID === row.id);\nif (canonicals.length !== 1) throw new Error('Retry dispatch preflight requires exactly one canonical');\nconst canonical = canonicals[0];\nif (canonical.status !== 'queued' || canonical.dispatchLeaseOwner !== '' || canonical.dispatchLeaseUntilIso !== '') throw new Error('Retry dispatch preflight failed');\nif (rows.some((row) => row.attemptKey !== canonical.attemptKey || (row.id !== canonical.id && (row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== canonical.id)))) throw new Error('Retry dispatch preflight row set mismatch');\nreturn [{ json: { attemptKey: canonical.attemptKey } }];"
+        "jsCode": "const rows = $input.all().map(({ json }) => json).filter((row) => row && Number.isInteger(row.id) && row.id > 0);\nif (rows.length === 0) throw new Error('Retry dispatch preflight rows not found');\nconst canonicals = rows.filter((row) => row.reconciliationStatus === 'canonical' && row.canonicalRowID === String(row.id));\nif (canonicals.length !== 1) throw new Error('Retry dispatch preflight requires exactly one canonical');\nconst canonical = canonicals[0];\nif (canonical.status !== 'queued' || canonical.dispatchLeaseOwner !== '' || canonical.dispatchLeaseUntilIso !== '') throw new Error('Retry dispatch preflight failed');\nif (rows.some((row) => row.attemptKey !== canonical.attemptKey || (row.id !== canonical.id && (row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== String(canonical.id))))) throw new Error('Retry dispatch preflight row set mismatch');\nreturn [{ json: { attemptKey: canonical.attemptKey } }];"
       },
       "id": "b68467aa-46f5-466c-a476-4304685fd3f1",
       "name": "Preflight Canonical Next Retry Dispatch",
@@ -2116,7 +2116,7 @@
       "id": "a9f8d74a-d406-467f-99b6-80d919b5a29e",
       "name": "Read Creation Lease Candidates",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         240,
         80
@@ -2220,7 +2220,7 @@
       "id": "b43e0d90-a04d-420b-8bdf-3e4c411b6f57",
       "name": "Re-read Creating Request",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         980,
         80
@@ -2252,7 +2252,7 @@
       "id": "c1f1c001-0001-4001-8001-000000000001",
       "name": "Read Creation Attempt Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1140,
         140
@@ -2363,7 +2363,7 @@
       "id": "91bd1ec4-d7e0-4f1a-9dc2-0d64bb9e6e38",
       "name": "Read Summary Missed Event Candidates",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         240,
         200
@@ -2467,7 +2467,7 @@
       "id": "aa2e40f8-8644-4796-86c9-c2c568c6ef5f",
       "name": "Re-read Summary Missed Event",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         980,
         200
@@ -2499,7 +2499,7 @@
       "id": "b1f1c001-0001-4001-8001-000000000001",
       "name": "Read Summary Attempt Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1140,
         260
@@ -2605,7 +2605,7 @@
       "id": "36d876ac-ce7f-4f96-b249-124323f8dc78",
       "name": "Read Presentation Repair Candidates",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         240,
         320
@@ -2709,7 +2709,7 @@
       "id": "0e2a77da-3df1-482c-9641-73cc7a3a5841",
       "name": "Re-read Presentation Repair Attempt",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         980,
         320
@@ -2741,7 +2741,7 @@
       "id": "a3f1c001-0001-4001-8001-000000000001",
       "name": "Read Presentation Summary Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1140,
         380
@@ -2867,7 +2867,7 @@
       "id": "a3f1c003-0003-4003-8003-000000000003",
       "name": "Patch Presentation Repair",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1600,
         280
@@ -2912,7 +2912,7 @@
       "id": "a3f1c005-0005-4005-8005-000000000005",
       "name": "Re-read Presentation Repair Patch",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1920,
         280
@@ -3018,7 +3018,7 @@
       "id": "1ed2952d-1873-4dc1-8537-7b25284fe542",
       "name": "Read Duplicate Key Candidates",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         240,
         440
@@ -3122,7 +3122,7 @@
       "id": "d1f1c001-0001-4001-8001-000000000001",
       "name": "Re-read Duplicate Attempt Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         980,
         440
@@ -3154,7 +3154,7 @@
       "id": "d1f1c002-0002-4002-8002-000000000002",
       "name": "Read Duplicate Summary Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1140,
         500
@@ -3290,7 +3290,7 @@
       "id": "d1f1c006-0006-4006-8006-000000000006",
       "name": "Reconcile Duplicate Attempt Exact",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1780,
         400
@@ -3367,7 +3367,7 @@
       "id": "d1f1c008-0008-4008-8008-000000000008",
       "name": "Freeze Duplicate Checkpoint Conflict Exact",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1780,
         480
@@ -3412,7 +3412,7 @@
       "id": "d1f1c010-0010-4010-8010-000000000010",
       "name": "Re-read Duplicate Attempt Rows After Mutation",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         2100,
         440
@@ -3486,7 +3486,7 @@
       "id": "499e7943-c5d0-4d31-bd34-e9f105349ac2",
       "name": "Read Cap Error Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         900,
         720
@@ -3605,7 +3605,7 @@
       "id": "da669cf5-d500-4239-a4a5-4925d49a1107",
       "name": "Insert Pending Cap Error",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1660,
         480
@@ -3650,7 +3650,7 @@
       "id": "ea6131ee-694e-45c7-8dae-d26b5df2e721",
       "name": "Re-read After Pending Cap Error Insert",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1980,
         480
@@ -3735,7 +3735,7 @@
       "id": "13df20a3-5b55-4cad-99af-c55105b4a363",
       "name": "Canonicalize Pending Cap Error",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         2300,
         480
@@ -3780,7 +3780,7 @@
       "id": "2b34a6c2-88ae-46f8-8d40-3732c2f3e7b6",
       "name": "Re-read Pending Cap Error Canonical",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         2620,
         480
@@ -3898,7 +3898,7 @@
       "id": "fbbec586-eaef-404b-950f-58683b0f50e5",
       "name": "Reconcile Cap Error Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         1860,
         640
@@ -3943,7 +3943,7 @@
       "id": "bff63301-42be-41a9-8d33-a82f0710127e",
       "name": "Re-read After Cap Error Reconciliation",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         2180,
         640
@@ -4015,7 +4015,7 @@
       "id": "390af45a-9f2e-40b3-839f-6b0e4ef796e6",
       "name": "Insert Duplicate Cap Error",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         2980,
         720
@@ -4060,7 +4060,7 @@
       "id": "b60e5f0e-e82f-4982-8961-2fc42ff6eaa5",
       "name": "Re-read Duplicate Cap Error",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         3300,
         720
@@ -6232,9 +6232,9 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "saveDataSuccessExecution": "none",
-    "saveDataErrorExecution": "none",
-    "saveManualExecutions": false,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
     "saveExecutionProgress": false
   }
 }

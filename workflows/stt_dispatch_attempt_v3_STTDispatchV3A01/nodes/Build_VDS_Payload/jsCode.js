@@ -21,17 +21,18 @@ function callbackDeadline(submittedAtIso) {
 }
 
 function validateCallbackUrl(callbackUrl) {
-  let parsed;
-  try {
-    parsed = new URL(callbackUrl);
-  } catch {
+  if (typeof callbackUrl !== 'string' || !callbackUrl.startsWith('https://')) {
+    throw new Error('Callback URL must use HTTPS');
+  }
+  const match = /^https:\/\/([^/?#@]+)(\/[^?#]*)$/.exec(callbackUrl);
+  if (!match) throw new Error('Invalid fixed callback path');
+  const [, authority, pathname] = match;
+  const authorityMatch = /^(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)(?::([1-9]\d{0,4}))?$/.exec(authority);
+  if (!authorityMatch || (authorityMatch[1] && Number(authorityMatch[1]) > 65535)) {
     throw new Error('Invalid HTTPS callback URL');
   }
-  if (parsed.protocol !== 'https:') throw new Error('Callback URL must use HTTPS');
-  if (parsed.pathname !== CALLBACK_PATH || parsed.search || parsed.hash || parsed.username || parsed.password) {
-    throw new Error('Invalid fixed callback path');
-  }
-  return parsed.toString();
+  if (pathname !== CALLBACK_PATH) throw new Error('Invalid fixed callback path');
+  return callbackUrl;
 }
 
 function requiredString(value, field) {

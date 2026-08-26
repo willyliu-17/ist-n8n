@@ -28,7 +28,7 @@
       "id": "a77c57b3-f567-4f5f-931f-1cd05cc84ada",
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.2,
+      "typeVersion": 1.1,
       "position": [
         -640,
         0
@@ -360,6 +360,10 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
   }
 }

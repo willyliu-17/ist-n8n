@@ -13,7 +13,7 @@ function requireCanonicalOwner(rows, owner, nowIso) {
   const canonicalRows = rows.filter(({ reconciliationStatus }) => reconciliationStatus === 'canonical');
   if (canonicalRows.length !== 1) throw new Error('Expected exactly one canonical attempt');
   const canonical = canonicalRows[0];
-  if (canonical.canonicalRowID !== canonical.id) throw new Error('Canonical row does not point to itself');
+  if (canonical.canonicalRowID !== String(canonical.id)) throw new Error('Canonical row does not point to itself');
   if (canonical.status !== 'dispatching') throw new Error('Canonical attempt is not dispatching');
   if (canonical.dispatchLeaseOwner !== owner) throw new Error('Dispatch lease owner mismatch');
   const now = parseIso(nowIso, 'current time');

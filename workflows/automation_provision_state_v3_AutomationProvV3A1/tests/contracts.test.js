@@ -265,67 +265,67 @@ test('provides resolved stream context in each ordered stream fixture', () => {
 
 test('never replaces an existing canonical with a later smaller-id row', () => {
   const rows = [
-    { id: 'row-z', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: 'row-z', sideEffectDone: true },
-    { id: 'row-a', createdAt: '2026-08-22T00:01:00.000Z', reconciliationStatus: 'pending' },
+    { id: 26, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: '26', sideEffectDone: true },
+    { id: 1, createdAt: '2026-08-22T00:01:00.000Z', reconciliationStatus: 'pending' },
   ];
   const reconciled = reconcileRows(rows);
-  assert.equal(reconciled.canonical.id, 'row-z');
-  assert.equal(reconciled.duplicates[0].canonicalRowID, 'row-z');
+  assert.equal(reconciled.canonical.id, 26);
+  assert.equal(reconciled.duplicates[0].canonicalRowID, '26');
   assert.equal(reconciled.duplicates[0].reconciliationStatus, 'duplicate');
 });
 
 test('chooses the earliest createdAt and id only when no canonical exists', () => {
   const rows = [
-    { id: 'row-b', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending' },
-    { id: 'row-a', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending' },
+    { id: 2, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending' },
+    { id: 1, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending' },
   ];
-  assert.equal(reconcileRows(rows).canonical.id, 'row-a');
+  assert.equal(reconcileRows(rows).canonical.id, 1);
 });
 
-test('uses code-unit id order for mixed-case election when no canonical exists', () => {
+test('uses numeric id order to break createdAt ties when no canonical exists', () => {
   const rows = [
-    { id: 'row-a', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending' },
-    { id: 'row-Z', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending' },
+    { id: 20, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending' },
+    { id: 3, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'pending' },
   ];
 
-  assert.equal(reconcileRows(rows).canonical.id, 'row-Z');
+  assert.equal(reconcileRows(rows).canonical.id, 3);
 });
 
 test('concurrent canonical election converges only before checkpoints', () => {
   const result = resolveCanonicalConflict([
-    { id: 'row-b', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: 'row-b' },
-    { id: 'row-a', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: 'row-a' },
+    { id: 2, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: '2' },
+    { id: 1, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: '1' },
   ]);
   assert.equal(result.action, 'reconcile');
-  assert.equal(result.canonical.id, 'row-a');
-  assert.deepEqual(result.demoteRowIDs, ['row-b']);
+  assert.equal(result.canonical.id, 1);
+  assert.deepEqual(result.demoteRowIDs, [2]);
 });
 
-test('uses code-unit id order for mixed-case canonical convergence', () => {
+test('uses numeric id order to break canonical convergence ties', () => {
   const result = resolveCanonicalConflict([
-    { id: 'row-a', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: 'row-a' },
-    { id: 'row-Z', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: 'row-Z' },
+    { id: 20, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: '20' },
+    { id: 3, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: '3' },
   ]);
 
   assert.equal(result.action, 'reconcile');
-  assert.equal(result.canonical.id, 'row-Z');
-  assert.deepEqual(result.demoteRowIDs, ['row-a']);
+  assert.equal(result.canonical.id, 3);
+  assert.deepEqual(result.demoteRowIDs, [20]);
 });
 
 test('concurrent election chooses among canonicals rather than pending rows', () => {
   const rows = [
-    { id: 'row-pending', createdAt: '2026-08-21T23:59:00.000Z', reconciliationStatus: 'pending' },
-    { id: 'row-b', createdAt: '2026-08-22T00:00:01.000Z', reconciliationStatus: 'canonical', canonicalRowID: 'row-b' },
-    { id: 'row-a', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: 'row-a' },
+    { id: 99, createdAt: '2026-08-21T23:59:00.000Z', reconciliationStatus: 'pending' },
+    { id: 2, createdAt: '2026-08-22T00:00:01.000Z', reconciliationStatus: 'canonical', canonicalRowID: '2' },
+    { id: 1, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: '1' },
   ];
 
-  assert.equal(reconcileRows(rows).canonical.id, 'row-a');
+  assert.equal(reconcileRows(rows).canonical.id, 1);
 });
 
 test('multiple canonicals with any checkpoint require manual review', () => {
   const result = resolveCanonicalConflict([
-    { id: 'row-a', createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical' },
-    { id: 'row-b', createdAt: '2026-08-22T00:00:01.000Z', reconciliationStatus: 'canonical', submittedAtIso: '2026-08-22T00:01:00.000Z' },
+    { id: 1, createdAt: '2026-08-22T00:00:00.000Z', reconciliationStatus: 'canonical' },
+    { id: 2, createdAt: '2026-08-22T00:00:01.000Z', reconciliationStatus: 'canonical', submittedAtIso: '2026-08-22T00:01:00.000Z' },
   ]);
   assert.deepEqual(result, { action: 'manual_review', reason: 'multiple_canonical_checkpoint_conflict' });
 });
@@ -380,7 +380,7 @@ test('runs four read-only by-name Data Table probes with zero-row continuation',
     assert.equal(probe.parameters.returnAll, false);
     assert.equal(probe.parameters.limit, 1);
     assert.deepEqual(probe.parameters.options, {});
-    assert.equal(probe.typeVersion, 1.1);
+    assert.equal(probe.typeVersion, 1);
     assert.equal(probe.alwaysOutputData, true);
   }
   assert.equal(JSON.stringify(probes).includes('={{'), false);
@@ -440,13 +440,13 @@ test('rebuilds all four whitelisted report items when every table probe matches 
 test('ignores partial probe rows and never leaks their fields into the four-item report', () => {
   const buildExpectedSchemaReport = loadReportBuilder();
   const partialProbeOutput = [
-    { json: { id: 'row-1', createdAt: '2026-08-23T00:00:00.000Z', privateProbeField: 'must-not-leak' } },
+    { json: { id: 1, createdAt: '2026-08-23T00:00:00.000Z', privateProbeField: 'must-not-leak' } },
     { json: {} },
   ];
   const output = buildExpectedSchemaReport(buildManifestItems(), partialProbeOutput);
 
   assert.deepEqual(output, expectedReportItems());
-  assert.equal(JSON.stringify(output).includes('row-1'), false);
+  assert.equal(JSON.stringify(output).includes('"id":1'), false);
   assert.equal(JSON.stringify(output).includes('privateProbeField'), false);
 });
 

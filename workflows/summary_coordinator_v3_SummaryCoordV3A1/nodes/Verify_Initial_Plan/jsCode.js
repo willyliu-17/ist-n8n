@@ -20,14 +20,14 @@ function verifyPlan(rows, mutations, action, requestKey) {
     const mutation = expected.get(row.id);
     if (!mutation) continue;
     if (action === 'manual_review') {
-      if (row.status !== 'manual_review' || row.reconciliationStatus !== 'canonical' || row.canonicalRowID !== row.id || row.manualReviewReason !== 'multiple_canonical_checkpoint_conflict') throw new Error('request conflict freeze mismatch');
+      if (row.status !== 'manual_review' || row.reconciliationStatus !== 'canonical' || row.canonicalRowID !== String(row.id) || row.manualReviewReason !== 'multiple_canonical_checkpoint_conflict') throw new Error('request conflict freeze mismatch');
     } else if (row.reconciliationStatus !== mutation.desiredReconciliationStatus || row.canonicalRowID !== mutation.desiredCanonicalRowID) {
       throw new Error('request reconciliation write mismatch');
     }
     expected.delete(row.id);
   }
   if (expected.size) throw new Error('request write was partial or zero-CAS');
-  const canonical = rows.filter((row) => row.id && row.requestKey === requestKey && row.reconciliationStatus === 'canonical' && row.canonicalRowID === row.id);
+  const canonical = rows.filter((row) => row.id && row.requestKey === requestKey && row.reconciliationStatus === 'canonical' && row.canonicalRowID === String(row.id));
   if (action !== 'manual_review' && canonical.length !== 1) throw new Error('request reread does not contain exactly one canonical');
   return action === 'manual_review' ? null : canonical[0] || null;
 }

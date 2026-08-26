@@ -148,7 +148,7 @@ test('error candidate direct carrier and same-key raw rows are supplied through 
 
 test('fails closed when candidate is absent, multiple candidates are inconsistent, or same-key raw rows drift', () => {
   const candidate = maskErrorEnvelope(envelope());
-  const canonical = { ...candidate, id: 'row-z', createdAt: '2026-08-24T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: 'row-z' };
+  const canonical = { ...candidate, id: 2, createdAt: '2026-08-24T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: '2' };
 
   // Candidate absent fails closed
   assert.throws(() => runPlan([canonical], null), /missing error candidate/);
@@ -172,16 +172,16 @@ test('plans absent, duplicate, concurrent-canonical, immutable-drift, and partia
   const candidate = maskErrorEnvelope(envelope());
   assert.equal(runPlan([], candidate)[0].json.action, 'insert_pending');
 
-  const canonical = { ...candidate, id: 'row-z', createdAt: '2026-08-24T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: 'row-z' };
-  assert.deepEqual(runPlan([canonical], candidate)[0].json, { ...candidate, action: 'insert_duplicate', canonicalRowID: 'row-z' });
+  const canonical = { ...candidate, id: 2, createdAt: '2026-08-24T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: '2' };
+  assert.deepEqual(runPlan([canonical], candidate)[0].json, { ...candidate, action: 'insert_duplicate', canonicalRowID: '2' });
 
   const concurrent = [
-    { ...canonical, id: 'row-b', canonicalRowID: 'row-b' },
-    { ...canonical, id: 'row-a', canonicalRowID: 'row-a' },
+    { ...canonical, id: 3, canonicalRowID: '3' },
+    { ...canonical, id: 2, canonicalRowID: '2' },
   ];
   const reconciliation = runPlan(concurrent, candidate).map(({ json }) => json);
   assert.equal(reconciliation.some(({ id }) => id === 'row-a'), false);
-  assert.ok(reconciliation.some(({ id, desiredReconciliationStatus, desiredCanonicalRowID }) => id === 'row-b' && desiredReconciliationStatus === 'duplicate' && desiredCanonicalRowID === 'row-a'));
+  assert.ok(reconciliation.some(({ id, desiredReconciliationStatus, desiredCanonicalRowID }) => id === 3 && desiredReconciliationStatus === 'duplicate' && desiredCanonicalRowID === '2'));
 
   assert.throws(() => runPlan([{ ...canonical, messageMasked: 'changed' }], candidate), /immutable masked error payload drift/);
   assert.throws(() => runVerification('Verify Error Reconciliation', [{ ...canonical, reconciliationStatus: 'duplicate', canonicalRowID: '' }]), /verification failed/);
@@ -220,14 +220,22 @@ test('absent error flow produces only pending insert and canonical update with z
   const plan = runPlan([], candidate);
   assert.equal(plan[0].json.action, 'insert_pending');
   // Plan Pending Canonical on newly inserted pending row
-  const pendingRow = { ...candidate, id: 'row-1', createdAt: '2026-08-24T00:00:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' };
+  const pendingRow = { ...candidate, id: 2, createdAt: '2026-08-24T00:00:00.000Z', reconciliationStatus: 'pending', canonicalRowID: '' };
   const canonicalPlan = Function('$input', node('Plan Pending Canonical').parameters.jsCode)({
     all: () => [{ json: pendingRow }],
   });
   assert.equal(canonicalPlan[0].json.desiredReconciliationStatus, 'canonical');
-  assert.equal(canonicalPlan[0].json.desiredCanonicalRowID, 'row-1');
+  assert.equal(canonicalPlan[0].json.desiredCanonicalRowID, '2');
   // Verify Pending Error Canonical verifies the canonicalized row
-  const canonicalRow = { ...pendingRow, reconciliationStatus: 'canonical', canonicalRowID: 'row-1' };
+  const canonicalRow = { ...pendingRow, reconciliationStatus: 'canonical', canonicalRowID: '2' };
   const verified = runVerification('Verify Pending Error Canonical', [canonicalRow]);
-  assert.deepEqual(verified, [{ json: { canonicalRowID: 'row-1' } }]);
+  assert.deepEqual(verified, [{ json: { canonicalRowID: '2' } }]);
+});
+
+test('positive integer system ID and string canonical reference pass all error verifiers', () => {
+  const row = { ...maskErrorEnvelope(envelope()), id: 2, createdAt: '2026-08-24T00:00:00.000Z', reconciliationStatus: 'canonical', canonicalRowID: '2' };
+  assert.deepEqual(runVerification('Verify Pending Error Canonical', [row]), [{ json: { canonicalRowID: '2' } }]);
+  assert.equal(runVerification('Verify Error Reconciliation', [row])[0].json.canonicalRowID, '2');
+  assert.deepEqual(runVerification('Verify Duplicate Error', [row]), [{ json: { errorKey: row.errorKey, canonicalRowID: '2' } }]);
+  assert.throws(() => runVerification('Verify Error Reconciliation', [{ ...row, id: 0, canonicalRowID: '0' }]), /verification failed/);
 });

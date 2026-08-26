@@ -12,7 +12,7 @@ const immutableFields = [
 for (const field of immutableFields) {
   if (row[field] !== claim[field]) throw new Error(`Failure claim provenance mismatch: ${field}`);
 }
-if (row.canonicalRowID !== row.id || row.status !== 'completed' || row.presentationStatus !== 'presenting') throw new Error('Failure canonical is not presenting');
+if (row.canonicalRowID !== String(row.id) || row.status !== 'completed' || row.presentationStatus !== 'presenting') throw new Error('Failure canonical is not presenting');
 if (row.presentationLeaseOwner !== $execution.id || row.presentationLeaseOwner !== claim.presentationLeaseOwner) throw new Error('Failure presentation owner mismatch');
 if (row.presentationLeaseUntilIso !== claim.presentationLeaseUntilIso) throw new Error('Failure presentation lease changed');
 const leaseUntil = Date.parse(row.presentationLeaseUntilIso);

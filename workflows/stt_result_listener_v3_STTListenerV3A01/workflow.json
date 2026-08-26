@@ -17,13 +17,13 @@
     },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [480, 0],
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [480, 0],
       "id": "33515695-485e-4ee2-9987-0605471238a7", "name": "Read All Attempt Rows", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [720, 0], "id": "fcb91720-e29c-4f50-9526-78055b40f099", "name": "Limit Attempt Context" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Read All Attempt Rows').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [960, 0],
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [960, 0],
       "id": "4ae134fc-22e9-4f5d-9d71-6f5c3fe6010a", "name": "Read Summary Request Rows", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
@@ -40,14 +40,14 @@
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" }
+        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "manual_review", "manualReviewReason": "multiple_canonical_checkpoint_conflict", "manualReviewAtIso": "={{ $now.toUTC().toISO() }}", "presentationLeaseOwner": "", "presentationLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [2160, -400], "id": "8ddff902-a84e-487a-a22a-f13c7d5cb67e", "name": "Freeze Canonical Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2160, -400], "id": "8ddff902-a84e-487a-a22a-f13c7d5cb67e", "name": "Freeze Canonical Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2400, -400], "id": "258fc549-eefc-4f1e-9965-5a4a47725202", "name": "Limit Conflict Patch" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [2640, -400], "id": "ff1fc44f-e6c2-4db9-b818-f8f059399e69", "name": "Re-read Frozen Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2640, -400], "id": "ff1fc44f-e6c2-4db9-b818-f8f059399e69", "name": "Re-read Frozen Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
@@ -61,23 +61,23 @@
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" },
-        { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.expectedCanonicalRowID }}" }
+        { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.expectedCanonicalRowID) }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}", "canonicalRowID": "={{ $json.desiredCanonicalRowID }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [1920, 80], "id": "94510cb2-0704-4367-84fd-438398fd615f", "name": "Apply Initial Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [1920, 80], "id": "94510cb2-0704-4367-84fd-438398fd615f", "name": "Apply Initial Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2160, 80], "id": "afac5a5e-a497-43ea-bf84-53b1dbb43ce4", "name": "Limit Initial Reconciliation" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [2400, 80], "id": "95152f1a-ac67-4d86-a59c-01fd9a0f3edf", "name": "Re-read After Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2400, 80], "id": "95152f1a-ac67-4d86-a59c-01fd9a0f3edf", "name": "Re-read After Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2640, 80], "id": "2a71809b-5852-4ca7-a443-4df8e1e560e9", "name": "Limit Reconciled Context" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Re-read After Reconciliation').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [2880, 80], "id": "f1810f31-1d8c-4fc2-b32d-b9e22424af57", "name": "Read Summary Rows After Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2880, 80], "id": "f1810f31-1d8c-4fc2-b32d-b9e22424af57", "name": "Read Summary Rows After Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [2160, 320], "id": "bc959d5f-95a3-409c-a126-e5f15bece7c3", "name": "Read Eligible State", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2160, 320], "id": "bc959d5f-95a3-409c-a126-e5f15bece7c3", "name": "Read Eligible State", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Require_Eligible/jsCode.js" },
@@ -87,15 +87,15 @@
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "pending" },
+        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "pending" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $json.expectedPresentationAttempt }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "presentationStatus": "presenting", "presentationLeaseOwner": "={{ $execution.id }}", "presentationLeaseUntilIso": "={{ $now.toUTC().plus({ minutes: 5 }).toISO() }}", "presentationAttempt": "={{ $json.nextPresentationAttempt }}", "presentationNextRetryAtIso": "", "presentationErrorCode": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [2640, 320], "id": "2a0140c1-083d-456b-a7c5-0336e994544e", "name": "Claim Presentation", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2640, 320], "id": "2a0140c1-083d-456b-a7c5-0336e994544e", "name": "Claim Presentation", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2880, 320], "id": "3dc3ab8c-3f40-479d-a600-958f638ae5cc", "name": "Limit Presentation Claim" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [3120, 320], "id": "d2321428-bf68-47ce-8b05-d729eeb08bbc", "name": "Re-read Presentation Claim", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [3120, 320], "id": "d2321428-bf68-47ce-8b05-d729eeb08bbc", "name": "Re-read Presentation Claim", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Require_Claim_Owner/jsCode.js" },
@@ -111,12 +111,12 @@
     },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [4080, 440], "id": "3dcc71ad-a73b-4560-b8ce-c43188504e17", "name": "Read Before Side Effect", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4080, 440], "id": "3dcc71ad-a73b-4560-b8ce-c43188504e17", "name": "Read Before Side Effect", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [4320, 440], "id": "f8321301-1a1c-453d-948e-b6cf73bb9c15", "name": "Limit Side Effect Context" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Read Before Side Effect').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [4560, 440], "id": "a06efbf3-e859-4180-84b1-2e43eb0c9c74", "name": "Read Summary Before Side Effect", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4560, 440], "id": "a06efbf3-e859-4180-84b1-2e43eb0c9c74", "name": "Read Summary Before Side Effect", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Guard_Side_Effect/jsCode.js" },
@@ -134,9 +134,9 @@
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" },
-        { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.expectedCanonicalRowID }}" }
+        { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.expectedCanonicalRowID) }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}", "canonicalRowID": "={{ $json.desiredCanonicalRowID }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [5520, 600], "id": "3d08360d-84a1-4991-ac0a-31331c3b92fa", "name": "Apply Side Effect Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [5520, 600], "id": "3d08360d-84a1-4991-ac0a-31331c3b92fa", "name": "Apply Side Effect Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": {}, "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [5280, 760], "id": "8a0f07a0-33a3-49d6-bca8-33ceec355f19", "name": "Post-claim Freeze Conflict Plan" },
     {
@@ -147,14 +147,14 @@
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" }
+        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "manual_review", "manualReviewReason": "multiple_canonical_checkpoint_conflict", "manualReviewAtIso": "={{ $now.toUTC().toISO() }}", "presentationLeaseOwner": "", "presentationLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [5520, 760], "id": "84106e75-7db5-414c-a94e-7e0ef3379e0b", "name": "Post-claim Freeze Canonical Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [5520, 760], "id": "84106e75-7db5-414c-a94e-7e0ef3379e0b", "name": "Post-claim Freeze Canonical Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [5760, 760], "id": "85c4f570-f8f6-4962-ac1a-4a2d1322642d", "name": "Limit Post-claim Conflict Patch" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [6000, 760], "id": "78110b66-78a5-4978-9869-e674177d653e", "name": "Re-read Post-claim Frozen Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6000, 760], "id": "78110b66-78a5-4978-9869-e674177d653e", "name": "Re-read Post-claim Frozen Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
@@ -230,40 +230,40 @@
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.attemptKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.id }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
+        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($('Guard Side Effect Owner').first().json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
         { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationLeaseUntilIso }}" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationAttempt }}" },
         { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "transcriptUploadID": "={{ $json.uploadID }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [7200, 160], "id": "2f967238-3927-490c-b793-1570bfadcd97", "name": "Checkpoint Transcript Upload", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7200, 160], "id": "2f967238-3927-490c-b793-1570bfadcd97", "name": "Checkpoint Transcript Upload", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.attemptKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.id }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
+        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($('Guard Side Effect Owner').first().json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
         { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationLeaseUntilIso }}" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationAttempt }}" },
         { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.transcriptUploadID }}" }, { "keyName": "analysisUploadID", "condition": "eq", "keyValue": "" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "analysisUploadID": "={{ $json.uploadID }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [7200, 400], "id": "b81546a9-e5aa-487c-a04e-ee1b9c64a145", "name": "Checkpoint Analysis Upload", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7200, 400], "id": "b81546a9-e5aa-487c-a04e-ee1b9c64a145", "name": "Checkpoint Analysis Upload", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.attemptKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.id }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
+        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($('Guard Side Effect Owner').first().json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
         { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationLeaseUntilIso }}" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationAttempt }}" },
         { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.transcriptUploadID }}" }, { "keyName": "analysisUploadID", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.analysisUploadID }}" },
         { "keyName": "processingMessageUpdatedAtIso", "condition": "eq", "keyValue": "" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "processingMessageUpdatedAtIso": "={{ $('Prepare Message Checkpoint').first().json.checkpointValue }}", "updatedAtIso": "={{ $('Prepare Message Checkpoint').first().json.checkpointValue }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [6480, 560], "id": "91d5f640-4be5-4e9c-bce1-0ff476f08af5", "name": "Checkpoint Processing Message", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6480, 560], "id": "91d5f640-4be5-4e9c-bce1-0ff476f08af5", "name": "Checkpoint Processing Message", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [7440, 160], "id": "7f198a79-1a1a-438a-ae55-c75589246d33", "name": "Limit Transcript Checkpoint Write" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [7680, 160], "id": "54a16e46-4472-40be-8caa-0ed30ce8b684", "name": "Re-read Transcript Checkpoint", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7680, 160], "id": "54a16e46-4472-40be-8caa-0ed30ce8b684", "name": "Re-read Transcript Checkpoint", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
@@ -272,7 +272,7 @@
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [7440, 400], "id": "98a2ec79-16b8-4e7d-a2df-aa92b030cfad", "name": "Limit Analysis Checkpoint Write" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [7680, 400], "id": "974673c7-64da-46da-ab73-6786dc1fc843", "name": "Re-read Analysis Checkpoint", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7680, 400], "id": "974673c7-64da-46da-ab73-6786dc1fc843", "name": "Re-read Analysis Checkpoint", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
@@ -281,7 +281,7 @@
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [6720, 560], "id": "762f2ebf-1de8-466b-8dc6-c369818ab7e5", "name": "Limit Message Checkpoint Write" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [6960, 560], "id": "e6cb98a8-cd8d-45ed-8a77-b75091adf369", "name": "Re-read Message Checkpoint", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6960, 560], "id": "e6cb98a8-cd8d-45ed-8a77-b75091adf369", "name": "Re-read Message Checkpoint", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
@@ -291,18 +291,18 @@
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
+        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
         { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.presentationLeaseUntilIso }}" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $json.presentationAttempt }}" },
         { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "={{ $json.transcriptUploadID }}" }, { "keyName": "analysisUploadID", "condition": "eq", "keyValue": "={{ $json.analysisUploadID }}" },
         { "keyName": "processingMessageUpdatedAtIso", "condition": "eq", "keyValue": "={{ $json.processingMessageUpdatedAtIso }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "presentationStatus": "completed", "presentationLeaseOwner": "", "presentationLeaseUntilIso": "", "presentationNextRetryAtIso": "", "presentationErrorCode": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [4320, 240], "id": "4305fe38-ac2d-487a-8424-df5a6997ccbd", "name": "Complete Presentation", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4320, 240], "id": "4305fe38-ac2d-487a-8424-df5a6997ccbd", "name": "Complete Presentation", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [4560, 240], "id": "1fb54039-1070-4d4f-8132-b8ad4324a361", "name": "Limit Completion Patch" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [4800, 240], "id": "0ff8b3e8-81f1-4eaa-bf13-8d44f782eea8", "name": "Re-read Completion", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4800, 240], "id": "0ff8b3e8-81f1-4eaa-bf13-8d44f782eea8", "name": "Re-read Completion", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
@@ -375,7 +375,7 @@
     { "parameters": {}, "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [6480, 920], "id": "735f3ae5-a047-4079-a14f-210ae8d558eb", "name": "Failure Context" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Claim Presentation').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [6960, 800], "id": "8a62b67f-97e1-4d87-a14a-8f6298b0ff20", "name": "Read Failure Attempt Rows", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6960, 800], "id": "8a62b67f-97e1-4d87-a14a-8f6298b0ff20", "name": "Read Failure Attempt Rows", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Failure_Owner/jsCode.js" },
@@ -389,17 +389,17 @@
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
+        { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
         { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.presentationLeaseUntilIso }}" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $json.presentationAttempt }}" }, { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "={{ $json.transcriptUploadID || '' }}" },
         { "keyName": "analysisUploadID", "condition": "eq", "keyValue": "={{ $json.analysisUploadID || '' }}" }, { "keyName": "processingMessageUpdatedAtIso", "condition": "eq", "keyValue": "={{ $json.processingMessageUpdatedAtIso || '' }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "presentationStatus": "={{ $json.desiredPresentationStatus }}", "presentationLeaseOwner": "", "presentationLeaseUntilIso": "", "presentationAttempt": "={{ $json.desiredPresentationAttempt }}", "presentationNextRetryAtIso": "={{ $json.desiredPresentationNextRetryAtIso }}", "presentationErrorCode": "={{ $json.desiredPresentationErrorCode }}", "updatedAtIso": "={{ $json.failureAtIso }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [7440, 800], "id": "cb385bc3-e073-4397-832c-261c09709062", "name": "Patch Presentation Failure", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7440, 800], "id": "cb385bc3-e073-4397-832c-261c09709062", "name": "Patch Presentation Failure", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [7680, 800], "id": "e64fdd00-ab17-4f6b-8860-615c04e2bcef", "name": "Limit Failure Patch" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [7920, 800], "id": "e1f86127-9ff7-4c3f-bd30-406f8d3e3382", "name": "Re-read Failure State", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7920, 800], "id": "e1f86127-9ff7-4c3f-bd30-406f8d3e3382", "name": "Re-read Failure State", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
@@ -407,11 +407,11 @@
     },
     {
       "parameters": { "resource": "row", "operation": "insert", "dataTableId": { "__rl": true, "mode": "name", "value": "automation_errors_v3" }, "columns": { "mappingMode": "defineBelow", "value": { "errorKey": "={{ 'presentation:' + $json.attemptKey + ':' + $execution.id }}", "component": "stt_result_listener", "reconciliationStatus": "pending", "canonicalRowID": "", "requestKey": "={{ $json.requestKey }}", "logicalJobKey": "={{ $json.logicalJobKey }}", "attemptKey": "={{ $json.attemptKey }}", "executionID": "={{ $execution.id }}", "workflowName": "STT result listener v3", "nodeName": "presentation_stage", "errorCode": "={{ $json.presentationErrorCode }}", "messageMasked": "Presentation stage failure recorded", "retryable": "={{ $json.presentationStatus === 'retry_pending' }}", "createdAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [8400, 800], "id": "4512705a-b171-4d53-985b-d28805b21db9", "name": "Write Masked Presentation Audit", "onError": "continueRegularOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [8400, 800], "id": "4512705a-b171-4d53-985b-d28805b21db9", "name": "Write Masked Presentation Audit", "onError": "continueRegularOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "insert", "dataTableId": { "__rl": true, "mode": "name", "value": "automation_errors_v3" }, "columns": { "mappingMode": "defineBelow", "value": { "errorKey": "={{ 'presentation-terminal:' + String($('Start').first().json.attemptKey || 'invalid') + ':' + $execution.id }}", "component": "stt_result_listener", "reconciliationStatus": "pending", "canonicalRowID": "", "requestKey": "", "logicalJobKey": "", "attemptKey": "={{ String($('Start').first().json.attemptKey || '') }}", "executionID": "={{ $execution.id }}", "workflowName": "STT result listener v3", "nodeName": "presentation_terminal", "errorCode": "presentation_terminal_error", "messageMasked": "Presentation workflow terminal failure recorded", "retryable": false, "createdAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1.1, "position": [8640, 960], "id": "56997f8b-cb23-4567-b0f4-c38441e7a885", "name": "Write Masked Terminal Audit", "onError": "continueRegularOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [8640, 960], "id": "56997f8b-cb23-4567-b0f4-c38441e7a885", "name": "Write Masked Terminal Audit", "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -505,9 +505,9 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "saveDataSuccessExecution": "none",
-    "saveDataErrorExecution": "none",
-    "saveManualExecutions": false,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
     "saveExecutionProgress": false
   },
   "staticData": null,

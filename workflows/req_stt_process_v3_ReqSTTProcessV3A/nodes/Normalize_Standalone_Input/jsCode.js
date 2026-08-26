@@ -196,6 +196,9 @@ function normalizeStandaloneInput(input, nowIso) {
     throw new Error('streamID must match ^[0-9]{1,20}$');
   }
   if (input.channel !== CHANNEL) throw new Error('Slack channel is not allowed');
+  if (typeof input.command_ts !== 'string' || !SLACK_TIMESTAMP_PATTERN.test(input.command_ts)) {
+    throw new Error('command_ts must be a Slack timestamp');
+  }
   if (typeof input.target_thread_ts !== 'string' || !SLACK_TIMESTAMP_PATTERN.test(input.target_thread_ts)) {
     throw new Error('target_thread_ts must be a Slack timestamp');
   }
@@ -213,6 +216,7 @@ function normalizeStandaloneInput(input, nowIso) {
     mins: input.mins,
     date,
     channel: CHANNEL,
+    command_ts: input.command_ts,
     target_thread_ts: input.target_thread_ts,
     lookupWindow,
     previousFallbackWindow: buildPreviousFallbackWindow(lookupWindow),

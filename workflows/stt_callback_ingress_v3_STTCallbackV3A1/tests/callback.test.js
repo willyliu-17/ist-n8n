@@ -72,8 +72,8 @@ function normalized(overrides = {}) {
 }
 
 function attempt(overrides = {}) {
-  return {
-    id: 'row-a',
+  const result = {
+    id: 1,
     createdAt: '2026-08-22T00:00:00.000Z',
     updatedAt: '2026-08-22T00:05:00.000Z',
     attemptKey: ATTEMPT_KEY,
@@ -98,9 +98,11 @@ function attempt(overrides = {}) {
     nextRetryAtIso: '',
     manualReviewResolution: '',
     reconciliationStatus: 'canonical',
-    canonicalRowID: 'row-a',
+    canonicalRowID: '1',
     ...overrides,
   };
+  if (!Object.hasOwn(overrides, 'canonicalRowID')) result.canonicalRowID = String(result.id);
+  return result;
 }
 
 function readWorkflow() {
@@ -149,10 +151,15 @@ test('normalizes only body.webhook.context in object or key/value-array form', (
   const arrayResult = normalizeCallback({ body: callbackBody({ webhook: { context: entries } }) });
   assert.deepEqual(arrayResult.context, callbackContext());
 
+  const vdsEntries = Object.entries(callbackContext()).map(([Key, Value]) => ({ Key, Value }));
+  const vdsArrayResult = normalizeCallback({ body: callbackBody({ webhook: { context: vdsEntries } }) });
+  assert.deepEqual(vdsArrayResult.context, callbackContext());
+
   for (const item of [
     { body: { ...callbackBody(), webhook: undefined, callbackToken: TOKEN } },
     { body: { ...callbackBody(), webhook: { context: { ...callbackContext(), extra: 'x' } } } },
     { body: { ...callbackBody(), webhook: { context: [...entries, entries[0]] } } },
+    { body: { ...callbackBody(), webhook: { context: [{ Key: 'attemptKey', value: 'mixed' }, ...vdsEntries.slice(1)] } } },
     { body: { ...callbackBody(), webhook: { context: callbackContext({ mode: 'first' }) } } },
     { body: { ...callbackBody(), webhook: { context: callbackContext({ channel: 'C09F0SYG57D' }) } } },
     { body: { ...callbackBody(), webhook: { context: callbackContext({ callbackToken: 'ABC' }) } } },
@@ -251,14 +258,14 @@ test('uses exact persisted hash and strict expiresAt greater-than-now', () => {
 
 test('validates every meaningful hash lookup row before selecting an attempt', () => {
   assert.deepEqual(validateHashRows([{}], HASH), { found: false });
-  assert.deepEqual(validateHashRows([attempt(), attempt({ id: 'row-copy' })], HASH), {
+  assert.deepEqual(validateHashRows([attempt(), attempt({ id: 2 })], HASH), {
     found: true,
     attemptKey: ATTEMPT_KEY,
   });
 
   for (const rows of [
     [attempt({ callbackTokenHash: 'c'.repeat(64) })],
-    [attempt(), attempt({ id: 'row-collision', attemptKey: 'other-attempt' })],
+    [attempt(), attempt({ id: 2, attemptKey: 'other-attempt' })],
     [attempt({ requestKey: '' })],
     [attempt({ callbackTokenHash: undefined })],
   ]) {
@@ -277,7 +284,7 @@ test('validates every meaningful hash lookup row before selecting an attempt', (
     ['processingMessageTS', '1787364001.999999'],
   ]) {
     assert.throws(
-      () => validateHashRows([attempt(), attempt({ id: 'row-copy', [field]: value })], HASH),
+      () => validateHashRows([attempt(), attempt({ id: 2, [field]: value })], HASH),
       /invalid token hash lookup/i,
       field,
     );
@@ -294,8 +301,8 @@ test('allows unresolved manual review and a valid old attempt to complete', () =
 
   const old = attempt({ attempt: 1 });
   const newer = attempt({
-    id: 'row-new',
-    canonicalRowID: 'row-new',
+    id: 2,
+    canonicalRowID: '2',
     attemptKey: `${LOGICAL_JOB_KEY}:2`,
     attempt: 2,
     status: 'waiting_callback',
@@ -347,8 +354,8 @@ test('classifies every unresolved manual-review callback as terminal by attempts
 test('does not consume an old callback after another attempt completed the logical job', () => {
   const old = attempt();
   const winner = attempt({
-    id: 'row-winner',
-    canonicalRowID: 'row-winner',
+    id: 2,
+    canonicalRowID: '2',
     attemptKey: `${LOGICAL_JOB_KEY}:2`,
     attempt: 2,
     status: 'completed',
@@ -364,8 +371,8 @@ test('does not consume an old callback after another attempt completed the logic
 test('fails closed on immutable logical provenance drift before and after consumption', () => {
   const current = attempt();
   const earlier = attempt({
-    id: 'row-earlier',
-    canonicalRowID: 'row-earlier',
+    id: 2,
+    canonicalRowID: '2',
     attemptKey: `${LOGICAL_JOB_KEY}:2`,
     attempt: 2,
     callbackTokenHash: 'd'.repeat(64),
@@ -410,9 +417,9 @@ test('fails closed on immutable logical provenance drift before and after consum
 
   const duplicateDrift = {
     ...current,
-    id: 'row-current-copy',
+    id: 2,
     reconciliationStatus: 'duplicate',
-    canonicalRowID: current.id,
+    canonicalRowID: String(current.id),
     role: 'previous',
   };
   assert.throws(
@@ -454,23 +461,23 @@ test('classifies empty transcription, retryable service errors, and deadlines by
 });
 
 test('preserves canonical permanence and freezes cross-table checkpoint conflicts', () => {
-  const existing = attempt({ id: 'row-z', canonicalRowID: 'row-z' });
+  const existing = attempt({ id: 26, canonicalRowID: '26' });
   const later = attempt({
-    id: 'row-a',
+    id: 1,
     createdAt: '2026-08-22T00:01:00.000Z',
     reconciliationStatus: 'pending',
     canonicalRowID: '',
   });
-  assert.equal(planCanonicalReconciliation([existing, later]).winnerRowID, 'row-z');
+  assert.equal(planCanonicalReconciliation([existing, later]).winnerRowID, 26);
 
   const clean = [
-    attempt({ id: 'row-b', canonicalRowID: 'row-b', status: 'queued', callbackDeadlineAtIso: '' }),
-    attempt({ id: 'row-a', canonicalRowID: 'row-a', status: 'queued', callbackDeadlineAtIso: '' }),
+    attempt({ id: 2, canonicalRowID: '2', status: 'queued', callbackDeadlineAtIso: '' }),
+    attempt({ id: 1, canonicalRowID: '1', status: 'queued', callbackDeadlineAtIso: '' }),
   ];
   const cleanPlan = planCanonicalReconciliation(clean, []);
   assert.equal(cleanPlan.action, 'reconcile');
-  assert.equal(cleanPlan.winnerRowID, 'row-a');
-  assert.deepEqual(cleanPlan.mutations.map(({ id }) => id), ['row-b']);
+  assert.equal(cleanPlan.winnerRowID, 1);
+  assert.deepEqual(cleanPlan.mutations.map(({ id }) => id), [2]);
 
   for (const checkpoint of ATTEMPT_CHECKPOINT_FIELDS) {
     const rows = clean.map((row) => ({ ...row }));
@@ -571,11 +578,11 @@ test('selects the deterministic completed winner and gives the loser zero downst
     status: 'completed', consumedAtIso: NOW, dialogue: 'hello world', language: 'en',
   });
   const earlier = attempt({
-    id: 'row-earlier',
+    id: 2,
     attemptKey: `${LOGICAL_JOB_KEY}:2`,
     attempt: 2,
     callbackTokenHash: 'd'.repeat(64),
-    canonicalRowID: 'row-earlier',
+    canonicalRowID: '2',
     status: 'completed',
     consumedAtIso: '2026-08-22T00:09:00.000Z',
     dialogue: 'earlier',
@@ -620,7 +627,7 @@ test('fails closed on post-callback logical-row tampering and multiple canonical
     [{ ...applied, callbackTokenHash: 'c'.repeat(64) }],
     [{ ...applied, processingMessageTS: 'tampered' }],
     [{ ...applied, dialogue: '' }],
-    [applied, { ...applied, id: 'row-second', canonicalRowID: 'row-second' }],
+    [applied, { ...applied, id: 2, canonicalRowID: '2' }],
   ]) {
     assert.throws(
       () => verifyLogicalWinner(tampered, verified, expected),
@@ -630,10 +637,10 @@ test('fails closed on post-callback logical-row tampering and multiple canonical
 });
 
 test('fully verifies every frozen competing canonical', () => {
-  const expected = [{ id: 'row-a' }, { id: 'row-b' }];
+  const expected = [{ id: 1 }, { id: 2 }];
   const frozen = expected.map(({ id }) => attempt({
     id,
-    canonicalRowID: id,
+    canonicalRowID: String(id),
     status: 'manual_review',
     manualReviewReason: 'multiple_canonical_checkpoint_conflict',
     manualReviewAtIso: NOW,
@@ -653,7 +660,7 @@ test('fully verifies every frozen competing canonical', () => {
 test('fails closed when re-read Data Tables emit empty placeholders', () => {
   const expected = classifyClaim([attempt()], normalized(), HASH, NOW);
   assert.throws(
-    () => verifyFrozenConflict([{}], [{ id: 'row-a' }, { id: 'row-b' }]),
+    () => verifyFrozenConflict([{}], [{ id: 1 }, { id: 2 }]),
     /frozen conflict/i,
   );
   assert.throws(
@@ -696,7 +703,8 @@ test('defines an inactive stable POST webhook and explicit response for every lo
   for (const [name, status] of expectedResponses) {
     const node = nodeByName(workflow, name);
     assert.equal(node.parameters.respondWith, 'json', name);
-    assert.equal(node.parameters.responseCode, status, name);
+    assert.equal(node.parameters.options.responseCode, status, name);
+    assert.equal(Object.hasOwn(node.parameters, 'responseCode'), false, name);
     assert.deepEqual(node.parameters.options.responseHeaders.entries, [
       { name: 'Content-Type', value: 'application/json' },
     ], name);
@@ -754,7 +762,7 @@ test('uses exact soft-CAS result filters, Limit, reread, and zero-CAS verifier',
     assert.equal(filters.id.keyValue, '={{ $json.id }}', name);
     assert.equal(filters.attemptKey.keyValue, '={{ $json.attemptKey }}', name);
     assert.equal(filters.reconciliationStatus.keyValue, 'canonical', name);
-    assert.equal(filters.canonicalRowID.keyValue, '={{ $json.id }}', name);
+    assert.equal(filters.canonicalRowID.keyValue, '={{ String($json.id) }}', name);
     assert.equal(filters.status.keyValue, status, name);
     assert.equal(filters.consumedAtIso.keyValue, '', name);
     assert.equal(filters.callbackTokenHash.keyValue, '={{ $json.callbackTokenHash }}', name);
@@ -813,7 +821,7 @@ test('freezes checkpoint conflicts completely and clean reconciliation reaches e
   assert.equal(freezeFilters.attemptKey.keyValue, '={{ $json.attemptKey }}');
   assert.equal(freezeFilters.status.keyValue, '={{ $json.expectedStatus }}');
   assert.equal(freezeFilters.reconciliationStatus.keyValue, 'canonical');
-  assert.equal(freezeFilters.canonicalRowID.keyValue, '={{ $json.id }}');
+  assert.equal(freezeFilters.canonicalRowID.keyValue, '={{ String($json.id) }}');
   assert.equal(freeze.alwaysOutputData, true);
   assert.deepEqual(targets(workflow, 'Freeze Canonical Conflict'), ['Limit Conflict Patch']);
   assert.deepEqual(targets(workflow, 'Limit Conflict Patch'), ['Re-read Manual Review State']);
@@ -872,7 +880,7 @@ test('keeps exact source Data Table names and proves P4 remaps each node to its 
   assert.ok(tableNodes.length > 0);
   assert.equal(collectDataTableReferences([workflow]).length, tableNodes.length);
   for (const node of tableNodes) {
-    assert.equal(node.typeVersion, 1.1, node.name);
+    assert.equal(node.typeVersion, 1, node.name);
     assert.deepEqual(node.parameters.dataTableId, {
       __rl: true,
       mode: 'name',
@@ -912,11 +920,8 @@ test('writes only masked primitive audit fields after responses and does not ret
     assert.ok(targets(workflow, responder.name).includes('Write Masked Audit'), responder.name);
   }
   assert.deepEqual(workflow.settings, {
-    executionOrder: 'v1',
-    saveDataSuccessExecution: 'none',
-    saveDataErrorExecution: 'none',
-    saveManualExecutions: false,
-    saveExecutionProgress: false,
+    executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all',
+    saveManualExecutions: true, saveExecutionProgress: false,
   });
 });
 

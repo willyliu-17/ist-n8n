@@ -5,19 +5,21 @@ const test = require('node:test');
 const helper = require('../nodes/Finalize_Request/jsCode');
 const { buildInferenceAggregate } = require('../nodes/group_streamID/jsCode');
 const { renderSummaryMarkdown } = require('../nodes/Render_Summary_Markdown/jsCode');
+const { buildEventQueryItems } = require('../nodes/Build_Event_Query_Items/jsCode');
+const { parseSlackResponse } = require('../nodes/Parse_Slack_Response/jsCode');
 
 const root = path.resolve(__dirname, '..');
 const workflow = JSON.parse(fs.readFileSync(path.join(root, 'workflow.json'), 'utf8'));
 const source = fs.readFileSync(path.join(root, 'workflow.json'), 'utf8');
 const NOW = new Date('2099-01-01T00:00:00.000Z');
-function input(overrides = {}) { return { requestKey: 'summary:req-1', requestType: 'suspect', channel: 'C0A4JJJKJMD', threadTS: '1787364000.000001', coverageStatus: 'complete', availableRoles: ['current'], missingRoles: [], failedLogicalJobKeys: [], streams: [{ role: 'current', liveStreamID: '9', mode: 'fromStart', dialogue: 'hello', streamContext: { device: 'ios', beginTime: 1787360400, endTime: 1787364000 } }], ...overrides }; }
-function row(overrides = {}) { const data = input(); return { id: 'row-1', requestKey: data.requestKey, requestType: data.requestType, status: 'summary_dispatching', reconciliationStatus: 'canonical', canonicalRowID: 'row-1', channel: data.channel, threadTS: data.threadTS, coverageStatus: data.coverageStatus, availableRolesJson: JSON.stringify(data.availableRoles), missingRolesJson: JSON.stringify(data.missingRoles), failedLogicalJobKeysJson: JSON.stringify(data.failedLogicalJobKeys), leaseOwner: 'exec-1', leaseUntilIso: '2099-01-01T00:05:00.000Z', summaryAttempt: 0, createdAtIso: '2099-01-01T00:00:00.000Z', ...overrides }; }
+function input(overrides = {}) { return { requestKey: 'summary:req-1', requestType: 'suspect', channel: 'C0A4JJJKJMD', threadTS: '1787364000.000001', coverageStatus: 'complete', availableRoles: ['current'], missingRoles: [], failedLogicalJobKeys: [], streams: [{ role: 'current', liveStreamID: '9', mode: 'fromStart', dialogue: 'hello', streamContext: { userID: 'user-9', device: 'ios', beginTime: 1787360400, endTime: 1787364000 } }], ...overrides }; }
+function row(overrides = {}) { const data = input(); const { id = 301, canonicalRowID, ...rest } = overrides; return { id, requestKey: data.requestKey, requestType: data.requestType, status: 'summary_dispatching', reconciliationStatus: 'canonical', canonicalRowID: canonicalRowID === undefined ? String(id) : String(canonicalRowID), channel: data.channel, threadTS: data.threadTS, coverageStatus: data.coverageStatus, availableRolesJson: JSON.stringify(data.availableRoles), missingRolesJson: JSON.stringify(data.missingRoles), failedLogicalJobKeysJson: JSON.stringify(data.failedLogicalJobKeys), leaseOwner: 'exec-1', leaseUntilIso: '2099-01-01T00:05:00.000Z', summaryAttempt: 0, createdAtIso: '2099-01-01T00:00:00.000Z', ...rest }; }
 function node(name) { return workflow.nodes.find((item) => item.name === name); }
 
 test('has exactly one typed Execute Workflow Trigger with nine fields', () => { const triggers = workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.executeWorkflowTrigger'); assert.equal(triggers.length, 1); assert.deepEqual(triggers[0].parameters.workflowInputs.values.map((item) => item.name), ['requestKey', 'requestType', 'channel', 'threadTS', 'coverageStatus', 'availableRoles', 'missingRoles', 'failedLogicalJobKeys', 'streams']); });
 test('forbids manual, webhook, wait, direct STT, metadata, and legacy table', () => { for (const forbidden of ['manualTrigger', 'webhook', 'n8n-nodes-base.wait', 'stt-api', 'query stream info', 'AISummaryV2', 'Insert row']) assert.equal(source.includes(forbidden), false, forbidden); });
 test('only event evidence BigQuery names may remain', () => { const bq = workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.googleBigQuery'); assert.ok(bq.every((item) => ['StreamerLog', 'StreamerEventLog'].includes(item.name))); });
-test('workflow is inactive with safe settings', () => { assert.equal(workflow.active, false); assert.equal(workflow.settings.saveDataSuccessExecution, 'none'); assert.equal(workflow.settings.saveDataErrorExecution, 'none'); });
+test('workflow is inactive with approved execution retention', () => { assert.equal(workflow.active, false); assert.deepEqual(workflow.settings, { executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false }); });
 test('all node ids are UUIDs and connections resolve', () => { const names = new Set(workflow.nodes.map((item) => item.name)); workflow.nodes.forEach((item) => assert.match(item.id, /^[0-9a-f-]{36}$/)); Object.entries(workflow.connections).forEach(([from, outputs]) => { assert.ok(names.has(from)); Object.values(outputs).flat().flat().forEach((edge) => assert.ok(names.has(edge.node))); }); });
 test('external references resolve to existing files', () => { for (const match of source.matchAll(/__EXTERNAL_FILE__:\/\/([^"\\]+?)(?:"|\\n)/g)) assert.ok(fs.existsSync(path.join(root, match[1]))); });
 test('accepts valid resolved input', () => assert.equal(helper.validateInput(input()).requestKey, 'summary:req-1'));
@@ -34,14 +36,48 @@ test('rejects invalid streamContext time windows', () => {
   assert.throws(() => helper.validateInput(input({ streams: [{ ...input().streams[0], streamContext: { beginTime: '1787360400', endTime: 1787364000 } }] })));
   assert.throws(() => helper.validateInput(input({ streams: [{ ...input().streams[0], streamContext: { beginTime: 1787364001, endTime: 1787364000 } }] })));
 });
+test('builds event query items with exact stream context fields', () => {
+  const carrier = { kind: 'carrier', nextStage: 'inference', input: input() };
+  const [item] = buildEventQueryItems(carrier);
+
+  assert.equal(item.kind, 'event_query');
+  assert.equal(item.carrier, carrier);
+  assert.deepEqual(
+    {
+      liveStreamID: item.liveStreamID,
+      userID: item.userID,
+      beginTime: item.beginTime,
+      endTime: item.endTime,
+    },
+    {
+      liveStreamID: '9',
+      userID: 'user-9',
+      beginTime: 1787360400,
+      endTime: 1787364000,
+    },
+  );
+});
+
+test('fails event query construction when streamContext userID is missing or blank', () => {
+  for (const userID of [undefined, '', '   ']) {
+    const value = input();
+    value.streams[0].streamContext = { ...value.streams[0].streamContext, userID };
+    const carrier = { kind: 'carrier', nextStage: 'inference', input: value };
+    assert.throws(() => buildEventQueryItems(carrier), /streamContext\.userID/);
+  }
+});
 test('requires an exact canonical self-link', () => assert.throws(() => helper.reconcile([row({ canonicalRowID: '' })], input())));
+test('requires a positive numeric system row id and string canonical reference', () => {
+  assert.throws(() => helper.reconcile([{ ...row(), id: '301', canonicalRowID: '301' }], input()), /system row id/);
+  assert.throws(() => helper.reconcile([{ ...row(), canonicalRowID: 301 }], input()), /self-link/);
+});
 test('requires summary_dispatching status', () => assert.throws(() => helper.reconcile([row({ status: 'ready' })], input())));
 test('requires owner and unexpired lease', () => { assert.throws(() => helper.reconcile([row({ leaseOwner: '' })], input())); assert.throws(() => helper.reconcile([row({ leaseUntilIso: '2000-01-01T00:00:00.000Z' })], input())); });
 test('rejects persisted coverage drift', () => assert.throws(() => helper.reconcile([row({ availableRolesJson: '[]' })], input())));
 test('rejects immutable routing drift', () => assert.throws(() => helper.reconcile([row({ channel: 'Cbad' })], input())));
 test('allows owned canonical request', () => assert.equal(helper.reconcile([row()], input()).action, 'owner'));
-test('reconciles checkpoint-free competing canonicals', () => assert.equal(helper.reconcile([row(), row({ id: 'row-2', canonicalRowID: 'row-2', createdAtIso: '2099-01-02T00:00:00.000Z' })], input()).action, 'reconcile'));
-test('freezes all competing canonical rows on checkpoint conflict', () => { const plan = helper.reconcile([row(), row({ id: 'row-2', canonicalRowID: 'row-2', summaryMarkdown: 'persisted' })], input()); assert.equal(plan.action, 'freeze'); assert.equal(plan.rows.length, 2); });
+test('reconciles checkpoint-free competing canonicals', () => assert.equal(helper.reconcile([row(), row({ id: 302, canonicalRowID: '302', createdAtIso: '2099-01-02T00:00:00.000Z' })], input()).action, 'reconcile'));
+test('freezes all competing canonical rows on checkpoint conflict', () => { const plan = helper.reconcile([row(), row({ id: 302, canonicalRowID: '302', summaryMarkdown: 'persisted' })], input()); assert.equal(plan.action, 'freeze'); assert.equal(plan.rows.length, 2); });
 test('owner conditions contain canonical lease snapshot', () => assert.deepEqual(Object.keys(helper.ownerConditions(row())).sort(), ['canonicalRowID', 'id', 'leaseOwner', 'leaseUntilIso', 'reconciliationStatus', 'requestKey', 'status'].sort()));
 test('inference runs when checkpoints are missing', () => assert.equal(helper.stagePlan(row(), 'inference').action, 'side_effect'));
 test('inference skips when both checkpoints persist', () => assert.equal(helper.stagePlan(row({ inferenceResultJson: '{}', summaryMarkdown: '# done' }), 'inference').action, 'skip'));
@@ -50,6 +86,16 @@ test('message skips after its checkpoint', () => assert.equal(helper.stagePlan(r
 test('inference checkpoint requires both values', () => assert.throws(() => helper.checkpointPlan(row(), 'inference', { inferenceResultJson: '{}' })));
 test('upload checkpoint requires upload id', () => assert.throws(() => helper.checkpointPlan(row(), 'upload', {})));
 test('message checkpoint requires timestamp', () => assert.throws(() => helper.checkpointPlan(row(), 'message', {})));
+test('parses the Slack message timestamp returned by the post operation', () => {
+  const carrier = { kind: 'carrier', input: input(), row: row(), nextStage: 'message' };
+  const result = parseSlackResponse({ ...carrier, ok: true, message_timestamp: '1787737562.408869', message: { ts: '1787737562.408869' } });
+  assert.equal(result.checkpointField, 'summaryMessageTS');
+  assert.equal(result.checkpointValue, '1787737562.408869');
+});
+test('retains support for Slack responses with a top-level ts', () => {
+  const carrier = { kind: 'carrier', input: input(), row: row(), nextStage: 'message' };
+  assert.equal(parseSlackResponse({ ...carrier, ok: true, ts: '1.000001' }).checkpointValue, '1.000001');
+});
 test('checkpoint plan retains exact owner conditions', () => assert.equal(helper.checkpointPlan(row(), 'upload', { summaryUploadID: 'F1' }).conditions.leaseOwner, 'exec-1'));
 test('first stage failure schedules one minute retry', () => { const plan = helper.failurePlan(row(), 'inference', 'timeout', NOW); assert.equal(plan.values.summaryAttempt, 1); assert.equal(plan.values.nextRetryAtIso, '2099-01-01T00:01:00.000Z'); assert.equal(plan.values.status, 'summary_retry_pending'); });
 test('second stage failure schedules five minute retry', () => assert.equal(helper.failurePlan(row({ summaryAttempt: 1 }), 'upload', 'timeout', NOW).values.nextRetryAtIso, '2099-01-01T00:05:00.000Z'));
@@ -69,27 +115,106 @@ test('aggregate uses the inference child stream details contract', () => {
   assert.deepEqual(aggregate.streams[0].details.map(({ type }) => type), ['dialogue', 'streamInfo', 'streamerLog', 'streamEventLog']);
   assert.equal(aggregate.streams[0].details.find(({ type }) => type === 'dialogue').dialogue, 'hello');
 });
-test('markdown renderer is pure and marks partial coverage', () => assert.match(renderSummaryMarkdown({ report: { conclusion: 'ok' } }, 'partial'), /Partial coverage/));
+test('markdown renderer preserves the original localized report format', () => {
+  const markdown = renderSummaryMarkdown({
+    report: {
+      subjective_motivation: {
+        timeline_overview: 'timeline',
+        subjective_description: 'description',
+        recovery_status: 'recovered',
+      },
+      sl_analysis: 'streamer log result',
+      sel_analysis: 'event log result',
+      summary: {
+        fact_check: { claimed_issue: 'claim', data_evidence: 'evidence', is_valid_issue: 'Partial' },
+        responsibility_category: '[Level 1]',
+        responsibility_category_list: ['[1-g] User Interaction Issue'],
+        causal_summary: 'cause',
+        other_issue: 'other',
+        exclusion_reason: { level_1: 'level one', level_2: 'level two' },
+      },
+    },
+  }, 'partial');
+
+  assert.match(markdown, /^# AI SUMMARY/);
+  assert.match(markdown, /> Partial coverage/);
+  assert.match(markdown, /#### 【主觀動機與時間軸】/);
+  assert.match(markdown, /\*\*時間軸概覽\*\*：timeline/);
+  assert.match(markdown, /#### 【Streamer Log 分析】/);
+  assert.match(markdown, /#### 【Stream Event Log 分析】/);
+  assert.match(markdown, /#### 【結論】/);
+  assert.match(markdown, /\*\*事實查核\*\*：\n- \*\*主播主觀判定的問題\*\*：claim/);
+  assert.match(markdown, /\*\*責任歸屬類別清單\*\*：\n- \[1-g\] User Interaction Issue/);
+  assert.match(markdown, /\*\*其他問題\*\*：other/);
+  assert.match(markdown, /\*\*排除與判定邏輯\*\*：\n- \*\*Level 1 判定\/排除依據\*\*：level one/);
+  assert.doesNotMatch(markdown, /```json|subjective_motivation|responsibility_category_list/);
+});
 test('markdown renderer rejects invalid report', () => assert.throws(() => renderSummaryMarkdown({}, 'complete')));
 test('side effects have continue error output and no retries', () => { for (const name of ['Call AI SUMMARY Inference SubWF', 'Upload Summary File', 'Post Summary Message']) { const item = node(name); assert.equal(item.onError, 'continueErrorOutput'); assert.notEqual(item.retryOnFail, true); } });
 test('side effects are ordered inference upload message', () => { const order = ['Call AI SUMMARY Inference SubWF', 'Upload Summary File', 'Post Summary Message'].map((name) => workflow.nodes.indexOf(node(name))); assert.ok(order[0] < order[1] && order[1] < order[2]); });
 test('writes use only summary_requests_v3 allConditions and always output', () => workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.dataTable' && item.parameters.operation === 'update').forEach((item) => { assert.equal(item.parameters.dataTableId.value, 'summary_requests_v3'); assert.equal(item.parameters.matchType, 'allConditions'); assert.equal(item.alwaysOutputData, true); }));
+test('Data Table id filters stay numeric while canonical filters stringify row ids', () => workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.dataTable' && item.parameters.operation === 'update').forEach((item) => {
+  const filters = Object.fromEntries(item.parameters.filters.conditions.map(({ keyName, keyValue }) => [keyName, keyValue]));
+  if (filters.id) assert.doesNotMatch(filters.id, /String\(/, item.name);
+  if (filters.canonicalRowID && /\$json\.row\.id/.test(filters.canonicalRowID)) assert.match(filters.canonicalRowID, /String\(\$json\.row\.id\)/, item.name);
+}));
 test('checkpoint writes use Limit 1 and rereads', () => { assert.ok(node('Limit Inference Checkpoint')); assert.ok(node('Verify Inference Checkpoint')); assert.ok(node('Limit Freeze Patch')); assert.ok(node('Re-read Frozen Request')); });
 test('no reaction nodes or historical execution references remain', () => { assert.equal(source.includes('reaction'), false); assert.equal(source.includes('$runIndex'), false); assert.equal(source.includes('isExecuted'), false); });
 test('crash windows are explicitly documented', () => assert.match(workflow.description, /may be duplicated during repair/));
 test('runtime Code sources are externalized and contain no sibling require', () => { workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.code').forEach((item) => assert.match(item.parameters.jsCode, /^__EXTERNAL_FILE__:\/\//)); assert.equal(source.includes("require('./Finalize_Request/jsCode')"), false); });
 test('validated carrier feeds every full stage read through append input zero', () => { const merge = node('Append Stage Carrier And Rows'); assert.equal(merge.parameters.mode, 'append'); assert.equal(merge.parameters.numberInputs, 2); assert.equal(workflow.connections['Build Direct Carrier'].main[0].some((edge) => edge.node === merge.name && edge.index === 0), true); });
-test('next-stage planner is the only stage router and has all six terminal actions', () => { const router = node('Route Next Stage'); assert.ok(router); assert.equal((workflow.connections['Plan Next Stage'].main[0] || []).some((edge) => edge.node === router.name), true); assert.equal(router.parameters.rules.values.length, 6); });
+test('next-stage planner is the only stage router and has all six terminal actions', () => {
+  const router = node('Route Next Stage');
+  assert.ok(router);
+  assert.equal((workflow.connections['Plan Next Stage'].main[0] || []).some((edge) => edge.node === router.name), true);
+  assert.equal(router.parameters.rules.values.length, 6);
+  assert.equal(router.parameters.options.fallbackOutput, 'extra');
+  for (const rule of router.parameters.rules.values) {
+    assert.deepEqual(rule.conditions.options, { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 });
+    assert.equal(rule.conditions.combinator, 'and');
+  }
+});
 test('reconciliation has an actual exact write limit reread and verifier', () => ['Reconcile Canonical Exact', 'Limit Reconcile Patch', 'Re-read Reconciled Request', 'Verify Reconciliation'].forEach((name) => assert.ok(node(name))));
 test('freeze is terminal after exact write limit reread and verifier', () => ['Freeze Competing Canonicals', 'Limit Freeze Patch', 'Re-read Frozen Request', 'Verify Freeze'].forEach((name) => assert.ok(node(name))));
 test('all side effects have an immediately preceding owner preflight', () => [['Preflight Inference Owner', 'StreamerLog'], ['Preflight Upload Owner', 'Upload Summary File'], ['Preflight Message Owner', 'Post Summary Message']].forEach(([preflight, effect]) => assert.ok(workflow.nodes.indexOf(node(preflight)) < workflow.nodes.indexOf(node(effect)))));
 test('event queries are connected from streamContext query items and retain credentials', () => { ['StreamerLog', 'StreamerEventLog'].forEach((name) => { const item = node(name); assert.equal(item.credentials.googleApi.id, 'Dd7x1TQhh9YKbD8v'); assert.equal(workflow.connections['Build Event Query Items'].main[0].some((edge) => edge.node === name), true); }); });
+test('EventLog uses parameterized user matching and preserves the five-minute window', () => {
+  const sql = fs.readFileSync(path.join(root, 'nodes', 'StreamerEventLog', 'sqlQuery.sql'), 'utf8');
+  const streamerNode = node('StreamerLog');
+  const eventNode = node('StreamerEventLog');
+
+  assert.doesNotMatch(sql, /\bSuid\b/);
+  assert.match(sql, /@liveStreamID AS liveStreamID/);
+  assert.match(sql, /triggerUserID LIKE CONCAT\('%', @userID, '%'\)/);
+  assert.match(sql, /TIMESTAMP_ADD\(TIMESTAMP_SECONDS\(\{\{ \$json\.endTime \}\}\), INTERVAL 5 MINUTE\)/);
+  assert.match(sql, /TIMESTAMP_SUB\(TIMESTAMP_SECONDS\(\{\{ \$json\.beginTime \}\}\), INTERVAL 5 MINUTE\)/);
+  assert.deepEqual(streamerNode.parameters.options.queryParameters.namedParameters, [
+    { name: 'liveStreamID', value: '={{ $json.liveStreamID }}' },
+  ]);
+  assert.deepEqual(eventNode.parameters.options.queryParameters.namedParameters, [
+    { name: 'liveStreamID', value: '={{ $json.liveStreamID }}' },
+    { name: 'userID', value: '={{ $json.userID }}' },
+  ]);
+  assert.equal('queryReplacement' in streamerNode.parameters.options, false);
+  assert.equal('queryReplacement' in eventNode.parameters.options, false);
+});
 test('side-effect outputs merge back into direct carriers before checkpoint plans', () => [['Call AI SUMMARY Inference SubWF', 'Merge Inference Carrier And Output'], ['Upload Summary File', 'Merge Upload Carrier And Output'], ['Post Summary Message', 'Merge Message Carrier And Output']].forEach(([effect, merge]) => assert.ok(workflow.connections[effect].main[0].some((edge) => edge.node === merge))));
 test('all three stage errors route to sanitized failure planning', () => ['Call AI SUMMARY Inference SubWF', 'Upload Summary File', 'Post Summary Message'].forEach((name) => assert.equal(workflow.connections[name].main[1][0].node, 'Sanitize Stage Error')));
 test('failure write snapshots attempt checkpoints and has limit reread verifier', () => { ['Failure CAS Exact', 'Limit Failure Patch', 'Re-read Failure Request', 'Verify Failure'].forEach((name) => assert.ok(node(name))); const filters = node('Failure CAS Exact').parameters.filters.conditions.map((item) => item.keyName); assert.ok(filters.includes('summaryAttempt')); assert.ok(filters.includes('leaseOwner')); });
-test('checkpoint loop returns to the single stage read and skips persisted stages', () => { ['Verify Inference Checkpoint', 'Verify Upload Checkpoint', 'Verify Message Checkpoint'].forEach((name) => assert.equal(workflow.connections[name].main[0][0].node, 'Read Stage Request')); });
+test('checkpoint loop returns its carrier and refreshed row to the stage planner', () => {
+  for (const name of ['Verify Inference Checkpoint', 'Verify Upload Checkpoint', 'Verify Message Checkpoint']) {
+    assert.equal(workflow.connections[name].main[0].some((edge) => edge.node === 'Read Stage Request' && edge.index === 0), true);
+    assert.equal(workflow.connections[name].main[0].some((edge) => edge.node === 'Append Stage Carrier And Rows' && edge.index === 0), true);
+  }
+});
 test('binary is retained through upload carrier and Slack receives data', () => { assert.equal(node('Build Summary File').parameters.jsCode.includes('Prepare_Summary_File'), true); assert.equal(node('Upload Summary File').parameters.binaryPropertyName, 'data'); });
 test('Slack nodes retain the pinned credential and C0 thread routing', () => ['Upload Summary File', 'Post Summary Message'].forEach((name) => { const item = node(name); assert.equal(item.credentials.slackApi.id, '9sfslX7caXSFAVUN'); assert.match(JSON.stringify(item.parameters), /C0A4JJJKJMD/); }));
+test('summary notification posts a message instead of managing a channel', () => {
+  const item = node('Post Summary Message');
+  assert.equal(item.parameters.resource, 'message');
+  assert.equal(item.parameters.operation, 'post');
+  assert.equal(item.parameters.select, 'channel');
+});
 test('completion has exact write limit reread verifier then allowlisted return', () => ['Complete Request Exact', 'Limit Complete Patch', 'Re-read Completion Request', 'Verify Completion', 'Return Result'].forEach((name) => assert.ok(node(name))));
 test('stage loop carries request input explicitly and group_streamID reads carrier.input', () => {
   const code = fs.readFileSync(path.join(root, 'nodes', 'group_streamID', 'jsCode.js'), 'utf8');
@@ -97,10 +222,13 @@ test('stage loop carries request input explicitly and group_streamID reads carri
   assert.doesNotMatch(code, /\$input\.first\(\)\.json/);
   assert.equal(node('Build Direct Carrier').parameters.jsCode.includes('Build_Direct_Carrier'), true);
 });
-test('inference aggregate is merged with the inference response by explicit input indexes', () => {
-  const merge = node('Merge Inference Carrier And Output');
-  assert.equal(merge.parameters.mode, 'combine');
-  assert.equal(merge.parameters.combineBy, 'position');
+test('side-effect carriers use the valid combine-by-position runtime contract', () => {
+  for (const name of ['Merge Inference Carrier And Output', 'Merge Upload Carrier And Output', 'Merge Message Carrier And Output']) {
+    const merge = node(name);
+    assert.equal(merge.parameters.mode, 'combine');
+    assert.equal(merge.parameters.combineBy, 'combineByPosition');
+    assert.equal(merge.parameters.numberInputs, 2);
+  }
   assert.equal(workflow.connections['Build Inference Aggregate'].main[0][0].index, 0);
   assert.equal(workflow.connections['Call AI SUMMARY Inference SubWF'].main[0][0].index, 1);
 });
@@ -134,20 +262,21 @@ test('Slack outputs are parsed before exact checkpoint writes and summary file u
   assert.match(file, /input\.input\.requestKey/);
 });
 test('reconciliation and freeze mutate every planned row and freeze is terminal', () => {
-  const plan = helper.reconcile([row(), row({ id: 'row-2', canonicalRowID: 'row-2' })], input());
+  const plan = helper.reconcile([row(), row({ id: 302, canonicalRowID: '302' })], input());
   assert.ok(Array.isArray(plan.mutations));
   assert.equal(plan.mutations.length, 1);
   for (const name of ['Reconcile Canonical Exact', 'Freeze Competing Canonicals']) assert.match(JSON.stringify(node(name).parameters.filters.conditions), /expectedStatus/);
   assert.deepEqual(workflow.connections['Verify Freeze'].main[0], [{ node: 'Return Result', type: 'main', index: 0 }]);
 });
-test('workflow uses complete safe execution retention settings', () => {
-  assert.deepEqual(workflow.settings, { executionOrder: 'v1', saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none', saveManualExecutions: false, saveExecutionProgress: false });
+test('workflow uses approved execution retention settings', () => {
+  assert.deepEqual(workflow.settings, { executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false });
 });
 test('success planners consume actual append carrier plus latest rows and reject stale owners', () => {
   const { planWrite } = require('../nodes/Plan_Write.js');
   const carrier = { kind: 'carrier', input: input(), row: row(), ownerConditions: helper.ownerConditions(row()), nextStage: 'upload', checkpointValue: 'F08ABC123' };
   const plan = planWrite([carrier, row()]);
   assert.equal(plan.values.summaryUploadID, 'F08ABC123');
+  assert.deepEqual(planWrite([{ ...carrier, nextStage: 'complete' }, row()]).values, { status: 'completed', leaseOwner: '', leaseUntilIso: '' });
   assert.throws(() => planWrite([carrier, row({ leaseOwner: 'other' })]));
 });
 test('failure planner uses the sanitized explicit stage and latest row attempt schedule', () => {

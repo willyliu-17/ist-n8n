@@ -72,13 +72,14 @@ function validateRows(rows) {
   validateAttemptKey(attemptKey);
   if (typeof requestKey !== 'string' || !requestKey) throw new Error('Invalid requestKey');
   for (const row of attemptRows) {
-    for (const field of ['id', 'createdAt', 'updatedAt']) {
-    if (typeof row[field] !== 'string' || !row[field]) throw new Error(`Invalid system field: ${field}`);
+    if (!Number.isSafeInteger(row.id) || row.id <= 0) throw new Error('Invalid system field: id');
+    for (const field of ['createdAt', 'updatedAt']) {
+      if (typeof row[field] !== 'string' || !row[field]) throw new Error(`Invalid system field: ${field}`);
     }
     if (row.attemptKey !== attemptKey || row.requestKey !== requestKey) throw new Error('Invalid same-attempt row set');
     if (typeof row.status !== 'string' || !row.status.trim() || row.status !== row.status.trim()) throw new Error('Invalid attempt status');
     if (!RECONCILIATION_STATUSES.has(row.reconciliationStatus)) throw new Error('Invalid reconciliation status');
-    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== row.id) throw new Error('Invalid canonical linkage');
+    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== String(row.id)) throw new Error('Invalid canonical linkage');
     if (row.reconciliationStatus === 'pending' && row.canonicalRowID !== '') throw new Error('Invalid pending linkage');
     if (row.reconciliationStatus === 'duplicate' && (typeof row.canonicalRowID !== 'string' || !row.canonicalRowID)) {
       throw new Error('Invalid duplicate linkage');
@@ -103,7 +104,7 @@ function reconciliationMutation(row, winnerRowID, desiredStatus) {
     expectedReconciliationStatus: row.reconciliationStatus,
     expectedCanonicalRowID: row.canonicalRowID || '',
     desiredReconciliationStatus: desiredStatus,
-    desiredCanonicalRowID: winnerRowID,
+    desiredCanonicalRowID: String(winnerRowID),
   };
 }
 
@@ -132,7 +133,7 @@ function planCanonicalReconciliation(rows, summaryRows = []) {
     const canonical = canonicals[0];
     const mutations = attemptRows
       .filter((row) => row.id !== canonical.id)
-      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== canonical.id)
+      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== String(canonical.id))
       .map((row) => reconciliationMutation(row, canonical.id, 'duplicate'));
     return mutations.length
       ? { action: 'reconcile', winnerRowID: canonical.id, mutations }
@@ -247,7 +248,7 @@ function verifyFailureOwnerSnapshot(rows, claim, errorContext, executionID, nowI
   for (const field of immutableFields) {
     if (row[field] !== claim[field]) throw new Error(`Failure claim provenance mismatch: ${field}`);
   }
-  if (row.canonicalRowID !== row.id || row.status !== 'completed' || row.presentationStatus !== 'presenting') {
+  if (row.canonicalRowID !== String(row.id) || row.status !== 'completed' || row.presentationStatus !== 'presenting') {
     throw new Error('Failure canonical is not presenting');
   }
   if (row.presentationLeaseOwner !== executionID || row.presentationLeaseOwner !== claim.presentationLeaseOwner) {
@@ -299,7 +300,7 @@ function verifyExactCheckpoint(rows, expected) {
   const canonicals = attemptRows.filter((row) => row.reconciliationStatus === 'canonical');
   if (canonicals.length !== 1) throw new Error('Expected exactly one checkpoint canonical');
   const row = canonicals[0];
-  if (row.canonicalRowID !== row.id || row.status !== 'completed' || row.presentationStatus !== 'presenting') {
+  if (row.canonicalRowID !== String(row.id) || row.status !== 'completed' || row.presentationStatus !== 'presenting') {
     throw new Error('Checkpoint canonical state mismatch');
   }
   for (const field of ['id', 'attemptKey', 'canonicalRowID', 'status', 'presentationStatus', 'presentationLeaseOwner', 'presentationLeaseUntilIso', 'presentationAttempt']) {
@@ -318,7 +319,7 @@ function verifyFrozenConflict(rows, expectedIDs) {
   const canonicals = attemptRows.filter((row) => row.reconciliationStatus === 'canonical');
   if (expected.size === 0 || canonicals.length !== expected.size) throw new Error('Canonical conflict freeze is incomplete');
   for (const row of canonicals) {
-    if (!expected.has(row.id) || row.canonicalRowID !== row.id) throw new Error('Frozen canonical identity mismatch');
+    if (!expected.has(row.id) || row.canonicalRowID !== String(row.id)) throw new Error('Frozen canonical identity mismatch');
     if (row.status !== 'manual_review' || row.manualReviewReason !== 'multiple_canonical_checkpoint_conflict') throw new Error('Frozen canonical state mismatch');
     strictIso(row.manualReviewAtIso, 'manualReviewAtIso');
     if (row.presentationLeaseOwner !== '' || row.presentationLeaseUntilIso !== '') throw new Error('Frozen canonical presentation lease was not cleared');
@@ -344,7 +345,7 @@ function verifyCompletion(rows, expectation) {
   const canonicals = attemptRows.filter((row) => row.reconciliationStatus === 'canonical');
   if (canonicals.length !== 1) throw new Error('Expected exactly one completion canonical');
   const row = canonicals[0];
-  if (row.canonicalRowID !== row.id || row.status !== 'completed' || row.presentationStatus !== 'completed') {
+  if (row.canonicalRowID !== String(row.id) || row.status !== 'completed' || row.presentationStatus !== 'completed') {
     throw new Error('Presentation completion state mismatch');
   }
   if (row.presentationLeaseOwner !== '' || row.presentationLeaseUntilIso !== '') throw new Error('Presentation completion lease was not cleared');

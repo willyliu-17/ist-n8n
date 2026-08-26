@@ -95,7 +95,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [720, -300],
       "id": "c5e3a06c-279f-4f38-a507-439d728b6f4b",
       "name": "Probe Suspect Candidates",
@@ -113,7 +113,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [720, -100],
       "id": "46741ee4-c298-44e4-a354-ea8d20719847",
       "name": "Probe STT Jobs",
@@ -131,7 +131,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [720, 100],
       "id": "a1ece353-9468-407d-871b-1485942407aa",
       "name": "Probe Summary Requests",
@@ -149,7 +149,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [720, 300],
       "id": "7cf36d29-19af-48f2-85f5-5803a0d746a7",
       "name": "Probe Automation Errors",
@@ -231,6 +231,10 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
   }
 }

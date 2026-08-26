@@ -19,6 +19,10 @@ function hasCheckpoint(row, fields) {
   return fields.some((field) => row[field] !== undefined && row[field] !== null && row[field] !== '');
 }
 
+function systemRowID(value) {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
 function immutableAttemptMatches(row, expected) {
   for (const field of ['attemptKey', 'logicalJobKey', 'requestKey', 'requestType', 'attempt', 'role', 'streamID', 'mode', 'durationMinutes', 'streamContextJson', 'channel', 'threadTS', 'processingMessageTS']) {
     if (row[field] !== expected[field]) throw new Error(`Immutable attempt payload conflict: ${field}`);
@@ -29,14 +33,15 @@ function validateRows(rows, expected) {
   const requestKey = rows[0].requestKey;
   if (typeof requestKey !== 'string' || !requestKey) throw new Error('Invalid attempt request key');
   for (const row of rows) {
-    for (const field of ['id', 'createdAt', 'updatedAt']) {
+    if (!systemRowID(row.id)) throw new Error('Invalid required system field: id');
+    for (const field of ['createdAt', 'updatedAt']) {
       if (typeof row[field] !== 'string' || !row[field]) throw new Error(`Invalid required system field: ${field}`);
     }
     if (row.attemptKey !== expected.attemptKey) throw new Error('Invalid same-attempt row set');
     if (typeof row.requestKey !== 'string' || !row.requestKey) throw new Error('Invalid attempt request key');
     if (row.requestKey !== requestKey) throw new Error('Attempt request key mismatch');
     if (!RECONCILIATION_STATUSES.has(row.reconciliationStatus)) throw new Error('Invalid attempt reconciliation status');
-    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== row.id) throw new Error('Canonical row does not point to itself');
+    if (row.reconciliationStatus === 'canonical' && row.canonicalRowID !== String(row.id)) throw new Error('Canonical row does not point to itself');
     if (row.reconciliationStatus === 'pending' && row.canonicalRowID !== '') throw new Error('Pending row must not have a canonical row ID');
     if (row.reconciliationStatus === 'duplicate' && (typeof row.canonicalRowID !== 'string' || !row.canonicalRowID)) {
       throw new Error('Duplicate row must have a canonical row ID');
@@ -63,7 +68,7 @@ function mutation(row, winnerRowID, desiredReconciliationStatus) {
     expectedReconciliationStatus: row.reconciliationStatus,
     expectedCanonicalRowID: row.canonicalRowID,
     desiredReconciliationStatus,
-    desiredCanonicalRowID: winnerRowID,
+    desiredCanonicalRowID: String(winnerRowID),
   };
 }
 
@@ -87,7 +92,7 @@ function planAttemptReconciliation(rows, expected, summaryRows = []) {
   if (canonicals.length === 1) {
     const canonical = canonicals[0];
     const mutations = rows.filter((row) => row.id !== canonical.id)
-      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== canonical.id)
+      .filter((row) => row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== String(canonical.id))
       .map((row) => mutation(row, canonical.id, 'duplicate'));
     return mutations.length
       ? { action: 'reconcile', winnerRowID: canonical.id, mutations }

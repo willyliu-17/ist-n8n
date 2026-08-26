@@ -150,7 +150,7 @@
       "id": "1200000b-0000-4000-8000-00000000000b",
       "name": "Insert Pending Candidate",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [240, 0],
       "alwaysOutputData": true
     },
@@ -165,7 +165,7 @@
       "id": "1200000c-0000-4000-8000-00000000000c",
       "name": "Read Candidate Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [480, 0],
       "alwaysOutputData": true
     },
@@ -196,7 +196,7 @@
           { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" },
           { "keyName": "candidateKey", "condition": "eq", "keyValue": "={{ $json.candidateKey }}" },
           { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" },
-          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.expectedCanonicalRowID }}" }
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.expectedCanonicalRowID) }}" }
         ] },
         "columns": { "mappingMode": "defineBelow", "value": {
           "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}",
@@ -208,7 +208,7 @@
       "id": "1200000f-0000-4000-8000-00000000000f",
       "name": "Apply Candidate Reconciliation",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [1200, -160],
       "alwaysOutputData": true
     },
@@ -223,7 +223,7 @@
       "id": "12000010-0000-4000-8000-000000000010",
       "name": "Re-read Candidate Rows",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [1440, -160],
       "alwaysOutputData": true
     },
@@ -273,7 +273,7 @@
           { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" },
           { "keyName": "candidateKey", "condition": "eq", "keyValue": "={{ $json.candidateKey }}" },
           { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" },
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" },
           { "keyName": "threadTS", "condition": "eq", "keyValue": "={{ $json.expectedThreadTS }}" }
         ] },
         "columns": { "mappingMode": "defineBelow", "value": {
@@ -284,7 +284,7 @@
       "id": "12100003-0000-4000-8000-000000000003",
       "name": "Claim Candidate Root",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [2640, 160],
       "alwaysOutputData": true
     },
@@ -299,7 +299,7 @@
       "id": "12100004-0000-4000-8000-000000000004",
       "name": "Read Claimed Candidate Root",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [2880, 160],
       "alwaysOutputData": true
     },
@@ -358,7 +358,7 @@
           { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" },
           { "keyName": "candidateKey", "condition": "eq", "keyValue": "={{ $json.candidateKey }}" },
           { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
-          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.id }}" },
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" },
           { "keyName": "threadTS", "condition": "eq", "keyValue": "={{ $json.expectedThreadTS }}" }
         ] },
         "columns": { "mappingMode": "defineBelow", "value": {
@@ -369,7 +369,7 @@
       "id": "1210000a-0000-4000-8000-00000000000a",
       "name": "Checkpoint Candidate Root",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [4320, 160],
       "alwaysOutputData": true
     },
@@ -384,7 +384,7 @@
       "id": "1210000b-0000-4000-8000-00000000000b",
       "name": "Re-read Candidate Root",
       "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [4560, 160],
       "alwaysOutputData": true
     },
@@ -540,7 +540,7 @@
     "Send Processing Message": { "main": [[{ "node": "Build Orchestrator Requests", "type": "main", "index": 0 }]] },
     "Build Orchestrator Requests": { "main": [[{ "node": "Call Summary Orchestrator", "type": "main", "index": 0 }]] }
   },
-  "settings": { "executionOrder": "v1", "saveDataSuccessExecution": "none", "saveDataErrorExecution": "none", "saveManualExecutions": false, "saveExecutionProgress": false },
+  "settings": { "executionOrder": "v1", "saveDataSuccessExecution": "all", "saveDataErrorExecution": "all", "saveManualExecutions": true, "saveExecutionProgress": false },
   "staticData": null,
   "meta": { "templateCredsSetupCompleted": true },
   "tags": []

@@ -5,12 +5,12 @@ function validIso(value, name) {
   return millis;
 }
 function planClaim(request, now, owner) {
-  if (!request || typeof request.requestKey !== 'string' || request.requestKey === '' || request.reconciliationStatus !== 'canonical' || request.canonicalRowID !== request.id) throw new Error('claim requires canonical self-linked request');
+  if (!request || typeof request.requestKey !== 'string' || request.requestKey === '' || request.reconciliationStatus !== 'canonical' || request.canonicalRowID !== String(request.id)) throw new Error('claim requires canonical self-linked request');
   const nowMillis = validIso(now, 'current time');
   if (!nonemptyOwner(owner)) throw new Error('claim owner required');
   if (!['ready', 'summary_retry_pending', 'summary_dispatching'].includes(request.status)) return { action: 'noop', status: request.status };
   const leaseUntilIso = new Date(nowMillis + 300000).toISOString();
-  const base = { id: request.id, requestKey: request.requestKey, expectedStatus: request.status, expectedReconciliationStatus: 'canonical', expectedCanonicalRowID: request.id, expectedLeaseOwner: request.leaseOwner || '', expectedLeaseUntilIso: request.leaseUntilIso || '', owner, leaseUntilIso };
+  const base = { id: request.id, requestKey: request.requestKey, expectedStatus: request.status, expectedReconciliationStatus: 'canonical', expectedCanonicalRowID: String(request.id), expectedLeaseOwner: request.leaseOwner || '', expectedLeaseUntilIso: request.leaseUntilIso || '', owner, leaseUntilIso };
   if (request.status === 'ready') {
     if (request.leaseOwner !== '' || request.leaseUntilIso !== '') return { action: 'noop', status: request.status };
     return { ...base, action: 'initial' };

@@ -10,7 +10,7 @@
   stream.vliverModel AS vliverModel,
   stream.isOBS AS isOBS
 FROM `media17-1119.MatomoDataMart.LiveStreamWithViewerInfo`
-WHERE liveStreamID IN UNNEST({{ $('Validate and Normalize').first().json.idsSqlLiteral }})
+WHERE liveStreamID IN UNNEST({{ $('Validate and Normalize').first().json.stringIdsSqlLiteral }})
   AND beginTime >= TIMESTAMP(@window_start)
   AND beginTime < TIMESTAMP(@window_end)
 QUALIFY ROW_NUMBER() OVER (

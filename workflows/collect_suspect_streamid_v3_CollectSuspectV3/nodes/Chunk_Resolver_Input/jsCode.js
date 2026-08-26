@@ -38,7 +38,7 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof $input !== 'undefined') {
   const output = [];
   for (const { json: candidate } of $input.all()) {
-    if (candidate.action !== 'ready' || candidate.reconciliationStatus !== 'canonical' || candidate.canonicalRowID !== candidate.id) {
+    if (!Number.isSafeInteger(candidate.id) || candidate.id <= 0 || candidate.action !== 'ready' || candidate.reconciliationStatus !== 'canonical' || candidate.canonicalRowID !== String(candidate.id)) {
       throw new Error('Only a verified canonical candidate can resolve metadata');
     }
     const positions = candidatePositions(candidate);

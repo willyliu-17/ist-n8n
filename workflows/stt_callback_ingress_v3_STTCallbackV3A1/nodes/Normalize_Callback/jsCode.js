@@ -28,14 +28,18 @@ function contextObject(value) {
   if (Array.isArray(value)) {
     const result = {};
     for (const entry of value) {
-      if (
-        !entry || typeof entry !== 'object' || Array.isArray(entry) ||
-        Object.keys(entry).length !== 2 || !Object.hasOwn(entry, 'key') || !Object.hasOwn(entry, 'value') ||
-        typeof entry.key !== 'string' || !CONTEXT_KEY_SET.has(entry.key) || Object.hasOwn(result, entry.key)
-      ) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry) || Object.keys(entry).length !== 2) {
         throw new Error('Invalid callback context entries');
       }
-      result[entry.key] = entry.value;
+      const lowerCasePair = Object.hasOwn(entry, 'key') && Object.hasOwn(entry, 'value');
+      const upperCasePair = Object.hasOwn(entry, 'Key') && Object.hasOwn(entry, 'Value');
+      if (lowerCasePair === upperCasePair) throw new Error('Invalid callback context entries');
+      const key = lowerCasePair ? entry.key : entry.Key;
+      const entryValue = lowerCasePair ? entry.value : entry.Value;
+      if (typeof key !== 'string' || !CONTEXT_KEY_SET.has(key) || Object.hasOwn(result, key)) {
+        throw new Error('Invalid callback context entries');
+      }
+      result[key] = entryValue;
     }
     return result;
   }
