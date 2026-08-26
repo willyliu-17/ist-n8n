@@ -115,6 +115,19 @@ test('aggregate uses the inference child stream details contract', () => {
   assert.deepEqual(aggregate.streams[0].details.map(({ type }) => type), ['dialogue', 'streamInfo', 'streamerLog', 'streamEventLog']);
   assert.equal(aggregate.streams[0].details.find(({ type }) => type === 'dialogue').dialogue, 'hello');
 });
+test('aggregate preserves whichever event evidence types are available', () => {
+  const streamerOnly = buildInferenceAggregate(input(), [
+    { liveStreamID: '9', evidenceType: 'streamerLog', Type: 'PushReport' },
+  ]).streams[0].details.map(({ type }) => type);
+  const eventOnly = buildInferenceAggregate(input(), [
+    { liveStreamID: '9', evidenceType: 'streamEventLog', title: 'RTMP Error' },
+  ]).streams[0].details.map(({ type }) => type);
+  const neither = buildInferenceAggregate(input(), []).streams[0].details.map(({ type }) => type);
+
+  assert.deepEqual(streamerOnly, ['dialogue', 'streamInfo', 'streamerLog']);
+  assert.deepEqual(eventOnly, ['dialogue', 'streamInfo', 'streamEventLog']);
+  assert.deepEqual(neither, ['dialogue', 'streamInfo']);
+});
 test('markdown renderer preserves the original localized report format', () => {
   const markdown = renderSummaryMarkdown({
     report: {
@@ -178,6 +191,25 @@ test('reconciliation has an actual exact write limit reread and verifier', () =>
 test('freeze is terminal after exact write limit reread and verifier', () => ['Freeze Competing Canonicals', 'Limit Freeze Patch', 'Re-read Frozen Request', 'Verify Freeze'].forEach((name) => assert.ok(node(name))));
 test('all side effects have an immediately preceding owner preflight', () => [['Preflight Inference Owner', 'StreamerLog'], ['Preflight Upload Owner', 'Upload Summary File'], ['Preflight Message Owner', 'Post Summary Message']].forEach(([preflight, effect]) => assert.ok(workflow.nodes.indexOf(node(preflight)) < workflow.nodes.indexOf(node(effect)))));
 test('event queries are connected from streamContext query items and retain credentials', () => { ['StreamerLog', 'StreamerEventLog'].forEach((name) => { const item = node(name); assert.equal(item.credentials.googleApi.id, 'Dd7x1TQhh9YKbD8v'); assert.equal(workflow.connections['Build Event Query Items'].main[0].some((edge) => edge.node === name), true); }); });
+test('event evidence waits for carrier and both query branches', () => {
+  const merge = node('Merge Event Evidence And Carrier');
+  const inputIndex = (sourceName) => workflow.connections[sourceName].main[0]
+    .find((edge) => edge.node === merge.name).index;
+
+  assert.deepEqual(merge.parameters, { mode: 'append', numberInputs: 3 });
+  assert.equal(inputIndex('Preflight Inference Owner'), 0);
+  assert.equal(inputIndex('StreamerLog'), 1);
+  assert.equal(inputIndex('StreamerEventLog'), 2);
+  assert.equal(node('StreamerLog').alwaysOutputData, true);
+  assert.equal(node('StreamerEventLog').alwaysOutputData, true);
+});
+test('StreamerLog projects the requested stream ID instead of the source LiveStreamID', () => {
+  const sql = fs.readFileSync(path.join(root, 'nodes', 'StreamerLog', 'sqlQuery.sql'), 'utf8');
+
+  assert.match(sql, /@liveStreamID AS liveStreamID/);
+  assert.doesNotMatch(sql, /LiveStreamID AS liveStreamID/);
+  assert.match(sql, /Suid = @liveStreamID/);
+});
 test('EventLog uses parameterized user matching and preserves the five-minute window', () => {
   const sql = fs.readFileSync(path.join(root, 'nodes', 'StreamerEventLog', 'sqlQuery.sql'), 'utf8');
   const streamerNode = node('StreamerLog');

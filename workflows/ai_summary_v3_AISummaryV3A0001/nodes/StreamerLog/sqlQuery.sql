@@ -8,7 +8,7 @@ SET start_timestamp = TIMESTAMP_SUB(TIMESTAMP_SECONDS({{ $json.beginTime }}), IN
 SELECT 
   'streamerLog' AS evidenceType,
   DATETIME(ClientTime, "Asia/Taipei") as ClientTimeUTCp8, 
-  LiveStreamID AS liveStreamID,
+  @liveStreamID AS liveStreamID,
   Type,
   OSVersion,
   Device,
