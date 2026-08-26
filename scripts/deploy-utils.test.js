@@ -12,8 +12,10 @@ const {
     remapCredentialReferences,
     collectDataTableReferences,
     remapDataTableReferences,
+    preserveTargetDataTableIds,
     assertDataTableTargetIds,
     remapExecuteWorkflowNodes,
+    injectDeploymentValues,
     createWorkflowPayload,
     parseCreatedWorkflowId
 } = require('./deploy-utils');
@@ -108,6 +110,147 @@ test('assertUniqueRequestedWorkflowNames rejects duplicate exact names only', ()
             { name: 'Workflow A' }
         ]),
         /duplicate requested workflows exactly named "Workflow A"/
+    );
+});
+
+test('injectDeploymentValues replaces the STT callback placeholder without mutating source', () => {
+    const workflow = {
+        name: 'STT: dispatch attempt v3',
+        nodes: [{
+            name: 'Attach Callback URL',
+            parameters: {
+                assignments: {
+                    assignments: [{
+                        name: 'callbackUrl',
+                        value: '__DEPLOY_STT_CALLBACK_URL__'
+                    }]
+                }
+            }
+        }]
+    };
+
+    const injected = injectDeploymentValues(workflow, {
+        sttCallbackUrl: 'https://n8n.example/webhook/stt-callback-v3'
+    });
+
+    assert.equal(
+        injected.nodes[0].parameters.assignments.assignments[0].value,
+        'https://n8n.example/webhook/stt-callback-v3'
+    );
+    assert.equal(
+        workflow.nodes[0].parameters.assignments.assignments[0].value,
+        '__DEPLOY_STT_CALLBACK_URL__'
+    );
+});
+
+test('injectDeploymentValues rejects missing or unsafe STT callback URLs', () => {
+    const workflow = {
+        name: 'STT: dispatch attempt v3',
+        nodes: [{ parameters: { value: '__DEPLOY_STT_CALLBACK_URL__' } }]
+    };
+
+    assert.throws(() => injectDeploymentValues(workflow, {}), /STT_CALLBACK_URL is required/);
+    for (const value of [
+        'http://n8n.example/webhook/stt-callback-v3',
+        'https://n8n.example/webhook/wrong',
+        'https://n8n.example/webhook/stt-callback-v3?token=x',
+        'https://user:pass@n8n.example/webhook/stt-callback-v3'
+    ]) {
+        assert.throws(
+            () => injectDeploymentValues(workflow, { sttCallbackUrl: value }),
+            /STT_CALLBACK_URL/
+        );
+    }
+});
+
+test('injectDeploymentValues leaves workflows without deployment placeholders unchanged', () => {
+    const workflow = { name: 'Unrelated', nodes: [], connections: {}, settings: {} };
+    assert.strictEqual(injectDeploymentValues(workflow, {}), workflow);
+});
+
+test('preserveTargetDataTableIds remaps source names by stable node identity', () => {
+    const source = [{
+        id: 'node-1',
+        name: 'Read Jobs',
+        type: 'n8n-nodes-base.dataTable',
+        parameters: { dataTableId: { __rl: true, mode: 'name', value: 'stt_jobs_v3' } }
+    }];
+    const target = [{
+        id: 'node-1',
+        name: 'Read Jobs',
+        type: 'n8n-nodes-base.dataTable',
+        parameters: { dataTableId: { __rl: true, mode: 'id', value: 'target-table-id' } }
+    }];
+
+    const remapped = preserveTargetDataTableIds(source, target);
+    assert.deepEqual(remapped[0].parameters.dataTableId, {
+        __rl: true,
+        mode: 'id',
+        value: 'target-table-id'
+    });
+    assert.equal(source[0].parameters.dataTableId.mode, 'name');
+});
+
+test('preserveTargetDataTableIds fails closed without one matching target ID', () => {
+    const source = [{
+        id: 'node-1',
+        name: 'Read Jobs',
+        type: 'n8n-nodes-base.dataTable',
+        parameters: { dataTableId: { __rl: true, mode: 'name', value: 'stt_jobs_v3' } }
+    }];
+    assert.throws(() => preserveTargetDataTableIds(source, []), /no unique target ID locator/);
+});
+
+test('deployWorkflows rejects a missing STT callback URL before network access', async t => {
+    const dir = createTempDir(t);
+    const workflowPath = path.join(dir, 'dispatcher.json');
+    fs.writeFileSync(workflowPath, JSON.stringify({
+        id: 'dispatcher-source-id',
+        name: 'STT: dispatch attempt v3',
+        nodes: [{ parameters: { value: '__DEPLOY_STT_CALLBACK_URL__' } }],
+        connections: {},
+        settings: {}
+    }));
+    let fetchCalls = 0;
+
+    await assert.rejects(
+        deployWorkflows([workflowPath], noFetchOptions(() => { fetchCalls += 1; })),
+        /STT_CALLBACK_URL is required/
+    );
+    assert.equal(fetchCalls, 0);
+});
+
+test('deployWorkflows injects the validated STT callback URL into the PUT payload', async t => {
+    const dir = createTempDir(t);
+    const workflowPath = path.join(dir, 'dispatcher.json');
+    fs.writeFileSync(workflowPath, JSON.stringify({
+        id: 'dispatcher-source-id',
+        name: 'STT: dispatch attempt v3',
+        nodes: [{ parameters: { value: '__DEPLOY_STT_CALLBACK_URL__' } }],
+        connections: {},
+        settings: {}
+    }));
+    let putPayload;
+
+    await deployWorkflows([workflowPath], {
+        apiUrl: 'https://n8n.example',
+        apiKey: 'test-key',
+        sttCallbackUrl: 'https://n8n.example/webhook/stt-callback-v3',
+        fetchImpl: async (_url, options = {}) => {
+            if ((options.method || 'GET') === 'PUT') {
+                putPayload = JSON.parse(options.body);
+                return response({});
+            }
+            return response({
+                data: [{ id: 'dispatcher-target-id', name: 'STT: dispatch attempt v3' }],
+                nextCursor: null
+            });
+        }
+    });
+
+    assert.equal(
+        putPayload.nodes[0].parameters.value,
+        'https://n8n.example/webhook/stt-callback-v3'
     );
 });
 
@@ -621,7 +764,7 @@ test('remapExecuteWorkflowNodes rejects an unresolved cached workflow name', () 
     assert.equal(nodes[0].parameters.workflowId.value, 'source-id');
 });
 
-test('createWorkflowPayload preserves only deployable workflow fields', () => {
+test('createWorkflowPayload preserves only pinned public API workflow fields', () => {
     const workflow = {
         id: 'source-id',
         name: 'Workflow A',
@@ -638,8 +781,7 @@ test('createWorkflowPayload preserves only deployable workflow fields', () => {
         name: 'Workflow A',
         nodes: remappedNodes,
         connections: { A: {} },
-        settings: { executionOrder: 'v1' },
-        description: 'Workflow description'
+        settings: { executionOrder: 'v1' }
     });
 });
 
@@ -825,7 +967,8 @@ test('exports the exact authoritative v3 workflow inventory in deployment order'
         ['Query Steam Logs v3', 'workflows/query_steam_logs_v3_QueryLogsV3A0001'],
         ['Tencent realtime VDS v3', 'workflows/tencent_realtime_vds_v3_TencentVDSV3A001'],
         ['Collect suspect streamID v3', 'workflows/collect_suspect_streamid_v3_CollectSuspectV3'],
-        ['IST bot entry v3', 'workflows/ist_bot_entry_v3_IstBotEntryV3A01']
+        ['IST bot entry v3', 'workflows/ist_bot_entry_v3_IstBotEntryV3A01'],
+        ['IST bot Slack ingress v3', 'workflows/ist_bot_slack_ingress_v3_IstBotSlackIngressV3A1']
     ]);
     assert.ok(Object.isFrozen(getV3Inventory()));
     assert.ok(getV3Inventory().every(tuple => Object.isFrozen(tuple)));
@@ -1422,7 +1565,7 @@ test('P2 reuses inactive empty workflows with the n8n executionOrder default wit
     assert.equal(methods.filter(method => method === 'PUT').length, 0);
 });
 
-test('P2 accepts the n8n executionOrder default returned after fresh skeleton creation', async () => {
+test('P2 accepts the n8n persisted defaults returned after fresh skeleton creation', async () => {
     const inventory = getV3Inventory();
     const created = new Map();
     let postCount = 0;
@@ -1436,7 +1579,7 @@ test('P2 accepts the n8n executionOrder default returned after fresh skeleton cr
             if (method === 'GET' && url.includes('?')) {
                 return response({
                     data: [...created].map(([id, name]) => workflowDetail(id, name, {
-                        settings: { executionOrder: 'v1' }
+                        settings: { callerPolicy: 'workflowsFromSameOwner', availableInMCP: false }
                     })),
                     nextCursor: null
                 });
@@ -1450,7 +1593,7 @@ test('P2 accepts the n8n executionOrder default returned after fresh skeleton cr
             }
             const id = url.split('/').pop();
             return response(workflowDetail(id, created.get(id), {
-                settings: { executionOrder: 'v1' }
+                settings: { callerPolicy: 'workflowsFromSameOwner', availableInMCP: false }
             }));
         }
     });
@@ -1463,7 +1606,11 @@ for (const [label, overrides, pattern] of [
     ['active', { active: true }, /active workflow/i],
     ['non-empty', { nodes: [{ name: 'Existing node' }] }, /non-empty or non-inert/i],
     ['connected', { connections: { Existing: {} } }, /non-empty or non-inert/i],
-    ['non-inert', { settings: { saveExecutionProgress: true } }, /non-empty or non-inert/i]
+    ['non-inert', { settings: { saveExecutionProgress: true } }, /non-empty or non-inert/i],
+    ['partial persisted defaults', { settings: { callerPolicy: 'workflowsFromSameOwner' } }, /non-empty or non-inert/i],
+    ['unsafe persisted defaults', {
+        settings: { callerPolicy: 'workflowsFromSameOwner', availableInMCP: true }
+    }, /non-empty or non-inert/i]
 ]) {
     test(`P2 fails closed for one ${label} exact-name workflow before POST`, async () => {
         const inventory = getV3Inventory();
@@ -2114,7 +2261,11 @@ test('P4 treats exact deployed content as completed and accepts only safe execut
     } : {});
     const targets = inventory.map(([name], index) => workflowDetail(`target-${index}`, name, {
         nodes: [{ name: 'Source', type: 'n8n-nodes-base.noOp', parameters: {} }],
-        settings: index === inventory.length - 1 ? { executionOrder: 'v1' } : {},
+        settings: {
+            callerPolicy: 'workflowsFromSameOwner',
+            availableInMCP: false,
+            ...(index === inventory.length - 1 ? { executionOrder: 'v1' } : {})
+        },
         ...(name === firstName ? { description: 'Required workflow description' } : {})
     }));
     const ids = new Map(targets.map(workflow => [workflow.name, workflow.id]));

@@ -221,6 +221,46 @@ function remapDataTableReferences(nodes, tableIds) {
     return remappedNodes;
 }
 
+function preserveTargetDataTableIds(nodes, targetNodes) {
+    const remappedNodes = structuredClone(nodes);
+
+    for (const node of remappedNodes) {
+        if (node.type !== 'n8n-nodes-base.dataTable') continue;
+        const sourceLocator = node.parameters?.dataTableId;
+        if (
+            !sourceLocator || sourceLocator.__rl !== true || sourceLocator.mode !== 'name' ||
+            typeof sourceLocator.value !== 'string' || !sourceLocator.value
+        ) {
+            throw new Error(`Data Table node "${node.name || '<unknown>'}" must use a source name locator`);
+        }
+
+        const matches = (targetNodes || []).filter(target => (
+            target.type === 'n8n-nodes-base.dataTable' && (
+                typeof node.id === 'string' && node.id
+                    ? target.id === node.id
+                    : target.name === node.name
+            )
+        ));
+        const targetLocator = matches[0]?.parameters?.dataTableId;
+        if (
+            matches.length !== 1 || !targetLocator || targetLocator.__rl !== true ||
+            targetLocator.mode !== 'id' || typeof targetLocator.value !== 'string' ||
+            !targetLocator.value
+        ) {
+            throw new Error(
+                `Data Table node "${node.name || '<unknown>'}" has no unique target ID locator`
+            );
+        }
+        node.parameters.dataTableId = {
+            __rl: true,
+            mode: 'id',
+            value: targetLocator.value
+        };
+    }
+
+    return remappedNodes;
+}
+
 function assertDataTableTargetIds(nodes, expectedNodes) {
     const actualDataTableNodes = (nodes || []).filter(node => node.type === 'n8n-nodes-base.dataTable');
     const expectedDataTableNodes = (expectedNodes || []).filter(node => node.type === 'n8n-nodes-base.dataTable');
@@ -411,14 +451,59 @@ function remapExecuteWorkflowNodes(nodes, workflowIds, sourceWorkflowNames = new
 }
 
 function createWorkflowPayload(workflow, nodes = workflow.nodes) {
-    const payload = {
+    return {
         name: workflow.name,
         nodes,
         connections: workflow.connections,
         settings: workflow.settings
     };
-    if (workflow.description !== undefined) payload.description = workflow.description;
-    return payload;
+}
+
+const STT_CALLBACK_URL_PLACEHOLDER = '__DEPLOY_STT_CALLBACK_URL__';
+const STT_CALLBACK_PATH = '/webhook/stt-callback-v3';
+
+function containsDeploymentPlaceholder(value) {
+    if (value === STT_CALLBACK_URL_PLACEHOLDER) return true;
+    if (Array.isArray(value)) return value.some(containsDeploymentPlaceholder);
+    if (!value || typeof value !== 'object') return false;
+    return Object.values(value).some(containsDeploymentPlaceholder);
+}
+
+function validateSttCallbackUrl(value) {
+    if (typeof value !== 'string' || !value || value !== value.trim()) {
+        throw new Error('STT_CALLBACK_URL is required for this deployment');
+    }
+
+    let parsed;
+    try {
+        parsed = new URL(value);
+    } catch {
+        throw new Error('STT_CALLBACK_URL must be a valid HTTPS URL');
+    }
+    if (
+        parsed.protocol !== 'https:' || parsed.pathname !== STT_CALLBACK_PATH ||
+        parsed.search || parsed.hash || parsed.username || parsed.password
+    ) {
+        throw new Error(`STT_CALLBACK_URL must use HTTPS and the exact ${STT_CALLBACK_PATH} path`);
+    }
+    return parsed.toString();
+}
+
+function replaceDeploymentPlaceholder(value, sttCallbackUrl) {
+    if (value === STT_CALLBACK_URL_PLACEHOLDER) return sttCallbackUrl;
+    if (Array.isArray(value)) {
+        return value.map(entry => replaceDeploymentPlaceholder(entry, sttCallbackUrl));
+    }
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [
+        key,
+        replaceDeploymentPlaceholder(entry, sttCallbackUrl)
+    ]));
+}
+
+function injectDeploymentValues(workflow, { sttCallbackUrl } = {}) {
+    if (!containsDeploymentPlaceholder(workflow)) return workflow;
+    return replaceDeploymentPlaceholder(workflow, validateSttCallbackUrl(sttCallbackUrl));
 }
 
 function parseCreatedWorkflowId(workflow) {
@@ -439,10 +524,12 @@ module.exports = {
     collectDataTableReferences,
     assertCompleteDataTableIdMap,
     remapDataTableReferences,
+    preserveTargetDataTableIds,
     assertDataTableTargetIds,
     collectRequiredWorkflowNames,
     validateExecuteWorkflowSelectors,
     remapExecuteWorkflowNodes,
+    injectDeploymentValues,
     createWorkflowPayload,
     parseCreatedWorkflowId
 };

@@ -13,10 +13,12 @@ const {
     remapCredentialReferences,
     collectDataTableReferences,
     remapDataTableReferences,
+    preserveTargetDataTableIds,
     assertDataTableTargetIds,
     collectRequiredWorkflowNames,
     validateExecuteWorkflowSelectors,
     remapExecuteWorkflowNodes,
+    injectDeploymentValues,
     createWorkflowPayload,
     parseCreatedWorkflowId
 } = require('./deploy-utils');
@@ -110,11 +112,17 @@ function isInertSettings(value) {
         return false;
     }
 
+    const allowedKeys = new Set(['executionOrder', 'callerPolicy', 'availableInMCP']);
     const keys = Object.keys(value);
-    return keys.length === 0 || (
-        keys.length === 1 &&
-        keys[0] === 'executionOrder' &&
-        value.executionOrder === 'v1'
+    if (keys.some(key => !allowedKeys.has(key))) return false;
+    if (Object.hasOwn(value, 'executionOrder') && value.executionOrder !== 'v1') return false;
+
+    const hasCallerPolicy = Object.hasOwn(value, 'callerPolicy');
+    const hasAvailableInMCP = Object.hasOwn(value, 'availableInMCP');
+    if (hasCallerPolicy !== hasAvailableInMCP) return false;
+    return !hasCallerPolicy || (
+        value.callerPolicy === 'workflowsFromSameOwner' &&
+        value.availableInMCP === false
     );
 }
 
@@ -605,32 +613,38 @@ function isInactiveInertSkeleton(workflow, expectedName) {
 }
 
 function settingsMatchExpected(actual, expected) {
-    if (isDeepStrictEqual(actual, expected)) return true;
     if (
         !actual || typeof actual !== 'object' || Array.isArray(actual) ||
         !expected || typeof expected !== 'object' || Array.isArray(expected) ||
         Object.getPrototypeOf(actual) !== Object.prototype ||
-        Object.getPrototypeOf(expected) !== Object.prototype ||
-        Object.prototype.hasOwnProperty.call(expected, 'executionOrder')
+        Object.getPrototypeOf(expected) !== Object.prototype
     ) {
         return false;
     }
-    return isDeepStrictEqual(actual, { ...expected, executionOrder: 'v1' });
+
+    const variants = [expected];
+    if (!Object.hasOwn(expected, 'executionOrder')) {
+        variants.push({ ...expected, executionOrder: 'v1' });
+    }
+    for (const variant of [...variants]) {
+        if (!Object.hasOwn(variant, 'callerPolicy') && !Object.hasOwn(variant, 'availableInMCP')) {
+            variants.push({
+                ...variant,
+                callerPolicy: 'workflowsFromSameOwner',
+                availableInMCP: false
+            });
+        }
+    }
+    return variants.some(variant => isDeepStrictEqual(actual, variant));
 }
 
 function matchesExpectedDeployableContent(workflow, expectedPayload) {
-    if (
+    return !(
         workflow.name !== expectedPayload.name ||
         !isDeepStrictEqual(workflow.nodes, expectedPayload.nodes) ||
         !isDeepStrictEqual(workflow.connections, expectedPayload.connections) ||
         !settingsMatchExpected(workflow.settings, expectedPayload.settings)
-    ) {
-        return false;
-    }
-
-    const targetDescription = workflow.description == null ? null : workflow.description;
-    const expectedDescription = expectedPayload.description == null ? null : expectedPayload.description;
-    return isDeepStrictEqual(targetDescription, expectedDescription);
+    );
 }
 
 function addP4RecoveryMetadata(error, deployments, completedWorkflowIds, failedWorkflowName) {
@@ -715,6 +729,7 @@ function comparableV3Plan(plan, classifications) {
 async function deployV3WorkflowInventory({
     apiUrl,
     apiKey,
+    sttCallbackUrl,
     approvalEvidence,
     p3Artifact,
     targetWorkflowIds,
@@ -724,7 +739,9 @@ async function deployV3WorkflowInventory({
     const targetDataTableIds = assertP4Inputs(approvalEvidence, p3Artifact, targetWorkflowIds);
 
     const files = V3_WORKFLOW_INVENTORY.map(([, relativePath]) => path.resolve(rootDir, relativePath));
-    const workflows = buildRequestedWorkflows(files);
+    const workflows = buildRequestedWorkflows(files).map(workflow => (
+        injectDeploymentValues(workflow, { sttCallbackUrl })
+    ));
     assertUniqueRequestedWorkflowNames(workflows);
     for (let index = 0; index < V3_WORKFLOW_INVENTORY.length; index += 1) {
         if (workflows[index].name !== V3_WORKFLOW_INVENTORY[index][0]) {
@@ -943,8 +960,15 @@ async function putWorkflows(deployments, apiUrl, apiKey, fetchImpl) {
     }
 }
 
-async function deployWorkflows(files, { apiUrl, apiKey, fetchImpl = globalThis.fetch }) {
-    const workflows = buildRequestedWorkflows(files);
+async function deployWorkflows(files, {
+    apiUrl,
+    apiKey,
+    sttCallbackUrl,
+    fetchImpl = globalThis.fetch
+}) {
+    const workflows = buildRequestedWorkflows(files).map(workflow => (
+        injectDeploymentValues(workflow, { sttCallbackUrl })
+    ));
     if (workflows.length === 0) return;
     assertUniqueRequestedWorkflowNames(workflows);
     const sourceWorkflowNames = buildRequestedSourceIdNameMap(workflows);
@@ -954,6 +978,16 @@ async function deployWorkflows(files, { apiUrl, apiKey, fetchImpl = globalThis.f
     const workflowIds = buildWorkflowIdMap(targetWorkflows, requiredNames);
     const targetWorkflowNames = buildWorkflowNameByIdMap(targetWorkflows);
     validateExecuteWorkflowSelectors(workflows, workflowIds, sourceWorkflowNames, targetWorkflowNames);
+    for (const workflow of workflows) {
+        if (
+            workflow.nodes.some(node => node.type === 'n8n-nodes-base.dataTable') &&
+            !targetWorkflows.some(target => target.name === workflow.name)
+        ) {
+            throw new Error(
+                `Cannot selectively deploy Data Table workflow "${workflow.name}" without an existing target`
+            );
+        }
+    }
     await createMissingWorkflows(
         workflows,
         workflowIds,
@@ -964,18 +998,26 @@ async function deployWorkflows(files, { apiUrl, apiKey, fetchImpl = globalThis.f
     );
 
     // Resolve every selector before the first final PUT so callers cannot be partially updated.
-    const deployments = workflows.map(workflow => ({
-        id: workflowIds.get(workflow.name),
-        payload: createWorkflowPayload(
-            workflow,
-            remapExecuteWorkflowNodes(
-                workflow.nodes,
-                workflowIds,
-                sourceWorkflowNames,
-                targetWorkflowNames
-            )
+    const deployments = workflows.map(workflow => {
+        const target = targetWorkflows.find(candidate => candidate.name === workflow.name);
+        const dataTableRemappedNodes = workflow.nodes.some(
+            node => node.type === 'n8n-nodes-base.dataTable'
         )
-    }));
+            ? preserveTargetDataTableIds(workflow.nodes, target?.nodes)
+            : workflow.nodes;
+        return {
+            id: workflowIds.get(workflow.name),
+            payload: createWorkflowPayload(
+                workflow,
+                remapExecuteWorkflowNodes(
+                    dataTableRemappedNodes,
+                    workflowIds,
+                    sourceWorkflowNames,
+                    targetWorkflowNames
+                )
+            )
+        };
+    });
 
     await putWorkflows(deployments, apiUrl, apiKey, fetchImpl);
 }
@@ -996,7 +1038,11 @@ function runCli() {
         return;
     }
 
-    deployWorkflows(files, { apiUrl, apiKey }).catch(err => {
+    deployWorkflows(files, {
+        apiUrl,
+        apiKey,
+        sttCallbackUrl: process.env.STT_CALLBACK_URL
+    }).catch(err => {
         console.error('Deployment failed:', err);
         process.exitCode = 1;
     });
