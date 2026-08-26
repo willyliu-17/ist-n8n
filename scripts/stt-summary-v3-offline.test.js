@@ -122,10 +122,37 @@ test('loads and assembles every workflow from the authoritative inventory', () =
   }
 });
 
+test('uses the approved execution retention values across the v3 inventory', () => {
+  const expected = {
+    saveDataSuccessExecution: 'all',
+    saveDataErrorExecution: 'all',
+    saveManualExecutions: true,
+    saveExecutionProgress: false,
+  };
+  for (const { directory, workflow } of workflowEntries) {
+    const actual = Object.fromEntries(Object.keys(expected).map((key) => [key, workflow.settings?.[key]]));
+    assert.deepEqual(actual, expected, directory);
+  }
+});
+
 test('keeps every source Data Table reference as one authoritative static name placeholder', () => {
   const references = collectDataTableReferences(workflowEntries.map(({ workflow }) => workflow));
   assert.ok(references.length > V3_DATA_TABLE_NAMES.length);
   assert.deepEqual(new Set(references.map(({ tableName }) => tableName)), new Set(V3_DATA_TABLE_NAMES));
+});
+
+test('pins Data Table nodes to the version registered by Production n8n 1.123.27', () => {
+  const nodes = workflowEntries.flatMap(({ workflow }) => workflow.nodes)
+    .filter(({ type }) => type === 'n8n-nodes-base.dataTable');
+  assert.ok(nodes.length > 0);
+  assert.ok(nodes.every(({ typeVersion }) => typeVersion === 1));
+});
+
+test('pins Execute Workflow Trigger nodes to the version registered by Production n8n 1.123.27', () => {
+  const nodes = workflowEntries.flatMap(({ workflow }) => workflow.nodes)
+    .filter(({ type }) => type === 'n8n-nodes-base.executeWorkflowTrigger');
+  assert.ok(nodes.length > 0);
+  assert.ok(nodes.every(({ typeVersion }) => typeVersion === 1.1));
 });
 
 test('resolves every static Execute Workflow selector against the authoritative inventory', () => {
@@ -150,7 +177,7 @@ test('resolves every static Execute Workflow selector against the authoritative 
   }
   assert.deepEqual(
     new Set(V3_EXTERNAL_WORKFLOW_DEPENDENCIES.map(([name]) => name)),
-    new Set(['AI SUMMARY Inference SubWF', 'Debug STT service']),
+    new Set(['AI SUMMARY Inference SubWF', 'Debug STT service', 'IST bot entry']),
   );
 });
 
@@ -168,10 +195,14 @@ test('limits the execution-bound callback exclusion to the exact Tencent invento
   }
 });
 
-test('keeps Slack routing on C0 and callback tokens out of HTTP URLs', () => {
+test('keeps C09 routing isolated to the single Slack ingress and callback tokens out of HTTP URLs', () => {
   for (const { directory, workflow } of workflowEntries) {
     const source = JSON.stringify(workflow);
-    assert.doesNotMatch(source, /C09F0SYG57D/, directory);
+    if (directory === 'workflows/ist_bot_slack_ingress_v3_IstBotSlackIngressV3A1') {
+      assert.match(source, /C09F0SYG57D/, directory);
+    } else {
+      assert.doesNotMatch(source, /C09F0SYG57D/, directory);
+    }
     for (const node of workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.httpRequest')) {
       assert.doesNotMatch(String(node.parameters?.url || ''), /callbackToken|callbackTokenHash/i, `${directory}:${node.name}`);
     }
@@ -183,6 +214,16 @@ test('keeps Slack routing on C0 and callback tokens out of HTTP URLs', () => {
     const source = JSON.stringify(workflowEntries.find(entry => entry.directory === directory).workflow);
     assert.match(source, /C0A4JJJKJMD/, directory);
   }
+});
+
+test('keeps exactly one Slack trigger in the v3 inventory', () => {
+  const owners = workflowEntries.flatMap(({ directory, workflow }) => workflow.nodes
+    .filter(({ type }) => type === 'n8n-nodes-base.slackTrigger')
+    .map(({ name }) => ({ directory, name })));
+  assert.deepEqual(owners, [{
+    directory: 'workflows/ist_bot_slack_ingress_v3_IstBotSlackIngressV3A1',
+    name: 'Slack Trigger',
+  }]);
 });
 
 test('keeps suspect collection inactive and manual-only', () => {

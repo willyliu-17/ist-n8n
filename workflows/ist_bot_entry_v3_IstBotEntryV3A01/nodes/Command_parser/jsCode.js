@@ -37,24 +37,41 @@ function parseCommand(line) {
 }
 
 function parseBotItem(input) {
-  if (!input || typeof input !== 'object' || input.bot_id) return null;
-  if (input.channel !== CHANNEL) throw new Error('Slack event channel is not allowed');
-  if (!SLACK_TIMESTAMP_PATTERN.test(input.ts || '')) throw new Error('Invalid Slack event timestamp');
-  if (!SLACK_TIMESTAMP_PATTERN.test(input.event_ts || '')) throw new Error('Invalid Slack root timestamp');
-  const line = collectTextsFromSlackRich(input)
+  const hasWrappedEvent = input && typeof input === 'object' && Object.hasOwn(input, 'event');
+  if (hasWrappedEvent && (!input.event || typeof input.event !== 'object' || Array.isArray(input.event))) {
+    throw new Error('Slack event must be an object');
+  }
+  const event = hasWrappedEvent ? input.event : input;
+  if (!event || typeof event !== 'object' || event.bot_id) return null;
+  if (event.channel !== CHANNEL) throw new Error('Slack event channel is not allowed');
+  if (!SLACK_TIMESTAMP_PATTERN.test(event.ts || '')) throw new Error('Invalid Slack event timestamp');
+  if (!SLACK_TIMESTAMP_PATTERN.test(event.event_ts || '')) throw new Error('Invalid Slack event timestamp');
+  if (event.thread_ts != null && !SLACK_TIMESTAMP_PATTERN.test(event.thread_ts)) throw new Error('Invalid Slack thread timestamp');
+  const line = collectTextsFromSlackRich(event)
     .flatMap((text) => text.split(/\r?\n/))
     .map((text) => text.trim())
     .find((text) => text.startsWith('!')) || '';
   const parsed = parseCommand(line);
   if (!parsed?.group || !parsed.action) return null;
+  const routeKey = `${parsed.group}:${parsed.action}`;
+  const sttMode = parsed.positionals[1] === 'first'
+    ? 'fromStart'
+    : parsed.positionals[1] === 'last' || !parsed.positionals[1]
+      ? 'fromEnd'
+      : parsed.positionals[1];
   return {
-    client_msg_id: input.client_msg_id,
-    ts: input.ts,
-    event_ts: input.event_ts,
-    routeKey: `${parsed.group}:${parsed.action}`,
+    client_msg_id: event.client_msg_id,
+    ts: event.ts,
+    event_ts: event.event_ts,
+    thread_ts: event.thread_ts ?? event.ts,
+    routeKey,
     ...parsed,
+    ...(routeKey === 'stt:stream' ? {
+      sttMode,
+      sttMins: Number(parsed.positionals[2] ?? 5),
+    } : {}),
     channel: CHANNEL,
-    channel_type: input.channel_type,
+    channel_type: event.channel_type,
   };
 }
 

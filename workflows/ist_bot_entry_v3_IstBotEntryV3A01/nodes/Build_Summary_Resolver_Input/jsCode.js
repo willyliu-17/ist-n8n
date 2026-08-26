@@ -89,7 +89,8 @@ function buildSummaryResolverCalls({ ids, lookupWindow, phase = 'final' }) {
 function normalizeSummaryCommand(input, nowIso) {
   if (input?.routeKey !== 'summary:stream') throw new Error('Expected summary:stream command');
   if (input.channel !== CHANNEL) throw new Error('Summary channel is not allowed');
-  if (!/^\d{10,}\.\d{6}$/.test(input.ts || '')) throw new Error('Summary thread timestamp is invalid');
+  const threadTS = input.thread_ts ?? input.ts;
+  if (!/^\d{10,}\.\d{6}$/.test(threadTS || '')) throw new Error('Summary thread timestamp is invalid');
   if (!Array.isArray(input.positionals) || input.positionals.length !== 2) throw new Error('Summary requires previous and current stream IDs');
   const ids = input.positionals.map((value) => String(value).trim());
   if (ids.some((value) => !STREAM_ID_PATTERN.test(value))) throw new Error('Summary stream IDs must be numeric strings');
@@ -98,7 +99,7 @@ function normalizeSummaryCommand(input, nowIso) {
     requestKey: `bot-summary:${input.ts}:${ids.join(':')}`,
     requestType: 'standalone_summary',
     channel: CHANNEL,
-    threadTS: input.ts,
+    threadTS,
     date: input.args?.date || '',
     lookupWindow,
     previousFallbackWindow: buildPreviousFallbackWindow(lookupWindow),

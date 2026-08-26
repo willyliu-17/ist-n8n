@@ -1,18 +1,17 @@
 {
   "id": "IstBotEntryV3A01",
   "name": "IST bot entry v3",
-  "description": "Inactive C0-only command router. Summary owns metadata discovery and orchestration; standalone STT delegates metadata ownership to Req STT.",
+  "description": "Typed C0-only command router called by the single workspace Slack ingress. Summary owns metadata discovery and orchestration; standalone STT delegates metadata ownership to Req STT.",
   "active": false,
   "isArchived": false,
   "nodes": [
     {
-      "parameters": { "trigger": ["message"], "channelId": { "__rl": true, "value": "C0A4JJJKJMD", "mode": "id" }, "options": {} },
+      "parameters": { "inputSource": "workflowInputs", "workflowInputs": { "values": [{ "name": "event", "type": "object" }] } },
       "id": "13000001-0000-4000-8000-000000000001",
-      "name": "Slack Trigger",
-      "type": "n8n-nodes-base.slackTrigger",
-      "typeVersion": 1,
-      "position": [-720, 0],
-      "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-720, 0]
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Command_parser/jsCode.js" },
@@ -49,17 +48,19 @@
         "workflowId": { "__rl": true, "value": "ReqSTTProcessV3A", "mode": "list", "cachedResultName": "Req STT process v3" },
         "workflowInputs": { "mappingMode": "defineBelow", "value": {
           "streamID": "={{ String($json.positionals[0] || '') }}",
-          "mode": "={{ $json.positionals[1] === 'first' ? 'fromStart' : $json.positionals[1] === 'last' ? 'fromEnd' : $json.positionals[1] }}",
-          "mins": "={{ Number($json.positionals[2]) }}",
+          "mode": "={{ $json.sttMode }}",
+          "mins": "={{ $json.sttMins }}",
           "date": "={{ String($json.args.date || '') }}",
           "channel": "C0A4JJJKJMD",
-          "target_thread_ts": "={{ $json.event_ts }}"
+          "command_ts": "={{ $json.ts }}",
+          "target_thread_ts": "={{ $json.thread_ts }}"
         }, "matchingColumns": [], "schema": [
           { "id": "streamID", "displayName": "streamID", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
           { "id": "mode", "displayName": "mode", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
           { "id": "mins", "displayName": "mins", "type": "number", "required": true, "display": true, "canBeUsedToMatch": true },
           { "id": "date", "displayName": "date", "type": "string", "required": false, "display": true, "canBeUsedToMatch": true },
           { "id": "channel", "displayName": "channel", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "command_ts", "displayName": "command_ts", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
           { "id": "target_thread_ts", "displayName": "target_thread_ts", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true }
         ], "attemptToConvertTypes": false, "convertFieldsToString": false },
         "options": { "waitForSubWorkflow": false }
@@ -74,7 +75,7 @@
       "parameters": {
         "workflowId": { "__rl": true, "value": "QueryLogsV3A0001", "mode": "list", "cachedResultName": "Query Steam Logs v3" },
         "workflowInputs": { "mappingMode": "defineBelow", "value": {
-          "streamID": "={{ String($json.positionals[0] || '') }}", "channel": "C0A4JJJKJMD", "target_thread_ts": "={{ $json.ts }}"
+           "streamID": "={{ String($json.positionals[0] || '') }}", "channel": "C0A4JJJKJMD", "target_thread_ts": "={{ $json.thread_ts }}"
         }, "matchingColumns": [], "schema": [
           { "id": "streamID", "displayName": "streamID", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
           { "id": "channel", "displayName": "channel", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
@@ -227,7 +228,7 @@
       "parameters": {
         "workflowId": { "__rl": true, "value": "TencentVDSV3A001", "mode": "list", "cachedResultName": "Tencent realtime VDS v3" },
         "workflowInputs": { "mappingMode": "defineBelow", "value": {
-          "streamID": "={{ String($json.positionals[0] || '') }}", "channel": "C0A4JJJKJMD", "target_thread_ts": "={{ $json.ts }}",
+          "streamID": "={{ String($json.positionals[0] || '') }}", "channel": "C0A4JJJKJMD", "target_thread_ts": "={{ $json.thread_ts }}",
           "playbacks": "={{ String($json.positionals[1] || '').split('|')[0].replace(/[<>]/g, '').split(',').map(url => url.trim()).filter(Boolean) }}",
           "startSec": "={{ Number($json.positionals[2] || 0) }}", "durationSec": "={{ Number($json.positionals[3] || 0) }}"
         }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
@@ -241,7 +242,7 @@
     }
   ],
   "connections": {
-    "Slack Trigger": { "main": [[{ "node": "Command Parser", "type": "main", "index": 0 }]] },
+    "Start": { "main": [[{ "node": "Command Parser", "type": "main", "index": 0 }]] },
     "Command Parser": { "main": [[{ "node": "Command Switch", "type": "main", "index": 0 }]] },
     "Command Switch": { "main": [
       [{ "node": "Call Debug STT Service", "type": "main", "index": 0 }],
@@ -264,7 +265,7 @@
     "Send Summary Processing Message": { "main": [[{ "node": "Build Summary Orchestrator Request", "type": "main", "index": 0 }]] },
     "Build Summary Orchestrator Request": { "main": [[{ "node": "Call Summary Orchestrator", "type": "main", "index": 0 }]] }
   },
-  "settings": { "executionOrder": "v1", "saveDataSuccessExecution": "none", "saveDataErrorExecution": "none", "saveManualExecutions": false, "saveExecutionProgress": false },
+  "settings": { "executionOrder": "v1", "callerPolicy": "workflowsFromSameOwner", "saveDataSuccessExecution": "all", "saveDataErrorExecution": "all", "saveManualExecutions": true, "saveExecutionProgress": false },
   "staticData": null,
   "meta": { "templateCredsSetupCompleted": true },
   "tags": []

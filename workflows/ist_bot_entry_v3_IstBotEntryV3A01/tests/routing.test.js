@@ -54,15 +54,65 @@ function context(liveStreamID, inputIndex, overrides = {}) {
 }
 
 test('parses summary and STT aliases at the caller boundary', () => {
-  const summary = parseBotItem({ channel: CHANNEL, ts: THREAD_TS, event_ts: THREAD_TS, text: '!summary stream 9001 9002 date=2025-01-02' });
+  const messageTS = '1787364000.000002';
+  const summary = parseBotItem({ event: {
+    channel: CHANNEL,
+    ts: messageTS,
+    event_ts: messageTS,
+    thread_ts: THREAD_TS,
+    text: '!summary stream 9001 9002 date=2025-01-02',
+  } });
   assert.equal(summary.routeKey, 'summary:stream');
   assert.equal(summary.args.date, '2025-01-02');
+  assert.equal(summary.thread_ts, THREAD_TS);
   const normalized = normalizeSummaryCommand(summary, '2026-08-22T04:00:00+08:00');
   assert.deepEqual(normalized.positions.map(({ role, mode }) => ({ role, mode })), [
     { role: 'previous', mode: 'fromEnd' },
     { role: 'current', mode: 'fromStart' },
   ]);
   assert.equal(normalized.channel, CHANNEL);
+  assert.equal(normalized.threadTS, THREAD_TS);
+  assert.match(normalized.requestKey, new RegExp(messageTS.replace('.', '\\.')));
+
+  const stt = parseBotItem({ event: {
+    channel: CHANNEL,
+    ts: messageTS,
+    event_ts: messageTS,
+    text: '!stt stream 215215725',
+  } });
+  assert.equal(stt.routeKey, 'stt:stream');
+  assert.equal(stt.sttMode, 'fromEnd');
+  assert.equal(stt.sttMins, 5);
+  assert.equal(stt.thread_ts, messageTS);
+
+  const threadedStt = parseBotItem({ event: {
+    channel: CHANNEL,
+    ts: '1787364001.000003',
+    event_ts: '1787364001.000003',
+    thread_ts: THREAD_TS,
+    text: '!stt stream 215215725',
+  } });
+  assert.equal(threadedStt.ts, '1787364001.000003');
+  assert.equal(threadedStt.thread_ts, THREAD_TS);
+
+  const explicit = parseBotItem({ event: {
+    channel: CHANNEL,
+    ts: messageTS,
+    event_ts: messageTS,
+    text: '!stt stream 215215725 first 3',
+  } });
+  assert.equal(explicit.sttMode, 'fromStart');
+  assert.equal(explicit.sttMins, 3);
+});
+
+test('rejects malformed typed events and bot messages', () => {
+  assert.throws(() => parseBotItem({ event: [] }), /event must be an object/);
+  assert.throws(() => parseBotItem({ event: {
+    channel: 'C09F0SYG57D', ts: THREAD_TS, event_ts: THREAD_TS, text: '!stt ping',
+  } }), /channel is not allowed/);
+  assert.equal(parseBotItem({ event: {
+    channel: CHANNEL, ts: THREAD_TS, event_ts: THREAD_TS, text: '!stt ping', bot_id: 'B01',
+  } }), null);
 });
 
 test('builds exact default and explicit lookup windows', () => {
@@ -178,6 +228,15 @@ test('extends a default 30-day final window within resolver limits', () => {
 test('routes summary through STT resolver and orchestrator while STT remains resolver-free', () => {
   const workflow = readWorkflow();
   assert.equal(workflow.active, false);
+  assert.deepEqual(Object.fromEntries(['saveDataSuccessExecution', 'saveDataErrorExecution', 'saveManualExecutions', 'saveExecutionProgress'].map((key) => [key, workflow.settings[key]])), {
+    saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false,
+  });
+  const starts = workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.executeWorkflowTrigger');
+  assert.equal(starts.length, 1);
+  assert.equal(starts[0].typeVersion, 1.1);
+  assert.deepEqual(starts[0].parameters.workflowInputs.values, [{ name: 'event', type: 'object' }]);
+  assert.equal(workflow.nodes.some(({ type }) => type === 'n8n-nodes-base.slackTrigger'), false);
+  assert.deepEqual(workflow.connections.Start.main, [[{ node: 'Command Parser', type: 'main', index: 0 }]]);
   assert.equal(nodeByName(workflow, 'Command Parser').parameters.mode, 'runOnceForAllItems');
   assert.equal(nodeByName(workflow, 'Resolve Summary Discovery').parameters.workflowId.value, 'StreamMetaV3A001');
   assert.equal(nodeByName(workflow, 'Resolve Summary Previous Fallback').parameters.workflowId.value, 'StreamMetaV3A001');
@@ -186,10 +245,18 @@ test('routes summary through STT resolver and orchestrator while STT remains res
 
   const stt = nodeByName(workflow, 'Call Req. STT process');
   assert.deepEqual(Object.keys(stt.parameters.workflowInputs.value).sort(), [
-    'channel', 'date', 'mins', 'mode', 'streamID', 'target_thread_ts',
+    'channel', 'command_ts', 'date', 'mins', 'mode', 'streamID', 'target_thread_ts',
   ]);
   assert.equal(stt.parameters.workflowInputs.schema.find(({ id }) => id === 'mins').type, 'number');
   assert.equal(stt.parameters.workflowInputs.convertFieldsToString, false);
+  assert.equal(stt.parameters.workflowInputs.value.mode, '={{ $json.sttMode }}');
+  assert.equal(stt.parameters.workflowInputs.value.mins, '={{ $json.sttMins }}');
+  assert.equal(stt.parameters.workflowInputs.value.command_ts, '={{ $json.ts }}');
+  assert.equal(stt.parameters.workflowInputs.value.target_thread_ts, '={{ $json.thread_ts }}');
+  assert.equal(stt.parameters.workflowInputs.schema.find(({ id }) => id === 'command_ts').type, 'string');
+  assert.equal(stt.parameters.workflowInputs.schema.find(({ id }) => id === 'command_ts').required, true);
+  assert.equal(nodeByName(workflow, 'Call Query Stream Logs').parameters.workflowInputs.value.target_thread_ts, '={{ $json.thread_ts }}');
+  assert.equal(nodeByName(workflow, 'Call Tencent Realtime VDS').parameters.workflowInputs.value.target_thread_ts, '={{ $json.thread_ts }}');
 
   const serialized = JSON.stringify(workflow);
   assert.doesNotMatch(serialized, /AISummaryV3A0001|sOSbXSfXFcMLeIfr|channelID|C09F0SYG57D/);

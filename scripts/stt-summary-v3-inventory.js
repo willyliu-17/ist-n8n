@@ -13,7 +13,8 @@ const V3_WORKFLOW_INVENTORY = Object.freeze([
     ['Query Steam Logs v3', 'workflows/query_steam_logs_v3_QueryLogsV3A0001'],
     ['Tencent realtime VDS v3', 'workflows/tencent_realtime_vds_v3_TencentVDSV3A001'],
     ['Collect suspect streamID v3', 'workflows/collect_suspect_streamid_v3_CollectSuspectV3'],
-    ['IST bot entry v3', 'workflows/ist_bot_entry_v3_IstBotEntryV3A01']
+    ['IST bot entry v3', 'workflows/ist_bot_entry_v3_IstBotEntryV3A01'],
+    ['IST bot Slack ingress v3', 'workflows/ist_bot_slack_ingress_v3_IstBotSlackIngressV3A1']
 ].map(tuple => Object.freeze(tuple)));
 
 const V3_DATA_TABLE_NAMES = Object.freeze([
@@ -28,7 +29,8 @@ const V3_TENCENT_CALLBACK_EXCLUSION =
 
 const V3_EXTERNAL_WORKFLOW_DEPENDENCIES = Object.freeze([
     Object.freeze(['AI SUMMARY Inference SubWF', 'm8VcIoclFE2lVKrl']),
-    Object.freeze(['Debug STT service', 'sPQaAHyeLVGdi7oA'])
+    Object.freeze(['Debug STT service', 'sPQaAHyeLVGdi7oA']),
+    Object.freeze(['IST bot entry', 'd1Wg25BLsuGR6mAB'])
 ]);
 
 const V3_OFFLINE_TEST_FILES = Object.freeze([
@@ -46,7 +48,9 @@ const V3_OFFLINE_TEST_FILES = Object.freeze([
     'workflows/automation_retry_and_repair_v3_AutoRepairV3A001/tests/repair.test.js',
     'workflows/ai_summary_v3_AISummaryV3A0001/tests/summary.test.js',
     'workflows/collect_suspect_streamid_v3_CollectSuspectV3/tests/routing.test.js',
-    'workflows/ist_bot_entry_v3_IstBotEntryV3A01/tests/routing.test.js'
+    'workflows/ist_bot_entry_v3_IstBotEntryV3A01/tests/routing.test.js',
+    'workflows/ist_bot_entry_d1Wg25BLsuGR6mAB/tests/routing.test.js',
+    'workflows/ist_bot_slack_ingress_v3_IstBotSlackIngressV3A1/tests/routing.test.js'
 ]);
 
 module.exports = {

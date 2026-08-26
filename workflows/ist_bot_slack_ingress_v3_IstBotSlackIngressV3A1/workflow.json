@@ -1,0 +1,130 @@
+{
+  "id": "IstBotSlackIngressV3A1",
+  "name": "IST bot Slack ingress v3",
+  "description": "Single workspace Slack event ingress. Routes only the legacy C09 and v3 C0 channels to typed command sub-workflows.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "trigger": ["message"],
+        "watchWorkspace": true,
+        "options": {}
+      },
+      "id": "14000001-0000-4000-8000-000000000001",
+      "name": "Slack Trigger",
+      "type": "n8n-nodes-base.slackTrigger",
+      "typeVersion": 1,
+      "position": [-480, 0],
+      "webhookId": "a7b7705c-7c77-4bf7-a148-819fbb21ca6a",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+                "conditions": [
+                  {
+                    "id": "14000002-0000-4000-8000-000000000001",
+                    "leftValue": "={{ $json.channel }}",
+                    "rightValue": "C09F0SYG57D",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+                "conditions": [
+                  {
+                    "id": "14000002-0000-4000-8000-000000000002",
+                    "leftValue": "={{ $json.channel }}",
+                    "rightValue": "C0A4JJJKJMD",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "none" }
+      },
+      "id": "14000002-0000-4000-8000-000000000002",
+      "name": "Route Supported Channel",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [-240, 0]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "d1Wg25BLsuGR6mAB", "mode": "list", "cachedResultName": "IST bot entry" },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": { "event": "={{ $json }}" },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "event", "displayName": "event", "type": "object", "required": true, "display": true, "canBeUsedToMatch": true }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": { "waitForSubWorkflow": false }
+      },
+      "id": "14000003-0000-4000-8000-000000000003",
+      "name": "Call Legacy Entry",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [0, -80]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "IstBotEntryV3A01", "mode": "list", "cachedResultName": "IST bot entry v3" },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": { "event": "={{ $json }}" },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "event", "displayName": "event", "type": "object", "required": true, "display": true, "canBeUsedToMatch": true }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": { "waitForSubWorkflow": false }
+      },
+      "id": "14000004-0000-4000-8000-000000000004",
+      "name": "Call V3 Entry",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [0, 80]
+    }
+  ],
+  "connections": {
+    "Slack Trigger": { "main": [[{ "node": "Route Supported Channel", "type": "main", "index": 0 }]] },
+    "Route Supported Channel": { "main": [
+      [{ "node": "Call Legacy Entry", "type": "main", "index": 0 }],
+      [{ "node": "Call V3 Entry", "type": "main", "index": 0 }]
+    ] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  },
+  "staticData": null,
+  "meta": { "templateCredsSetupCompleted": true },
+  "tags": []
+}
