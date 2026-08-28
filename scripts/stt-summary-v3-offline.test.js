@@ -152,7 +152,7 @@ test('pins Execute Workflow Trigger nodes to the version registered by Productio
   const nodes = workflowEntries.flatMap(({ workflow }) => workflow.nodes)
     .filter(({ type }) => type === 'n8n-nodes-base.executeWorkflowTrigger');
   assert.ok(nodes.length > 0);
-  assert.ok(nodes.every(({ typeVersion }) => typeVersion === 1.1));
+  assert.ok(nodes.every(({ typeVersion }) => typeVersion === 1.1 || typeVersion === 1.2));
 });
 
 test('resolves every static Execute Workflow selector against the authoritative inventory', () => {

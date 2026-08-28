@@ -201,6 +201,53 @@ test('preserveTargetDataTableIds fails closed without one matching target ID', (
     assert.throws(() => preserveTargetDataTableIds(source, []), /no unique target ID locator/);
 });
 
+test('preserveTargetDataTableIds maps a new node from a proven same-table target ID', () => {
+    const source = [
+        {
+            id: 'existing-node',
+            name: 'Read Jobs',
+            type: 'n8n-nodes-base.dataTable',
+            parameters: { dataTableId: { __rl: true, mode: 'name', value: 'stt_jobs_v3' } }
+        },
+        {
+            id: 'new-node',
+            name: 'Canonicalize Jobs',
+            type: 'n8n-nodes-base.dataTable',
+            parameters: { dataTableId: { __rl: true, mode: 'name', value: 'stt_jobs_v3' } }
+        }
+    ];
+    const target = [{
+        id: 'existing-node',
+        name: 'Read Jobs',
+        type: 'n8n-nodes-base.dataTable',
+        parameters: { dataTableId: { __rl: true, mode: 'id', value: 'target-table-id' } }
+    }];
+
+    const remapped = preserveTargetDataTableIds(source, target);
+    assert.deepEqual(remapped.map(node => node.parameters.dataTableId), [
+        { __rl: true, mode: 'id', value: 'target-table-id' },
+        { __rl: true, mode: 'id', value: 'target-table-id' }
+    ]);
+});
+
+test('preserveTargetDataTableIds rejects conflicting proven IDs for one table', () => {
+    const source = ['first', 'second'].map(id => ({
+        id,
+        name: id,
+        type: 'n8n-nodes-base.dataTable',
+        parameters: { dataTableId: { __rl: true, mode: 'name', value: 'stt_jobs_v3' } }
+    }));
+    const target = source.map((node, index) => ({
+        ...node,
+        parameters: { dataTableId: { __rl: true, mode: 'id', value: `target-table-${index}` } }
+    }));
+
+    assert.throws(
+        () => preserveTargetDataTableIds(source, target),
+        /maps to multiple target IDs/
+    );
+});
+
 test('deployWorkflows rejects a missing STT callback URL before network access', async t => {
     const dir = createTempDir(t);
     const workflowPath = path.join(dir, 'dispatcher.json');
@@ -962,6 +1009,7 @@ test('exports the exact authoritative v3 workflow inventory in deployment order'
         ['Summary: orchestrate request v3', 'workflows/summary_orchestrate_request_v3_SummaryOrchV3A01'],
         ['AI SUMMARY v3', 'workflows/ai_summary_v3_AISummaryV3A0001'],
         ['Summary: coordinator v3', 'workflows/summary_coordinator_v3_SummaryCoordV3A1'],
+        ['Repair: process candidate v3', 'workflows/repair_process_candidate_v3_RepairCandidateV3A1'],
         ['Automation: retry and repair v3', 'workflows/automation_retry_and_repair_v3_AutoRepairV3A001'],
         ['Automation: error handler v3', 'workflows/automation_error_handler_v3_AutomationErrorV3A1'],
         ['Query Steam Logs v3', 'workflows/query_steam_logs_v3_QueryLogsV3A0001'],

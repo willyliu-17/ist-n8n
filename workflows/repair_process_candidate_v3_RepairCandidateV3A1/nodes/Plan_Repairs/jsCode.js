@@ -2026,14 +2026,21 @@ if (typeof $input !== 'undefined') {
     return [...result.plans, ...result.capErrors].map((json) => ({ json }));
   }
   if (mode === 'retry_claim') {
+    const candidates = allItems.filter((row) => row?.kind === 'candidate' && row.repairClass === 'retry_materialization');
+    if (candidates.length !== 1) throw new Error('Retry claim requires exactly one candidate carrier');
+    const candidate = candidates[0];
     const rows = dedupeSystemRows(allItems.filter((row) => row?.id && row.attemptKey));
     const owner = allItems.find((row) => row.leaseOwner)?.leaseOwner || (typeof $execution !== 'undefined' ? $execution.id : 'repair');
     return [...groupRepairContexts(rows, 'attempt').entries()].flatMap(([groupKey, group]) => {
       const canonical = group.filter((row) => row.reconciliationStatus === 'canonical' && row.canonicalRowID === String(row.id));
       if (canonical.length !== 1) throw new Error(`Retry claim requires exactly one canonical attempt for ${groupKey}`);
-      const requests = dedupeSystemRows(allItems.filter((row) => row?.id && !row.attemptKey && row.requestKey === canonical[0].requestKey));
-      const plan = planRetryMaterializationClaim(canonical[0], canonical[0].nowIso || new Date().toISOString(), owner, canonicalRequest(requests, canonical[0].requestKey));
-      return plan.action === 'claim' ? [{ json: { ...plan, oldAttempt: canonical[0], __repairGroupKey: groupKey, __planCarrier: true, __planPhase: 'retry-claim', repairMode: 'retry_verify_claim' } }] : [];
+      if (canonical[0].attemptKey !== candidate.attemptKey) throw new Error('Retry claim candidate does not match the canonical attempt');
+      const oldAttempt = { ...canonical[0], nowIso: candidate.nowIso };
+      const requests = dedupeSystemRows(allItems.filter((row) => row?.id && !row.attemptKey && row.requestKey === oldAttempt.requestKey));
+      const plan = planRetryMaterializationClaim(oldAttempt, candidate.nowIso, owner, canonicalRequest(requests, oldAttempt.requestKey));
+      return plan.action === 'claim'
+        ? [{ json: { ...plan, oldAttempt, nowIso: candidate.nowIso, __repairGroupKey: groupKey, __planCarrier: true, __planPhase: 'retry-claim', repairMode: 'retry_verify_claim' } }]
+        : [{ json: { ...plan, candidateKey: candidate.attemptKey } }];
     });
   }
   if (mode === 'retry_verify_claim') {
@@ -2124,13 +2131,19 @@ if (typeof $input !== 'undefined') {
     });
   }
   if (mode === 'presentation_plan') {
+    const candidates = allItems.filter((row) => row?.kind === 'candidate' && row.repairClass === 'presentation_lease');
+    if (candidates.length !== 1) throw new Error('Presentation repair requires exactly one candidate carrier');
+    const candidate = candidates[0];
     const attempts = dedupeSystemRows(allItems.filter((row) => row?.id && row.attemptKey));
     return [...groupRepairContexts(attempts, 'attempt').entries()].flatMap(([groupKey, attemptRows]) => {
       const summaryRows = dedupeSystemRows(allItems.filter((row) => row?.id && !row.attemptKey && row.requestKey === attemptRows[0].requestKey));
       const attReconcile = planSameKeyReconciliation(attemptRows, 'attempt', summaryRows);
       if (attReconcile.action !== 'ready' || !attReconcile.canonical || attReconcile.canonical.status !== 'completed') return [];
-      const plan = planPresentationRepair(attReconcile.canonical, attReconcile.canonical.nowIso || new Date().toISOString());
-      return plan.action === 'claim' ? [{ json: { ...plan, __repairGroupKey: groupKey, __planCarrier: true, __planPhase: 'presentation-claim', repairMode: 'presentation_verify' } }] : [];
+      if (attReconcile.canonical.attemptKey !== candidate.attemptKey) throw new Error('Presentation candidate does not match the canonical attempt');
+      const plan = planPresentationRepair(attReconcile.canonical, candidate.nowIso);
+      return plan.action === 'claim'
+        ? [{ json: { ...plan, nowIso: candidate.nowIso, __repairGroupKey: groupKey, __planCarrier: true, __planPhase: 'presentation-claim', repairMode: 'presentation_verify' } }]
+        : [{ json: { action: 'noop', repairClass: 'presentation_lease', candidateKey: candidate.attemptKey, __repairGroupKey: groupKey } }];
     });
   }
   if (mode === 'presentation_verify') {

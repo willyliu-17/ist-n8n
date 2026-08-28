@@ -4,12 +4,15 @@ const path = require('node:path');
 const test = require('node:test');
 
 const workflowDir = path.resolve(__dirname, '..');
+const processorDir = path.resolve(__dirname, '../../repair_process_candidate_v3_RepairCandidateV3A1');
 const schema = require('../../automation_provision_state_v3_AutomationProvV3A1/nodes/State_Schema/schema.json');
 const workflow = JSON.parse(fs.readFileSync(path.join(workflowDir, 'workflow.json'), 'utf8'));
+const processor = JSON.parse(fs.readFileSync(path.join(processorDir, 'workflow.json'), 'utf8'));
 const {
   ATTEMPT_CHECKPOINT_FIELDS,
   ATTEMPT_FIELDS,
   ATTEMPT_IMMUTABLE_FIELDS,
+  MAX_AUTOMATIC_ATTEMPTS,
   REPAIR_CLASS_CAP,
   REPAIR_CLASS_ORDER,
   REQUEST_FIELDS,
@@ -18,11 +21,15 @@ const {
   RESOLUTION_EPOCH_ISO,
   SCHEMA_KEYS,
   SUMMARY_CHECKPOINT_FIELDS,
+  STT_RETRY_DEADLINE_MINUTES,
+  STT_RETRY_SLOT_MINUTES,
   addMinutes,
   aggregateLogicalJobs,
   buildNextAttempt,
   classifyAttemptFailure,
   compareRows,
+  dedupeSystemRows,
+  groupRepairContexts,
   hasCheckpoint,
   immutableAttemptMatches,
   isAutomaticCandidate,
@@ -39,7 +46,7 @@ const {
   planCapErrorRows,
   planPendingCapErrorCanonical,
   planRepairCapError,
-  planCallbackDeadline,
+  planCallbackDeadline: planCallbackDeadlinePolicy,
   planCreationRepair,
   planExpiredDispatchLease,
   planManualRetryOldTransition,
@@ -51,13 +58,16 @@ const {
   planRepairScan,
   planRequestResolution,
   planRetry,
-  planRetryMaterializationClaim,
+  planRetryMaterializationClaim: planRetryMaterializationClaimPolicy,
   planRequestReconciliation,
   planSameKeyReconciliation,
   planSummaryFailurePatch,
   planSummaryLease,
+  repairGroupKey,
   runRequestResolution,
   strictIso,
+  sttRetryDelayMs,
+  sttRetryTiming,
   validateAttemptRow,
   validatePrimitive,
   validateRequestRow,
@@ -179,7 +189,7 @@ function request(overrides = {}) {
     missingRolesJson: '[]',
     failedLogicalJobKeysJson: '[]',
     leaseOwner: 'owner-1',
-    leaseUntilIso: '2026-08-24T00:05:00.000Z',
+    leaseUntilIso: '2026-08-25T00:00:00.000Z',
     summaryAttempt: 0,
     nextRetryAtIso: '',
     errorCode: '',
@@ -202,6 +212,14 @@ function request(overrides = {}) {
     ? referenceID(overrides.canonicalRowID)
     : String(base.id);
   return base;
+}
+
+function planCallbackDeadline(row, nowIso = NOW, requestRow = request()) {
+  return planCallbackDeadlinePolicy(row, nowIso, requestRow);
+}
+
+function planRetryMaterializationClaim(row, nowIso = NOW, owner = 'repair', requestRow = request()) {
+  return planRetryMaterializationClaimPolicy(row, nowIso, owner, requestRow);
 }
 
 function manual(id, stage = 'ready', checkpoint = '') {
@@ -281,24 +299,33 @@ test('explicit 4xx except 429 maps to terminal failed on any attempt', () => {
   }
 });
 
-test('429 and known retryable 5xx follow 1m/5m/terminal attempt table', () => {
+test('repair acceptance uses the next absolute retry slot as callback deadline', () => {
+  const result = classifyAttemptFailure({ statusCode: 202 }, 1, NOW);
+  assert.equal(result.status, 'waiting_callback');
+  assert.equal(result.submittedAtIso, NOW);
+  assert.equal(result.callbackDeadlineAtIso, '2026-08-24T00:01:00.000Z');
+});
+
+test('429 and known retryable 5xx follow all 19 absolute slots then terminate at attempt 20', () => {
+  assert.equal(MAX_AUTOMATIC_ATTEMPTS, 20);
+  assert.equal(STT_RETRY_DEADLINE_MINUTES, 720);
+  assert.deepEqual(STT_RETRY_SLOT_MINUTES, [1, 2, 4, 6, 9, 13, 18, 25, 35, 48, 65, 88, 118, 158, 211, 281, 374, 497, 660]);
   for (const statusCode of [429, 500, 502, 503, 504]) {
-    const one = classifyAttemptFailure({ statusCode }, 1, NOW);
-    assert.equal(one.status, 'retry_pending');
-    assert.equal(one.nextRetryAtIso, '2026-08-24T00:01:00.000Z');
-    assert.equal(one.errorCode, `vds_http_${statusCode}`);
-    const two = classifyAttemptFailure({ statusCode }, 2, NOW);
-    assert.equal(two.status, 'retry_pending');
-    assert.equal(two.nextRetryAtIso, '2026-08-24T00:05:00.000Z');
-    const three = classifyAttemptFailure({ statusCode }, 3, NOW);
-    assert.equal(three.status, 'failed');
-    assert.equal(three.nextRetryAtIso, '');
-    assert.equal(three.classification, 'retry_exhausted');
+    STT_RETRY_SLOT_MINUTES.forEach((minutes, index) => {
+      const result = classifyAttemptFailure({ statusCode }, index + 1, NOW);
+      assert.equal(result.status, 'retry_pending');
+      assert.equal(result.nextRetryAtIso, addMinutes(NOW, minutes));
+      assert.equal(result.errorCode, `vds_http_${statusCode}`);
+    });
+    const terminal = classifyAttemptFailure({ statusCode }, 20, NOW);
+    assert.equal(terminal.status, 'failed');
+    assert.equal(terminal.nextRetryAtIso, '');
+    assert.equal(terminal.classification, 'retry_exhausted');
   }
 });
 
 test('uncertain transport outcome routes to manual review with no automatic retry', () => {
-  for (const attemptNumber of [1, 2, 3]) {
+  for (const attemptNumber of [1, 20, 21]) {
     for (const outcome of [{ transportError: true }, { outcomeUncertain: true }, {}]) {
       const result = classifyAttemptFailure(outcome, attemptNumber, NOW);
       assert.deepEqual(result, {
@@ -313,30 +340,30 @@ test('uncertain transport outcome routes to manual review with no automatic retr
   }
 });
 
-test('empty callback and retryable service error follow the 1m/5m/failed table', () => {
+test('empty callback and retryable service error follow the absolute slot table', () => {
   for (const outcome of [{ callbackEmpty: true }, { retryableServiceError: true }]) {
-    const one = classifyAttemptFailure(outcome, 1, NOW);
-    assert.equal(one.status, 'retry_pending');
-    assert.equal(one.nextRetryAtIso, '2026-08-24T00:01:00.000Z');
-    const two = classifyAttemptFailure(outcome, 2, NOW);
-    assert.equal(two.nextRetryAtIso, '2026-08-24T00:05:00.000Z');
-    const three = classifyAttemptFailure(outcome, 3, NOW);
-    assert.equal(three.status, 'failed');
-    assert.equal(three.nextRetryAtIso, '');
+    STT_RETRY_SLOT_MINUTES.forEach((minutes, index) => {
+      const result = classifyAttemptFailure(outcome, index + 1, NOW);
+      assert.equal(result.status, 'retry_pending');
+      assert.equal(result.nextRetryAtIso, addMinutes(NOW, minutes));
+    });
+    const terminal = classifyAttemptFailure(outcome, 20, NOW);
+    assert.equal(terminal.status, 'failed');
+    assert.equal(terminal.nextRetryAtIso, '');
   }
   assert.equal(classifyAttemptFailure({ callbackEmpty: true }, 1, NOW).errorCode, 'callback_empty_transcription');
   assert.equal(classifyAttemptFailure({ retryableServiceError: true }, 1, NOW).errorCode, 'callback_retryable_service_error');
 });
 
-test('callback deadline maps to retry_pending then timed_out terminal on attempt 3', () => {
-  const one = classifyAttemptFailure({ deadlineExceeded: true }, 1, NOW);
-  assert.equal(one.status, 'retry_pending');
-  assert.equal(one.nextRetryAtIso, '2026-08-24T00:01:00.000Z');
-  assert.equal(one.errorCode, 'callback_deadline_exceeded');
-  const two = classifyAttemptFailure({ deadlineExceeded: true }, 2, NOW);
-  assert.equal(two.nextRetryAtIso, '2026-08-24T00:05:00.000Z');
-  const three = classifyAttemptFailure({ deadlineExceeded: true }, 3, NOW);
-  assert.deepEqual(three, {
+test('callback deadline maps to retry_pending then timed_out terminal on attempt 20', () => {
+  STT_RETRY_SLOT_MINUTES.forEach((minutes, index) => {
+    const result = classifyAttemptFailure({ deadlineExceeded: true }, index + 1, NOW);
+    assert.equal(result.status, 'retry_pending');
+    assert.equal(result.nextRetryAtIso, addMinutes(NOW, minutes));
+    assert.equal(result.errorCode, 'callback_deadline_exceeded');
+  });
+  const terminal = classifyAttemptFailure({ deadlineExceeded: true }, 20, NOW);
+  assert.deepEqual(terminal, {
     classification: 'callback_deadline_exhausted',
     status: 'timed_out',
     errorCode: 'callback_deadline_exceeded',
@@ -350,7 +377,7 @@ test('unclassified 5xx never auto-resends and invalid attempt numbers fail close
   assert.equal(result.manualReviewReason, 'vds_http_unclassified_server_response');
   assert.equal(result.nextRetryAtIso, '');
   assert.throws(() => classifyAttemptFailure({ statusCode: 429 }, 0, NOW), /Invalid attempt number/);
-  assert.throws(() => classifyAttemptFailure({ statusCode: 429 }, 4, NOW), /Invalid attempt number/);
+  assert.equal(classifyAttemptFailure({ statusCode: 429 }, 21, NOW).status, 'failed');
   assert.throws(() => classifyAttemptFailure({ statusCode: 429 }, 1, 'bad-iso'), /Invalid current time/);
 });
 
@@ -422,7 +449,7 @@ test('summary failure patch atomically increments 1/2/3 with exact owner snapsho
   assert.throws(() => planSummaryFailurePatch(request({ summaryAttempt: 3 }), NOW), /Invalid summary attempt/);
 });
 
-test('planRetry materializes attempt+1 with deterministic key and 1m/5m delays', () => {
+test('planRetry materializes through attempt 20 with deterministic keys and slot deltas', () => {
   assert.deepEqual(planRetry(attempt({ attempt: 1, status: 'retry_pending' })), {
     claimStatus: 'retry_materializing',
     nextAttempt: 2,
@@ -433,19 +460,21 @@ test('planRetry materializes attempt+1 with deterministic key and 1m/5m delays',
     claimStatus: 'retry_materializing',
     nextAttempt: 3,
     nextAttemptKey: `${LOGICAL}:3`,
-    nextRetryDelayMs: 300_000,
+    nextRetryDelayMs: 60_000,
   });
-  assert.throws(() => planRetry(attempt({ attempt: 3, status: 'retry_pending' })), /terminal/);
+  assert.equal(planRetry(attempt({ attempt: 19, status: 'retry_pending' })).nextAttempt, 20);
+  assert.equal(planRetry(attempt({ attempt: 19, status: 'retry_pending' })).nextRetryDelayMs, 163 * 60_000);
+  assert.throws(() => planRetry(attempt({ attempt: 20, status: 'retry_pending' })), /terminal/);
 });
 
-test('retry claim soft-CASes due retry_pending into a five-minute retry lease', () => {
+test('retry claim soft-CASes due retry_pending into a twenty-four-hour retry lease', () => {
   const old = attempt({ attempt: 1, status: 'retry_pending', nextRetryAtIso: NOW });
   const claim = planRetryMaterializationClaim(old, NOW, 'exec-repair');
   assert.equal(claim.action, 'claim');
   assert.equal(claim.claimStatus, 'retry_materializing');
   assert.equal(claim.nextAttempt, 2);
   assert.equal(claim.nextAttemptKey, `${LOGICAL}:2`);
-  assert.equal(claim.retryLeaseUntilIso, '2026-08-24T00:05:00.000Z');
+  assert.equal(claim.retryLeaseUntilIso, '2026-08-25T00:00:00.000Z');
   assert.deepEqual(claim.filters, {
     id: old.id,
     attemptKey: old.attemptKey,
@@ -459,7 +488,7 @@ test('retry claim soft-CASes due retry_pending into a five-minute retry lease', 
   assert.deepEqual(claim.desired, {
     status: 'retry_materializing',
     retryLeaseOwner: 'exec-repair',
-    retryLeaseUntilIso: '2026-08-24T00:05:00.000Z',
+    retryLeaseUntilIso: '2026-08-25T00:00:00.000Z',
   });
   assert.equal(planRetryMaterializationClaim(attempt({ nextRetryAtIso: LATER }), NOW, 'x').action, 'noop');
 });
@@ -494,12 +523,30 @@ test('expired retry lease is reclaimed with the same deterministic key', () => {
   });
   assert.equal(planRetryMaterializationClaim(active, NOW, 'repair-2').action, 'noop');
   assert.equal(planRetryMaterializationClaim(active, NOW, 'repair-2').reason, 'retry_lease_active');
-  assert.throws(() => planRetryMaterializationClaim(attempt({ attempt: 3 }), NOW, 'x'), /terminal/);
+  assert.throws(() => planRetryMaterializationClaim(attempt({ attempt: 20 }), NOW, 'x'), /terminal/);
+});
+
+test('retry materialization terminalizes instead of claiming at the absolute deadline', () => {
+  const deadline = addMinutes(NOW, STT_RETRY_DEADLINE_MINUTES);
+  const plan = planRetryMaterializationClaim(
+    attempt({ attempt: 19, status: 'retry_pending', nextRetryAtIso: addMinutes(NOW, 660) }),
+    deadline,
+    'repair',
+  );
+  assert.equal(plan.action, 'deadline_exhausted');
+  assert.deepEqual(plan.desired, {
+    status: 'timed_out',
+    errorCode: 'stt_retry_deadline_exceeded',
+    nextRetryAtIso: '',
+    retryLeaseOwner: '',
+    retryLeaseUntilIso: '',
+    updatedAtIso: deadline,
+  });
 });
 
 test('buildNextAttempt inherits immutables and clears every side-effect field', () => {
   const old = attempt({
-    attempt: 2,
+    attempt: 19,
     status: 'retry_materializing',
     dialogue: 'leaked',
     errorCode: 'old',
@@ -509,9 +556,9 @@ test('buildNextAttempt inherits immutables and clears every side-effect field', 
   });
   const next = buildNextAttempt(old, NOW);
   assert.deepEqual(Object.keys(next), ATTEMPT_FIELDS);
-  assert.equal(next.attemptKey, `${LOGICAL}:3`);
+  assert.equal(next.attemptKey, `${LOGICAL}:20`);
   assert.equal(next.logicalJobKey, LOGICAL);
-  assert.equal(next.attempt, 3);
+  assert.equal(next.attempt, 20);
   assert.equal(next.role, 'current');
   assert.equal(next.streamID, '9001');
   assert.equal(next.mode, 'fromStart');
@@ -532,7 +579,7 @@ test('buildNextAttempt inherits immutables and clears every side-effect field', 
   assert.equal(next.duplicateCount, 0);
   assert.equal(next.createdAtIso, NOW);
   assert.ok(Object.values(next).every((value) => ['string', 'number', 'boolean'].includes(typeof value)));
-  assert.throws(() => buildNextAttempt(attempt({ attempt: 3 }), NOW), /terminal/);
+  assert.throws(() => buildNextAttempt(attempt({ attempt: 20 }), NOW), /terminal/);
 });
 
 test('next-row reconciliation reuses one canonical and elects system earliest when absent', () => {
@@ -941,7 +988,7 @@ test('bounded scan caps each class at fifty and masks a cap error for the fifty-
       createdAt: NOW,
     }));
   }
-  const scan = planRepairScan({ attemptRows: many, requestRows: [], nowIso: NOW, leaseOwner: 'repair' });
+  const scan = planRepairScan({ attemptRows: many, requestRows: [request()], nowIso: NOW, leaseOwner: 'repair' });
   assert.equal(scan.plans.filter((plan) => plan.repairClass === 'callback_deadline').length, REPAIR_CLASS_CAP);
   assert.equal(scan.capErrors.length, 1);
   assert.equal(scan.capErrors[0].repairClass, 'callback_deadline');
@@ -970,9 +1017,11 @@ test('repair scan plans every class deterministically in fixed order', () => {
     attempt({ id: systemID('retry'), status: 'retry_pending', nextRetryAtIso: NOW }),
     attempt({ id: systemID('pres'), status: 'completed', presentationStatus: 'retry_pending', presentationAttempt: 1, presentationNextRetryAtIso: NOW }),
   ];
+  const creationKey = 'summary:req-creating';
+  const creationLogical = `${creationKey}:current:9001:fromStart`;
   const reqs = [
     request({ id: systemID('req-ready'), status: 'ready', leaseOwner: '', leaseUntilIso: '' }),
-    request({ id: systemID('req-creating'), status: 'creating', creationLeaseOwner: 'dead', creationLeaseUntilIso: NOW }),
+    request({ id: systemID('req-creating'), requestKey: creationKey, status: 'creating', creationLeaseOwner: 'dead', creationLeaseUntilIso: NOW, expectedLogicalJobKeysJson: JSON.stringify([creationLogical]) }),
   ];
   const scan = planRepairScan({ attemptRows: rows, requestRows: reqs, nowIso: NOW, leaseOwner: 'repair' });
   const classes = scan.plans.map((plan) => plan.repairClass);
@@ -1056,14 +1105,14 @@ test('scan treats creation, summary, presentation, and duplicate classes as one 
 test('scan candidate ordering within a class is deterministic by system (createdAt,id)', () => {
   const late = attempt({ id: systemID('cb-b'), status: 'waiting_callback', callbackDeadlineAtIso: NOW, createdAt: '2026-08-24T00:00:01.000Z', updatedAt: '2026-08-24T00:00:01.000Z' });
   const early = attempt({ id: systemID('cb-a'), status: 'waiting_callback', callbackDeadlineAtIso: NOW, createdAt: NOW, updatedAt: NOW });
-  const scan = planRepairScan({ attemptRows: [late, early], requestRows: [], nowIso: NOW, leaseOwner: 'repair' });
+  const scan = planRepairScan({ attemptRows: [late, early], requestRows: [request()], nowIso: NOW, leaseOwner: 'repair' });
   const callbackPlans = scan.plans.filter((plan) => plan.repairClass === 'callback_deadline');
   assert.deepEqual(callbackPlans.map((plan) => plan.filters.id), [systemID('cb-a'), systemID('cb-b')]);
 });
 
-test('attempt 3 retryable failure patch is terminal failed with cleared dispatch lease', () => {
-  const third = attempt({ attempt: 3, status: 'dispatching', dispatchLeaseOwner: 'exec-3', dispatchLeaseUntilIso: LATER });
-  const patch = planAttemptFailurePatch(third, { statusCode: 503 }, NOW);
+test('attempt 20 retryable failure patch is terminal failed with cleared dispatch lease', () => {
+  const terminal = attempt({ attempt: 20, status: 'dispatching', dispatchLeaseOwner: 'exec-20', dispatchLeaseUntilIso: LATER });
+  const patch = planAttemptFailurePatch(terminal, { statusCode: 503 }, NOW);
   assert.equal(patch.status, 'failed');
   assert.equal(patch.nextRetryAtIso, '');
   assert.equal(patch.desired.dispatchLeaseOwner, '');
@@ -1072,13 +1121,19 @@ test('attempt 3 retryable failure patch is terminal failed with cleared dispatch
 });
 
 function node(name) {
-  const value = workflow.nodes.find((candidate) => candidate.name === name);
+  const value = workflow.nodes.find((candidate) => candidate.name === name)
+    || processor.nodes.find((candidate) => candidate.name === name);
   assert.ok(value, `missing node ${name}`);
   return value;
 }
 
 function targets(name, output = 0) {
-  return (workflow.connections[name]?.main?.[output] || []).map(({ node: target }) => target);
+  const owner = workflow.connections[name] ? workflow : processor;
+  return (owner.connections[name]?.main?.[output] || []).map(({ node: target }) => target);
+}
+
+function connectionOwner(name) {
+  return workflow.connections[name] ? workflow : processor;
 }
 
 test('runtime contract uses the exact inactive repair workflow identity', () => {
@@ -1088,10 +1143,10 @@ test('runtime contract uses the exact inactive repair workflow identity', () => 
   assert.equal(workflow.isArchived, false);
 });
 
-test('runtime has one inactive five-minute Schedule Trigger and no manual trigger', () => {
+test('runtime has one inactive one-minute Schedule Trigger and no manual trigger', () => {
   const triggers = workflow.nodes.filter(({ type }) => type.endsWith('scheduleTrigger'));
   assert.equal(triggers.length, 1);
-  assert.equal(triggers[0].parameters.rule.interval[0].minutesInterval, 5);
+  assert.equal(triggers[0].parameters.rule.interval[0].minutesInterval, 1);
   assert.equal(workflow.nodes.some(({ type }) => type.endsWith('manualTrigger')), false);
 });
 
@@ -1108,6 +1163,30 @@ test('all seven repair classes are schedule-reachable', () => {
     'Read Creation Lease Candidates', 'Read Summary Missed Event Candidates', 'Read Presentation Repair Candidates',
     'Read Duplicate Key Candidates',
   ]));
+});
+
+test('retry candidates are processed by the isolated typed sub-workflow in each mode', () => {
+  const call = node('Process Retry Materialization Candidate');
+  assert.equal(call.type, 'n8n-nodes-base.executeWorkflow');
+  assert.equal(call.typeVersion, 1.3);
+  assert.equal(call.parameters.workflowId.value, 'RepairCandidateV3A1');
+  assert.equal(call.parameters.workflowId.cachedResultName, 'Repair: process candidate v3');
+  assert.equal(call.parameters.mode, 'each');
+  assert.equal(call.parameters.options.waitForSubWorkflow, true);
+  assert.deepEqual(call.parameters.workflowInputs.value, {
+    repairClass: 'retry_materialization',
+    candidateKey: '={{ $json.attemptKey }}',
+    scanTimeIso: '={{ $json.nowIso }}',
+  });
+  assert.deepEqual(call.parameters.workflowInputs.schema, [
+    { id: 'repairClass', displayName: 'repairClass', required: true, defaultMatch: false, display: true, canBeUsedToMatch: true, type: 'string' },
+    { id: 'candidateKey', displayName: 'candidateKey', required: true, defaultMatch: false, display: true, canBeUsedToMatch: true, type: 'string' },
+    { id: 'scanTimeIso', displayName: 'scanTimeIso', required: true, defaultMatch: false, display: true, canBeUsedToMatch: true, type: 'string' },
+  ]);
+  assert.deepEqual(node('Freeze Expired Dispatch Manual Review').parameters.columns.schema, []);
+  assert.deepEqual(targets('Limit Retry Materialization Candidates 50'), [call.name]);
+  assert.deepEqual(targets(call.name), ['Repair Side Effect Sink']);
+  assert.equal(workflow.nodes.some(({ name }) => name === 'Read Retry Same Attempt'), false);
 });
 
 for (const name of [
@@ -1130,13 +1209,13 @@ test('candidate reads use only authoritative v3 tables and have empty-safe outpu
   }
 });
 
-test('every mutation has all-conditions, always-output, Limit 1, and a reread successor', () => {
+test('every mutation has all-conditions, always-output, a batch-safe Limit 50, and a reread successor', () => {
   for (const mutation of workflow.nodes.filter(({ type, parameters }) => type === 'n8n-nodes-base.dataTable' && ['update', 'insert'].includes(parameters.operation))) {
     assert.equal(mutation.parameters.matchType, mutation.parameters.operation === 'insert' ? undefined : 'allConditions', mutation.name);
     assert.equal(mutation.alwaysOutputData, true, mutation.name);
     const [limitName] = targets(mutation.name);
     assert.match(limitName || '', /^Limit /, mutation.name);
-    assert.equal(node(limitName).parameters.maxItems, 1, mutation.name);
+    assert.equal(node(limitName).parameters.maxItems, 50, mutation.name);
     assert.match(targets(limitName)[0] || '', /read|verify/i, mutation.name);
   }
 });
@@ -1197,7 +1276,7 @@ test('retry dispatcher has the canonical inventory selector, canonical input, an
   assert.equal(call.parameters.workflowId.value, 'STTDispatchV3A01');
   assert.equal(call.parameters.workflowId.cachedResultName, 'STT: dispatch attempt v3');
   assert.deepEqual(Object.keys(call.parameters.workflowInputs.value), ['attemptKey']);
-  assert.deepEqual(targets(call.name), ['Repair Side Effect Sink']);
+  assert.deepEqual(targets(call.name), ['Return Repaired']);
 });
 
 test('creation repair only scans creating requests and calls the typed orchestrator selector', () => {
@@ -1216,11 +1295,21 @@ test('summary missed-event call uses the coordinator selector and requestKey onl
   assert.deepEqual(Object.keys(call.parameters.workflowInputs.value), ['requestKey']);
 });
 
-test('presentation missed-event call uses the listener selector and attemptKey only', () => {
-  const call = node('Run Presentation Owner Repair');
-  assert.equal(call.parameters.workflowId.value, 'STTListenerV3A01');
-  assert.equal(call.parameters.workflowId.cachedResultName, 'STT result listener v3');
-  assert.deepEqual(Object.keys(call.parameters.workflowInputs.value), ['attemptKey']);
+test('presentation candidates use the typed processor in each mode', () => {
+  const call = node('Process Presentation Lease Candidate');
+  assert.equal(call.type, 'n8n-nodes-base.executeWorkflow');
+  assert.equal(call.typeVersion, 1.3);
+  assert.equal(call.parameters.workflowId.value, 'RepairCandidateV3A1');
+  assert.equal(call.parameters.mode, 'each');
+  assert.equal(call.parameters.options.waitForSubWorkflow, true);
+  assert.deepEqual(call.parameters.workflowInputs.value, {
+    repairClass: 'presentation_lease',
+    candidateKey: '={{ $json.attemptKey }}',
+    scanTimeIso: '={{ $json.nowIso }}',
+  });
+  assert.deepEqual(call.parameters.workflowInputs.schema, node('Process Retry Materialization Candidate').parameters.workflowInputs.schema);
+  assert.deepEqual(targets('Limit Presentation Repair Candidates 50'), [call.name]);
+  assert.deepEqual(targets(call.name), ['Repair Side Effect Sink']);
 });
 
 test('manual review has no automatic repair candidate or side-effect path', () => {
@@ -1259,7 +1348,7 @@ for (const [name, check] of [
   ['old transition is planned from a verified next canonical', () => assert.equal(node('Plan Auto Retry Old Transition').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js')],
   ['old transition exact update is limited before reread', () => assert.deepEqual(targets('Transition Old Retry Materialized Exact'), ['Limit Old Retry Transition'])],
   ['old verifier is before final dispatch reread', () => assert.deepEqual(targets('Verify Auto Retry Old Transition'), ['Re-read Next Before Retry Dispatch'])],
-  ['retry attempt three has no materialization helper path', () => assert.throws(() => planRetry(attempt({ attempt: 3 })), /terminal/)],
+  ['retry attempt twenty has no materialization helper path', () => assert.throws(() => planRetry(attempt({ attempt: 20 })), /terminal/)],
   ['verifier implementations contain no historical run lookup', () => assert.doesNotMatch(fs.readFileSync(path.join(workflowDir, 'nodes/Plan_Repairs/jsCode.js'), 'utf8'), /\$runIndex|\.isExecuted/)],
 ]) test(`Task10 retry topology: ${name}`, check);
 
@@ -1279,7 +1368,7 @@ test('D3 old transition carrier directly fans out to the exact update and merge 
   assert.deepEqual(new Set(targets('Plan Auto Retry Old Transition')), new Set([
     'Transition Old Retry Materialized Exact', 'Merge Retry Old Carrier And Rereads',
   ]));
-  assert.equal(workflow.connections['Plan Auto Retry Old Transition'].main[0]
+  assert.equal(connectionOwner('Plan Auto Retry Old Transition').connections['Plan Auto Retry Old Transition'].main[0]
     .find(({ node: target }) => target === 'Merge Retry Old Carrier And Rereads').index, 0);
 });
 
@@ -1287,9 +1376,9 @@ test('D3 clean ready next rows are reread and appended with their stable plan ca
   const merge = node('Merge Ready Next Retry Plan And Reread');
   assert.equal(merge.parameters.mode, 'append');
   assert.equal(merge.parameters.numberInputs, 2);
-  assert.equal(workflow.connections['Route Next Retry Manual Review'].main[1]
+  assert.equal(connectionOwner('Route Next Retry Manual Review').connections['Route Next Retry Manual Review'].main[1]
     .find(({ node: target }) => target === merge.name).index, 0);
-  assert.equal(workflow.connections['Re-read Ready Next Retry Attempt Rows'].main[0][0].index, 1);
+  assert.equal(connectionOwner('Re-read Ready Next Retry Attempt Rows').connections['Re-read Ready Next Retry Attempt Rows'].main[0][0].index, 1);
   assert.deepEqual(targets(merge.name), ['Tag Verify Next Retry Ready']);
   assert.deepEqual(targets('Tag Verify Next Retry Ready'), ['Verify Next Retry Reconciliation']);
 });
@@ -1303,7 +1392,7 @@ test('D3 old transition update reads every CAS and desired value from its direct
   assert.doesNotMatch(serialized, /\$\('/);
 });
 
-test('D3 old reread is gated by Limit 1 and next reread derives the verified resolution link', () => {
+test('D3 old reread is batch-safe and next reread derives the verified resolution link', () => {
   assert.deepEqual(targets('Limit Old Retry Transition'), ['Re-read Old Retry Transition']);
   assert.deepEqual(new Set(targets('Re-read Old Retry Transition')), new Set([
     'Re-read Next Retry Transition', 'Merge Old And Next Retry Rereads',
@@ -1316,18 +1405,18 @@ test('D3 old and next rereads use a two-input append merge with explicit indices
   const merge = node('Merge Old And Next Retry Rereads');
   assert.equal(merge.parameters.mode, 'append');
   assert.equal(merge.parameters.numberInputs, 2);
-  assert.equal(workflow.connections['Re-read Old Retry Transition'].main[0]
+  assert.equal(connectionOwner('Re-read Old Retry Transition').connections['Re-read Old Retry Transition'].main[0]
     .find(({ node: target }) => target === merge.name).index, 0);
-  assert.equal(workflow.connections['Re-read Next Retry Transition'].main[0][0].index, 1);
+  assert.equal(connectionOwner('Re-read Next Retry Transition').connections['Re-read Next Retry Transition'].main[0][0].index, 1);
 });
 
 test('D3 combined rereads append to the direct transition carrier with explicit indices', () => {
   const merge = node('Merge Retry Old Carrier And Rereads');
   assert.equal(merge.parameters.mode, 'append');
   assert.equal(merge.parameters.numberInputs, 2);
-  assert.equal(workflow.connections['Plan Auto Retry Old Transition'].main[0]
+  assert.equal(connectionOwner('Plan Auto Retry Old Transition').connections['Plan Auto Retry Old Transition'].main[0]
     .find(({ node: target }) => target === merge.name).index, 0);
-  assert.equal(workflow.connections['Merge Old And Next Retry Rereads'].main[0][0].index, 1);
+  assert.equal(connectionOwner('Merge Old And Next Retry Rereads').connections['Merge Old And Next Retry Rereads'].main[0][0].index, 1);
   assert.deepEqual(targets(merge.name), ['Tag Verify Auto Retry Old Transition']);
   assert.deepEqual(targets('Tag Verify Auto Retry Old Transition'), ['Verify Auto Retry Old Transition']);
 });
@@ -1336,8 +1425,8 @@ test('D3 old verifier consumes direct rows by deterministic old and next attempt
   const code = fs.readFileSync(path.join(workflowDir, 'nodes/Plan_Repairs/jsCode.js'), 'utf8');
   assert.match(code, /plan\.transition\.filters\.attemptKey/);
   assert.match(code, /row\.attemptKey === plan\.nextAttemptKey/);
-  assert.match(code, /verifyOldTransition\(oldRows, plan\.transition\)/);
-  assert.match(code, /verifyNextRows\(nextRows, \{ action: 'ready', winnerRowID: plan\.canonicalNext\.id \}\)/);
+  assert.match(code, /verifyOldTransition\(dedupeSystemRows/);
+  assert.match(code, /verifyNextRows\(dedupeSystemRows/);
 });
 
 test('D3 old verifier fails closed on zero old rows', () => {
@@ -1383,7 +1472,7 @@ test('D3 dispatcher preflight rereads after old verification and emits only atte
   assert.match(preflight.parameters.jsCode, /dispatchLeaseOwner !== ''/);
   assert.equal(call.parameters.options.waitForSubWorkflow, false);
   assert.deepEqual(Object.keys(call.parameters.workflowInputs.value), ['attemptKey']);
-  assert.deepEqual(targets(call.name), ['Repair Side Effect Sink']);
+  assert.deepEqual(targets(call.name), ['Return Repaired']);
 });
 
 function bounded(className, rows) {
@@ -1476,11 +1565,11 @@ test('expired dispatch runtime plan fails closed for active leases and never res
   assert.equal(planExpiredDispatchLease(attempt({ status: 'dispatching', dispatchLeaseOwner: 'dead', dispatchLeaseUntilIso: NOW }), NOW).neverAutoResend, true);
 });
 
-for (const attemptNumber of [1, 2, 3]) {
+for (const attemptNumber of [1, 2, 20]) {
   test(`callback bounded runtime preserves attempt ${attemptNumber} deadline table`, () => {
     const plan = planCallbackDeadline(attempt({ attempt: attemptNumber, status: 'waiting_callback', callbackDeadlineAtIso: NOW }), NOW);
-    assert.equal(plan.status, attemptNumber === 3 ? 'timed_out' : 'retry_pending');
-    assert.equal(plan.nextRetryAtIso, attemptNumber === 1 ? '2026-08-24T00:01:00.000Z' : attemptNumber === 2 ? '2026-08-24T00:05:00.000Z' : '');
+    assert.equal(plan.status, attemptNumber === 20 ? 'timed_out' : 'retry_pending');
+    assert.equal(plan.nextRetryAtIso, attemptNumber === 1 ? '2026-08-24T00:01:00.000Z' : attemptNumber === 2 ? '2026-08-24T00:02:00.000Z' : '');
   });
 }
 
@@ -1686,17 +1775,17 @@ test('Subtask E: callback deadline attempt 1 produces retry_pending with +1 minu
   });
 });
 
-test('Subtask E: callback deadline attempt 2 produces retry_pending with +5 minute delay', () => {
+test('Subtask E: callback deadline attempt 2 targets the absolute +2 minute slot', () => {
   const row = attempt({ attempt: 2, status: 'waiting_callback', callbackDeadlineAtIso: NOW });
   const plan = planCallbackDeadline(row, NOW);
   assert.equal(plan.action, 'callback_deadline');
   assert.equal(plan.status, 'retry_pending');
   assert.equal(plan.errorCode, 'callback_deadline_exceeded');
-  assert.equal(plan.nextRetryAtIso, '2026-08-24T00:05:00.000Z');
+  assert.equal(plan.nextRetryAtIso, '2026-08-24T00:02:00.000Z');
 });
 
-test('Subtask E: callback deadline attempt 3 produces timed_out with no nextRetryAtIso', () => {
-  const row = attempt({ attempt: 3, status: 'waiting_callback', callbackDeadlineAtIso: NOW });
+test('Subtask E: callback deadline attempt 20 produces timed_out with no nextRetryAtIso', () => {
+  const row = attempt({ attempt: 20, status: 'waiting_callback', callbackDeadlineAtIso: NOW });
   const plan = planCallbackDeadline(row, NOW);
   assert.equal(plan.action, 'callback_deadline_exhausted');
   assert.equal(plan.status, 'timed_out');
@@ -1794,7 +1883,7 @@ test('Subtask E: all seven bounded routes in workflow connect candidate to Limit
   }
 });
 
-test('Subtask E: workflow contains exact 14-column writes for automation_errors_v3 with allConditions and Limit 1', () => {
+test('Subtask E: workflow contains exact 14-column writes for automation_errors_v3 with allConditions and batch-safe Limit 50', () => {
   const errorWrites = workflow.nodes.filter(({ type, parameters }) => type === 'n8n-nodes-base.dataTable' && parameters.dataTableId?.value === 'automation_errors_v3' && ['insert', 'update'].includes(parameters.operation));
   assert.ok(errorWrites.length >= 4, `Expected at least 4 error writes, found ${errorWrites.length}`);
   for (const write of errorWrites) {
@@ -1807,7 +1896,7 @@ test('Subtask E: workflow contains exact 14-column writes for automation_errors_
     assert.equal(write.alwaysOutputData, true, write.name);
     const [limitName] = targets(write.name);
     assert.match(limitName || '', /^Limit /, write.name);
-    assert.equal(node(limitName).parameters.maxItems, 1, write.name);
+    assert.equal(node(limitName).parameters.maxItems, 50, write.name);
   }
 });
 
@@ -1869,14 +1958,38 @@ test('Subtask F: creation repair fails closed if expectedLogicalJobKeysJson does
   assert.throws(() => planCreationRepair(mismatched, [], NOW), /Immutable expected keys mismatch/);
 });
 
-test('Subtask F: summary repair waiting_stt calls coordinator only when all logical jobs are terminal', () => {
+test('Subtask F: summary repair treats completed empty transcription as terminal coverage', () => {
   const req = request({ status: 'waiting_stt', leaseOwner: '', leaseUntilIso: '' });
   const completedAttempts = [
-    attempt({ id: systemID('att-1'), attempt: 1, status: 'completed', dialogue: 'transcript text', canonicalRowID: String(systemID('att-1')) }),
+    attempt({ id: systemID('att-1'), attempt: 1, status: 'completed', dialogue: '', errorCode: 'callback_empty_transcription', canonicalRowID: String(systemID('att-1')) }),
   ];
   const plan = planSummaryLease(req, NOW, completedAttempts);
   assert.equal(plan.action, 'call_coordinator');
   assert.equal(plan.targetWorkflow, 'SummaryCoordV3A1');
+  assert.deepEqual(plan.input, { requestKey: KEY });
+});
+
+test('Subtask F: summary repair ignores materialized predecessors when the latest retry is terminal', () => {
+  const req = request({ status: 'waiting_stt', leaseOwner: '', leaseUntilIso: '' });
+  const attempts = [
+    attempt({
+      id: systemID('materialized-att-1'),
+      attempt: 1,
+      status: 'retry_materialized',
+      manualReviewResolution: `retry_created:${LOGICAL}:2`,
+      canonicalRowID: String(systemID('materialized-att-1')),
+    }),
+    attempt({
+      id: systemID('terminal-att-2'),
+      attempt: 2,
+      status: 'timed_out',
+      canonicalRowID: String(systemID('terminal-att-2')),
+    }),
+  ];
+
+  const plan = planSummaryLease(req, NOW, attempts);
+
+  assert.equal(plan.action, 'call_coordinator');
   assert.deepEqual(plan.input, { requestKey: KEY });
 });
 
@@ -2234,23 +2347,18 @@ test('Subtask F: Summary branch topology connects Limit 50 -> Reread Request -> 
   assert.deepEqual(targets('Run Summary Coordinator Missed Event'), ['Repair Side Effect Sink']);
 });
 
-test('Subtask F: Presentation branch topology connects Limit 50 -> Reread Attempt -> Read Summary -> Merge -> Plan -> Patch -> Limit 1 -> Reread -> Merge -> Verify -> Run Listener -> Sink', () => {
-  assert.deepEqual(targets('Limit Presentation Repair Candidates 50'), ['Re-read Presentation Repair Attempt']);
-  assert.deepEqual(new Set(targets('Re-read Presentation Repair Attempt')), new Set(['Read Presentation Summary Rows', 'Merge Presentation Attempt And Summary']));
-  assert.deepEqual(targets('Read Presentation Summary Rows'), ['Merge Presentation Attempt And Summary']);
-  assert.deepEqual(targets('Merge Presentation Attempt And Summary'), ['Tag Plan Presentation Repair']);
-  assert.deepEqual(targets('Tag Plan Presentation Repair'), ['Plan Presentation Repair']);
-  assert.deepEqual(new Set(targets('Plan Presentation Repair')), new Set(['Patch Presentation Repair', 'Merge Presentation Plan And Reread']));
-  assert.deepEqual(targets('Patch Presentation Repair'), ['Limit Presentation Repair Patch']);
-  assert.deepEqual(targets('Limit Presentation Repair Patch'), ['Re-read Presentation Repair Patch']);
-  assert.deepEqual(targets('Re-read Presentation Repair Patch'), ['Merge Presentation Plan And Reread']);
-  assert.deepEqual(targets('Merge Presentation Plan And Reread'), ['Tag Verify Presentation Repair']);
-  assert.deepEqual(targets('Tag Verify Presentation Repair'), ['Verify Presentation Repair']);
-  assert.deepEqual(targets('Verify Presentation Repair'), ['Run Presentation Owner Repair']);
-  assert.deepEqual(targets('Run Presentation Owner Repair'), ['Repair Side Effect Sink']);
+test('Subtask F: scheduler delegates presentation repair and contains no inline presentation subgraph', () => {
+  assert.deepEqual(targets('Limit Presentation Repair Candidates 50'), ['Process Presentation Lease Candidate']);
+  for (const name of [
+    'Re-read Presentation Repair Attempt', 'Read Presentation Summary Rows',
+    'Merge Presentation Attempt And Summary', 'Tag Plan Presentation Repair',
+    'Plan Presentation Repair', 'Patch Presentation Repair', 'Limit Presentation Repair Patch',
+    'Re-read Presentation Repair Patch', 'Merge Presentation Plan And Reread',
+    'Tag Verify Presentation Repair', 'Verify Presentation Repair', 'Run Presentation Owner Repair',
+  ]) assert.equal(workflow.nodes.some((node) => node.name === name), false, `scheduler retained ${name}`);
 });
 
-test('Subtask F: Duplicate key branch topology connects Limit 50 -> Reread Attempt -> Read Summary -> Merge -> Plan -> Route Action -> Reconcile/Freeze -> Limit 1 -> Reread -> Merge -> Verify -> Sink', () => {
+test('Subtask F: Duplicate key branch topology preserves all bounded attempt contexts through reconcile/freeze, reread, verify, and sink', () => {
   assert.deepEqual(targets('Limit Duplicate Key Candidates 50'), ['Re-read Duplicate Attempt Rows']);
   assert.deepEqual(new Set(targets('Re-read Duplicate Attempt Rows')), new Set(['Read Duplicate Summary Rows', 'Merge Duplicate Attempt And Summary']));
   assert.deepEqual(targets('Read Duplicate Summary Rows'), ['Merge Duplicate Attempt And Summary']);
@@ -2269,14 +2377,14 @@ test('Subtask F: Duplicate key branch topology connects Limit 50 -> Reread Attem
   assert.deepEqual(targets('Verify Duplicate Key Reconciliation'), ['Repair Side Effect Sink']);
 });
 
-test('Subtask F: All new mutations use allConditions, alwaysOutputData, Limit 1, and verified reread successors', () => {
+test('Subtask F: All new mutations use allConditions, alwaysOutputData, Limit 50, and verified reread successors', () => {
   for (const name of ['Patch Presentation Repair', 'Reconcile Duplicate Attempt Exact', 'Freeze Duplicate Checkpoint Conflict Exact']) {
     const mutNode = node(name);
     assert.equal(mutNode.parameters.matchType, 'allConditions', `${name} matchType`);
     assert.equal(mutNode.alwaysOutputData, true, `${name} alwaysOutputData`);
     const [limitName] = targets(name);
     assert.match(limitName, /^Limit /, `${name} limit target`);
-    assert.equal(node(limitName).parameters.maxItems, 1, `${limitName} maxItems`);
+    assert.equal(node(limitName).parameters.maxItems, 50, `${limitName} maxItems`);
   }
 });
 
@@ -2345,25 +2453,28 @@ test('StageB: runtime test: Plan_Repairs throws when repairMode is missing or un
   assert.match(code, /Plan Repairs requires a repairMode/);
 });
 
-test('StageB: topology test: Merge Retry Claim Attempt And Summary exists with mode append and numberInputs 2', () => {
+test('StageB: topology test: retry claim merge appends attempt, summary, and fixed scan carrier', () => {
   const merge = node('Merge Retry Claim Attempt And Summary');
   assert.equal(merge.type, 'n8n-nodes-base.merge');
   assert.equal(merge.parameters.mode, 'append');
-  assert.equal(merge.parameters.numberInputs, 2);
+  assert.equal(merge.parameters.numberInputs, 3);
+  const carrier = processor.connections['Route Candidate Repair Class'].main[0]
+    .find((connection) => connection.node === merge.name);
+  assert.equal(carrier.index, 2);
 });
 
 test('StageB: topology test: Read Retry Same Attempt connects to Read Summary Rows and Merge Retry Claim Attempt And Summary input 0', () => {
   const readTargets = targets('Read Retry Same Attempt');
   assert.ok(readTargets.includes('Read Retry Summary Rows'));
   assert.ok(readTargets.includes('Merge Retry Claim Attempt And Summary'));
-  const conn = workflow.connections['Read Retry Same Attempt'].main[0].find((c) => c.node === 'Merge Retry Claim Attempt And Summary');
+  const conn = processor.connections['Read Retry Same Attempt'].main[0].find((c) => c.node === 'Merge Retry Claim Attempt And Summary');
   assert.equal(conn.index, 0);
 });
 
 test('StageB: topology test: Read Retry Summary Rows connects to Merge Retry Claim Attempt And Summary input 1', () => {
   const readTargets = targets('Read Retry Summary Rows');
   assert.deepEqual(readTargets, ['Merge Retry Claim Attempt And Summary']);
-  const conn = workflow.connections['Read Retry Summary Rows'].main[0].find((c) => c.node === 'Merge Retry Claim Attempt And Summary');
+  const conn = processor.connections['Read Retry Summary Rows'].main[0].find((c) => c.node === 'Merge Retry Claim Attempt And Summary');
   assert.equal(conn.index, 1);
 });
 
@@ -2391,15 +2502,16 @@ test('StageB: topology test: Freeze branch does not fan out to Reconcile mutatio
   assert.equal(freezeCarrierTargets.includes('Reconcile Next Retry Attempt Exact'), false);
 });
 
-test('StageB: topology test: Freeze branch terminates to Repair Side Effect Sink without reaching old transition', () => {
+test('StageB: topology test: Freeze branch terminates to the processor manual-review return without reaching old transition', () => {
   const freezeVerifyTargets = targets('Verify Next Retry Freeze');
-  assert.deepEqual(freezeVerifyTargets, ['Repair Side Effect Sink']);
+  assert.deepEqual(freezeVerifyTargets, ['Return Manual Review']);
 });
 
 test('StageB: topology test: Retry insert path connects to Verify Next Retry Reconciliation without looping to Plan Next Retry Attempt', () => {
   assert.deepEqual(targets('Insert Next Retry Attempt'), ['Limit Next Retry Insert']);
   assert.deepEqual(targets('Limit Next Retry Insert'), ['Re-read Next Retry Insert Rows']);
-  assert.deepEqual(targets('Re-read Next Retry Insert Rows'), ['Merge Insert Retry Plan And Reread']);
+  assert.deepEqual(targets('Re-read Next Retry Insert Rows'), ['Canonicalize Inserted Next Retry Exact']);
+  assert.deepEqual(targets('Canonicalize Inserted Next Retry Exact'), ['Merge Insert Retry Plan And Reread']);
   assert.deepEqual(targets('Merge Insert Retry Plan And Reread'), ['Tag Verify Next Retry Insert']);
   assert.deepEqual(targets('Tag Verify Next Retry Insert'), ['Verify Next Retry Reconciliation']);
   assert.equal(targets('Limit Next Retry Insert').includes('Plan Next Retry Attempt'), false);
@@ -2462,7 +2574,7 @@ test('StageB: topology test: Runtime_Gates is completely removed and not referen
   assert.doesNotMatch(rawJson, /Runtime_Gates/);
 });
 
-test('StageB: topology test: all dataTable mutations in workflow use matchType allConditions or are insert with alwaysOutputData and Limit 1', () => {
+test('StageB: topology test: all dataTable mutations in workflow use exact filters, alwaysOutputData, and batch-safe Limit 50', () => {
   for (const n of workflow.nodes) {
     if (n.type === 'n8n-nodes-base.dataTable' && ['update', 'insert'].includes(n.parameters?.operation)) {
       if (n.parameters.operation === 'update') {
@@ -2471,7 +2583,7 @@ test('StageB: topology test: all dataTable mutations in workflow use matchType a
       assert.equal(n.alwaysOutputData, true, `${n.name} must have alwaysOutputData true`);
       const limit = targets(n.name)[0];
       assert.ok(limit && limit.startsWith('Limit '), `${n.name} must target a Limit node`);
-      assert.equal(node(limit).parameters.maxItems, 1, `${limit} must have maxItems 1`);
+      assert.equal(node(limit).parameters.maxItems, 50, `${limit} must have maxItems 50`);
     }
   }
 });
@@ -2503,6 +2615,29 @@ test('StageB: behavior test: Plan_Repairs duplicate attempt reconciliation produ
   const plan = planSameKeyReconciliation([c1, p1], 'attempt', []);
   assert.equal(plan.action, 'reconcile');
   assert.equal(plan.winnerRowID, systemID('att-1'));
+});
+
+test('batch contexts are deterministically keyed and duplicate summary rereads collapse by system id', () => {
+  const first = attempt({ id: systemID('batch-a'), attemptKey: `${LOGICAL}:1` });
+  const second = attempt({ id: systemID('batch-b'), attemptKey: `${LOGICAL}:2`, attempt: 2 });
+  assert.equal(repairGroupKey(first), `attempt:${LOGICAL}:1`);
+  assert.equal(repairGroupKey(request({ id: systemID('batch-request') })), `request:${KEY}`);
+  const groups = groupRepairContexts([first, second]);
+  assert.equal(groups.size, 2);
+  const summary = request({ id: systemID('duplicate-summary') });
+  assert.deepEqual(dedupeSystemRows([summary, { ...summary }]), [summary]);
+  assert.throws(() => dedupeSystemRows([summary, { ...summary, status: 'ready' }]), /Conflicting duplicate system row/);
+});
+
+test('batch-safe topology has no destructive mutation Limit 1 and preserves bounded rereads', () => {
+  for (const mutation of workflow.nodes.filter(({ type, parameters }) => type === 'n8n-nodes-base.dataTable' && ['update', 'insert'].includes(parameters.operation))) {
+    const [limitName] = targets(mutation.name);
+    assert.equal(node(limitName).parameters.maxItems, 50, mutation.name);
+  }
+  const code = fs.readFileSync(path.join(workflowDir, 'nodes/Plan_Repairs/jsCode.js'), 'utf8');
+  assert.doesNotMatch(code, /const first = allItems\[0\]/);
+  assert.match(code, /groupRepairContexts\(rows, 'attempt'\)/);
+  assert.match(code, /dedupeSystemRows\(allItems\.filter\(\(row\) => row\?\.id && !row\.attemptKey/);
 });
 
 test('Followup 1: Plan_Repairs runtime requires uniform repairMode on all input items', () => {
@@ -2614,15 +2749,17 @@ test('Followup 3: Expired dispatch and callback deadline preserve candidate and 
   // Callback deadline candidate merge
   assert.deepEqual(targets('Limit Callback Deadline Candidates 50').sort(), [
     'Merge Callback Deadline Candidate And Reread',
+    'Read Callback Deadline Summary Rows',
     'Re-read Callback Deadline Attempt',
   ].sort());
   assert.deepEqual(targets('Re-read Callback Deadline Attempt'), ['Merge Callback Deadline Candidate And Reread']);
+  assert.equal(node('Merge Callback Deadline Candidate And Reread').parameters.numberInputs, 3);
   assert.deepEqual(targets('Merge Callback Deadline Candidate And Reread'), ['Tag Callback Deadline Actual Plan']);
 
   // Tag Expired Dispatch Actual Plan preserves full raw row and nowIso
   const tagDispCode = node('Tag Expired Dispatch Actual Plan').parameters.jsCode;
-  const candidate = { kind: 'candidate', nowIso: NOW, attemptKey: 'job:1' };
   const rawRow = attempt({ id: systemID('att-1'), status: 'dispatching', dispatchLeaseOwner: 'd-1', dispatchLeaseUntilIso: NOW });
+  const candidate = { kind: 'candidate', nowIso: NOW, attemptKey: rawRow.attemptKey };
   const taggedDisp = Function('$input', tagDispCode)({
     all: () => [{ json: candidate }, { json: rawRow }],
   });
@@ -2634,16 +2771,45 @@ test('Followup 3: Expired dispatch and callback deadline preserve candidate and 
 
   // Tag Callback Deadline Actual Plan preserves full raw row and nowIso
   const tagCbCode = node('Tag Callback Deadline Actual Plan').parameters.jsCode;
-  const cbCandidate = { kind: 'candidate', nowIso: NOW, attemptKey: 'job:1' };
   const cbRawRow = attempt({ id: systemID('att-2'), status: 'waiting_callback', callbackDeadlineAtIso: NOW });
+  const cbCandidate = { kind: 'candidate', nowIso: NOW, attemptKey: cbRawRow.attemptKey };
   const taggedCb = Function('$input', tagCbCode)({
-    all: () => [{ json: cbCandidate }, { json: cbRawRow }],
+    all: () => [{ json: cbCandidate }, { json: cbRawRow }, { json: request() }],
   });
-  assert.equal(taggedCb.length, 1);
+  assert.equal(taggedCb.length, 2);
   assert.equal(taggedCb[0].json.id, systemID('att-2'));
   assert.equal(taggedCb[0].json.nowIso, NOW);
   assert.equal(taggedCb[0].json.repairMode, 'actual:callback_deadline');
   assert.equal(taggedCb[0].json.status, 'waiting_callback');
+});
+
+test('groups multiple expired dispatch and callback candidates by attempt key', () => {
+  const execute = (code, items) => Function('$input', code)({
+    all: () => items.map((json) => ({ json })),
+    first: () => ({ json: items[0] || {} }),
+  });
+  const planCode = fs.readFileSync(path.join(workflowDir, 'nodes/Plan_Repairs/jsCode.js'), 'utf8');
+  const dispatchRows = [
+    attempt({ id: systemID('att-1'), logicalJobKey: 'job:1', attemptKey: 'job:1:1', status: 'dispatching', dispatchLeaseOwner: 'd-1', dispatchLeaseUntilIso: NOW }),
+    attempt({ id: systemID('att-2'), logicalJobKey: 'job:2', attemptKey: 'job:2:1', status: 'dispatching', dispatchLeaseOwner: 'd-2', dispatchLeaseUntilIso: NOW }),
+  ];
+  const dispatchCandidates = dispatchRows.map((row, index) => ({ kind: 'candidate', attemptKey: row.attemptKey, nowIso: new Date(Date.parse(NOW) + index).toISOString() }));
+  const taggedDispatch = execute(node('Tag Expired Dispatch Actual Plan').parameters.jsCode, [...dispatchCandidates, ...dispatchRows]).map(({ json }) => json);
+  assert.deepEqual(taggedDispatch.map((row) => row.nowIso), dispatchCandidates.map((row) => row.nowIso));
+  assert.equal(execute(planCode, taggedDispatch).length, 2);
+
+  const callbackRows = [
+    attempt({ id: systemID('att-3'), requestKey: 'summary:req-3', logicalJobKey: 'job:3', attemptKey: 'job:3:1', status: 'waiting_callback', callbackDeadlineAtIso: NOW }),
+    attempt({ id: systemID('att-4'), requestKey: 'summary:req-4', logicalJobKey: 'job:4', attemptKey: 'job:4:1', status: 'waiting_callback', callbackDeadlineAtIso: NOW }),
+  ];
+  const callbackCandidates = callbackRows.map((row, index) => ({ kind: 'candidate', attemptKey: row.attemptKey, nowIso: new Date(Date.parse(NOW) + index).toISOString() }));
+  const callbackRequests = [
+    request({ id: systemID('req-3'), requestKey: 'summary:req-3' }),
+    request({ id: systemID('req-4'), requestKey: 'summary:req-4' }),
+  ];
+  const taggedCallback = execute(node('Tag Callback Deadline Actual Plan').parameters.jsCode, [...callbackCandidates, ...callbackRows, ...callbackRequests]).map(({ json }) => json);
+  assert.deepEqual(taggedCallback.filter((row) => row.attemptKey).map((row) => row.nowIso), callbackCandidates.map((row) => row.nowIso));
+  assert.equal(execute(planCode, taggedCallback).length, 2);
 });
 
 test('Followup 4: Absent cap error path terminates to Repair Side Effect Sink with zero duplicate writes', () => {
@@ -2670,7 +2836,7 @@ test('Followup 1 & 4: All 9 listed Plan_Repairs nodes execute correctly with tag
   }
 
   // 1. Plan Exact Retry Claim
-  const retryAtt = attempt({ id: systemID('att-1'), status: 'retry_pending', nextRetryAtIso: NOW, retryLeaseOwner: '', retryLeaseUntilIso: '' });
+  const retryAtt = attempt({ id: systemID('att-1'), status: 'retry_pending', nextRetryAtIso: NOW, retryLeaseOwner: '', retryLeaseUntilIso: '', nowIso: NOW });
   const retrySummary = request({ id: systemID('req-1') });
   const claimResult = executePlanRepairs([
     { ...retryAtt, repairMode: 'retry_claim' },

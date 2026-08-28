@@ -223,17 +223,11 @@ function remapDataTableReferences(nodes, tableIds) {
 
 function preserveTargetDataTableIds(nodes, targetNodes) {
     const remappedNodes = structuredClone(nodes);
+    const targetIdsByTableName = new Map();
 
     for (const node of remappedNodes) {
         if (node.type !== 'n8n-nodes-base.dataTable') continue;
-        const sourceLocator = node.parameters?.dataTableId;
-        if (
-            !sourceLocator || sourceLocator.__rl !== true || sourceLocator.mode !== 'name' ||
-            typeof sourceLocator.value !== 'string' || !sourceLocator.value
-        ) {
-            throw new Error(`Data Table node "${node.name || '<unknown>'}" must use a source name locator`);
-        }
-
+        const tableName = dataTablePlaceholder(node);
         const matches = (targetNodes || []).filter(target => (
             target.type === 'n8n-nodes-base.dataTable' && (
                 typeof node.id === 'string' && node.id
@@ -241,6 +235,7 @@ function preserveTargetDataTableIds(nodes, targetNodes) {
                     : target.name === node.name
             )
         ));
+        if (matches.length === 0) continue;
         const targetLocator = matches[0]?.parameters?.dataTableId;
         if (
             matches.length !== 1 || !targetLocator || targetLocator.__rl !== true ||
@@ -251,10 +246,43 @@ function preserveTargetDataTableIds(nodes, targetNodes) {
                 `Data Table node "${node.name || '<unknown>'}" has no unique target ID locator`
             );
         }
+        const existing = targetIdsByTableName.get(tableName);
+        if (existing && existing !== targetLocator.value) {
+            throw new Error(`Authoritative Data Table "${tableName}" maps to multiple target IDs`);
+        }
+        targetIdsByTableName.set(tableName, targetLocator.value);
+    }
+
+    for (const node of remappedNodes) {
+        if (node.type !== 'n8n-nodes-base.dataTable') continue;
+        const tableName = dataTablePlaceholder(node);
+
+        const matches = (targetNodes || []).filter(target => (
+            target.type === 'n8n-nodes-base.dataTable' && (
+                typeof node.id === 'string' && node.id
+                    ? target.id === node.id
+                    : target.name === node.name
+            )
+        ));
+        const targetLocator = matches[0]?.parameters?.dataTableId;
+        if (matches.length > 1 || (matches.length === 1 && (
+            !targetLocator || targetLocator.__rl !== true || targetLocator.mode !== 'id' ||
+            typeof targetLocator.value !== 'string' || !targetLocator.value
+        ))) {
+            throw new Error(
+                `Data Table node "${node.name || '<unknown>'}" has no unique target ID locator`
+            );
+        }
+        const targetId = matches.length === 1 ? targetLocator.value : targetIdsByTableName.get(tableName);
+        if (!targetId) {
+            throw new Error(
+                `Data Table node "${node.name || '<unknown>'}" has no unique target ID locator`
+            );
+        }
         node.parameters.dataTableId = {
             __rl: true,
             mode: 'id',
-            value: targetLocator.value
+            value: targetId
         };
     }
 
