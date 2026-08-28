@@ -18,7 +18,7 @@ function validateInput(input) {
   input.streams.forEach((stream) => {
     const keys = ['role', 'liveStreamID', 'mode', 'dialogue', 'streamContext'];
     if (!stream || Object.keys(stream).length !== keys.length || keys.some((key) => !(key in stream))) throw new Error('invalid resolved stream shape');
-    if (!text(stream.role) || !text(stream.liveStreamID) || !['fromStart', 'fromEnd'].includes(stream.mode) || !text(stream.dialogue) || !stream.streamContext || Array.isArray(stream.streamContext) || typeof stream.streamContext !== 'object') throw new Error('invalid resolved stream');
+    if (!text(stream.role) || !text(stream.liveStreamID) || !['fromStart', 'fromEnd'].includes(stream.mode) || typeof stream.dialogue !== 'string' || !stream.streamContext || Array.isArray(stream.streamContext) || typeof stream.streamContext !== 'object') throw new Error('invalid resolved stream');
     const { beginTime, endTime } = stream.streamContext;
     if (!Number.isFinite(beginTime) || !Number.isFinite(endTime) || beginTime > endTime) throw new Error('invalid resolved stream time window');
   });

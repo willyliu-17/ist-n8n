@@ -7,6 +7,7 @@ const { buildInferenceAggregate } = require('../nodes/group_streamID/jsCode');
 const { renderSummaryMarkdown } = require('../nodes/Render_Summary_Markdown/jsCode');
 const { buildEventQueryItems } = require('../nodes/Build_Event_Query_Items/jsCode');
 const { parseSlackResponse } = require('../nodes/Parse_Slack_Response/jsCode');
+const { mapSummaryReactions } = require('../nodes/Map_Summary_Reactions/jsCode');
 
 const root = path.resolve(__dirname, '..');
 const workflow = JSON.parse(fs.readFileSync(path.join(root, 'workflow.json'), 'utf8'));
@@ -29,7 +30,16 @@ test('rejects wrong channel', () => assert.throws(() => helper.validateInput(inp
 test('rejects invalid Slack timestamp', () => assert.throws(() => helper.validateInput(input({ threadTS: 'bad' }))));
 test('rejects all_failed coverage', () => assert.throws(() => helper.validateInput(input({ coverageStatus: 'all_failed' }))));
 test('rejects empty streams', () => assert.throws(() => helper.validateInput(input({ streams: [] }))));
-test('rejects stream with missing dialogue', () => assert.throws(() => helper.validateInput(input({ streams: [{ ...input().streams[0], dialogue: '' }] }))));
+test('accepts empty transcription dialogue and rejects non-string dialogue', () => {
+  const empty = input({ streams: [{ ...input().streams[0], dialogue: '' }] });
+  assert.equal(helper.validateInput(empty).streams[0].dialogue, '');
+  const aggregate = buildInferenceAggregate(empty, [
+    { liveStreamID: '9', evidenceType: 'streamerLog', message: 'comment evidence' },
+  ]);
+  assert.equal(aggregate.streams[0].details[0].dialogue, '');
+  assert.equal(aggregate.streams[0].details.some(({ type }) => type === 'streamerLog'), true);
+  assert.throws(() => helper.validateInput(input({ streams: [{ ...input().streams[0], dialogue: null }] })));
+});
 test('rejects stream with invalid mode', () => assert.throws(() => helper.validateInput(input({ streams: [{ ...input().streams[0], mode: 'bad' }] }))));
 test('rejects array streamContext', () => assert.throws(() => helper.validateInput(input({ streams: [{ ...input().streams[0], streamContext: [] }] }))));
 test('rejects invalid streamContext time windows', () => {
@@ -172,7 +182,19 @@ test('Data Table id filters stay numeric while canonical filters stringify row i
   if (filters.canonicalRowID && /\$json\.row\.id/.test(filters.canonicalRowID)) assert.match(filters.canonicalRowID, /String\(\$json\.row\.id\)/, item.name);
 }));
 test('checkpoint writes use Limit 1 and rereads', () => { assert.ok(node('Limit Inference Checkpoint')); assert.ok(node('Verify Inference Checkpoint')); assert.ok(node('Limit Freeze Patch')); assert.ok(node('Re-read Frozen Request')); });
-test('no reaction nodes or historical execution references remain', () => { assert.equal(source.includes('reaction'), false); assert.equal(source.includes('$runIndex'), false); assert.equal(source.includes('isExecuted'), false); });
+test('summary reactions restore the original category mapping on the original thread', () => {
+  const reactions = mapSummaryReactions({
+    inferenceResultJson: JSON.stringify({ report: { summary: { responsibility_category_list: ['[1-g] User Interaction Issue', '[2-c] Signal'] } } }),
+    orderedStreamsJson: JSON.stringify([{ streamContext: { type: 'ios', deviceModel: 'iPad Pro' } }]),
+  });
+  assert.deepEqual(reactions.map(({ emoji }) => emoji), ['ipad', 'user', 'signal_strength']);
+  const reaction = node('Add Summary Reaction');
+  assert.equal(reaction.parameters.resource, 'reaction');
+  assert.equal(reaction.parameters.timestamp, '={{ $json.input.threadTS }}');
+  assert.equal(reaction.onError, 'continueErrorOutput');
+  assert.equal(workflow.connections['Parse Message Response'].main[0].some((edge) => edge.node === 'Map Summary Reactions'), true);
+});
+test('no historical execution references remain', () => { assert.equal(source.includes('$runIndex'), false); assert.equal(source.includes('isExecuted'), false); });
 test('crash windows are explicitly documented', () => assert.match(workflow.description, /may be duplicated during repair/));
 test('runtime Code sources are externalized and contain no sibling require', () => { workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.code').forEach((item) => assert.match(item.parameters.jsCode, /^__EXTERNAL_FILE__:\/\//)); assert.equal(source.includes("require('./Finalize_Request/jsCode')"), false); });
 test('validated carrier feeds every full stage read through append input zero', () => { const merge = node('Append Stage Carrier And Rows'); assert.equal(merge.parameters.mode, 'append'); assert.equal(merge.parameters.numberInputs, 2); assert.equal(workflow.connections['Build Direct Carrier'].main[0].some((edge) => edge.node === merge.name && edge.index === 0), true); });
