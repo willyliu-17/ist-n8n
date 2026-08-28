@@ -13,13 +13,18 @@ const {
   buildResolverCalls,
   chunkIDs,
 } = require('../nodes/Chunk_Resolver_Input/jsCode');
-const { reassembleContexts } = require('../nodes/Reassemble_Resolver_Output/jsCode');
+const {
+  buildReassembledRequests,
+  eligibilityError,
+  reassembleContexts,
+} = require('../nodes/Reassemble_Resolver_Output/jsCode');
 const {
   buildRootCheckpointPlans,
   planRootOwnership,
   verifyRootCheckpoint,
   verifyRootClaim,
 } = require('../nodes/Plan_Candidate_Root/jsCode');
+const { buildCandidateLogRequests } = require('../nodes/Build_Candidate_Log_Requests/jsCode');
 
 const SQL_FILES = [
   'Comment_and_Caption_with_keywords1',
@@ -57,11 +62,11 @@ function context(liveStreamID, inputIndex, overrides = {}) {
   };
 }
 
-test('uses the same parameterized two-day candidate bounds in all four SQL files', () => {
+test('uses the same parameterized one-day candidate bounds in all four SQL files', () => {
   for (const directory of SQL_FILES) {
     const sql = fs.readFileSync(path.join(workflowDir, 'nodes', directory, 'sqlQuery.sql'), 'utf8');
     assert.match(sql, /DECLARE queryEndDate TIMESTAMP DEFAULT TIMESTAMP\(@query_end\)/);
-    assert.match(sql, /DECLARE queryStartDate TIMESTAMP DEFAULT TIMESTAMP_SUB\(queryEndDate, INTERVAL 2 DAY\)/);
+    assert.match(sql, /DECLARE queryStartDate TIMESTAMP DEFAULT TIMESTAMP_SUB\(queryEndDate, INTERVAL 1 DAY\)/);
     assert.match(sql, /TIMESTAMP_SECONDS\(beginTime\) >= queryStartDate/);
     assert.match(sql, /TIMESTAMP_SECONDS\(beginTime\) < queryEndDate/);
     assert.doesNotMatch(sql, /CURRENT_TIMESTAMP\(\).*INTERVAL 30 DAY|manualInterval|Manually trigger/s);
@@ -101,12 +106,42 @@ test('builds STT resolver calls and reassembles duplicate and missing positions'
   assert.equal(output[3].eligible, false);
 });
 
+test('returns an eligibility error for a bad candidate stream without throwing', () => {
+  assert.equal(eligibilityError(context('7', 0)), null);
+  assert.match(eligibilityError(context('8', 1, { eligible: false })), /Stream 8 is not eligible/);
+  assert.match(eligibilityError({ liveStreamID: '9', status: 'not_found', eligible: false }), /Stream 9 is not eligible/);
+});
+
+test('skips only the candidate with an ineligible stream and preserves other requests', () => {
+  const calls = [
+    {
+      candidate: { candidateKey: 'candidate-good' },
+      positions: [{ originalIndex: 0, role: 'current', liveStreamID: '7', mode: 'fromStart' }],
+    },
+    {
+      candidate: { candidateKey: 'candidate-bad' },
+      positions: [{ originalIndex: 0, role: 'current', liveStreamID: '8', mode: 'fromStart' }],
+    },
+  ];
+  const output = buildReassembledRequests(calls, [
+    context('7', 0),
+    context('8', 0, { eligible: false }),
+  ]);
+
+  assert.equal(output.length, 2);
+  assert.equal(output[0].stream.liveStreamID, '7');
+  assert.equal(output[1].candidate.candidateKey, 'candidate-bad');
+  assert.match(output[1].eligibilityError, /Stream 8 is not eligible/);
+});
+
 test('deduplicates provenance and preserves an existing candidate canonical', () => {
   const candidates = deduplicateCandidates([
     { streamID: '9002', prevStreamID: '9001', userID: 'u1', metricSource: 'captionKeyword' },
     { streamID: '9002', prevStreamID: '9001', userID: 'u1', metricSource: 'endByNewStream' },
   ], { runID: 'run-1', nowIso: '2026-08-22T00:00:00.000Z' });
   assert.equal(candidates.length, 1);
+  assert.equal(candidates[0].candidateKey, 'suspect:run-1:9001:9002');
+  assert.equal(candidates[0].summaryRequestKey, 'suspect-summary:suspect:run-1:9001:9002');
   assert.deepEqual(JSON.parse(candidates[0].sourcesJson), ['captionKeyword', 'endByNewStream']);
   assert.equal(candidates[0].channel, 'C0A4JJJKJMD');
   assert.equal(candidates[0].reconciliationStatus, 'pending');
@@ -120,6 +155,25 @@ test('deduplicates provenance and preserves an existing candidate canonical', ()
   assert.equal(plan.canonical.id, 2);
   assert.equal(plan.mutations[0].desiredReconciliationStatus, 'duplicate');
   assert.equal(plan.mutations[0].desiredCanonicalRowID, '2');
+});
+
+test('creates fresh candidate and request identities for every collector execution', () => {
+  const rows = [
+    { streamID: '9002', prevStreamID: '9001', userID: 'u1', metricSource: 'captionKeyword' },
+  ];
+  const first = deduplicateCandidates(rows, {
+    runID: 'execution-1',
+    nowIso: '2026-08-22T00:00:00.000Z',
+  })[0];
+  const second = deduplicateCandidates(rows, {
+    runID: 'execution-2',
+    nowIso: '2026-08-22T00:01:00.000Z',
+  })[0];
+
+  assert.notEqual(first.candidateKey, second.candidateKey);
+  assert.notEqual(first.summaryRequestKey, second.summaryRequestKey);
+  assert.equal(first.threadTS, '');
+  assert.equal(second.threadTS, '');
 });
 
 test('chooses system earliest candidate only when no canonical exists', () => {
@@ -178,15 +232,73 @@ test('requires a valid exact Slack root checkpoint before resolver eligibility',
   assert.equal(verifyRootCheckpoint(checkpoint, [{ ...row, threadTS: checkpoint.desiredThreadTS }]).action, 'ready');
 });
 
-test('is inactive, manual-only, C0-only, and routes resolver output only to the orchestrator', () => {
+test('builds previous then current Query Logs requests only for checkpointed canonical candidates', () => {
+  const candidate = {
+    id: 1,
+    action: 'ready',
+    reconciliationStatus: 'canonical',
+    canonicalRowID: '1',
+    channel: 'C0A4JJJKJMD',
+    threadTS: '1787364000.000001',
+    prevStreamID: '9001',
+    streamID: '9002',
+  };
+  assert.deepEqual(buildCandidateLogRequests([candidate]), [
+    { streamID: '9001', channel: 'C0A4JJJKJMD', target_thread_ts: '1787364000.000001' },
+    { streamID: '9002', channel: 'C0A4JJJKJMD', target_thread_ts: '1787364000.000001' },
+  ]);
+  assert.deepEqual(buildCandidateLogRequests([{ ...candidate, prevStreamID: '' }]), [
+    { streamID: '9002', channel: 'C0A4JJJKJMD', target_thread_ts: '1787364000.000001' },
+  ]);
+  assert.throws(() => buildCandidateLogRequests([{ ...candidate, channel: 'C0OTHER' }]), /channel is not allowed/);
+  assert.throws(() => buildCandidateLogRequests([{ ...candidate, threadTS: '1787364000.1' }]), /timestamp is invalid/);
+  assert.throws(() => buildCandidateLogRequests([{ ...candidate, streamID: 'stream-9002' }]), /numeric stream ID/);
+  assert.throws(() => buildCandidateLogRequests([{ ...candidate, action: 'owned' }]), /checkpointed canonical/);
+});
+
+test('is inactive, manual-only, supports a configured date override, is C0-only, and routes resolver output only to the orchestrator', () => {
   const workflow = readWorkflow();
   assert.equal(workflow.active, false);
   const triggers = workflow.nodes.filter(({ type }) => /Trigger$/i.test(type));
   assert.deepEqual(triggers.map(({ type }) => type), ['n8n-nodes-base.manualTrigger']);
+  const config = nodeByName(workflow, 'Build Candidate Query Config');
+  const queryEndExpression = config.parameters.assignments.assignments.find(({ name }) => name === 'queryEnd').value;
+  assert.match(queryEndExpression, /targetDate must be YYYY-MM-DD/);
+  assert.match(queryEndExpression, /DateTime\.fromISO\(`\$\{targetDate\}T04:00:00`, \{ zone: 'Asia\/Taipei' \}\)\.plus\(\{ days: 1 \}\)/);
+  assert.deepEqual(nodeByName(workflow, 'Configure Target Date').parameters.assignments.assignments, [{ id: '12000001-0000-4000-8000-000000000043', name: 'targetDate', value: '', type: 'string' }]);
+  assert.ok(workflow.connections['Manually Trigger'].main[0].some(({ node }) => node === 'Configure Target Date'));
+  assert.ok(workflow.connections['Configure Target Date'].main[0].some(({ node }) => node === 'Build Candidate Query Config'));
   assert.ok(workflow.nodes.every(({ type }) => !['n8n-nodes-base.wait', 'n8n-nodes-base.splitInBatches'].includes(type)));
   assert.equal(nodeByName(workflow, 'Resolve Stream Metadata').parameters.workflowId.value, 'StreamMetaV3A001');
+  assert.equal(nodeByName(workflow, 'Resolve Stream Metadata').parameters.mode, 'each');
   assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.workflowId.value, 'SummaryOrchV3A01');
+  assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.mode, 'each');
+  const queryLogs = nodeByName(workflow, 'Call Query Steam Logs');
+  assert.equal(queryLogs.parameters.workflowId.value, 'QueryLogsV3A0001');
+  assert.equal(queryLogs.parameters.mode, 'each');
+  assert.equal(queryLogs.parameters.options.waitForSubWorkflow, false);
+  assert.deepEqual(Object.keys(queryLogs.parameters.workflowInputs.value).sort(), ['channel', 'streamID', 'target_thread_ts']);
+  assert.deepEqual(queryLogs.parameters.workflowInputs.schema.map(({ id, type, required }) => ({ id, type, required })), [
+    { id: 'streamID', type: 'string', required: true },
+    { id: 'channel', type: 'string', required: true },
+    { id: 'target_thread_ts', type: 'string', required: true },
+  ]);
+  assert.equal(queryLogs.parameters.workflowInputs.convertFieldsToString, false);
+  assert.equal(nodeByName(workflow, 'Build Candidate Log Requests').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Build_Candidate_Log_Requests/jsCode.js');
+  assert.deepEqual(workflow.connections['Verify Candidate Root Checkpoint'].main[0].map(({ node }) => node), [
+    'Prepare Resolver Chunks', 'Build Candidate Log Requests',
+  ]);
+  assert.deepEqual(workflow.connections['Build Candidate Log Requests'].main[0].map(({ node }) => node), ['Call Query Steam Logs']);
+  assert.equal(workflow.connections['Call Query Steam Logs'], undefined);
+  assert.match(nodeByName(workflow, 'Send Monitoring Report').parameters.text, /自動化異常 Stream 監控報告/);
+  assert.match(nodeByName(workflow, 'Send Candidate Detail').parameters.text, /自動化檢測詳情/);
+  assert.ok(!workflow.nodes.some(({ name }) => name === 'Send Candidate Root'));
+  assert.deepEqual(workflow.connections['Deduplicate Candidate Provenance'].main[0].map(({ node }) => node), ['Build Monitoring Report']);
+  assert.deepEqual(workflow.connections['Send Monitoring Report'].main[0].map(({ node }) => node), ['Restore Candidate Items']);
+  assert.deepEqual(workflow.connections['Candidate Is Eligible'].main[1].map(({ node }) => node), ['Send Candidate Eligibility Warning']);
+  assert.equal(nodeByName(workflow, 'Candidate Is Eligible').parameters.conditions.conditions[0].operator.operation, 'empty');
   const serialized = JSON.stringify(workflow);
+  assert.doesNotMatch(serialized, /Suspect stream summary request/);
   assert.doesNotMatch(serialized, /AISummaryV3A0001|sOSbXSfXFcMLeIfr|C09F0SYG57D/);
   for (const node of workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.dataTable')) {
     assert.deepEqual(node.parameters.dataTableId, { __rl: true, mode: 'name', value: 'suspect_stt_candidates_v3' });

@@ -20,7 +20,7 @@ function deduplicateCandidates(rows, { runID, nowIso } = {}) {
     if (!row || !row.streamID) continue;
     const streamID = requiredStreamID(row.streamID, 'streamID');
     const prevStreamID = row.prevStreamID ? requiredStreamID(row.prevStreamID, 'prevStreamID') : '';
-    const candidateKey = `suspect:${prevStreamID || 'none'}:${streamID}`;
+    const candidateKey = `suspect:${executionID}:${prevStreamID || 'none'}:${streamID}`;
     const source = String(row.metricSource || row.metric_source || 'unknown').trim();
     if (!candidates.has(candidateKey)) {
       candidates.set(candidateKey, {

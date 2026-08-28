@@ -1,7 +1,7 @@
 {
   "id": "CollectSuspectV3",
   "name": "Collect suspect streamID v3",
-  "description": "Inactive manual-only suspect candidate collector. Persists provenance, reconciles canonical rows, resolves STT metadata in bounded chunks, and calls the Summary orchestrator.",
+  "description": "Inactive manual-only suspect candidate collector. An empty target-date override queries the prior Taipei business day; a YYYY-MM-DD override pins one business-day range. Persists provenance, reconciles canonical rows, resolves STT metadata in bounded chunks, and calls the Summary orchestrator.",
   "active": false,
   "isArchived": false,
   "nodes": [
@@ -16,7 +16,20 @@
     {
       "parameters": {
         "assignments": { "assignments": [
-          { "id": "12000002-0000-4000-8000-000000000001", "name": "queryEnd", "value": "={{ $now.setZone('Asia/Taipei').startOf('day').plus({ hours: 4 }).toISO() }}", "type": "string" },
+          { "id": "12000001-0000-4000-8000-000000000043", "name": "targetDate", "value": "", "type": "string" }
+        ] },
+        "options": {}
+      },
+      "id": "12000001-0000-4000-8000-000000000043",
+      "name": "Configure Target Date",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-1080, 0]
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [
+          { "id": "12000002-0000-4000-8000-000000000001", "name": "queryEnd", "value": "={{ (() => { const targetDate = $json.targetDate; if (!targetDate) return $now.setZone('Asia/Taipei').startOf('day').plus({ hours: 4 }).toISO(); if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(targetDate)) throw new Error('targetDate must be YYYY-MM-DD'); const value = DateTime.fromISO(`${targetDate}T04:00:00`, { zone: 'Asia/Taipei' }).plus({ days: 1 }); if (!value.isValid) throw new Error('targetDate is invalid'); return value.toISO(); })() }}", "type": "string" },
           { "id": "12000002-0000-4000-8000-000000000002", "name": "searchKeywords", "value": "卡了|重開|當機|卡頓|轉圈|斷線|黑屏|沒畫面|重い|ラグ|カクカク|止まった|くるくる|落ち|見れない|再起動|枠取り直し", "type": "string" }
         ] },
         "options": {}
@@ -134,6 +147,36 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [0, 0]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "const detailedList = $input.all().map(({ json }) => ({\n  streamID: json.streamID,\n  prevStreamID: json.prevStreamID,\n  sources: JSON.parse(json.sourcesJson),\n}));\n\nreturn [{ json: { totalCount: detailedList.length, detailedList } }];" },
+      "id": "1200001e-0000-4000-8000-00000000001e",
+      "name": "Build Monitoring Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, -320]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0A4JJJKJMD", "mode": "id" },
+        "text": "={{ '🚨 *自動化異常 Stream 監控報告*\\n監控關鍵字: `' + $('Build Candidate Query Config').first().json.searchKeywords + '`\\n以及監控 endByNewStream Conditions: `Prev endByNewStream + Restart in 60s + Contracted TW streamer`\\n共發現 ' + $json.totalCount + ' 個可疑 Stream。\\n\\n詳細清單：\\n' + $json.detailedList.map(item => '• StreamID: ' + item.streamID + (item.prevStreamID ? ' (PrevStreamID: ' + item.prevStreamID + ')' : '') + ' (來源: ' + item.sources.join(', ') + ')').join('\\n') }}",
+        "otherOptions": {}
+      },
+      "id": "1200001f-0000-4000-8000-00000000001f",
+      "name": "Send Monitoring Report",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [480, -320],
+      "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "return $('Deduplicate Candidate Provenance').all().map(({ json }) => ({ json }));" },
+      "id": "12000020-0000-4000-8000-000000000020",
+      "name": "Restore Candidate Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, -320]
     },
     {
       "parameters": {
@@ -323,11 +366,11 @@
       "parameters": {
         "select": "channel",
         "channelId": { "__rl": true, "value": "C0A4JJJKJMD", "mode": "id" },
-        "text": "=Suspect stream summary request: `{{ $json.streamID }}`",
+        "text": "=🔍 *自動化檢測詳情*\nStreamID: `{{ $json.streamID }}`\n來源: {{ JSON.parse($json.sourcesJson).join(', ') }}{{ ($json.sourcesJson.includes('commentCaptionKeyword') || $json.sourcesJson.includes('captionKeyword')) ? '\\n🎯 Hit Keywords: `' + $('Build Candidate Query Config').first().json.searchKeywords + '`' : '' }}{{ $json.sourcesJson.includes('endByNewStream') ? '\\n⏳ Hit Conditions: `Prev endByNewStream + Restart in 60s + Contracted TW streamer`' : '' }}{{ $json.prevStreamID ? '\\nPrevStreamID: `' + $json.prevStreamID + '`' : '' }}",
         "otherOptions": {}
       },
       "id": "12100007-0000-4000-8000-000000000007",
-      "name": "Send Candidate Root",
+      "name": "Send Candidate Detail",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [3600, 160],
@@ -413,6 +456,33 @@
       "position": [5280, 0]
     },
     {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Build_Candidate_Log_Requests/jsCode.js" },
+      "id": "b5ad7b68-394f-4b29-9c2a-a7d9596fe5ae",
+      "name": "Build Candidate Log Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5280, 320]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "QueryLogsV3A0001", "mode": "list", "cachedResultName": "Query Steam Logs v3" },
+        "workflowInputs": { "mappingMode": "defineBelow", "value": {
+          "streamID": "={{ $json.streamID }}", "channel": "={{ $json.channel }}", "target_thread_ts": "={{ $json.target_thread_ts }}"
+        }, "matchingColumns": [], "schema": [
+          { "id": "streamID", "displayName": "streamID", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "channel", "displayName": "channel", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "target_thread_ts", "displayName": "target_thread_ts", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true }
+        ], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": { "waitForSubWorkflow": false },
+        "mode": "each"
+      },
+      "id": "dc374e7b-4641-4ff6-8c6f-18eabf01e65b",
+      "name": "Call Query Steam Logs",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [5520, 320]
+    },
+    {
       "parameters": {
         "workflowId": { "__rl": true, "value": "StreamMetaV3A001", "mode": "list", "cachedResultName": "Stream Metadata: resolve by IDs v3" },
         "workflowInputs": { "mappingMode": "defineBelow", "value": {
@@ -422,7 +492,8 @@
           { "id": "lookupWindow", "displayName": "lookupWindow", "type": "object", "required": false, "display": true, "canBeUsedToMatch": true },
           { "id": "profile", "displayName": "profile", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true }
         ], "attemptToConvertTypes": false, "convertFieldsToString": false },
-        "options": { "waitForSubWorkflow": true }
+        "options": { "waitForSubWorkflow": true },
+        "mode": "each"
       },
       "id": "12000019-0000-4000-8000-000000000019",
       "name": "Resolve Stream Metadata",
@@ -437,6 +508,30 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [5760, 0]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [
+        { "id": "12000021-0000-4000-8000-000000000021", "leftValue": "={{ $json.eligibilityError || '' }}", "rightValue": "", "operator": { "type": "string", "operation": "empty", "singleValue": true } }
+      ], "combinator": "and" }, "options": {} },
+      "id": "12000021-0000-4000-8000-000000000021",
+      "name": "Candidate Is Eligible",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [6000, 0]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0A4JJJKJMD", "mode": "id" },
+        "text": "=⚠️ 無法建立 Summary STT：{{ $json.eligibilityError }}",
+        "otherOptions": { "thread_ts": { "replyValues": { "thread_ts": "={{ $json.candidate.threadTS }}" } } }
+      },
+      "id": "12000022-0000-4000-8000-000000000022",
+      "name": "Send Candidate Eligibility Warning",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [6240, 160],
+      "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
     },
     {
       "parameters": {
@@ -474,7 +569,8 @@
           { "id": "channel", "displayName": "channel", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
           { "id": "threadTS", "displayName": "threadTS", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true }
         ], "attemptToConvertTypes": false, "convertFieldsToString": false },
-        "options": { "waitForSubWorkflow": false }
+        "options": { "waitForSubWorkflow": false },
+        "mode": "each"
       },
       "id": "1200001d-0000-4000-8000-00000000001d",
       "name": "Call Summary Orchestrator",
@@ -484,7 +580,8 @@
     }
   ],
   "connections": {
-    "Manually Trigger": { "main": [[{ "node": "Build Candidate Query Config", "type": "main", "index": 0 }]] },
+    "Manually Trigger": { "main": [[{ "node": "Configure Target Date", "type": "main", "index": 0 }]] },
+    "Configure Target Date": { "main": [[{ "node": "Build Candidate Query Config", "type": "main", "index": 0 }]] },
     "Build Candidate Query Config": { "main": [[
       { "node": "Query Comment And Caption Candidates", "type": "main", "index": 0 },
       { "node": "Query Caption Candidates", "type": "main", "index": 0 },
@@ -497,7 +594,10 @@
     "Query End By New Stream Candidates": { "main": [[{ "node": "Label End By New Stream", "type": "main", "index": 0 }]] },
     "Label End By New Stream": { "main": [[{ "node": "Merge Candidate Sources", "type": "main", "index": 2 }]] },
     "Merge Candidate Sources": { "main": [[{ "node": "Deduplicate Candidate Provenance", "type": "main", "index": 0 }]] },
-    "Deduplicate Candidate Provenance": { "main": [[{ "node": "Insert Pending Candidate", "type": "main", "index": 0 }]] },
+    "Deduplicate Candidate Provenance": { "main": [[{ "node": "Build Monitoring Report", "type": "main", "index": 0 }]] },
+    "Build Monitoring Report": { "main": [[{ "node": "Send Monitoring Report", "type": "main", "index": 0 }]] },
+    "Send Monitoring Report": { "main": [[{ "node": "Restore Candidate Items", "type": "main", "index": 0 }]] },
+    "Restore Candidate Items": { "main": [[{ "node": "Insert Pending Candidate", "type": "main", "index": 0 }]] },
     "Insert Pending Candidate": { "main": [[{ "node": "Read Candidate Rows", "type": "main", "index": 0 }]] },
     "Read Candidate Rows": { "main": [[{ "node": "Plan Candidate Reconciliation", "type": "main", "index": 0 }]] },
     "Plan Candidate Reconciliation": { "main": [[{ "node": "Candidate Reconciliation Needed", "type": "main", "index": 0 }]] },
@@ -521,10 +621,10 @@
     "Read Claimed Candidate Root": { "main": [[{ "node": "Merge Root Claim Carrier And Rows", "type": "main", "index": 1 }]] },
     "Merge Root Claim Carrier And Rows": { "main": [[{ "node": "Verify Candidate Root Claim", "type": "main", "index": 0 }]] },
     "Verify Candidate Root Claim": { "main": [[
-      { "node": "Send Candidate Root", "type": "main", "index": 0 },
+       { "node": "Send Candidate Detail", "type": "main", "index": 0 },
       { "node": "Merge Root Owner And Slack", "type": "main", "index": 0 }
     ]] },
-    "Send Candidate Root": { "main": [[{ "node": "Merge Root Owner And Slack", "type": "main", "index": 1 }]] },
+    "Send Candidate Detail": { "main": [[{ "node": "Merge Root Owner And Slack", "type": "main", "index": 1 }]] },
     "Merge Root Owner And Slack": { "main": [[{ "node": "Plan Candidate Root Checkpoint", "type": "main", "index": 0 }]] },
     "Plan Candidate Root Checkpoint": { "main": [[
       { "node": "Checkpoint Candidate Root", "type": "main", "index": 0 },
@@ -533,10 +633,18 @@
     "Checkpoint Candidate Root": { "main": [[{ "node": "Re-read Candidate Root", "type": "main", "index": 0 }]] },
     "Re-read Candidate Root": { "main": [[{ "node": "Merge Root Checkpoint Carrier And Rows", "type": "main", "index": 1 }]] },
     "Merge Root Checkpoint Carrier And Rows": { "main": [[{ "node": "Verify Candidate Root Checkpoint", "type": "main", "index": 0 }]] },
-    "Verify Candidate Root Checkpoint": { "main": [[{ "node": "Prepare Resolver Chunks", "type": "main", "index": 0 }]] },
+    "Verify Candidate Root Checkpoint": { "main": [[
+      { "node": "Prepare Resolver Chunks", "type": "main", "index": 0 },
+      { "node": "Build Candidate Log Requests", "type": "main", "index": 0 }
+    ]] },
     "Prepare Resolver Chunks": { "main": [[{ "node": "Resolve Stream Metadata", "type": "main", "index": 0 }]] },
+    "Build Candidate Log Requests": { "main": [[{ "node": "Call Query Steam Logs", "type": "main", "index": 0 }]] },
     "Resolve Stream Metadata": { "main": [[{ "node": "Reassemble Resolver Output", "type": "main", "index": 0 }]] },
-    "Reassemble Resolver Output": { "main": [[{ "node": "Send Processing Message", "type": "main", "index": 0 }]] },
+    "Reassemble Resolver Output": { "main": [[{ "node": "Candidate Is Eligible", "type": "main", "index": 0 }]] },
+    "Candidate Is Eligible": { "main": [
+      [{ "node": "Send Processing Message", "type": "main", "index": 0 }],
+      [{ "node": "Send Candidate Eligibility Warning", "type": "main", "index": 0 }]
+    ] },
     "Send Processing Message": { "main": [[{ "node": "Build Orchestrator Requests", "type": "main", "index": 0 }]] },
     "Build Orchestrator Requests": { "main": [[{ "node": "Call Summary Orchestrator", "type": "main", "index": 0 }]] }
   },

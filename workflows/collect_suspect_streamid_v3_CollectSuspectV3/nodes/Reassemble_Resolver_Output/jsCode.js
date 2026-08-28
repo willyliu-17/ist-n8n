@@ -31,22 +31,56 @@ function reassembleContexts(plan, resolverRows) {
   });
 }
 
-function requireEligible(context) {
+function eligibilityError(context) {
   if (!context || context.status === 'not_found' || context.eligible !== true
     || context.profile !== 'stt' || context.source !== 'livestream_v2') {
-    throw new Error(`Stream ${context?.liveStreamID || 'unknown'} is not eligible for Summary STT`);
+    return `Stream ${context?.liveStreamID || 'unknown'} is not eligible for Summary STT`;
   }
-  return context;
+  return null;
+}
+
+function buildReassembledRequests(calls, resolverRows) {
+  const grouped = new Map();
+  for (const call of calls) {
+    const key = call.candidate.candidateKey;
+    if (!grouped.has(key)) grouped.set(key, { candidate: call.candidate, positions: call.positions });
+  }
+
+  const output = [];
+  for (const plan of grouped.values()) {
+    const contexts = reassembleContexts(plan, resolverRows);
+    const error = contexts.map(eligibilityError).find(Boolean);
+    if (error) {
+      output.push({ candidate: plan.candidate, eligibilityError: error });
+      continue;
+    }
+    for (const position of plan.positions) {
+      const context = contexts[position.originalIndex];
+      output.push({
+        candidate: plan.candidate,
+        stream: {
+          role: position.role,
+          liveStreamID: position.liveStreamID,
+          mode: position.mode,
+          durationMinutes: 5,
+          streamContext: context,
+        },
+      });
+    }
+  }
+  return output;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { notFoundContext, reassembleContexts };
+  module.exports = { buildReassembledRequests, eligibilityError, notFoundContext, reassembleContexts };
 }
 
 if (typeof $input !== 'undefined') {
   const inputRows = $input.all().map(({ json }) => json);
   if (inputRows.some(({ message }) => message?.ts)) {
-    const requests = $('Reassemble Resolver Output').all().map(({ json }) => json);
+    const requests = $('Reassemble Resolver Output').all()
+      .map(({ json }) => json)
+      .filter(({ stream }) => stream);
     if (requests.length !== inputRows.length) throw new Error('Processing message count mismatch');
     const grouped = new Map();
     requests.forEach((request, index) => {
@@ -67,27 +101,5 @@ if (typeof $input !== 'undefined') {
   }
 
   const calls = $('Prepare Resolver Chunks').all().map(({ json }) => json);
-  const grouped = new Map();
-  for (const call of calls) {
-    const key = call.candidate.candidateKey;
-    if (!grouped.has(key)) grouped.set(key, { candidate: call.candidate, positions: call.positions });
-  }
-  const output = [];
-  for (const plan of grouped.values()) {
-    const contexts = reassembleContexts(plan, inputRows);
-    for (const position of plan.positions) {
-      const context = requireEligible(contexts[position.originalIndex]);
-      output.push({ json: {
-        candidate: plan.candidate,
-        stream: {
-          role: position.role,
-          liveStreamID: position.liveStreamID,
-          mode: position.mode,
-          durationMinutes: 5,
-          streamContext: context,
-        },
-      } });
-    }
-  }
-  return output;
+  return buildReassembledRequests(calls, inputRows).map((json) => ({ json }));
 }
