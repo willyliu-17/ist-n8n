@@ -129,7 +129,10 @@
         -48
       ],
       "id": "ba443023-2333-489c-bcca-c06d55e3858c",
-      "name": "Streamer_Log_Analyzer"
+      "name": "Streamer_Log_Analyzer",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
