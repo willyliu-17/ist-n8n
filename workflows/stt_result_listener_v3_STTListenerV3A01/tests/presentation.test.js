@@ -127,11 +127,11 @@ test('is inactive with one typed Define Below attemptKey trigger and documented 
   assert.equal(workflow.nodes.some(({ type }) => type === 'n8n-nodes-base.webhook'), false);
 });
 
-test('validates attemptKey and uses exact five-minute presentation lease', () => {
+test('validates attemptKey and uses exact twenty-four-hour presentation lease', () => {
   assert.equal(state.validateAttemptKey(ATTEMPT_KEY), ATTEMPT_KEY);
   for (const value of ['', ' bad', 'bad ', null, 1]) assert.throws(() => state.validateAttemptKey(value));
-  assert.equal(state.presentationLeaseExpiry(NOW), '2026-08-22T00:05:00.000Z');
-  assert.match(node('Claim Presentation').parameters.columns.value.presentationLeaseUntilIso, /plus\(\{ minutes: 5 \}\)/);
+  assert.equal(state.presentationLeaseExpiry(NOW), '2026-08-23T00:00:00.000Z');
+  assert.equal(node('Claim Presentation').parameters.columns.value.presentationLeaseUntilIso, '={{ $now.toUTC().plus({ hours: 24 }).toISO() }}');
 });
 
 test('limits presentation mutations to the exact plan allowlist', () => {

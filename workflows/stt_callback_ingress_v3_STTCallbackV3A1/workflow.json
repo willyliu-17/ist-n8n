@@ -159,7 +159,7 @@
         { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "waiting_callback" }, { "keyName": "consumedAtIso", "condition": "eq", "keyValue": "" },
         { "keyName": "callbackTokenHash", "condition": "eq", "keyValue": "={{ $json.callbackTokenHash }}" }
-      ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "={{ $json.desiredStatus }}", "consumedAtIso": "={{ $json.consumedAtIso }}", "dialogue": "={{ $json.dialogue }}", "language": "={{ $json.language }}", "errorCode": "={{ $json.errorCode }}", "nextRetryAtIso": "={{ $json.nextRetryAtIso }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
+      ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "={{ $json.desiredStatus }}", "consumedAtIso": "={{ $json.consumedAtIso }}", "dialogue": "={{ $json.dialogue }}", "language": "={{ $json.language }}", "errorCode": "={{ $json.errorCode }}", "nextRetryAtIso": "={{ $json.nextRetryAtIso }}", "presentationStatus": "={{ $json.desiredPresentationStatus }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
       "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6480, -80], "id": "ba284afc-cc82-4255-a0f4-2ef138699d51", "name": "Consume Waiting Callback", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
@@ -168,7 +168,7 @@
         { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "retry_pending" }, { "keyName": "consumedAtIso", "condition": "eq", "keyValue": "" },
         { "keyName": "callbackTokenHash", "condition": "eq", "keyValue": "={{ $json.callbackTokenHash }}" }
-      ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "={{ $json.desiredStatus }}", "consumedAtIso": "={{ $json.consumedAtIso }}", "dialogue": "={{ $json.dialogue }}", "language": "={{ $json.language }}", "errorCode": "={{ $json.errorCode }}", "nextRetryAtIso": "={{ $json.nextRetryAtIso }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
+      ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "={{ $json.desiredStatus }}", "consumedAtIso": "={{ $json.consumedAtIso }}", "dialogue": "={{ $json.dialogue }}", "language": "={{ $json.language }}", "errorCode": "={{ $json.errorCode }}", "nextRetryAtIso": "={{ $json.nextRetryAtIso }}", "presentationStatus": "={{ $json.desiredPresentationStatus }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
       "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6480, 80], "id": "b0e50064-470b-416f-8024-0756616c4c26", "name": "Consume Retry Pending", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
@@ -177,7 +177,7 @@
         { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "manual_review" }, { "keyName": "consumedAtIso", "condition": "eq", "keyValue": "" },
         { "keyName": "callbackTokenHash", "condition": "eq", "keyValue": "={{ $json.callbackTokenHash }}" }, { "keyName": "manualReviewResolution", "condition": "eq", "keyValue": "" }
-      ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "={{ $json.desiredStatus }}", "consumedAtIso": "={{ $json.consumedAtIso }}", "dialogue": "={{ $json.dialogue }}", "language": "={{ $json.language }}", "errorCode": "={{ $json.errorCode }}", "nextRetryAtIso": "={{ $json.nextRetryAtIso }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
+      ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "={{ $json.desiredStatus }}", "consumedAtIso": "={{ $json.consumedAtIso }}", "dialogue": "={{ $json.dialogue }}", "language": "={{ $json.language }}", "errorCode": "={{ $json.errorCode }}", "nextRetryAtIso": "={{ $json.nextRetryAtIso }}", "presentationStatus": "={{ $json.desiredPresentationStatus }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
       "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6480, 240], "id": "197faa16-4a3d-473c-8143-ae70e45f1bda", "name": "Consume Manual Review", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [6720, -80], "id": "f0a872e6-0d8d-42c5-9d7f-ea672730cb06", "name": "Limit Consume Waiting Callback" },
@@ -214,7 +214,7 @@
       "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [8400, 160], "id": "77fd038f-e70a-4747-9a92-7390d5e52ba2", "name": "Is Logical Winner Duplicate"
     },
     {
-      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "d2e3153f-54ef-4074-9be6-6e13d900a9b2", "leftValue": "={{ $json.resultStatus }}", "rightValue": "completed", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "d2e3153f-54ef-4074-9be6-6e13d900a9b2", "leftValue": "={{ $json.triggerPresentation }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }], "combinator": "and" }, "options": {} },
       "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [7920, 0], "id": "4f8a2b80-9161-4e6a-85af-48e82daea923", "name": "Accepted Result Type"
     },
     {

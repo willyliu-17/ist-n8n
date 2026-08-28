@@ -22,7 +22,12 @@ const {
   strictFiniteNumber,
   tokenExpiry,
 } = require(payloadCodePath);
-const { classifyAck } = require(ackCodePath);
+const {
+  MAX_AUTOMATIC_ATTEMPTS,
+  RETRY_DEADLINE_MINUTES,
+  RETRY_SLOT_MINUTES,
+  classifyAck: classifyAckPolicy,
+} = require(ackCodePath);
 const {
   ATTEMPT_CHECKPOINT_FIELDS,
   SUMMARY_CHECKPOINT_FIELDS,
@@ -103,6 +108,10 @@ function summaryRequest(overrides = {}) {
     canonicalRowID: 'summary-row-a',
     ...overrides,
   };
+}
+
+function classifyAck(outcome, candidate, nowIso = NOW, requestRows = [summaryRequest()]) {
+  return classifyAckPolicy(outcome, candidate, requestRows, nowIso);
 }
 
 function readWorkflow() {
@@ -301,18 +310,21 @@ test('keeps token only in callback body context and computes fixed time boundari
   assert.equal(payload.webhookConfiguration.url, CALLBACK_URL);
   assert.equal(payload.webhookConfiguration.context.callbackToken, TOKEN);
   assert.doesNotMatch(payload.webhookConfiguration.url, /token|hash/i);
-  assert.equal(tokenExpiry(NOW), '2026-08-22T02:00:00.000Z');
-  assert.equal(dispatchLeaseExpiry(NOW), '2026-08-22T00:05:00.000Z');
-  assert.equal(callbackDeadline('2026-08-22T00:00:10.000Z'), '2026-08-22T00:30:10.000Z');
+  assert.equal(tokenExpiry(NOW), '2026-08-23T00:00:00.000Z');
+  assert.equal(dispatchLeaseExpiry(NOW), '2026-08-23T00:00:00.000Z');
+  assert.equal(callbackDeadline('2026-08-22T00:00:10.000Z'), '2026-08-23T00:00:10.000Z');
 });
 
-test('classifies accepted HTTP responses and all retry-table boundaries', () => {
+test('classifies accepted HTTP responses and all absolute retry slots', () => {
+  assert.equal(MAX_AUTOMATIC_ATTEMPTS, 20);
+  assert.equal(RETRY_DEADLINE_MINUTES, 720);
+  assert.deepEqual(RETRY_SLOT_MINUTES, [1, 2, 4, 6, 9, 13, 18, 25, 35, 48, 65, 88, 118, 158, 211, 281, 374, 497, 660]);
   for (const statusCode of [200, 201, 202, 204, 299]) {
     const result = classifyAck({ statusCode }, attempt({ attempt: 1 }), NOW);
     assert.equal(result.classification, 'accepted');
     assert.equal(result.status, 'waiting_callback');
     assert.equal(result.submittedAtIso, NOW);
-    assert.equal(result.callbackDeadlineAtIso, '2026-08-22T00:30:00.000Z');
+    assert.equal(result.callbackDeadlineAtIso, '2026-08-22T00:01:00.000Z');
   }
 
   for (const statusCode of [400, 401, 404, 422, 499]) {
@@ -325,15 +337,22 @@ test('classifies accepted HTTP responses and all retry-table boundaries', () => 
   }
 
   for (const statusCode of [429, 500, 502, 503, 504]) {
-    assert.equal(classifyAck({ statusCode }, attempt({ attempt: 1 }), NOW).nextRetryAtIso, '2026-08-22T00:01:00.000Z');
-    assert.equal(classifyAck({ statusCode }, attempt({ attempt: 2 }), NOW).nextRetryAtIso, '2026-08-22T00:05:00.000Z');
-    assert.equal(classifyAck({ statusCode }, attempt({ attempt: 3 }), NOW).status, 'failed');
-    assert.equal(classifyAck({ statusCode }, attempt({ attempt: 3 }), NOW).nextRetryAtIso, '');
+    RETRY_SLOT_MINUTES.forEach((minutes, index) => {
+      const result = classifyAck({ statusCode }, attempt({ attempt: index + 1 }), NOW);
+      assert.equal(result.status, 'retry_pending');
+      assert.equal(result.nextRetryAtIso, new Date(Date.parse(NOW) + minutes * 60_000).toISOString());
+    });
+    assert.equal(classifyAck({ statusCode }, attempt({ attempt: 20 }), NOW).status, 'failed');
+    assert.equal(classifyAck({ statusCode }, attempt({ attempt: 20 }), NOW).nextRetryAtIso, '');
   }
+
+  assert.equal(classifyAck({ statusCode: 202 }, attempt({ attempt: 20 }), NOW).callbackDeadlineAtIso, '2026-08-22T12:00:00.000Z');
+  assert.equal(classifyAck({ statusCode: 202 }, attempt({ attempt: 21 }), NOW).callbackDeadlineAtIso, '2026-08-23T00:00:00.000Z');
+  assert.equal(classifyAck({ statusCode: 503 }, attempt({ attempt: 21 }), NOW).status, 'failed');
 });
 
 test('routes every transport error to manual review without automatic retry', () => {
-  for (const attemptNumber of [1, 2, 3]) {
+  for (const attemptNumber of [1, 20, 21]) {
     assert.deepEqual(classifyAck({ transportError: true }, attempt({ attempt: attemptNumber }), NOW), {
       classification: 'ambiguous_transport',
       status: 'manual_review',
@@ -516,10 +535,10 @@ test('handles already-applied, zero-CAS reread, mismatch, and fallback-CAS-miss 
     classification: 'accepted',
     status: 'waiting_callback',
     submittedAtIso: NOW,
-    callbackDeadlineAtIso: '2026-08-22T00:30:00.000Z',
+    callbackDeadlineAtIso: '2026-08-23T00:00:00.000Z',
     attemptKey: attempt().attemptKey,
     dispatchLeaseOwner: 'exec-1',
-    dispatchLeaseUntilIso: '2026-08-22T00:05:00.000Z',
+    dispatchLeaseUntilIso: '2026-08-23T00:00:00.000Z',
   };
   const ownedDispatching = attempt({
     status: 'dispatching',
@@ -639,13 +658,13 @@ test('requires exactly one canonical row owned by the current dispatch lease', (
   const owned = attempt({
     status: 'dispatching',
     dispatchLeaseOwner: 'exec-1',
-    dispatchLeaseUntilIso: '2026-08-22T00:05:00.000Z',
+    dispatchLeaseUntilIso: '2026-08-23T00:00:00.000Z',
   });
   assert.deepEqual(requireCanonicalOwner([owned], 'exec-1', NOW), owned);
   assert.throws(() => requireCanonicalOwner([owned, { ...owned, id: 2 }], 'exec-1', NOW), /exactly one canonical/i);
   assert.throws(() => requireCanonicalOwner([owned], 'exec-2', NOW), /lease owner/i);
-  assert.throws(() => requireCanonicalOwner([owned], 'exec-1', '2026-08-22T00:05:00.000Z'), /lease expired/i);
-  assert.throws(() => requireCanonicalOwner([owned], 'exec-1', '2026-08-22T00:05:00.001Z'), /lease expired/i);
+  assert.throws(() => requireCanonicalOwner([owned], 'exec-1', '2026-08-23T00:00:00.000Z'), /lease expired/i);
+  assert.throws(() => requireCanonicalOwner([owned], 'exec-1', '2026-08-23T00:00:00.001Z'), /lease expired/i);
   assert.throws(
     () => requireCanonicalOwner([{ ...owned, dispatchLeaseUntilIso: 'not-an-iso-date' }], 'exec-1', NOW),
     /invalid dispatch lease/i,
@@ -723,7 +742,7 @@ test('keeps authoritative source placeholders and remaps every Data Table to its
   assert.equal(claimFilters.reconciliationStatus.keyValue, 'canonical');
   assert.equal(claim.parameters.columns.value.status, 'dispatching');
   assert.equal(claim.parameters.columns.value.dispatchLeaseOwner, '={{ $execution.id }}');
-  assert.match(claim.parameters.columns.value.dispatchLeaseUntilIso, /plus\(\{ minutes: 5 \}\)/);
+  assert.equal(claim.parameters.columns.value.dispatchLeaseUntilIso, '={{ $now.plus({ hours: 24 }).toUTC().toISO() }}');
 });
 
 test('implements reconciliation, claim Limit 1, and exact canonical owner re-reads', () => {
@@ -830,7 +849,7 @@ test('uses native Crypto nodes for a 32-byte opaque token and SHA-256 hash', () 
   assert.doesNotMatch(allCode, /console\.(?:log|debug|info|warn|error)/);
 });
 
-test('persists only token hash and two-hour expiry before the VDS submit', () => {
+test('persists only token hash and twenty-four-hour expiry before the VDS submit', () => {
   const workflow = readWorkflow();
   const persist = nodeByName(workflow, 'Persist Token Hash');
   const serializedPersist = JSON.stringify(persist.parameters);
@@ -841,7 +860,7 @@ test('persists only token hash and two-hour expiry before the VDS submit', () =>
   assert.equal(persistFilters.dispatchLeaseOwner.keyValue, '={{ $execution.id }}');
   assert.match(persistFilters.dispatchLeaseUntilIso.keyValue, /Require Canonical Owner/);
   assert.equal(persist.parameters.columns.value.callbackTokenHash, '={{ $json.callbackTokenHash }}');
-  assert.match(persist.parameters.columns.value.callbackTokenExpiresAtIso, /plus\(\{ hours: 2 \}\)/);
+  assert.equal(persist.parameters.columns.value.callbackTokenExpiresAtIso, '={{ $now.plus({ hours: 24 }).toUTC().toISO() }}');
   assert.doesNotMatch(serializedPersist, /[".]callbackToken["}]/);
   assert.deepEqual(targets(workflow, 'Hash Callback Token'), ['Persist Token Hash']);
   assert.deepEqual(targets(workflow, 'Require Canonical Owner Before Submit'), ['Token Hash Persisted']);

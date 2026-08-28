@@ -9,15 +9,15 @@ function addMinutes(iso, minutes) {
 }
 
 function tokenExpiry(nowIso) {
-  return addMinutes(nowIso, 120);
+  return addMinutes(nowIso, 24 * 60);
 }
 
 function dispatchLeaseExpiry(nowIso) {
-  return addMinutes(nowIso, 5);
+  return addMinutes(nowIso, 24 * 60);
 }
 
 function callbackDeadline(submittedAtIso) {
-  return addMinutes(submittedAtIso, 30);
+  return addMinutes(submittedAtIso, 24 * 60);
 }
 
 function validateCallbackUrl(callbackUrl) {

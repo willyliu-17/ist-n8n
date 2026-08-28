@@ -46,7 +46,7 @@ function validateAttemptKey(value) {
 }
 
 function presentationLeaseExpiry(nowIso) {
-  return new Date(strictIso(nowIso, 'current time') + 5 * 60_000).toISOString();
+  return new Date(strictIso(nowIso, 'current time') + 24 * 60 * 60_000).toISOString();
 }
 
 function compareRows(left, right) {

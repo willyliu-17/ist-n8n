@@ -22,6 +22,7 @@ const LOGICAL_PROVENANCE_FIELDS = Object.freeze([
 ]);
 const ALLOWED_UNCONSUMED_STATUSES = new Set(['waiting_callback', 'retry_pending', 'manual_review']);
 const RECONCILIATION_STATUSES = new Set(['pending', 'canonical', 'duplicate']);
+const MAX_AUTOMATIC_ATTEMPTS = 20;
 
 function systemRowID(value) {
   if (typeof value === 'number') return Number.isSafeInteger(value) && value > 0;
@@ -133,15 +134,17 @@ function resultPatch(canonical, normalized, hash, nowIso, desiredStatus, errorCo
     consumedAtIso: nowIso,
     desiredStatus,
     dialogue: desiredStatus === 'completed' ? normalized.transcription : '',
-    language: desiredStatus === 'completed' ? normalized.language : '',
+    language: desiredStatus === 'completed' && normalized.transcription !== '' ? normalized.language : '',
     errorCode,
     nextRetryAtIso,
+    desiredPresentationStatus: desiredStatus === 'completed' && normalized.transcription === ''
+      ? 'completed'
+      : canonical.presentationStatus,
   };
 }
 
 function failurePatch(canonical, normalized, hash, nowIso, errorCode, terminalStatus = 'failed') {
-  if (canonical.attempt === 1 || canonical.attempt === 2) {
-    const delay = canonical.attempt === 1 ? 1 : 5;
+  if (canonical.attempt < MAX_AUTOMATIC_ATTEMPTS) {
     return resultPatch(
       canonical,
       normalized,
@@ -149,7 +152,7 @@ function failurePatch(canonical, normalized, hash, nowIso, errorCode, terminalSt
       nowIso,
       'retry_pending',
       errorCode,
-      new Date(parseIso(nowIso, 'current time') + delay * 60 * 1000).toISOString(),
+      canonical.callbackDeadlineAtIso,
     );
   }
   return resultPatch(canonical, normalized, hash, nowIso, terminalStatus, errorCode, '');
@@ -179,8 +182,7 @@ function classifyClaim(attemptRows, normalized, hash, nowIso, logicalJobRows) {
   }
 
   const completedElsewhere = logicalCanonicals.some((row) => (
-    row.attemptKey !== canonical.attemptKey && row.status === 'completed' &&
-    typeof row.dialogue === 'string' && row.dialogue !== ''
+    row.attemptKey !== canonical.attemptKey && row.status === 'completed'
   ));
   if (completedElsewhere) {
     return response('duplicate', 'duplicate', 200, canonical, 'logical_job_already_completed');
@@ -192,11 +194,15 @@ function classifyClaim(attemptRows, normalized, hash, nowIso, logicalJobRows) {
   if (canonical.status === 'manual_review' && canonical.manualReviewResolution !== '') {
     return response('reject', 'conflict', 409, canonical, 'manual_review_resolved');
   }
-  if (!Number.isInteger(canonical.attempt) || canonical.attempt < 1 || canonical.attempt > 3) {
+  if (!Number.isInteger(canonical.attempt) || canonical.attempt < 1) {
     throw new Error('Invalid attempt number');
   }
 
   if (canonical.status === 'manual_review') {
+    if (!normalized.retryableServiceError && normalized.statusCode >= 200 && normalized.statusCode < 300) {
+      const errorCode = normalized.transcription === '' ? 'callback_empty_transcription' : '';
+      return resultPatch(canonical, normalized, hash, nowIso, 'completed', errorCode, '');
+    }
     if (canonical.callbackDeadlineAtIso !== '') {
       const deadline = parseIso(canonical.callbackDeadlineAtIso, 'callback deadline');
       if (deadline <= now) {
@@ -214,15 +220,13 @@ function classifyClaim(attemptRows, normalized, hash, nowIso, logicalJobRows) {
         '',
       );
     }
-    if (normalized.statusCode >= 200 && normalized.statusCode < 300 && normalized.transcription !== '') {
-      return resultPatch(canonical, normalized, hash, nowIso, 'completed', '', '');
-    }
-    const errorCode = normalized.transcription === ''
-      ? 'callback_empty_transcription'
-      : `callback_service_${normalized.statusCode}`;
-    return resultPatch(canonical, normalized, hash, nowIso, 'failed', errorCode, '');
+    return resultPatch(canonical, normalized, hash, nowIso, 'failed', `callback_service_${normalized.statusCode}`, '');
   }
 
+  if (!normalized.retryableServiceError && normalized.statusCode >= 200 && normalized.statusCode < 300) {
+    const errorCode = normalized.transcription === '' ? 'callback_empty_transcription' : '';
+    return resultPatch(canonical, normalized, hash, nowIso, 'completed', errorCode, '');
+  }
   if (canonical.callbackDeadlineAtIso !== '') {
     const deadline = parseIso(canonical.callbackDeadlineAtIso, 'callback deadline');
     if (deadline <= now) {
@@ -233,12 +237,6 @@ function classifyClaim(attemptRows, normalized, hash, nowIso, logicalJobRows) {
   }
   if (normalized.retryableServiceError) {
     return failurePatch(canonical, normalized, hash, nowIso, `callback_service_${normalized.statusCode}`);
-  }
-  if (normalized.statusCode >= 200 && normalized.statusCode < 300 && normalized.transcription !== '') {
-    return resultPatch(canonical, normalized, hash, nowIso, 'completed', '', '');
-  }
-  if (normalized.transcription === '') {
-    return failurePatch(canonical, normalized, hash, nowIso, 'callback_empty_transcription');
   }
   return resultPatch(
     canonical,
@@ -252,7 +250,7 @@ function classifyClaim(attemptRows, normalized, hash, nowIso, logicalJobRows) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { classifyClaim };
+  module.exports = { MAX_AUTOMATIC_ATTEMPTS, classifyClaim };
 }
 
 if (typeof $input !== 'undefined') {

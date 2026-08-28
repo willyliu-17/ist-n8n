@@ -25,8 +25,17 @@ function splitPlanAndRows(items) {
   delete plan.__planAction;
   return { plan, rows };
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = { splitPlanAndRows, verifyClaim };
+function verifyClaimRuntime(items, now = new Date().toISOString()) {
+  const { plan, rows } = splitPlanAndRows(items);
+  try {
+    return [verifyClaim(rows, plan.requestKey, plan.owner, now, plan.leaseUntilIso)];
+  } catch (error) {
+    // Concurrent callbacks legitimately lose the exact lease compare-and-swap.
+    if (error instanceof Error && error.message === 'claim owner mismatch') return [];
+    throw error;
+  }
+}
+if (typeof module !== 'undefined' && module.exports) module.exports = { splitPlanAndRows, verifyClaim, verifyClaimRuntime };
 if (typeof $input !== 'undefined') {
-  const { plan, rows } = splitPlanAndRows($input.all().map(({ json }) => ({ ...json })));
-  return [{ json: verifyClaim(rows, plan.requestKey, plan.owner, new Date().toISOString(), plan.leaseUntilIso) }];
+  return verifyClaimRuntime($input.all().map(({ json }) => ({ ...json }))).map((json) => ({ json }));
 }

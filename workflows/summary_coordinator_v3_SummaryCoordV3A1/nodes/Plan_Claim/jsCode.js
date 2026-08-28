@@ -9,7 +9,7 @@ function planClaim(request, now, owner) {
   const nowMillis = validIso(now, 'current time');
   if (!nonemptyOwner(owner)) throw new Error('claim owner required');
   if (!['ready', 'summary_retry_pending', 'summary_dispatching'].includes(request.status)) return { action: 'noop', status: request.status };
-  const leaseUntilIso = new Date(nowMillis + 300000).toISOString();
+  const leaseUntilIso = new Date(nowMillis + 24 * 60 * 60 * 1000).toISOString();
   const base = { id: request.id, requestKey: request.requestKey, expectedStatus: request.status, expectedReconciliationStatus: 'canonical', expectedCanonicalRowID: String(request.id), expectedLeaseOwner: request.leaseOwner || '', expectedLeaseUntilIso: request.leaseUntilIso || '', owner, leaseUntilIso };
   if (request.status === 'ready') {
     if (request.leaseOwner !== '' || request.leaseUntilIso !== '') return { action: 'noop', status: request.status };

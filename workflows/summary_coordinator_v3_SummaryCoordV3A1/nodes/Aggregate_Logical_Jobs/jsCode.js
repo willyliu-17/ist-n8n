@@ -138,12 +138,13 @@ function aggregateLogicalJobs(request, rows) {
     if (persisted) { available.set(key, { stream, dialogue: persisted.dialogue }); continue; }
     const attempts = canonicalByLogical.get(key) || [];
     if (!attempts.length) throw new Error('missing canonical attempt');
-    const successes = attempts.filter((row) => row.status === 'completed' && nonempty(row.dialogue));
+    const successes = attempts.filter((row) => row.status === 'completed');
     if (successes.length) { available.set(key, { stream, dialogue: [...successes].sort((a, b) => a.attempt - b.attempt || compareRows(a, b))[0].dialogue }); continue; }
     const retryRows = attempts.filter((row) => row.status === 'retry_materialized' || (row.status === 'manual_review' && nonempty(row.manualReviewResolution)));
     retryRows.forEach((row) => retryTarget(row, attempts));
-    if (attempts.some((row) => PENDING.has(row.status) || row.status === 'retry_materialized' || (row.status === 'manual_review' && !nonempty(row.manualReviewResolution)))) { unresolved.push(key); continue; }
-    if (attempts.every((row) => TERMINAL.has(row.status))) { failed.push(key); continue; }
+    const activeAttempts = attempts.filter((row) => !retryRows.includes(row));
+    if (activeAttempts.some((row) => PENDING.has(row.status) || (row.status === 'manual_review' && !nonempty(row.manualReviewResolution)))) { unresolved.push(key); continue; }
+    if (activeAttempts.length && activeAttempts.every((row) => TERMINAL.has(row.status))) { failed.push(key); continue; }
     throw new Error('unsupported attempt status');
   }
   if (unresolved.length) return { action: 'pending', status: 'waiting_stt', unresolvedLogicalJobKeys: unresolved };

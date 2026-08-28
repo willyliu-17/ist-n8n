@@ -11,7 +11,7 @@ const {
   planAllFailedWrite, planCoverageFromRuntime, planCoverageWrite, verifyCoverageWrite,
 } = require('../nodes/Plan_Coverage_Write/jsCode');
 const { planClaim } = require('../nodes/Plan_Claim/jsCode');
-const { verifyClaim } = require('../nodes/Verify_Claim/jsCode');
+const { verifyClaim, verifyClaimRuntime } = require('../nodes/Verify_Claim/jsCode');
 const { splitPlanAndRows, verifyPlan, verifyCarrierInput: verifyInitialCarrierInput } = require('../nodes/Verify_Initial_Plan/jsCode');
 const { verifyCarrierInput: verifyClaimTimeCarrierInput } = require('../nodes/Verify_Claim_Time_Plan/jsCode');
 const { verifyCarrierInput: verifyPreflightCarrierInput } = require('../nodes/Verify_Preflight_Plan/jsCode');
@@ -78,6 +78,16 @@ test('aggregates lowest completed nonempty dialogue in ordered streams', () => {
   assert.equal(result.coverageStatus, 'complete'); assert.equal(result.streams[0].dialogue, 'current dialogue');
   assert.deepEqual(result.availableRoles, ['current', 'previous']);
 });
+test('treats completed empty transcription as complete stream coverage', () => {
+  const result = aggregateLogicalJobs(request(), [
+    attempt('current', { dialogue: '', errorCode: 'callback_empty_transcription' }),
+    attempt('previous'),
+  ]);
+  assert.equal(result.action, 'ready');
+  assert.equal(result.coverageStatus, 'complete');
+  assert.deepEqual(result.availableRoles, ['current', 'previous']);
+  assert.equal(result.streams[0].dialogue, '');
+});
 test('reports partial and all_failed terminal coverage', () => {
   assert.equal(aggregateLogicalJobs(request(), [attempt('current'), attempt('previous', { status: 'failed', dialogue: '' })]).coverageStatus, 'partial');
   assert.equal(aggregateLogicalJobs(request(), [attempt('current', { status: 'failed', dialogue: '' }), attempt('previous', { status: 'timed_out', dialogue: '' })]).action, 'all_failed');
@@ -91,6 +101,19 @@ test('resolved manual and retry_materialized follow exact next canonical attempt
   const next = attempt('current', { attempt: 2, id: 202, canonicalRowID: '202', status: 'completed', dialogue: 'retried' });
   const result = aggregateLogicalJobs(request(), [old, next, attempt('previous')]);
   assert.equal(result.coverageStatus, 'complete'); assert.equal(result.streams[0].dialogue, 'retried');
+});
+test('terminal retry chain ignores superseded attempts and reports all failed', () => {
+  const chain = ['current', 'previous'].flatMap((role, roleIndex) => {
+    const key = expected[roleIndex];
+    return [
+      attempt(role, { status: 'retry_materialized', dialogue: '', manualReviewResolution: `retry_created:${key}:2` }),
+      attempt(role, { attempt: 2, id: 202 + roleIndex * 10, canonicalRowID: String(202 + roleIndex * 10), status: 'retry_materialized', dialogue: '', manualReviewResolution: `retry_created:${key}:3` }),
+      attempt(role, { attempt: 3, id: 203 + roleIndex * 10, canonicalRowID: String(203 + roleIndex * 10), status: 'failed', dialogue: '' }),
+    ];
+  });
+  const result = aggregateLogicalJobs(request(), chain);
+  assert.equal(result.action, 'all_failed');
+  assert.deepEqual(result.failedLogicalJobKeys, expected);
 });
 test('broken retry chains and malformed attempts fail closed', () => {
   assert.throws(() => aggregateLogicalJobs(request(), [attempt('current', { status: 'retry_materialized', dialogue: '', manualReviewResolution: 'retry_created:wrong:2' }), attempt('previous')]), /broken retry/);
@@ -144,9 +167,9 @@ test('all-failed plan writes fixed failure and clears lease', () => {
   assert.equal(planAllFailedWrite(request({ status: 'ready' })).expected.status, 'ready');
   assert.deepEqual(planAllFailedWrite(request({ status: 'failed', errorCode: 'SUMMARY_ALL_STT_LOGICAL_JOBS_FAILED' })), { action: 'noop', reason: 'all_failed_persisted', id: 101, requestKey: KEY });
 });
-test('initial claim has exact empty lease snapshot and five-minute UTC ISO', () => {
+test('initial claim has exact empty lease snapshot and twenty-four-hour UTC ISO', () => {
   const plan = planClaim(request({ status: 'ready' }), NOW, 'exec-a');
-  assert.equal(plan.action, 'initial'); assert.equal(plan.leaseUntilIso, '2026-08-24T00:05:00.000Z'); assert.equal(plan.expectedLeaseOwner, ''); assert.equal(plan.expectedCanonicalRowID, '101');
+  assert.equal(plan.action, 'initial'); assert.equal(plan.leaseUntilIso, '2026-08-25T00:00:00.000Z'); assert.equal(plan.expectedLeaseOwner, ''); assert.equal(plan.expectedCanonicalRowID, '101');
 });
 test('retry-due claim snapshots exact due fields and rejects future due', () => {
   const due = planClaim(request({ status: 'summary_retry_pending', nextRetryAtIso: NOW }), NOW, 'exec-a');
@@ -181,6 +204,11 @@ test('claim verifier requires one current canonical owner and exact unexpired le
   const row = request({ status: 'summary_dispatching', leaseOwner: 'exec-a', leaseUntilIso: LATER });
   assert.equal(verifyClaim([row], KEY, 'exec-a', NOW, LATER).id, 101);
   assert.throws(() => verifyClaim([row, request({ id: 102, canonicalRowID: '102', status: 'summary_dispatching', leaseOwner: 'exec-a', leaseUntilIso: LATER })], KEY, 'exec-a', NOW), /exactly one/);
+});
+test('claim verifier treats an exact lease loser as a no-op', () => {
+  const plan = { __planCarrier: true, __planPhase: 'claim', __planAction: 'claim', action: 'claim', requestKey: KEY, owner: 'exec-a', leaseUntilIso: LATER };
+  const row = request({ status: 'summary_dispatching', leaseOwner: 'exec-b', leaseUntilIso: LATER });
+  assert.deepEqual(verifyClaimRuntime([plan, row], NOW), []);
 });
 test('pre-AI re-reconciles clean races and freezes checkpoint conflicts', () => {
   const clean = [request({ id: 101, status: 'summary_dispatching', leaseOwner: 'exec-a', leaseUntilIso: LATER }), request({ id: 102, canonicalRowID: '102', reconciliationStatus: 'canonical', status: 'summary_dispatching', leaseOwner: 'exec-a', leaseUntilIso: LATER })];

@@ -87,7 +87,7 @@
         { "keyName": "status", "condition": "eq", "keyValue": "creating" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }, { "keyName": "creationLeaseOwner", "condition": "eq", "keyValue": "={{ $json.expectedCreationLeaseOwner }}" },
         { "keyName": "creationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.expectedCreationLeaseUntilIso }}" }
-      ] }, "columns": { "mappingMode": "defineBelow", "value": { "creationLeaseOwner": "={{ $execution.id }}", "creationLeaseUntilIso": "={{ $now.plus({ minutes: 5 }).toUTC().toISO() }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
+      ] }, "columns": { "mappingMode": "defineBelow", "value": { "creationLeaseOwner": "={{ $execution.id }}", "creationLeaseUntilIso": "={{ $now.plus({ hours: 24 }).toUTC().toISO() }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
       "id": "00000015-0000-4000-8000-000000000015", "name": "Claim Creation Lease", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2160, 80], "alwaysOutputData": true
     },
     { "parameters": { "maxItems": 1 }, "id": "00000016-0000-4000-8000-000000000016", "name": "Limit Creation Claim", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2400, 80] },

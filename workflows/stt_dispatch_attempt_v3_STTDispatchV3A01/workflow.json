@@ -349,7 +349,7 @@
           "value": {
             "status": "dispatching",
             "dispatchLeaseOwner": "={{ $execution.id }}",
-            "dispatchLeaseUntilIso": "={{ $now.plus({ minutes: 5 }).toUTC().toISO() }}",
+            "dispatchLeaseUntilIso": "={{ $now.plus({ hours: 24 }).toUTC().toISO() }}",
             "updatedAtIso": "={{ $now.toUTC().toISO() }}"
           },
           "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false
@@ -444,7 +444,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "callbackTokenHash": "={{ $json.callbackTokenHash }}",
-            "callbackTokenExpiresAtIso": "={{ $now.plus({ hours: 2 }).toUTC().toISO() }}",
+            "callbackTokenExpiresAtIso": "={{ $now.plus({ hours: 24 }).toUTC().toISO() }}",
             "updatedAtIso": "={{ $now.toUTC().toISO() }}"
           },
           "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false

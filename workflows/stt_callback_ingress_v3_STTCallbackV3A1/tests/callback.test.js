@@ -18,7 +18,7 @@ const verifyLogicalPath = path.join(workflowDir, 'nodes', 'Verify_Logical_Winner
 
 const { normalizeCallback } = require(normalizePath);
 const { validateHashRows } = require(validateHashPath);
-const { classifyClaim } = require(classifyPath);
+const { MAX_AUTOMATIC_ATTEMPTS, classifyClaim } = require(classifyPath);
 const {
   ATTEMPT_CHECKPOINT_FIELDS,
   SUMMARY_CHECKPOINT_FIELDS,
@@ -32,6 +32,7 @@ const TOKEN = 'a'.repeat(64);
 const HASH = 'b'.repeat(64);
 const ATTEMPT_KEY = 'summary:req-001:current:9001:fromStart:1';
 const LOGICAL_JOB_KEY = 'summary:req-001:current:9001:fromStart';
+const RETRY_SLOT_MINUTES = [1, 2, 4, 6, 9, 13, 18, 25, 35, 48, 65, 88, 118, 158, 211, 281, 374, 497, 660];
 const P3_IDS = new Map([
   ['suspect_stt_candidates_v3', 'p3-suspects'],
   ['stt_jobs_v3', 'p3-jobs'],
@@ -72,6 +73,7 @@ function normalized(overrides = {}) {
 }
 
 function attempt(overrides = {}) {
+  const attemptNumber = Number(overrides.attempt || 1);
   const result = {
     id: 1,
     createdAt: '2026-08-22T00:00:00.000Z',
@@ -86,8 +88,10 @@ function attempt(overrides = {}) {
     mode: 'fromStart',
     status: 'waiting_callback',
     callbackTokenHash: HASH,
-    callbackTokenExpiresAtIso: '2026-08-22T02:00:00.000Z',
-    callbackDeadlineAtIso: '2026-08-22T00:30:00.000Z',
+    callbackTokenExpiresAtIso: '2026-08-23T00:00:00.000Z',
+    callbackDeadlineAtIso: attemptNumber <= RETRY_SLOT_MINUTES.length
+      ? new Date(Date.parse(NOW) + RETRY_SLOT_MINUTES[attemptNumber - 1] * 60_000).toISOString()
+      : attemptNumber === MAX_AUTOMATIC_ATTEMPTS ? '2026-08-22T12:10:00.000Z' : '2026-08-23T00:10:00.000Z',
     consumedAtIso: '',
     channel: 'C0A4JJJKJMD',
     threadTS: '1787364000.000001',
@@ -96,6 +100,7 @@ function attempt(overrides = {}) {
     language: '',
     errorCode: '',
     nextRetryAtIso: '',
+    presentationStatus: 'pending',
     manualReviewResolution: '',
     reconciliationStatus: 'canonical',
     canonicalRowID: '1',
@@ -321,8 +326,8 @@ test('allows unresolved manual review and a valid old attempt to complete', () =
   assert.equal(resolved.httpStatus, 409);
 });
 
-test('classifies every unresolved manual-review callback as terminal by attempts 1 through 3', () => {
-  for (const attemptNumber of [1, 2, 3]) {
+test('classifies every unresolved manual-review callback as terminal across automatic and manual attempts', () => {
+  for (const attemptNumber of [1, 20, 21]) {
     const row = attempt({
       attempt: attemptNumber,
       status: 'manual_review',
@@ -333,8 +338,11 @@ test('classifies every unresolved manual-review callback as terminal by attempts
     assert.equal(success.desiredStatus, 'completed', `success attempt ${attemptNumber}`);
     assert.equal(success.nextRetryAtIso, '', `success attempt ${attemptNumber}`);
 
+    const empty = classifyClaim([row], normalized({ transcription: '' }), HASH, NOW);
+    assert.equal(empty.desiredStatus, 'completed', `empty attempt ${attemptNumber}`);
+    assert.equal(empty.errorCode, 'callback_empty_transcription', `empty attempt ${attemptNumber}`);
+
     for (const callback of [
-      normalized({ transcription: '' }),
       normalized({ retryableServiceError: true }),
       normalized({ statusCode: 400, transcription: 'service response' }),
     ]) {
@@ -346,7 +354,7 @@ test('classifies every unresolved manual-review callback as terminal by attempts
     const deadline = classifyClaim([
       { ...row, callbackDeadlineAtIso: NOW },
     ], normalized(), HASH, NOW);
-    assert.equal(deadline.desiredStatus, 'failed', `deadline attempt ${attemptNumber}`);
+    assert.equal(deadline.desiredStatus, 'completed', `deadline attempt ${attemptNumber}`);
     assert.equal(deadline.nextRetryAtIso, '', `deadline attempt ${attemptNumber}`);
   }
 });
@@ -436,28 +444,34 @@ test('fails closed on immutable logical provenance drift before and after consum
   );
 });
 
-test('classifies empty transcription, retryable service errors, and deadlines by attempt', () => {
-  for (const attemptNumber of [1, 2, 3]) {
+test('accepts empty transcription while retrying service errors by the persisted absolute slot', () => {
+  assert.equal(MAX_AUTOMATIC_ATTEMPTS, 20);
+  for (const attemptNumber of Array.from({ length: 20 }, (_, index) => index + 1)) {
     const row = attempt({ attempt: attemptNumber });
     const empty = classifyClaim([row], normalized({ transcription: '' }), HASH, NOW);
     const service = classifyClaim([row], normalized({ retryableServiceError: true }), HASH, NOW);
-    if (attemptNumber === 1) {
-      assert.equal(empty.nextRetryAtIso, '2026-08-22T00:11:00.000Z');
-      assert.equal(service.nextRetryAtIso, '2026-08-22T00:11:00.000Z');
-    } else if (attemptNumber === 2) {
-      assert.equal(empty.nextRetryAtIso, '2026-08-22T00:15:00.000Z');
-      assert.equal(service.nextRetryAtIso, '2026-08-22T00:15:00.000Z');
+    assert.equal(empty.desiredStatus, 'completed');
+    assert.equal(empty.errorCode, 'callback_empty_transcription');
+    assert.equal(empty.dialogue, '');
+    assert.equal(empty.nextRetryAtIso, '');
+    assert.equal(empty.desiredPresentationStatus, 'completed');
+    if (attemptNumber < MAX_AUTOMATIC_ATTEMPTS) {
+      assert.equal(service.desiredStatus, 'retry_pending');
+      assert.equal(service.nextRetryAtIso, row.callbackDeadlineAtIso);
     } else {
-      assert.equal(empty.desiredStatus, 'failed');
       assert.equal(service.desiredStatus, 'failed');
-      assert.equal(empty.nextRetryAtIso, '');
     }
 
-    const deadline = classifyClaim([
+    const successfulAtDeadline = classifyClaim([
       attempt({ attempt: attemptNumber, callbackDeadlineAtIso: NOW }),
     ], normalized(), HASH, NOW);
-    assert.equal(deadline.desiredStatus, attemptNumber < 3 ? 'retry_pending' : 'timed_out');
+    assert.equal(successfulAtDeadline.desiredStatus, 'completed');
   }
+
+  const manual = classifyClaim([attempt({ attempt: 21 })], normalized({ transcription: '' }), HASH, NOW);
+  assert.equal(manual.desiredStatus, 'completed');
+  assert.equal(manual.errorCode, 'callback_empty_transcription');
+  assert.equal(manual.nextRetryAtIso, '');
 });
 
 test('preserves canonical permanence and freezes cross-table checkpoint conflicts', () => {
@@ -533,7 +547,7 @@ test('verifies callback patches and detects zero-CAS without downstream eligibil
   );
 });
 
-test('accepts a single completed logical winner and a non-completed result with coordinator only', () => {
+test('accepts nonempty and empty completed logical winners with the correct downstream triggers', () => {
   const completedExpected = classifyClaim([attempt()], normalized(), HASH, NOW);
   const completed = attempt({
     status: 'completed', consumedAtIso: NOW, dialogue: 'hello world', language: 'en',
@@ -548,28 +562,29 @@ test('accepts a single completed logical winner and a non-completed result with 
   assert.equal(completedResult.triggerPresentation, true);
   assert.equal(completedResult.triggerCoordinator, true);
 
-  const retryExpected = classifyClaim(
+  const emptyExpected = classifyClaim(
     [attempt()],
     normalized({ transcription: '' }),
     HASH,
     NOW,
   );
-  const retryPending = attempt({
-    status: 'retry_pending',
+  const emptyCompleted = attempt({
+    status: 'completed',
     consumedAtIso: NOW,
     dialogue: '',
     language: '',
     errorCode: 'callback_empty_transcription',
-    nextRetryAtIso: '2026-08-22T00:11:00.000Z',
+    nextRetryAtIso: '',
+    presentationStatus: 'completed',
   });
-  const retryResult = verifyLogicalWinner(
-    [retryPending],
-    verifyCallbackState([retryPending], retryExpected),
-    retryExpected,
+  const emptyResult = verifyLogicalWinner(
+    [emptyCompleted],
+    verifyCallbackState([emptyCompleted], emptyExpected),
+    emptyExpected,
   );
-  assert.equal(retryResult.action, 'accepted');
-  assert.equal(retryResult.triggerPresentation, false);
-  assert.equal(retryResult.triggerCoordinator, true);
+  assert.equal(emptyResult.action, 'accepted');
+  assert.equal(emptyResult.triggerPresentation, false);
+  assert.equal(emptyResult.triggerCoordinator, true);
 });
 
 test('selects the deterministic completed winner and gives the loser zero downstream triggers', () => {
@@ -768,6 +783,7 @@ test('uses exact soft-CAS result filters, Limit, reread, and zero-CAS verifier',
     assert.equal(filters.callbackTokenHash.keyValue, '={{ $json.callbackTokenHash }}', name);
     assert.equal(Boolean(filters.manualReviewResolution), manual, name);
     assert.equal(node.parameters.columns.value.consumedAtIso, '={{ $json.consumedAtIso }}', name);
+    assert.equal(node.parameters.columns.value.presentationStatus, '={{ $json.desiredPresentationStatus }}', name);
     assert.equal(node.alwaysOutputData, true, name);
     assert.deepEqual(targets(workflow, name), [`Limit ${name}`]);
     assert.deepEqual(targets(workflow, `Limit ${name}`), ['Re-read Callback Result']);
@@ -866,6 +882,13 @@ test('triggers presentation and coordinator only after verified accepted state',
   assert.equal(reachableNodes(workflow, 'Read Post-Callback Logical Job Rows').has('Respond Duplicate'), true);
   assert.equal(reachableNodes(workflow, 'Read Post-Callback Logical Job Rows').has('Respond Internal Error'), true);
   assert.ok(targets(workflow, 'Respond Accepted').includes('Accepted Result Type'));
+  const acceptedResultCondition = nodeByName(workflow, 'Accepted Result Type').parameters.conditions.conditions[0];
+  assert.equal(acceptedResultCondition.leftValue, '={{ $json.triggerPresentation }}');
+  assert.deepEqual(acceptedResultCondition.operator, {
+    type: 'boolean',
+    operation: 'true',
+    singleValue: true,
+  });
   assert.deepEqual(targets(workflow, 'Accepted Result Type', 0), ['Run Presentation Owner']);
   assert.deepEqual(targets(workflow, 'Accepted Result Type', 1), ['Run Summary Coordinator']);
   assert.ok(targets(workflow, 'Run Presentation Owner').includes('Run Summary Coordinator'));

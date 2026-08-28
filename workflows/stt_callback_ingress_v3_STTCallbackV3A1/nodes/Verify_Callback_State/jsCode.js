@@ -42,7 +42,8 @@ function verifyCallbackState(rows, expected) {
     canonical.dialogue === expected.dialogue &&
     canonical.language === expected.language &&
     canonical.errorCode === expected.errorCode &&
-    canonical.nextRetryAtIso === expected.nextRetryAtIso
+    canonical.nextRetryAtIso === expected.nextRetryAtIso &&
+    canonical.presentationStatus === expected.desiredPresentationStatus
   );
   if (expectedApplied) {
     return {
@@ -53,7 +54,7 @@ function verifyCallbackState(rows, expected) {
       requestKey: expected.requestKey,
       logicalJobKey: expected.logicalJobKey,
       resultStatus: canonical.status,
-      triggerPresentation: canonical.status === 'completed',
+      triggerPresentation: canonical.status === 'completed' && canonical.dialogue.trim() !== '',
       triggerCoordinator: true,
     };
   }

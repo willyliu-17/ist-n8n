@@ -32,7 +32,7 @@ function compareRows(left, right) {
 
 function buildSummaryRow(normalized, executionID, nowIso = new Date().toISOString()) {
   if (typeof executionID !== 'string' || executionID === '') throw new Error('executionID is required');
-  const until = new Date(Date.parse(nowIso) + 5 * 60 * 1000).toISOString();
+  const until = new Date(Date.parse(nowIso) + 24 * 60 * 60 * 1000).toISOString();
   const row = {
     requestKey: normalized.requestKey, requestType: normalized.requestType, status: 'creating',
     creationLeaseOwner: executionID, reconciliationStatus: 'pending', canonicalRowID: '',

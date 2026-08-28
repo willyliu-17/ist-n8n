@@ -210,13 +210,13 @@ test('builds exact Task 1 attempt schema and deterministic keys for missing dial
   assert.ok(Object.values(attempts[0]).every((value) => ['string', 'number', 'boolean'].includes(typeof value)));
 });
 
-test('builds exact Task 1 creating request with a five-minute current execution lease', () => {
+test('builds exact Task 1 creating request with a twenty-four-hour current execution lease', () => {
   const row = buildSummaryRow(normalized(), 'exec-1', NOW);
   assert.deepEqual(Object.keys(row), SUMMARY_FIELDS);
   assert.deepEqual(SUMMARY_FIELDS, schema.summary_requests_v3.map(({ name }) => name));
   assert.equal(row.status, 'creating');
   assert.equal(row.creationLeaseOwner, 'exec-1');
-  assert.equal(row.creationLeaseUntilIso, '2026-08-24T00:05:00.000Z');
+  assert.equal(row.creationLeaseUntilIso, '2026-08-25T00:00:00.000Z');
   assert.equal(row.reconciliationStatus, 'pending');
   assert.ok(Object.values(row).every((value) => ['string', 'number', 'boolean'].includes(typeof value)));
 });
@@ -497,7 +497,7 @@ test('enforces exact request claim and final transition CAS filters', () => {
   ]);
   assert.equal(claim.status.keyValue, 'creating');
   assert.equal(claim.reconciliationStatus.keyValue, 'canonical');
-  assert.match(nodeByName(workflow, 'Claim Creation Lease').parameters.columns.value.creationLeaseUntilIso, /minutes: 5/);
+  assert.equal(nodeByName(workflow, 'Claim Creation Lease').parameters.columns.value.creationLeaseUntilIso, '={{ $now.plus({ hours: 24 }).toUTC().toISO() }}');
 
   const transition = filterMap(nodeByName(workflow, 'Transition Request State'));
   assert.deepEqual(Object.keys(transition), [

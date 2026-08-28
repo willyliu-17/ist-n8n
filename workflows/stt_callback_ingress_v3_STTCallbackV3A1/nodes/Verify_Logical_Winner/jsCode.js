@@ -131,7 +131,7 @@ function result(action, current, expected) {
     requestKey: expected.requestKey,
     logicalJobKey: expected.logicalJobKey,
     resultStatus: current.status,
-    triggerPresentation: accepted && current.status === 'completed',
+    triggerPresentation: accepted && current.status === 'completed' && typeof current.dialogue === 'string' && current.dialogue.trim() !== '',
     triggerCoordinator: accepted,
   };
 }
@@ -143,7 +143,7 @@ function verifyLogicalWinner(rows, currentResult, expected) {
 
   const completedRows = canonicalRows.filter(({ status }) => status === 'completed');
   for (const row of completedRows) {
-    if (typeof row.dialogue !== 'string' || row.dialogue.trim() === '' || !isExactIso(row.consumedAtIso)) {
+    if (typeof row.dialogue !== 'string' || !isExactIso(row.consumedAtIso)) {
       throw new Error('Invalid completed logical job row');
     }
   }
