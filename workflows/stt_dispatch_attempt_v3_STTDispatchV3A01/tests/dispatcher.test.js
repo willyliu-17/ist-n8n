@@ -100,6 +100,17 @@ function attempt(overrides = {}) {
   };
 }
 
+function standaloneAttempt(overrides = {}) {
+  const logicalJobKey = 'stt:1787364000.000001:1787364001.000002:9001:fromStart';
+  return attempt({
+    attemptKey: `${logicalJobKey}:1`,
+    logicalJobKey,
+    requestKey: logicalJobKey,
+    requestType: 'standalone_stt',
+    ...overrides,
+  });
+}
+
 function summaryRequest(overrides = {}) {
   return {
     id: 'summary-row-a',
@@ -113,8 +124,9 @@ function summaryRequest(overrides = {}) {
   };
 }
 
-function classifyAck(outcome, candidate, nowIso = NOW, requestRows = [summaryRequest()]) {
-  return classifyAckPolicy(outcome, candidate, requestRows, nowIso);
+function classifyAck(outcome, candidate, nowIso = NOW, requestRows) {
+  const rows = requestRows ?? (candidate.requestType === 'standalone_stt' ? [{}] : [summaryRequest()]);
+  return classifyAckPolicy(outcome, candidate, rows, nowIso);
 }
 
 function readWorkflow() {
@@ -323,7 +335,7 @@ test('classifies accepted HTTP responses and all absolute retry slots', () => {
   assert.equal(RETRY_DEADLINE_MINUTES, 720);
   assert.deepEqual(RETRY_SLOT_MINUTES, [1, 2, 4, 6, 9, 13, 18, 25, 35, 48, 65, 88, 118, 158, 211, 281, 374, 497, 660]);
   for (const statusCode of [200, 201, 202, 204, 299]) {
-    const result = classifyAck({ statusCode }, attempt({ attempt: 1 }), NOW);
+    const result = classifyAck({ statusCode }, standaloneAttempt({ attempt: 1 }), NOW);
     assert.equal(result.classification, 'accepted');
     assert.equal(result.status, 'waiting_callback');
     assert.equal(result.submittedAtIso, NOW);
@@ -331,7 +343,7 @@ test('classifies accepted HTTP responses and all absolute retry slots', () => {
   }
 
   for (const statusCode of [400, 401, 404, 422, 499]) {
-    assert.deepEqual(classifyAck({ statusCode }, attempt({ attempt: 1 }), NOW), {
+    assert.deepEqual(classifyAck({ statusCode }, standaloneAttempt({ attempt: 1 }), NOW), {
       classification: 'terminal_http_failure',
       status: 'failed',
       errorCode: `vds_http_${statusCode}`,
@@ -341,17 +353,28 @@ test('classifies accepted HTTP responses and all absolute retry slots', () => {
 
   for (const statusCode of [429, 500, 502, 503, 504]) {
     RETRY_SLOT_MINUTES.forEach((minutes, index) => {
-      const result = classifyAck({ statusCode }, attempt({ attempt: index + 1 }), NOW);
+      const result = classifyAck({ statusCode }, standaloneAttempt({ attempt: index + 1 }), NOW);
       assert.equal(result.status, 'retry_pending');
       assert.equal(result.nextRetryAtIso, new Date(Date.parse(NOW) + minutes * 60_000).toISOString());
     });
-    assert.equal(classifyAck({ statusCode }, attempt({ attempt: 20 }), NOW).status, 'failed');
-    assert.equal(classifyAck({ statusCode }, attempt({ attempt: 20 }), NOW).nextRetryAtIso, '');
+    assert.equal(classifyAck({ statusCode }, standaloneAttempt({ attempt: 20 }), NOW).status, 'failed');
+    assert.equal(classifyAck({ statusCode }, standaloneAttempt({ attempt: 20 }), NOW).nextRetryAtIso, '');
   }
 
-  assert.equal(classifyAck({ statusCode: 202 }, attempt({ attempt: 20 }), NOW).callbackDeadlineAtIso, '2026-08-22T12:00:00.000Z');
-  assert.equal(classifyAck({ statusCode: 202 }, attempt({ attempt: 21 }), NOW).callbackDeadlineAtIso, '2026-08-23T00:00:00.000Z');
-  assert.equal(classifyAck({ statusCode: 503 }, attempt({ attempt: 21 }), NOW).status, 'failed');
+  assert.equal(classifyAck({ statusCode: 202 }, standaloneAttempt({ attempt: 20 }), NOW).callbackDeadlineAtIso, '2026-08-22T12:00:00.000Z');
+  assert.equal(classifyAck({ statusCode: 202 }, standaloneAttempt({ attempt: 21 }), NOW).callbackDeadlineAtIso, '2026-08-23T00:00:00.000Z');
+  assert.equal(classifyAck({ statusCode: 503 }, standaloneAttempt({ attempt: 21 }), NOW).status, 'failed');
+});
+
+test('classifies standalone ACKs without a summary request row', () => {
+  const result = classifyAckPolicy({ statusCode: 200 }, standaloneAttempt(), [{}], NOW);
+  assert.equal(result.classification, 'accepted');
+  assert.equal(result.status, 'waiting_callback');
+  assert.equal(result.submittedAtIso, NOW);
+  assert.throws(
+    () => classifyAckPolicy({ statusCode: 200 }, standaloneAttempt({ requestKey: 'other' }), [{}], NOW),
+    /standalone request linkage/i,
+  );
 });
 
 test('caps summary-triggered STT retries at ten minutes without changing standalone STT', () => {
@@ -369,7 +392,7 @@ test('caps summary-triggered STT retries at ten minutes without changing standal
 
 test('routes every transport error to manual review without automatic retry', () => {
   for (const attemptNumber of [1, 20, 21]) {
-    assert.deepEqual(classifyAck({ transportError: true }, attempt({ attempt: attemptNumber }), NOW), {
+    assert.deepEqual(classifyAck({ transportError: true }, standaloneAttempt({ attempt: attemptNumber }), NOW), {
       classification: 'ambiguous_transport',
       status: 'manual_review',
       manualReviewReason: 'vds_submit_outcome_ambiguous',

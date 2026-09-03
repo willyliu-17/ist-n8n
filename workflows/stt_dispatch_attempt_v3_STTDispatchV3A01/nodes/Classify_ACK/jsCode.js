@@ -20,6 +20,15 @@ function requireRequest(requestRows, requestKey) {
   return canonical[0];
 }
 
+function timingSource(attempt, requestRows) {
+  if (attempt.requestType === 'standalone_stt') {
+    if (attempt.requestKey !== attempt.logicalJobKey) throw new Error('Invalid standalone request linkage');
+    addMinutes(attempt.createdAt, 0);
+    return attempt;
+  }
+  return requireRequest(requestRows, attempt.requestKey);
+}
+
 function retryPolicy(requestType) {
   return requestType === 'standalone_stt'
     ? { slots: RETRY_SLOT_MINUTES, deadlineMinutes: RETRY_DEADLINE_MINUTES }
@@ -44,7 +53,7 @@ function classifyAck(outcome, attempt, requestRows, nowIso = new Date().toISOStr
   if (!Number.isInteger(attemptNumber) || attemptNumber < 1) {
     throw new Error('Invalid attempt number');
   }
-  const request = requireRequest(requestRows, attempt.requestKey);
+  const request = timingSource(attempt, requestRows);
   const timing = retryTiming(request.createdAt, attemptNumber, request.requestType);
   const maximumAttempts = retryPolicy(request.requestType).slots.length + 1;
   const now = Date.parse(addMinutes(nowIso, 0));
