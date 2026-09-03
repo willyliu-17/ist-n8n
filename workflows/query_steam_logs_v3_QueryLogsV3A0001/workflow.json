@@ -67,31 +67,24 @@
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": {
-          "__rl": true,
-          "value": "C0A4JJJKJMD",
-          "mode": "id"
-        },
-        "text": "__EXTERNAL_FILE__://nodes/Send_a_logs1/text.md",
-        "otherOptions": {
-          "thread_ts": {
-            "replyValues": {
-              "thread_ts": "={{ $('Normalize Input').first().json.threadTs }}"
-            }
-          }
-        }
+        "method": "POST",
+        "url": "https://slack.com/api/files.completeUploadExternal",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.completeBody }}",
+        "options": {}
       },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
       "position": [
-        -736,
+        528,
         -384
       ],
       "id": "a8a390b5-b5c8-4b2d-ba34-0cea05987ccc",
-      "name": "Send a logs1",
-      "webhookId": "75ee254e-256d-4ca3-872b-13aba5981e5e",
-      "alwaysOutputData": true,
+      "name": "Complete Slack Multi File Message",
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
@@ -299,75 +292,42 @@
     },
     {
       "parameters": {
-        "resource": "file",
-        "options": {
-          "channelId": "C0A4JJJKJMD",
-          "threadTs": "={{ $('Normalize Input').item.json.threadTs }}"
-        }
+        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_StreamLog_Upload/jsCode.js"
       },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -1568,
         -832
       ],
       "id": "85a9d52a-4c8e-40f8-855d-6be7f763cc42",
-      "name": "Upload StreamLog1",
-      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
-      "credentials": {
-        "slackApi": {
-          "id": "9sfslX7caXSFAVUN",
-          "name": "n8n-streaming-testing"
-        }
-      }
+      "name": "Prepare StreamLog Upload"
     },
     {
       "parameters": {
-        "resource": "file",
-        "options": {
-          "channelId": "C0A4JJJKJMD",
-          "threadTs": "={{ $('Normalize Input').item.json.threadTs }}"
-        }
+        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_StreamerEventLog_Upload/jsCode.js"
       },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -1568,
         -544
       ],
       "id": "a0366880-d8ea-42b9-8fa3-2cc82872cd3c",
-      "name": "Upload StreamerEventLog1",
-      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
-      "credentials": {
-        "slackApi": {
-          "id": "9sfslX7caXSFAVUN",
-          "name": "n8n-streaming-testing"
-        }
-      }
+      "name": "Prepare StreamerEventLog Upload"
     },
     {
       "parameters": {
-        "resource": "file",
-        "options": {
-          "channelId": "C0A4JJJKJMD",
-          "threadTs": "={{ $('Normalize Input').item.json.threadTs }}"
-        }
+        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_StreamCommentLog_Upload/jsCode.js"
       },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -1568,
         -272
       ],
       "id": "ecf4563a-e82c-48f4-8024-33962fb4157c",
-      "name": "Upload StreamerCommentLog1",
-      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
-      "credentials": {
-        "slackApi": {
-          "id": "9sfslX7caXSFAVUN",
-          "name": "n8n-streaming-testing"
-        }
-      }
+      "name": "Prepare StreamCommentLog Upload"
     },
     {
       "parameters": {
@@ -513,7 +473,7 @@
           "value": "C0A4JJJKJMD",
           "mode": "id"
         },
-        "text": "__EXTERNAL_FILE__://nodes/Send_a_message/text.md",
+        "text": "={{ $json.summaryText }}",
         "otherOptions": {
           "thread_ts": {
             "replyValues": {
@@ -583,7 +543,8 @@
     },
     {
       "parameters": {
-        "numberInputs": 4
+        "mode": "append",
+        "numberInputs": 5
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
@@ -597,7 +558,7 @@
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={\n  \"streamerLog\": {{ $json }}\n}\n",
+        "jsonOutput": "={\n  \"kind\": \"streamerLog\",\n  \"label\": \"StreamerLog\",\n  \"available\": false\n}\n",
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -612,7 +573,7 @@
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={\n  \"streamerEventLog\": {{ $json }}\n}\n",
+        "jsonOutput": "={\n  \"kind\": \"streamerEventLog\",\n  \"label\": \"StreamerEventLog\",\n  \"available\": false\n}\n",
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -627,7 +588,7 @@
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={\n  \"streamCommentLog\": {{ $json }}\n}\n",
+        "jsonOutput": "={\n  \"kind\": \"streamCommentLog\",\n  \"label\": \"StreamCommentLog\",\n  \"available\": false\n}\n",
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -732,32 +693,21 @@
     },
     {
       "parameters": {
-        "resource": "file",
-        "options": {
-          "channelId": "C0A4JJJKJMD",
-          "threadTs": "={{ $('Normalize Input').item.json.threadTs }}"
-        }
+        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_MatomoLog_Upload/jsCode.js"
       },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -1568,
         -48
       ],
       "id": "9f528676-880c-47e5-bc03-e33f228e68a5",
-      "name": "Upload MatomoLog",
-      "webhookId": "18b2163b-f2cf-45f6-820d-8cd970b5cacd",
-      "credentials": {
-        "slackApi": {
-          "id": "9sfslX7caXSFAVUN",
-          "name": "n8n-streaming-testing"
-        }
-      }
+      "name": "Prepare MatomoLog Upload"
     },
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={\n  \"matomoLog\": {{ $json }}\n}\n",
+        "jsonOutput": "={\n  \"kind\": \"matomoLog\",\n  \"label\": \"MatomoLog\",\n  \"available\": false\n}\n",
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -845,11 +795,166 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -544,
+        752,
         -384
       ],
       "id": "2edbc874-b20f-4729-8124-034a5d858cf1",
       "name": "output"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "886a43b9-bba2-4550-a4c4-a18a1be04984",
+              "leftValue": "={{ $json.hasFiles }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -704,
+        -384
+      ],
+      "id": "f708192a-8dbe-4fc4-9035-4b6c7d8e9105",
+      "name": "If Logs Exist"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://slack.com/api/files.getUploadURLExternal",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filename",
+              "value": "={{ $json.fileName }}"
+            },
+            {
+              "name": "length",
+              "value": "={{ $json.length }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -480,
+        -496
+      ],
+      "id": "8f678514-3735-431d-ba51-db516e85c839",
+      "name": "Get Slack Upload URL",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 2,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -256,
+        -496
+      ],
+      "id": "e62d2f7b-8f09-47bf-96b3-fbe195c959e4",
+      "name": "Merge Slack Upload Ticket"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.upload_url }}",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -32,
+        -496
+      ],
+      "id": "2847446d-6cc2-480c-888f-5938a56395dc",
+      "name": "Upload Slack File Content"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 2,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        192,
+        -496
+      ],
+      "id": "e3f75aed-5d4b-4e79-80f5-a82239501b97",
+      "name": "Merge Slack Uploaded File"
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Aggregate_Slack_Uploaded_Files/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        -496
+      ],
+      "id": "8f3b881a-15b8-4a95-8617-33f88847484e",
+      "name": "Aggregate Slack Uploaded Files"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 2,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        864,
+        -496
+      ],
+      "id": "18cf06b2-9daa-47f9-a428-51565de8f725",
+      "name": "Merge Slack Completion"
     }
   ],
   "connections": {
@@ -890,7 +995,7 @@
       "main": [
         [
           {
-            "node": "Upload StreamerCommentLog1",
+            "node": "Prepare StreamCommentLog Upload",
             "type": "main",
             "index": 0
           }
@@ -917,7 +1022,7 @@
       "main": [
         [
           {
-            "node": "Upload StreamerEventLog1",
+            "node": "Prepare StreamerEventLog Upload",
             "type": "main",
             "index": 0
           }
@@ -955,42 +1060,42 @@
       "main": [
         [
           {
-            "node": "Upload StreamLog1",
+            "node": "Prepare StreamLog Upload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Upload StreamLog1": {
+    "Prepare StreamLog Upload": {
       "main": [
         [
           {
-            "node": "streamerLog",
+            "node": "Merge1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Upload StreamerEventLog1": {
+    "Prepare StreamerEventLog Upload": {
       "main": [
         [
           {
-            "node": "streamerEventLog",
+            "node": "Merge1",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
     },
-    "Upload StreamerCommentLog1": {
+    "Prepare StreamCommentLog Upload": {
       "main": [
         [
           {
-            "node": "streamCommentLog",
+            "node": "Merge1",
             "type": "main",
-            "index": 0
+            "index": 2
           }
         ]
       ]
@@ -1168,7 +1273,7 @@
       "main": [
         [
           {
-            "node": "Send a logs1",
+            "node": "If Logs Exist",
             "type": "main",
             "index": 0
           }
@@ -1208,20 +1313,20 @@
       "main": [
         [
           {
-            "node": "Upload MatomoLog",
+            "node": "Prepare MatomoLog Upload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Upload MatomoLog": {
+    "Prepare MatomoLog Upload": {
       "main": [
         [
           {
-            "node": "MatomoLog1",
+            "node": "Merge1",
             "type": "main",
-            "index": 0
+            "index": 3
           }
         ]
       ]
@@ -1274,6 +1379,40 @@
       "main": [
         [
           {
+            "node": "Merge1",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Logs Exist": {
+      "main": [
+        [
+          {
+            "node": "Get Slack Upload URL",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Slack Upload Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Send a message",
             "type": "main",
             "index": 0
@@ -1281,7 +1420,83 @@
         ]
       ]
     },
-    "Send a logs1": {
+    "Get Slack Upload URL": {
+      "main": [
+        [
+          {
+            "node": "Merge Slack Upload Ticket",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Slack Upload Ticket": {
+      "main": [
+        [
+          {
+            "node": "Upload Slack File Content",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Slack Uploaded File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Slack File Content": {
+      "main": [
+        [
+          {
+            "node": "Merge Slack Uploaded File",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Slack Uploaded File": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Slack Uploaded Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Slack Uploaded Files": {
+      "main": [
+        [
+          {
+            "node": "Complete Slack Multi File Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Slack Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complete Slack Multi File Message": {
+      "main": [
+        [
+          {
+            "node": "Merge Slack Completion",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Slack Completion": {
       "main": [
         [
           {

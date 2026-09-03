@@ -360,7 +360,7 @@ test('is inactive, manual-only, supports a configured date override, is C0-only,
   assert.equal(nodeByName(workflow, 'Fail Query Logs Delivery').parameters.errorMessage, '={{ $json.errorMessage }}');
   const queryLogsWorkflow = readQueryLogsWorkflow();
   const slackNodes = queryLogsWorkflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.slack');
-  assert.equal(slackNodes.length, 7);
+  assert.equal(slackNodes.length, 2);
   for (const node of slackNodes) {
     assert.notEqual(node.retryOnFail, true, node.name);
     assert.equal(node.maxTries, undefined, node.name);
