@@ -1,7 +1,7 @@
 {
   "id": "QueryLogsV3A0001",
   "name": "Query Steam Logs v3",
-  "description": null,
+  "description": "Queries and delivers stream logs for one stream ID. Inputs: streamID, channel, target_thread_ts, and optional lookbackDays (integer 1..60, default 60).",
   "active": false,
   "isArchived": false,
   "nodes": [
@@ -17,6 +17,10 @@
             },
             {
               "name": "target_thread_ts"
+            },
+            {
+              "name": "lookbackDays",
+              "type": "number"
             }
           ]
         }
@@ -51,6 +55,12 @@
               "name": "threadTs",
               "value": "={{ (() => { const value = $json.target_thread_ts || $node[\"Start\"].json.event_ts; if (typeof value !== 'string' || !/^\\d{10,}\\.\\d{6}$/.test(value)) throw new Error('Invalid Slack thread timestamp'); return value; })() }}",
               "type": "string"
+            },
+            {
+              "id": "d2c81e98-cf09-45a5-a97b-5f21b3418cb0",
+              "name": "lookbackDays",
+              "value": "={{ (() => { const raw = $json.lookbackDays; if (raw === undefined || raw === null || raw === '') return 60; const value = Number(raw); if (!Number.isInteger(value) || value < 1 || value > 60) throw new Error('lookbackDays must be an integer between 1 and 60'); return value; })() }}",
+              "type": "number"
             }
           ]
         },
@@ -226,7 +236,16 @@
           "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
         },
         "sqlQuery": "__EXTERNAL_FILE__://nodes/steamID_beginTime_and_endTime1/sqlQuery.sql",
-        "options": {}
+        "options": {
+          "queryParameters": {
+            "namedParameters": [
+              {
+                "name": "lookback_days",
+                "value": "={{ $json.lookbackDays }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.googleBigQuery",
       "typeVersion": 2.1,

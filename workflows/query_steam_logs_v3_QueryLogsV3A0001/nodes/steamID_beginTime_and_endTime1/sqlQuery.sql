@@ -1,5 +1,5 @@
--- 設定搜尋範圍為最近 30 天
-DECLARE limit_timestamp TIMESTAMP DEFAULT TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY);
+-- Bound metadata lookup to the caller-selected window (60 days by default).
+DECLARE limit_timestamp TIMESTAMP DEFAULT TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @lookback_days DAY);
 
 SELECT 
   userID,

@@ -24,12 +24,35 @@ function code(name) {
   return fs.readFileSync(path.join(root, 'nodes', name, 'jsCode.js'), 'utf8');
 }
 
+function sql(name) {
+  return fs.readFileSync(path.join(root, 'nodes', name, 'sqlQuery.sql'), 'utf8');
+}
+
 const preparedLogs = [
   ['Convert to StreamerLog1', 'Prepare StreamLog Upload', 0],
   ['Convert to StreamerEventLog1', 'Prepare StreamerEventLog Upload', 1],
   ['Convert to StreamCommentLog1', 'Prepare StreamCommentLog Upload', 2],
   ['Convert to MatomoLog', 'Prepare MatomoLog Upload', 3],
 ];
+
+test('defaults metadata lookup to 60 days and accepts a bounded caller override', () => {
+  const inputs = node('Start').parameters.workflowInputs.values;
+  assert.deepEqual(inputs.find(({ name }) => name === 'lookbackDays'), { name: 'lookbackDays', type: 'number' });
+
+  const assignment = node('Normalize Input').parameters.assignments.assignments
+    .find(({ name }) => name === 'lookbackDays');
+  assert.equal(assignment.type, 'number');
+  assert.match(assignment.value, /return 60/);
+  assert.match(assignment.value, /integer between 1 and 60/);
+
+  const metadataQuery = node('steamID beginTime and endTime1');
+  assert.deepEqual(metadataQuery.parameters.options.queryParameters.namedParameters, [{
+    name: 'lookback_days',
+    value: '={{ $json.lookbackDays }}',
+  }]);
+  assert.match(sql('steamID_beginTime_and_endTime1'), /INTERVAL @lookback_days DAY/);
+  assert.doesNotMatch(sql('steamID_beginTime_and_endTime1'), /INTERVAL (?:30|60) DAY/);
+});
 
 test('all optional logs and the summary converge before delivery', () => {
   assert.deepEqual(node('Merge1').parameters, {

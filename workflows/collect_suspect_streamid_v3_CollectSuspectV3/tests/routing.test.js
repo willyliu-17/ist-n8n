@@ -321,11 +321,13 @@ test('is inactive, manual-only, supports a configured date override, is C0-only,
   assert.equal(queryLogs.parameters.options.waitForSubWorkflow, true);
   assert.equal(queryLogs.alwaysOutputData, true);
   assert.equal(queryLogs.onError, 'continueErrorOutput');
-  assert.deepEqual(Object.keys(queryLogs.parameters.workflowInputs.value).sort(), ['channel', 'streamID', 'target_thread_ts']);
+  assert.deepEqual(Object.keys(queryLogs.parameters.workflowInputs.value).sort(), ['channel', 'lookbackDays', 'streamID', 'target_thread_ts']);
+  assert.equal(queryLogs.parameters.workflowInputs.value.lookbackDays, 3);
   assert.deepEqual(queryLogs.parameters.workflowInputs.schema.map(({ id, type, required }) => ({ id, type, required })), [
     { id: 'streamID', type: 'string', required: true },
     { id: 'channel', type: 'string', required: true },
     { id: 'target_thread_ts', type: 'string', required: true },
+    { id: 'lookbackDays', type: 'number', required: false },
   ]);
   assert.equal(queryLogs.parameters.workflowInputs.convertFieldsToString, false);
   const queryLogsLoop = nodeByName(workflow, 'Query Logs Loop');

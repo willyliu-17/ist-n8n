@@ -475,11 +475,12 @@
       "parameters": {
         "workflowId": { "__rl": true, "value": "QueryLogsV3A0001", "mode": "list", "cachedResultName": "Query Steam Logs v3" },
         "workflowInputs": { "mappingMode": "defineBelow", "value": {
-          "streamID": "={{ $json.streamID }}", "channel": "={{ $json.channel }}", "target_thread_ts": "={{ $json.target_thread_ts }}"
+          "streamID": "={{ $json.streamID }}", "channel": "={{ $json.channel }}", "target_thread_ts": "={{ $json.target_thread_ts }}", "lookbackDays": 3
         }, "matchingColumns": [], "schema": [
           { "id": "streamID", "displayName": "streamID", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
           { "id": "channel", "displayName": "channel", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
-          { "id": "target_thread_ts", "displayName": "target_thread_ts", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true }
+          { "id": "target_thread_ts", "displayName": "target_thread_ts", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "lookbackDays", "displayName": "lookbackDays", "type": "number", "required": false, "display": true, "canBeUsedToMatch": true }
         ], "attemptToConvertTypes": false, "convertFieldsToString": false },
         "options": { "waitForSubWorkflow": true },
         "mode": "once"
