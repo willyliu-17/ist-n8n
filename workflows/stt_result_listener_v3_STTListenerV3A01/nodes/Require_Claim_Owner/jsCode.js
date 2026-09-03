@@ -6,4 +6,10 @@ const eligible = $('Require Eligible Canonical').first().json;
 if (row.id !== eligible.id || row.attemptKey !== eligible.attemptKey || row.status !== 'completed' || row.presentationStatus !== 'presenting' || row.presentationLeaseOwner !== $execution.id || row.presentationAttempt !== eligible.nextPresentationAttempt) throw new Error('Presentation claim was not confirmed');
 const expiry = Date.parse(row.presentationLeaseUntilIso);
 if (!Number.isFinite(expiry) || expiry <= Date.now() || new Date(expiry).toISOString() !== row.presentationLeaseUntilIso) throw new Error('Presentation claim lease is invalid');
+console.log(JSON.stringify({
+  event: 'presentation_claim_verified',
+  executionId: $execution.id,
+  rowId: row.id,
+  presentationAttempt: row.presentationAttempt,
+}));
 return [{ json: row }];

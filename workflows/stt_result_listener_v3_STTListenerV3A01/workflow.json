@@ -1,7 +1,7 @@
 {
   "id": "STTListenerV3A01",
   "name": "STT result listener v3",
-  "description": "Inactive stateful presentation-only owner. Input: required attemptKey string. Side effects: uploads transcript and Gemini analysis text files to the persisted C0 Slack thread, updates the persisted processing message, and checkpoints each stage in stt_jobs_v3. Output: attemptKey, presentation status, and persisted presentation checkpoints. Upload success before checkpoint persistence retains a potential_duplicate_upload crash window requiring manual reconciliation.",
+  "description": "Inactive stateful presentation-only owner. Input: required attemptKey string. Side effects: uploads transcript and Gemini analysis text files to the persisted C0 Slack thread, updates the persisted processing message, and checkpoints each stage in stt_jobs_v3. Output: attemptKey, presentation status, and persisted presentation checkpoints. Pre-claim faults stop the execution and require Automation: error handler v3 assignment before activation; post-claim faults use local lease-aware recovery. Upload success before checkpoint persistence retains a potential_duplicate_upload crash window requiring manual reconciliation.",
   "active": false,
   "isArchived": false,
   "nodes": [
@@ -13,49 +13,47 @@
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Validate_Input/jsCode.js" },
       "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [240, 0],
-      "id": "a7f260b0-234e-402f-9fab-5f7f0d5e8fc0", "name": "Validate Input", "onError": "continueErrorOutput"
+      "id": "a7f260b0-234e-402f-9fab-5f7f0d5e8fc0", "name": "Validate Input", "onError": "stopWorkflow"
     },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
       "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [480, 0],
-      "id": "33515695-485e-4ee2-9987-0605471238a7", "name": "Read All Attempt Rows", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "id": "33515695-485e-4ee2-9987-0605471238a7", "name": "Read All Attempt Rows", "alwaysOutputData": true, "onError": "stopWorkflow"
     },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [720, 0], "id": "fcb91720-e29c-4f50-9526-78055b40f099", "name": "Limit Attempt Context" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Read All Attempt Rows').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [960, 0],
-      "id": "4ae134fc-22e9-4f5d-9d71-6f5c3fe6010a", "name": "Read Summary Request Rows", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [720, 0], "executeOnce": true,
+      "id": "4ae134fc-22e9-4f5d-9d71-6f5c3fe6010a", "name": "Read Summary Request Rows", "alwaysOutputData": true, "onError": "stopWorkflow"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Canonical/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1200, 0],
-      "id": "9689359f-c84c-4e40-a776-2a943b4b534a", "name": "Plan Canonical Reconciliation", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [960, 0],
+      "id": "9689359f-c84c-4e40-a776-2a943b4b534a", "name": "Plan Canonical Reconciliation", "onError": "stopWorkflow"
     },
     {
       "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "e78aedaa-2394-40d3-941e-5dd69c7f2fae", "leftValue": "={{ $json.reconciliationAction }}", "rightValue": "manual_review", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
-      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [1440, 0], "id": "837a270c-eb2c-490c-b48f-04ddd259752f", "name": "Initial Conflict"
+      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [1200, 0], "id": "837a270c-eb2c-490c-b48f-04ddd259752f", "name": "Initial Conflict"
     },
-    { "parameters": {}, "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [1920, -400], "id": "65b8962d-482e-42a9-ab6d-9235b60a1dbf", "name": "Freeze Conflict Plan" },
+    { "parameters": {}, "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [1440, -240], "id": "65b8962d-482e-42a9-ab6d-9235b60a1dbf", "name": "Freeze Conflict Plan" },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "manual_review", "manualReviewReason": "multiple_canonical_checkpoint_conflict", "manualReviewAtIso": "={{ $now.toUTC().toISO() }}", "presentationLeaseOwner": "", "presentationLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2160, -400], "id": "8ddff902-a84e-487a-a22a-f13c7d5cb67e", "name": "Freeze Canonical Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [1680, -240], "id": "8ddff902-a84e-487a-a22a-f13c7d5cb67e", "name": "Freeze Canonical Conflict", "alwaysOutputData": true, "onError": "stopWorkflow"
     },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2400, -400], "id": "258fc549-eefc-4f1e-9965-5a4a47725202", "name": "Limit Conflict Patch" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2640, -400], "id": "ff1fc44f-e6c2-4db9-b818-f8f059399e69", "name": "Re-read Frozen Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [1920, -240], "id": "ff1fc44f-e6c2-4db9-b818-f8f059399e69", "name": "Re-read Frozen Conflict", "executeOnce": true, "alwaysOutputData": true, "onError": "stopWorkflow"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [2880, -400], "id": "ce49ae0a-c363-4244-85df-6488af264f9c", "name": "Verify Full Freeze", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [2160, -240], "id": "ce49ae0a-c363-4244-85df-6488af264f9c", "name": "Verify Full Freeze", "onError": "stopWorkflow"
     },
     {
       "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "f7ec30ec-46ef-42e5-b02d-6153f5f58098", "leftValue": "={{ $json.reconciliationAction }}", "rightValue": "reconcile", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
-      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [1680, 40], "id": "f2db8cd5-7a3f-458c-9ff1-71dff2a86e73", "name": "Needs Initial Reconciliation"
+      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [1440, 120], "id": "f2db8cd5-7a3f-458c-9ff1-71dff2a86e73", "name": "Needs Initial Reconciliation"
     },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
@@ -63,25 +61,25 @@
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" },
         { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.expectedCanonicalRowID) }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}", "canonicalRowID": "={{ $json.desiredCanonicalRowID }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [1920, 80], "id": "94510cb2-0704-4367-84fd-438398fd615f", "name": "Apply Initial Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [1680, 120], "id": "94510cb2-0704-4367-84fd-438398fd615f", "name": "Apply Initial Reconciliation", "alwaysOutputData": true, "onError": "stopWorkflow"
     },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2160, 80], "id": "afac5a5e-a497-43ea-bf84-53b1dbb43ce4", "name": "Limit Initial Reconciliation" },
+    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [1920, 120], "id": "afac5a5e-a497-43ea-bf84-53b1dbb43ce4", "name": "Limit Initial Reconciliation" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2400, 80], "id": "95152f1a-ac67-4d86-a59c-01fd9a0f3edf", "name": "Re-read After Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2160, 120], "id": "95152f1a-ac67-4d86-a59c-01fd9a0f3edf", "name": "Re-read After Reconciliation", "alwaysOutputData": true, "onError": "stopWorkflow"
     },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2640, 80], "id": "2a71809b-5852-4ca7-a443-4df8e1e560e9", "name": "Limit Reconciled Context" },
+    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2400, 120], "id": "2a71809b-5852-4ca7-a443-4df8e1e560e9", "name": "Limit Reconciled Context" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Re-read After Reconciliation').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2880, 80], "id": "f1810f31-1d8c-4fc2-b32d-b9e22424af57", "name": "Read Summary Rows After Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2640, 120], "id": "f1810f31-1d8c-4fc2-b32d-b9e22424af57", "name": "Read Summary Rows After Reconciliation", "alwaysOutputData": true, "onError": "stopWorkflow"
     },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2160, 320], "id": "bc959d5f-95a3-409c-a126-e5f15bece7c3", "name": "Read Eligible State", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [1680, 360], "id": "bc959d5f-95a3-409c-a126-e5f15bece7c3", "name": "Read Eligible State", "alwaysOutputData": true, "onError": "stopWorkflow"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Require_Eligible/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [2400, 320], "id": "783c377d-129e-4dfd-ad14-a7ae20476e65", "name": "Require Eligible Canonical", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1920, 360], "id": "783c377d-129e-4dfd-ad14-a7ae20476e65", "name": "Require Eligible Canonical", "onError": "stopWorkflow"
     },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
@@ -90,45 +88,41 @@
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "pending" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $json.expectedPresentationAttempt }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "presentationStatus": "presenting", "presentationLeaseOwner": "={{ $execution.id }}", "presentationLeaseUntilIso": "={{ $now.toUTC().plus({ hours: 24 }).toISO() }}", "presentationAttempt": "={{ $json.nextPresentationAttempt }}", "presentationNextRetryAtIso": "", "presentationErrorCode": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2640, 320], "id": "2a0140c1-083d-456b-a7c5-0336e994544e", "name": "Claim Presentation", "alwaysOutputData": true, "onError": "continueErrorOutput"
-    },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2880, 320], "id": "3dc3ab8c-3f40-479d-a600-958f638ae5cc", "name": "Limit Presentation Claim" },
-    {
-      "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [3120, 320], "id": "d2321428-bf68-47ce-8b05-d729eeb08bbc", "name": "Re-read Presentation Claim", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2160, 360], "id": "2a0140c1-083d-456b-a7c5-0336e994544e", "name": "Claim Presentation", "alwaysOutputData": true, "onError": "stopWorkflow"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Require_Claim_Owner/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [3360, 320], "id": "00367778-1812-48ce-b6ca-ddc97a7ae900", "name": "Require Presentation Owner", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [2400, 360], "id": "00367778-1812-48ce-b6ca-ddc97a7ae900", "name": "Verify Presentation Claim", "onError": "continueErrorOutput"
     },
     {
-      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Select_Stage/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [3600, 320], "id": "b49beac6-1f55-4edb-b32e-712610f4873b", "name": "Select Next Stage", "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "4de17625-4302-4e99-a892-42a6bc542337", "leftValue": "={{ $json.presentationStage }}", "rightValue": "complete", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
-      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [3840, 320], "id": "44127cdb-a4aa-4a29-92cb-bd8a247da50b", "name": "All Stages Checkpointed"
+      "parameters": { "mode": "rules", "rules": { "values": [
+        { "outputKey": "transcript", "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "42f26a04-d150-4100-acb0-6eca84c9eef4", "leftValue": "={{ $json.dispatchRoute }}", "rightValue": "transcript", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true },
+        { "outputKey": "analysis", "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "53bd508e-878b-4a36-8b79-9b4b442fa908", "leftValue": "={{ $json.dispatchRoute }}", "rightValue": "analysis", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true },
+        { "outputKey": "message_update", "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "d4593808-4b42-411f-9a80-fd2be47740ba", "leftValue": "={{ $json.dispatchRoute }}", "rightValue": "message_update", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true },
+        { "outputKey": "complete", "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "722dc4c7-1437-40c5-92d8-9709d87c936e", "leftValue": "={{ $json.dispatchRoute }}", "rightValue": "complete", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true }
+      ] }, "options": { "fallbackOutput": "extra", "renameFallbackOutput": "invalid_route" } },
+      "type": "n8n-nodes-base.switch", "typeVersion": 3.4, "position": [4320, 360], "id": "44127cdb-a4aa-4a29-92cb-bd8a247da50b", "name": "Dispatch Presentation Stage"
     },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4080, 440], "id": "3dcc71ad-a73b-4560-b8ce-c43188504e17", "name": "Read Before Side Effect", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2640, 360], "id": "3dcc71ad-a73b-4560-b8ce-c43188504e17", "name": "Read Before Side Effect", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [4320, 440], "id": "f8321301-1a1c-453d-948e-b6cf73bb9c15", "name": "Limit Side Effect Context" },
+    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [2880, 360], "id": "f8321301-1a1c-453d-948e-b6cf73bb9c15", "name": "Limit Side Effect Context" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Read Before Side Effect').first().json.requestKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4560, 440], "id": "a06efbf3-e859-4180-84b1-2e43eb0c9c74", "name": "Read Summary Before Side Effect", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [3120, 360], "id": "a06efbf3-e859-4180-84b1-2e43eb0c9c74", "name": "Read Summary Before Side Effect", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Guard_Side_Effect/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [4800, 440], "id": "28c8c066-92f5-447d-9c46-df140db90088", "name": "Guard Side Effect Owner", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [3360, 360], "id": "28c8c066-92f5-447d-9c46-df140db90088", "name": "Guard Side Effect Owner", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "722dc4c7-1437-40c5-92d8-9709d87c936e", "leftValue": "={{ $json.reconciliationAction }}", "rightValue": "manual_review", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
-      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [5040, 440], "id": "56027de1-c407-484e-a30c-04b577efccdc", "name": "Side Effect Conflict"
+      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [3600, 360], "id": "56027de1-c407-484e-a30c-04b577efccdc", "name": "Side Effect Conflict"
     },
     {
       "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "f8f37465-b960-49b7-b091-63a0714d08b5", "leftValue": "={{ $json.reconciliationAction }}", "rightValue": "reconcile", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
-      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [5280, 520], "id": "c232e79f-050d-485e-ad18-0a6db4b91903", "name": "Needs Side Effect Reconciliation"
+      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [3840, 360], "id": "c232e79f-050d-485e-ad18-0a6db4b91903", "name": "Needs Side Effect Reconciliation"
     },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
@@ -136,12 +130,12 @@
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" },
         { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.expectedCanonicalRowID) }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}", "canonicalRowID": "={{ $json.desiredCanonicalRowID }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [5520, 600], "id": "3d08360d-84a1-4991-ac0a-31331c3b92fa", "name": "Apply Side Effect Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4080, 600], "id": "3d08360d-84a1-4991-ac0a-31331c3b92fa", "name": "Apply Side Effect Reconciliation", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
-    { "parameters": {}, "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [5280, 760], "id": "8a0f07a0-33a3-49d6-bca8-33ceec355f19", "name": "Post-claim Freeze Conflict Plan" },
+    { "parameters": {}, "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [3840, 800], "id": "8a0f07a0-33a3-49d6-bca8-33ceec355f19", "name": "Post-claim Freeze Conflict Plan" },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_Completion_Snapshot/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [4080, 240], "id": "ed19cd57-53b9-48e8-b968-e1ad7798799f", "name": "Prepare Completion Snapshot", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [4560, 1240], "id": "ed19cd57-53b9-48e8-b968-e1ad7798799f", "name": "Prepare Completion Snapshot", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
@@ -149,82 +143,65 @@
         { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "status": "manual_review", "manualReviewReason": "multiple_canonical_checkpoint_conflict", "manualReviewAtIso": "={{ $now.toUTC().toISO() }}", "presentationLeaseOwner": "", "presentationLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [5520, 760], "id": "84106e75-7db5-414c-a94e-7e0ef3379e0b", "name": "Post-claim Freeze Canonical Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4080, 800], "id": "84106e75-7db5-414c-a94e-7e0ef3379e0b", "name": "Post-claim Freeze Canonical Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [5760, 760], "id": "85c4f570-f8f6-4962-ac1a-4a2d1322642d", "name": "Limit Post-claim Conflict Patch" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6000, 760], "id": "78110b66-78a5-4978-9869-e674177d653e", "name": "Re-read Post-claim Frozen Conflict", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4320, 800], "id": "78110b66-78a5-4978-9869-e674177d653e", "name": "Re-read Post-claim Frozen Conflict", "executeOnce": true, "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6240, 760], "id": "f5a744d8-c667-44eb-a860-38c7e5e86d84", "name": "Verify Post-claim Full Freeze", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [4560, 800], "id": "f5a744d8-c667-44eb-a860-38c7e5e86d84", "name": "Verify Post-claim Full Freeze", "onError": "continueErrorOutput"
     },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [5760, 600], "id": "2318990d-e3ad-431d-a924-c69fa8db51dd", "name": "Limit Side Effect Reconciliation" },
-    {
-      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "42f26a04-d150-4100-acb0-6eca84c9eef4", "leftValue": "={{ $json.presentationStage }}", "rightValue": "transcript", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
-      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [5520, 360], "id": "1e03caf0-6554-449d-a07b-9ab4010fbb2e", "name": "Is Transcript Stage"
-    },
+    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [4320, 600], "id": "2318990d-e3ad-431d-a924-c69fa8db51dd", "name": "Limit Side Effect Reconciliation" },
     {
       "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "d4593808-4b42-411f-9a80-fd2be47740ba", "leftValue": "={{ $json.language }}", "rightValue": "zh", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
-      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [5760, 160], "id": "af9f08b3-15ca-4647-b0a6-679b15ea16a9", "name": "Transcript Is zh"
+      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [4560, 520], "id": "af9f08b3-15ca-4647-b0a6-679b15ea16a9", "name": "Transcript Is zh"
     },
     {
       "parameters": { "modelId": { "__rl": true, "value": "models/gemini-2.5-flash", "mode": "list", "cachedResultName": "models/gemini-2.5-flash" }, "messages": { "values": [{ "content": "=你是一個專業的翻譯引擎。你的任務是將以下直播的語音轉錄文字與觀看者的留言翻譯成「繁體中文」。\n- 如果輸入的文字是任何非繁體中文的語言，你必須將其翻譯成流暢的繁體中文。\n- 如果輸入的文字已經是通順的繁體中文，你必須原封不動地回傳。\n你的回傳內容只能是最終的文字，不要包含任何解釋。\n待處理的文字：\n---\n{{ $('Guard Side Effect Owner').first().json.dialogue }}" }] }, "jsonOutput": true, "options": {} },
-      "type": "@n8n/n8n-nodes-langchain.googleGemini", "typeVersion": 1, "position": [6000, 240], "id": "df36906d-b37c-4a3b-b75a-d6d51d59215f", "name": "Translate Dialogue", "alwaysOutputData": true, "onError": "continueErrorOutput",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini", "typeVersion": 1, "position": [4800, 600], "id": "df36906d-b37c-4a3b-b75a-d6d51d59215f", "name": "Translate Dialogue", "alwaysOutputData": true, "onError": "continueErrorOutput",
       "credentials": { "googlePalmApi": { "id": "gMeMxD0Uq89xl8xy", "name": "Google Gemini(PaLM) Api account" } }
     },
     {
-      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Parse_Translation/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6240, 240], "id": "3bfd8ad8-334a-4490-96d5-0dbb8ba10a61", "name": "Parse Translation", "onError": "continueErrorOutput"
-    },
-    {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Convert_Trans_to_Txt/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6480, 160], "id": "c3127801-d8a5-44f3-b9ea-424f55baa693", "name": "Convert Trans to Txt", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5040, 520], "id": "c3127801-d8a5-44f3-b9ea-424f55baa693", "name": "Prepare Transcript File", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "file", "binaryPropertyName": "stt_data", "options": { "channelId": "C0A4JJJKJMD", "initialComment": "=📝 STT 結果 | StreamID: `{{ $('Guard Side Effect Owner').first().json.streamID }}`", "threadTs": "={{ $('Guard Side Effect Owner').first().json.threadTS }}" } },
-      "type": "n8n-nodes-base.slack", "typeVersion": 2.3, "position": [6720, 160], "id": "8e97754b-c138-4f30-b70f-2a75e55ca206", "name": "Upload Transcript File", "alwaysOutputData": true, "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.slack", "typeVersion": 2.3, "position": [5280, 520], "id": "8e97754b-c138-4f30-b70f-2a75e55ca206", "name": "Upload Transcript File", "alwaysOutputData": true, "onError": "continueErrorOutput",
       "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Extract_Upload_ID/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6960, 160], "id": "24c85f7d-8230-477d-b901-3cc2dd041987", "name": "Extract Transcript Upload ID", "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "53bd508e-878b-4a36-8b79-9b4b442fa908", "leftValue": "={{ $json.presentationStage }}", "rightValue": "analysis", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
-      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [5760, 400], "id": "85934305-4228-4d43-b782-eb4de5b728c4", "name": "Is Analysis Stage"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5520, 520], "id": "24c85f7d-8230-477d-b901-3cc2dd041987", "name": "Extract Transcript Upload ID", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "modelId": { "__rl": true, "value": "models/gemini-2.5-pro", "mode": "list", "cachedResultName": "models/gemini-2.5-pro" }, "messages": { "values": [{ "content": "=您是一位直播間問題分析專家。以下是主播的一段直播轉文字與觀眾的留言記錄。您的任務是根據提供的文字記錄，識別。\n說明：\n- 根據他說話的內容與觀眾留言，分析直播主在這段開播發生什麼問題\n- 如果他沒有提到問題相關，不進一步推測\n- 將發生的問題描述以繁體中文表示，並且標注引用原句\n- 若有提到多個問題，逐一列出\n- {\"issue\": \"問題描述\", \"ref\" : \"參照來源\"}\n輸出內容一定是 JSON array 格式。\n以下是直播內容：\n{{ $('Guard Side Effect Owner').first().json.dialogue }}" }] }, "jsonOutput": true, "options": {} },
-      "type": "@n8n/n8n-nodes-langchain.googleGemini", "typeVersion": 1, "position": [6000, 400], "id": "5960969b-e1c3-4c51-a162-3f6a17db8a21", "name": "Analyze Dialogue", "alwaysOutputData": true, "onError": "continueErrorOutput",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini", "typeVersion": 1, "position": [4560, 760], "id": "5960969b-e1c3-4c51-a162-3f6a17db8a21", "name": "Analyze Dialogue", "alwaysOutputData": true, "onError": "continueErrorOutput",
       "credentials": { "googlePalmApi": { "id": "gMeMxD0Uq89xl8xy", "name": "Google Gemini(PaLM) Api account" } }
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Format_Analysis_Data/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6240, 400], "id": "8b001399-7b16-4178-9780-d543ef70ac55", "name": "Format Analysis Data", "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Convert_Analysis_to_Txt/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6480, 400], "id": "b99218cb-73f3-4a6e-9862-f764aef7e394", "name": "Convert Analysis to Txt", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [4800, 760], "id": "8b001399-7b16-4178-9780-d543ef70ac55", "name": "Prepare Analysis File", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "file", "binaryPropertyName": "analysis_data", "options": { "channelId": "C0A4JJJKJMD", "initialComment": "=🧐 異常分析報告 StreamID: `{{ $('Guard Side Effect Owner').first().json.streamID }}`", "threadTs": "={{ $('Guard Side Effect Owner').first().json.threadTS }}" } },
-      "type": "n8n-nodes-base.slack", "typeVersion": 2.3, "position": [6720, 400], "id": "12bfc7bf-7414-4414-bc90-0741eef5e905", "name": "Upload Analysis File", "alwaysOutputData": true, "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.slack", "typeVersion": 2.3, "position": [5040, 760], "id": "12bfc7bf-7414-4414-bc90-0741eef5e905", "name": "Upload Analysis File", "alwaysOutputData": true, "onError": "continueErrorOutput",
       "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Extract_Upload_ID/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6960, 400], "id": "174e7b06-72d7-4166-ad73-4bf642da7a00", "name": "Extract Analysis Upload ID", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5280, 760], "id": "174e7b06-72d7-4166-ad73-4bf642da7a00", "name": "Extract Analysis Upload ID", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "operation": "update", "channelId": { "__rl": true, "value": "C0A4JJJKJMD", "mode": "id" }, "ts": "={{ $('Guard Side Effect Owner').first().json.processingMessageTS }}", "text": "__EXTERNAL_FILE__://nodes/Update_Processing_Msg/text.md", "updateFields": {}, "otherOptions": {} },
-      "type": "n8n-nodes-base.slack", "typeVersion": 2.3, "position": [6000, 560], "id": "b6280913-39a3-48cb-9176-7a22f91a8353", "name": "Update Processing Message", "alwaysOutputData": true, "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.slack", "typeVersion": 2.3, "position": [4560, 1000], "id": "b6280913-39a3-48cb-9176-7a22f91a8353", "name": "Update Processing Message", "alwaysOutputData": true, "onError": "continueErrorOutput",
       "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_Message_Checkpoint/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6240, 560], "id": "183a7bb9-08a8-445a-be89-4612f73da52d", "name": "Prepare Message Checkpoint", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [4800, 1000], "id": "183a7bb9-08a8-445a-be89-4612f73da52d", "name": "Prepare Message Checkpoint", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
@@ -235,7 +212,7 @@
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationAttempt }}" },
         { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "transcriptUploadID": "={{ $json.uploadID }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7200, 160], "id": "2f967238-3927-490c-b793-1570bfadcd97", "name": "Checkpoint Transcript Upload", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [5760, 520], "id": "2f967238-3927-490c-b793-1570bfadcd97", "name": "Checkpoint Transcript Upload", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
@@ -246,7 +223,7 @@
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationAttempt }}" },
         { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.transcriptUploadID }}" }, { "keyName": "analysisUploadID", "condition": "eq", "keyValue": "" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "analysisUploadID": "={{ $json.uploadID }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7200, 400], "id": "b81546a9-e5aa-487c-a04e-ee1b9c64a145", "name": "Checkpoint Analysis Upload", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [5520, 760], "id": "b81546a9-e5aa-487c-a04e-ee1b9c64a145", "name": "Checkpoint Analysis Upload", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
@@ -258,34 +235,19 @@
         { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.transcriptUploadID }}" }, { "keyName": "analysisUploadID", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.analysisUploadID }}" },
         { "keyName": "processingMessageUpdatedAtIso", "condition": "eq", "keyValue": "" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "processingMessageUpdatedAtIso": "={{ $('Prepare Message Checkpoint').first().json.checkpointValue }}", "updatedAtIso": "={{ $('Prepare Message Checkpoint').first().json.checkpointValue }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6480, 560], "id": "91d5f640-4be5-4e9c-bce1-0ff476f08af5", "name": "Checkpoint Processing Message", "alwaysOutputData": true, "onError": "continueErrorOutput"
-    },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [7440, 160], "id": "7f198a79-1a1a-438a-ae55-c75589246d33", "name": "Limit Transcript Checkpoint Write" },
-    {
-      "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7680, 160], "id": "54a16e46-4472-40be-8caa-0ed30ce8b684", "name": "Re-read Transcript Checkpoint", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [5040, 1000], "id": "91d5f640-4be5-4e9c-bce1-0ff476f08af5", "name": "Checkpoint Processing Message", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [7920, 160], "id": "075454b1-cbb7-4386-a259-825350953c05", "name": "Verify Transcript Checkpoint", "onError": "continueErrorOutput"
-    },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [7440, 400], "id": "98a2ec79-16b8-4e7d-a2df-aa92b030cfad", "name": "Limit Analysis Checkpoint Write" },
-    {
-      "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7680, 400], "id": "974673c7-64da-46da-ab73-6786dc1fc843", "name": "Re-read Analysis Checkpoint", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6000, 520], "id": "075454b1-cbb7-4386-a259-825350953c05", "name": "Verify Transcript Checkpoint", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [7920, 400], "id": "62017ea9-a70b-46f7-be05-6a8de70f216a", "name": "Verify Analysis Checkpoint", "onError": "continueErrorOutput"
-    },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [6720, 560], "id": "762f2ebf-1de8-466b-8dc6-c369818ab7e5", "name": "Limit Message Checkpoint Write" },
-    {
-      "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6960, 560], "id": "e6cb98a8-cd8d-45ed-8a77-b75091adf369", "name": "Re-read Message Checkpoint", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5760, 760], "id": "62017ea9-a70b-46f7-be05-6a8de70f216a", "name": "Verify Analysis Checkpoint", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [7200, 560], "id": "62d50ae4-9837-4f23-919f-62b93f0e224e", "name": "Verify Message Checkpoint", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5280, 1000], "id": "62d50ae4-9837-4f23-919f-62b93f0e224e", "name": "Verify Message Checkpoint", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
@@ -297,24 +259,20 @@
         { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "={{ $json.transcriptUploadID }}" }, { "keyName": "analysisUploadID", "condition": "eq", "keyValue": "={{ $json.analysisUploadID }}" },
         { "keyName": "processingMessageUpdatedAtIso", "condition": "eq", "keyValue": "={{ $json.processingMessageUpdatedAtIso }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "presentationStatus": "completed", "presentationLeaseOwner": "", "presentationLeaseUntilIso": "", "presentationNextRetryAtIso": "", "presentationErrorCode": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4320, 240], "id": "4305fe38-ac2d-487a-8424-df5a6997ccbd", "name": "Complete Presentation", "alwaysOutputData": true, "onError": "continueErrorOutput"
-    },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [4560, 240], "id": "1fb54039-1070-4d4f-8132-b8ad4324a361", "name": "Limit Completion Patch" },
-    {
-      "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4800, 240], "id": "0ff8b3e8-81f1-4eaa-bf13-8d44f782eea8", "name": "Re-read Completion", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [4800, 1240], "id": "4305fe38-ac2d-487a-8424-df5a6997ccbd", "name": "Complete Presentation", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5040, 240], "id": "e48a83d6-c8d7-48c3-99dd-cf28570369ce", "name": "Verify Completion", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5040, 1240], "id": "e48a83d6-c8d7-48c3-99dd-cf28570369ce", "name": "Verify Completion", "onError": "continueErrorOutput"
     },
+    { "parameters": {}, "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [6240, 760], "id": "978e19e0-529b-465d-8e6d-fd464ed3a62e", "name": "Continue Presentation" },
     {
       "parameters": { "assignments": { "assignments": [
         { "id": "claim-source", "name": "failureSource", "value": "claim_owner", "type": "string" },
         { "id": "claim-code", "name": "errorCode", "value": "presentation_claim_owner_failed", "type": "string" },
         { "id": "claim-duplicate", "name": "potentialDuplicateUpload", "value": false, "type": "boolean" }
       ] }, "includeOtherFields": false, "options": {} },
-      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6000, 800], "id": "5b4021db-5c4f-442e-a784-8520c36fc480", "name": "Failure Source Claim Owner"
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [2640, 1560], "id": "5b4021db-5c4f-442e-a784-8520c36fc480", "name": "Failure Source Claim Owner"
     },
     {
       "parameters": { "assignments": { "assignments": [
@@ -322,7 +280,7 @@
         { "id": "guard-code", "name": "errorCode", "value": "presentation_side_effect_guard_failed", "type": "string" },
         { "id": "guard-duplicate", "name": "potentialDuplicateUpload", "value": false, "type": "boolean" }
       ] }, "includeOtherFields": false, "options": {} },
-      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6000, 880], "id": "d043e949-ac3b-41aa-adc2-f4068157efba", "name": "Failure Source Side Effect Guard"
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [4800, 1560], "id": "d043e949-ac3b-41aa-adc2-f4068157efba", "name": "Failure Source Side Effect Guard"
     },
     {
       "parameters": { "assignments": { "assignments": [
@@ -330,7 +288,7 @@
         { "id": "transcript-code", "name": "errorCode", "value": "presentation_transcript_failed", "type": "string" },
         { "id": "transcript-duplicate", "name": "potentialDuplicateUpload", "value": false, "type": "boolean" }
       ] }, "includeOtherFields": false, "options": {} },
-      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6000, 960], "id": "0624828e-a6ae-47db-8b15-df9cf5388b1e", "name": "Failure Source Transcript"
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6240, 1560], "id": "0624828e-a6ae-47db-8b15-df9cf5388b1e", "name": "Failure Source Transcript"
     },
     {
       "parameters": { "assignments": { "assignments": [
@@ -338,7 +296,7 @@
         { "id": "transcript-checkpoint-code", "name": "errorCode", "value": "potential_duplicate_upload", "type": "string" },
         { "id": "transcript-checkpoint-duplicate", "name": "potentialDuplicateUpload", "value": true, "type": "boolean" }
       ] }, "includeOtherFields": false, "options": {} },
-      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6000, 1040], "id": "2bc20c42-176c-4f75-8f91-057556138efb", "name": "Failure Source Transcript Checkpoint"
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6480, 1560], "id": "2bc20c42-176c-4f75-8f91-057556138efb", "name": "Failure Source Transcript Checkpoint"
     },
     {
       "parameters": { "assignments": { "assignments": [
@@ -346,7 +304,7 @@
         { "id": "analysis-code", "name": "errorCode", "value": "presentation_analysis_failed", "type": "string" },
         { "id": "analysis-duplicate", "name": "potentialDuplicateUpload", "value": false, "type": "boolean" }
       ] }, "includeOtherFields": false, "options": {} },
-      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6240, 800], "id": "160b926b-3b28-4c42-a648-fd1ea9fbb65c", "name": "Failure Source Analysis"
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6000, 1680], "id": "160b926b-3b28-4c42-a648-fd1ea9fbb65c", "name": "Failure Source Analysis"
     },
     {
       "parameters": { "assignments": { "assignments": [
@@ -354,7 +312,7 @@
         { "id": "analysis-checkpoint-code", "name": "errorCode", "value": "potential_duplicate_upload", "type": "string" },
         { "id": "analysis-checkpoint-duplicate", "name": "potentialDuplicateUpload", "value": true, "type": "boolean" }
       ] }, "includeOtherFields": false, "options": {} },
-      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6240, 880], "id": "8b5fba6d-d5e7-4b14-a37f-4d4511153bfc", "name": "Failure Source Analysis Checkpoint"
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6240, 1800], "id": "8b5fba6d-d5e7-4b14-a37f-4d4511153bfc", "name": "Failure Source Analysis Checkpoint"
     },
     {
       "parameters": { "assignments": { "assignments": [
@@ -362,7 +320,7 @@
         { "id": "message-code", "name": "errorCode", "value": "presentation_message_update_failed", "type": "string" },
         { "id": "message-duplicate", "name": "potentialDuplicateUpload", "value": false, "type": "boolean" }
       ] }, "includeOtherFields": false, "options": {} },
-      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6240, 960], "id": "25c1e917-8976-44ed-86d1-547cba69c5c1", "name": "Failure Source Message Update"
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [5520, 1800], "id": "25c1e917-8976-44ed-86d1-547cba69c5c1", "name": "Failure Source Message Update"
     },
     {
       "parameters": { "assignments": { "assignments": [
@@ -370,20 +328,16 @@
         { "id": "complete-code", "name": "errorCode", "value": "presentation_complete_failed", "type": "string" },
         { "id": "complete-duplicate", "name": "potentialDuplicateUpload", "value": false, "type": "boolean" }
       ] }, "includeOtherFields": false, "options": {} },
-      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [6240, 1040], "id": "29744709-b372-44c3-ab49-39536ae3c280", "name": "Failure Source Completion"
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [5280, 1920], "id": "29744709-b372-44c3-ab49-39536ae3c280", "name": "Failure Source Completion"
     },
-    { "parameters": {}, "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [6480, 920], "id": "735f3ae5-a047-4079-a14f-210ae8d558eb", "name": "Failure Context" },
+    { "parameters": {}, "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [6960, 1680], "id": "735f3ae5-a047-4079-a14f-210ae8d558eb", "name": "Failure Context" },
     {
       "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Claim Presentation').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6960, 800], "id": "8a62b67f-97e1-4d87-a14a-8f6298b0ff20", "name": "Read Failure Attempt Rows", "alwaysOutputData": true, "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Failure_Owner/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [7200, 800], "id": "3d5b4d5f-814a-4d1d-9758-bb68ee28ec35", "name": "Verify Failure Owner Snapshot", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7200, 1680], "id": "8a62b67f-97e1-4d87-a14a-8f6298b0ff20", "name": "Read Failure Attempt Rows", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Failure/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [7440, 800], "id": "ec12dc74-6669-4a8c-8183-f8a6a62b79bd", "name": "Plan Presentation Failure", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [7440, 1680], "id": "ec12dc74-6669-4a8c-8183-f8a6a62b79bd", "name": "Plan Presentation Failure", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
@@ -394,97 +348,81 @@
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $json.presentationAttempt }}" }, { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "={{ $json.transcriptUploadID || '' }}" },
         { "keyName": "analysisUploadID", "condition": "eq", "keyValue": "={{ $json.analysisUploadID || '' }}" }, { "keyName": "processingMessageUpdatedAtIso", "condition": "eq", "keyValue": "={{ $json.processingMessageUpdatedAtIso || '' }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "presentationStatus": "={{ $json.desiredPresentationStatus }}", "presentationLeaseOwner": "", "presentationLeaseUntilIso": "", "presentationAttempt": "={{ $json.desiredPresentationAttempt }}", "presentationNextRetryAtIso": "={{ $json.desiredPresentationNextRetryAtIso }}", "presentationErrorCode": "={{ $json.desiredPresentationErrorCode }}", "updatedAtIso": "={{ $json.failureAtIso }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7440, 800], "id": "cb385bc3-e073-4397-832c-261c09709062", "name": "Patch Presentation Failure", "alwaysOutputData": true, "onError": "continueErrorOutput"
-    },
-    { "parameters": { "maxItems": 1 }, "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [7680, 800], "id": "e64fdd00-ab17-4f6b-8860-615c04e2bcef", "name": "Limit Failure Patch" },
-    {
-      "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Validate Input').first().json.attemptKey }}" }] }, "returnAll": true, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7920, 800], "id": "e1f86127-9ff7-4c3f-bd30-406f8d3e3382", "name": "Re-read Failure State", "alwaysOutputData": true, "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [7680, 1680], "id": "cb385bc3-e073-4397-832c-261c09709062", "name": "Patch Presentation Failure", "alwaysOutputData": true, "onError": "continueErrorOutput"
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Verify_State/jsCode.js" },
-      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [8160, 800], "id": "3678128e-c97d-46b1-bd2a-da8a18927804", "name": "Verify Failure State", "onError": "continueErrorOutput"
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [7920, 1680], "id": "3678128e-c97d-46b1-bd2a-da8a18927804", "name": "Verify Failure State", "onError": "continueErrorOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "insert", "dataTableId": { "__rl": true, "mode": "name", "value": "automation_errors_v3" }, "columns": { "mappingMode": "defineBelow", "value": { "errorKey": "={{ 'presentation:' + $json.attemptKey + ':' + $execution.id }}", "component": "stt_result_listener", "reconciliationStatus": "pending", "canonicalRowID": "", "requestKey": "={{ $json.requestKey }}", "logicalJobKey": "={{ $json.logicalJobKey }}", "attemptKey": "={{ $json.attemptKey }}", "executionID": "={{ $execution.id }}", "workflowName": "STT result listener v3", "nodeName": "presentation_stage", "errorCode": "={{ $json.presentationErrorCode }}", "messageMasked": "Presentation stage failure recorded", "retryable": "={{ $json.presentationStatus === 'retry_pending' }}", "createdAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [8400, 800], "id": "4512705a-b171-4d53-985b-d28805b21db9", "name": "Write Masked Presentation Audit", "onError": "continueRegularOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [8160, 1680], "id": "4512705a-b171-4d53-985b-d28805b21db9", "name": "Write Masked Presentation Audit", "onError": "continueRegularOutput"
     },
     {
       "parameters": { "resource": "row", "operation": "insert", "dataTableId": { "__rl": true, "mode": "name", "value": "automation_errors_v3" }, "columns": { "mappingMode": "defineBelow", "value": { "errorKey": "={{ 'presentation-terminal:' + String($('Start').first().json.attemptKey || 'invalid') + ':' + $execution.id }}", "component": "stt_result_listener", "reconciliationStatus": "pending", "canonicalRowID": "", "requestKey": "", "logicalJobKey": "", "attemptKey": "={{ String($('Start').first().json.attemptKey || '') }}", "executionID": "={{ $execution.id }}", "workflowName": "STT result listener v3", "nodeName": "presentation_terminal", "errorCode": "presentation_terminal_error", "messageMasked": "Presentation workflow terminal failure recorded", "retryable": false, "createdAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
-      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [8640, 960], "id": "56997f8b-cb23-4567-b0f4-c38441e7a885", "name": "Write Masked Terminal Audit", "onError": "continueRegularOutput"
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [8160, 2040], "id": "56997f8b-cb23-4567-b0f4-c38441e7a885", "name": "Write Masked Terminal Audit", "onError": "continueRegularOutput"
     }
   ],
   "connections": {
     "Start": { "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]] },
-    "Validate Input": { "main": [[{ "node": "Read All Attempt Rows", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Read All Attempt Rows": { "main": [[{ "node": "Limit Attempt Context", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Limit Attempt Context": { "main": [[{ "node": "Read Summary Request Rows", "type": "main", "index": 0 }]] },
-    "Read Summary Request Rows": { "main": [[{ "node": "Plan Canonical Reconciliation", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Plan Canonical Reconciliation": { "main": [[{ "node": "Initial Conflict", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
+    "Validate Input": { "main": [[{ "node": "Read All Attempt Rows", "type": "main", "index": 0 }]] },
+    "Read All Attempt Rows": { "main": [[{ "node": "Read Summary Request Rows", "type": "main", "index": 0 }]] },
+    "Read Summary Request Rows": { "main": [[{ "node": "Plan Canonical Reconciliation", "type": "main", "index": 0 }]] },
+    "Plan Canonical Reconciliation": { "main": [[{ "node": "Initial Conflict", "type": "main", "index": 0 }]] },
     "Initial Conflict": { "main": [[{ "node": "Freeze Conflict Plan", "type": "main", "index": 0 }], [{ "node": "Needs Initial Reconciliation", "type": "main", "index": 0 }]] },
     "Needs Initial Reconciliation": { "main": [[{ "node": "Apply Initial Reconciliation", "type": "main", "index": 0 }], [{ "node": "Read Eligible State", "type": "main", "index": 0 }]] },
-    "Apply Initial Reconciliation": { "main": [[{ "node": "Limit Initial Reconciliation", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
+    "Apply Initial Reconciliation": { "main": [[{ "node": "Limit Initial Reconciliation", "type": "main", "index": 0 }]] },
     "Limit Initial Reconciliation": { "main": [[{ "node": "Re-read After Reconciliation", "type": "main", "index": 0 }]] },
-    "Re-read After Reconciliation": { "main": [[{ "node": "Limit Reconciled Context", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
+    "Re-read After Reconciliation": { "main": [[{ "node": "Limit Reconciled Context", "type": "main", "index": 0 }]] },
     "Limit Reconciled Context": { "main": [[{ "node": "Read Summary Rows After Reconciliation", "type": "main", "index": 0 }]] },
-    "Read Summary Rows After Reconciliation": { "main": [[{ "node": "Plan Canonical Reconciliation", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
+    "Read Summary Rows After Reconciliation": { "main": [[{ "node": "Plan Canonical Reconciliation", "type": "main", "index": 0 }]] },
     "Freeze Conflict Plan": { "main": [[{ "node": "Freeze Canonical Conflict", "type": "main", "index": 0 }]] },
-    "Freeze Canonical Conflict": { "main": [[{ "node": "Limit Conflict Patch", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Limit Conflict Patch": { "main": [[{ "node": "Re-read Frozen Conflict", "type": "main", "index": 0 }]] },
-    "Re-read Frozen Conflict": { "main": [[{ "node": "Verify Full Freeze", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Verify Full Freeze": { "main": [[], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Read Eligible State": { "main": [[{ "node": "Require Eligible Canonical", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Require Eligible Canonical": { "main": [[{ "node": "Claim Presentation", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Claim Presentation": { "main": [[{ "node": "Limit Presentation Claim", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Limit Presentation Claim": { "main": [[{ "node": "Re-read Presentation Claim", "type": "main", "index": 0 }]] },
-    "Re-read Presentation Claim": { "main": [[{ "node": "Require Presentation Owner", "type": "main", "index": 0 }], [{ "node": "Failure Source Claim Owner", "type": "main", "index": 0 }]] },
-    "Require Presentation Owner": { "main": [[{ "node": "Select Next Stage", "type": "main", "index": 0 }], [{ "node": "Failure Source Claim Owner", "type": "main", "index": 0 }]] },
-    "Select Next Stage": { "main": [[{ "node": "All Stages Checkpointed", "type": "main", "index": 0 }], [{ "node": "Failure Source Claim Owner", "type": "main", "index": 0 }]] },
-    "All Stages Checkpointed": { "main": [[{ "node": "Prepare Completion Snapshot", "type": "main", "index": 0 }], [{ "node": "Read Before Side Effect", "type": "main", "index": 0 }]] },
+    "Freeze Canonical Conflict": { "main": [[{ "node": "Re-read Frozen Conflict", "type": "main", "index": 0 }]] },
+    "Re-read Frozen Conflict": { "main": [[{ "node": "Verify Full Freeze", "type": "main", "index": 0 }]] },
+    "Verify Full Freeze": { "main": [[]] },
+    "Read Eligible State": { "main": [[{ "node": "Require Eligible Canonical", "type": "main", "index": 0 }]] },
+    "Require Eligible Canonical": { "main": [[{ "node": "Claim Presentation", "type": "main", "index": 0 }]] },
+    "Claim Presentation": { "main": [[{ "node": "Verify Presentation Claim", "type": "main", "index": 0 }]] },
+    "Verify Presentation Claim": { "main": [[{ "node": "Read Before Side Effect", "type": "main", "index": 0 }], [{ "node": "Failure Source Claim Owner", "type": "main", "index": 0 }]] },
+    "Dispatch Presentation Stage": { "main": [
+      [{ "node": "Transcript Is zh", "type": "main", "index": 0 }],
+      [{ "node": "Analyze Dialogue", "type": "main", "index": 0 }],
+      [{ "node": "Update Processing Message", "type": "main", "index": 0 }],
+      [{ "node": "Prepare Completion Snapshot", "type": "main", "index": 0 }],
+      [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]
+    ] },
     "Prepare Completion Snapshot": { "main": [[{ "node": "Complete Presentation", "type": "main", "index": 0 }], [{ "node": "Failure Source Completion", "type": "main", "index": 0 }]] },
     "Read Before Side Effect": { "main": [[{ "node": "Limit Side Effect Context", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
     "Limit Side Effect Context": { "main": [[{ "node": "Read Summary Before Side Effect", "type": "main", "index": 0 }]] },
     "Read Summary Before Side Effect": { "main": [[{ "node": "Guard Side Effect Owner", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
     "Guard Side Effect Owner": { "main": [[{ "node": "Side Effect Conflict", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
     "Side Effect Conflict": { "main": [[{ "node": "Post-claim Freeze Conflict Plan", "type": "main", "index": 0 }], [{ "node": "Needs Side Effect Reconciliation", "type": "main", "index": 0 }]] },
-    "Needs Side Effect Reconciliation": { "main": [[{ "node": "Apply Side Effect Reconciliation", "type": "main", "index": 0 }], [{ "node": "Is Transcript Stage", "type": "main", "index": 0 }]] },
+    "Needs Side Effect Reconciliation": { "main": [[{ "node": "Apply Side Effect Reconciliation", "type": "main", "index": 0 }], [{ "node": "Dispatch Presentation Stage", "type": "main", "index": 0 }]] },
     "Apply Side Effect Reconciliation": { "main": [[{ "node": "Limit Side Effect Reconciliation", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
     "Limit Side Effect Reconciliation": { "main": [[{ "node": "Read Before Side Effect", "type": "main", "index": 0 }]] },
     "Post-claim Freeze Conflict Plan": { "main": [[{ "node": "Post-claim Freeze Canonical Conflict", "type": "main", "index": 0 }]] },
-    "Post-claim Freeze Canonical Conflict": { "main": [[{ "node": "Limit Post-claim Conflict Patch", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
-    "Limit Post-claim Conflict Patch": { "main": [[{ "node": "Re-read Post-claim Frozen Conflict", "type": "main", "index": 0 }]] },
+    "Post-claim Freeze Canonical Conflict": { "main": [[{ "node": "Re-read Post-claim Frozen Conflict", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
     "Re-read Post-claim Frozen Conflict": { "main": [[{ "node": "Verify Post-claim Full Freeze", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
     "Verify Post-claim Full Freeze": { "main": [[], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
-    "Is Transcript Stage": { "main": [[{ "node": "Transcript Is zh", "type": "main", "index": 0 }], [{ "node": "Is Analysis Stage", "type": "main", "index": 0 }]] },
-    "Transcript Is zh": { "main": [[{ "node": "Convert Trans to Txt", "type": "main", "index": 0 }], [{ "node": "Translate Dialogue", "type": "main", "index": 0 }]] },
-    "Translate Dialogue": { "main": [[{ "node": "Parse Translation", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript", "type": "main", "index": 0 }]] },
-    "Parse Translation": { "main": [[{ "node": "Convert Trans to Txt", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript", "type": "main", "index": 0 }]] },
-    "Convert Trans to Txt": { "main": [[{ "node": "Upload Transcript File", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript", "type": "main", "index": 0 }]] },
+    "Transcript Is zh": { "main": [[{ "node": "Prepare Transcript File", "type": "main", "index": 0 }], [{ "node": "Translate Dialogue", "type": "main", "index": 0 }]] },
+    "Translate Dialogue": { "main": [[{ "node": "Prepare Transcript File", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript", "type": "main", "index": 0 }]] },
+    "Prepare Transcript File": { "main": [[{ "node": "Upload Transcript File", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript", "type": "main", "index": 0 }]] },
     "Upload Transcript File": { "main": [[{ "node": "Extract Transcript Upload ID", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript", "type": "main", "index": 0 }]] },
     "Extract Transcript Upload ID": { "main": [[{ "node": "Checkpoint Transcript Upload", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript", "type": "main", "index": 0 }]] },
-    "Is Analysis Stage": { "main": [[{ "node": "Analyze Dialogue", "type": "main", "index": 0 }], [{ "node": "Update Processing Message", "type": "main", "index": 0 }]] },
-    "Analyze Dialogue": { "main": [[{ "node": "Format Analysis Data", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis", "type": "main", "index": 0 }]] },
-    "Format Analysis Data": { "main": [[{ "node": "Convert Analysis to Txt", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis", "type": "main", "index": 0 }]] },
-    "Convert Analysis to Txt": { "main": [[{ "node": "Upload Analysis File", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis", "type": "main", "index": 0 }]] },
+    "Analyze Dialogue": { "main": [[{ "node": "Prepare Analysis File", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis", "type": "main", "index": 0 }]] },
+    "Prepare Analysis File": { "main": [[{ "node": "Upload Analysis File", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis", "type": "main", "index": 0 }]] },
     "Upload Analysis File": { "main": [[{ "node": "Extract Analysis Upload ID", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis", "type": "main", "index": 0 }]] },
     "Extract Analysis Upload ID": { "main": [[{ "node": "Checkpoint Analysis Upload", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis", "type": "main", "index": 0 }]] },
     "Update Processing Message": { "main": [[{ "node": "Prepare Message Checkpoint", "type": "main", "index": 0 }], [{ "node": "Failure Source Message Update", "type": "main", "index": 0 }]] },
     "Prepare Message Checkpoint": { "main": [[{ "node": "Checkpoint Processing Message", "type": "main", "index": 0 }], [{ "node": "Failure Source Message Update", "type": "main", "index": 0 }]] },
-    "Checkpoint Transcript Upload": { "main": [[{ "node": "Limit Transcript Checkpoint Write", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript Checkpoint", "type": "main", "index": 0 }]] },
-    "Checkpoint Analysis Upload": { "main": [[{ "node": "Limit Analysis Checkpoint Write", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis Checkpoint", "type": "main", "index": 0 }]] },
-    "Checkpoint Processing Message": { "main": [[{ "node": "Limit Message Checkpoint Write", "type": "main", "index": 0 }], [{ "node": "Failure Source Message Update", "type": "main", "index": 0 }]] },
-    "Limit Transcript Checkpoint Write": { "main": [[{ "node": "Re-read Transcript Checkpoint", "type": "main", "index": 0 }]] },
-    "Re-read Transcript Checkpoint": { "main": [[{ "node": "Verify Transcript Checkpoint", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript Checkpoint", "type": "main", "index": 0 }]] },
-    "Verify Transcript Checkpoint": { "main": [[{ "node": "Select Next Stage", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript Checkpoint", "type": "main", "index": 0 }]] },
-    "Limit Analysis Checkpoint Write": { "main": [[{ "node": "Re-read Analysis Checkpoint", "type": "main", "index": 0 }]] },
-    "Re-read Analysis Checkpoint": { "main": [[{ "node": "Verify Analysis Checkpoint", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis Checkpoint", "type": "main", "index": 0 }]] },
-    "Verify Analysis Checkpoint": { "main": [[{ "node": "Select Next Stage", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis Checkpoint", "type": "main", "index": 0 }]] },
-    "Limit Message Checkpoint Write": { "main": [[{ "node": "Re-read Message Checkpoint", "type": "main", "index": 0 }]] },
-    "Re-read Message Checkpoint": { "main": [[{ "node": "Verify Message Checkpoint", "type": "main", "index": 0 }], [{ "node": "Failure Source Message Update", "type": "main", "index": 0 }]] },
-    "Verify Message Checkpoint": { "main": [[{ "node": "Select Next Stage", "type": "main", "index": 0 }], [{ "node": "Failure Source Message Update", "type": "main", "index": 0 }]] },
-    "Complete Presentation": { "main": [[{ "node": "Limit Completion Patch", "type": "main", "index": 0 }], [{ "node": "Failure Source Completion", "type": "main", "index": 0 }]] },
-    "Limit Completion Patch": { "main": [[{ "node": "Re-read Completion", "type": "main", "index": 0 }]] },
-    "Re-read Completion": { "main": [[{ "node": "Verify Completion", "type": "main", "index": 0 }], [{ "node": "Failure Source Completion", "type": "main", "index": 0 }]] },
+    "Checkpoint Transcript Upload": { "main": [[{ "node": "Verify Transcript Checkpoint", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript Checkpoint", "type": "main", "index": 0 }]] },
+    "Checkpoint Analysis Upload": { "main": [[{ "node": "Verify Analysis Checkpoint", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis Checkpoint", "type": "main", "index": 0 }]] },
+    "Checkpoint Processing Message": { "main": [[{ "node": "Verify Message Checkpoint", "type": "main", "index": 0 }], [{ "node": "Failure Source Message Update", "type": "main", "index": 0 }]] },
+    "Verify Transcript Checkpoint": { "main": [[{ "node": "Continue Presentation", "type": "main", "index": 0 }], [{ "node": "Failure Source Transcript Checkpoint", "type": "main", "index": 0 }]] },
+    "Verify Analysis Checkpoint": { "main": [[{ "node": "Continue Presentation", "type": "main", "index": 0 }], [{ "node": "Failure Source Analysis Checkpoint", "type": "main", "index": 0 }]] },
+    "Verify Message Checkpoint": { "main": [[{ "node": "Continue Presentation", "type": "main", "index": 0 }], [{ "node": "Failure Source Message Update", "type": "main", "index": 0 }]] },
+    "Continue Presentation": { "main": [[{ "node": "Read Before Side Effect", "type": "main", "index": 0 }]] },
+    "Complete Presentation": { "main": [[{ "node": "Verify Completion", "type": "main", "index": 0 }], [{ "node": "Failure Source Completion", "type": "main", "index": 0 }]] },
     "Verify Completion": { "main": [[], [{ "node": "Failure Source Completion", "type": "main", "index": 0 }]] },
     "Failure Source Claim Owner": { "main": [[{ "node": "Failure Context", "type": "main", "index": 0 }]] },
     "Failure Source Side Effect Guard": { "main": [[{ "node": "Failure Context", "type": "main", "index": 0 }]] },
@@ -495,12 +433,9 @@
     "Failure Source Message Update": { "main": [[{ "node": "Failure Context", "type": "main", "index": 0 }]] },
     "Failure Source Completion": { "main": [[{ "node": "Failure Context", "type": "main", "index": 0 }]] },
     "Failure Context": { "main": [[{ "node": "Read Failure Attempt Rows", "type": "main", "index": 0 }]] },
-    "Read Failure Attempt Rows": { "main": [[{ "node": "Verify Failure Owner Snapshot", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Verify Failure Owner Snapshot": { "main": [[{ "node": "Plan Presentation Failure", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
+    "Read Failure Attempt Rows": { "main": [[{ "node": "Plan Presentation Failure", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
     "Plan Presentation Failure": { "main": [[{ "node": "Patch Presentation Failure", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Patch Presentation Failure": { "main": [[{ "node": "Limit Failure Patch", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
-    "Limit Failure Patch": { "main": [[{ "node": "Re-read Failure State", "type": "main", "index": 0 }]] },
-    "Re-read Failure State": { "main": [[{ "node": "Verify Failure State", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
+    "Patch Presentation Failure": { "main": [[{ "node": "Verify Failure State", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] },
     "Verify Failure State": { "main": [[{ "node": "Write Masked Presentation Audit", "type": "main", "index": 0 }], [{ "node": "Write Masked Terminal Audit", "type": "main", "index": 0 }]] }
   },
   "settings": {

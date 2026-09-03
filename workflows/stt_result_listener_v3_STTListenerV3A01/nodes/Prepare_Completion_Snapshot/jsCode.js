@@ -5,7 +5,7 @@ const COMPLETION_PROVENANCE_FIELDS = [
 const PRESENTATION_CHECKPOINT_FIELDS = [
   'transcriptUploadID', 'analysisUploadID', 'processingMessageUpdatedAtIso',
 ];
-const claim = $('Require Presentation Owner').first().json;
+const claim = $('Claim Presentation').first().json;
 const checkpoint = $input.first().json;
 if (claim.id !== checkpoint.id || claim.attemptKey !== checkpoint.attemptKey) throw new Error('Completion snapshot identity mismatch');
 const claimFields = ['id', 'attemptKey', 'attempt', 'presentationAttempt', ...COMPLETION_PROVENANCE_FIELDS];

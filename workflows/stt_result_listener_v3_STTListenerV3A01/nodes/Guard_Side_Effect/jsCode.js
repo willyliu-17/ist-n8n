@@ -47,10 +47,9 @@ if (canonical.length !== 1) {
 const row = canonical[0];
 const now = new Date().toISOString();
 if (row.canonicalRowID !== String(row.id) || row.status !== 'completed' || !String(row.dialogue || '').trim()) throw new Error('Invalid canonical owner state');
-if (row.id !== $('Require Presentation Owner').first().json.id) throw new Error('Claimed canonical ID changed');
+if (row.id !== $('Claim Presentation').first().json.id) throw new Error('Claimed canonical ID changed');
 if (row.presentationStatus !== 'presenting' || row.presentationLeaseOwner !== $execution.id) throw new Error('Presentation owner mismatch');
 if (!row.presentationLeaseUntilIso || Date.parse(row.presentationLeaseUntilIso) <= Date.parse(now) || new Date(Date.parse(row.presentationLeaseUntilIso)).toISOString() !== row.presentationLeaseUntilIso) throw new Error('Presentation lease expired');
 if (row.channel !== 'C0A4JJJKJMD') throw new Error('Invalid presentation channel');
 const stage = !row.transcriptUploadID ? 'transcript' : !row.analysisUploadID ? 'analysis' : !row.processingMessageUpdatedAtIso ? 'message_update' : 'complete';
-if (stage === 'complete') throw new Error('No side effect remains');
-return [{ json: { ...row, presentationStage: stage, reconciliationAction: 'ready' } }];
+return [{ json: { ...row, presentationStage: stage, dispatchRoute: stage, reconciliationAction: 'ready' } }];

@@ -43,5 +43,13 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 if (typeof $input !== 'undefined') {
-  return [buildTranscriptFile($input.first().json)];
+  const canonical = $('Guard Side Effect Owner').first().json;
+  let translatedDialogue = '';
+  if (canonical.language !== 'zh') {
+    const response = $input.first().json;
+    const text = response?.content?.parts?.[0]?.text;
+    if (typeof text !== 'string' || !text.trim()) throw new Error('Gemini translation response is empty or malformed');
+    translatedDialogue = text.trim();
+  }
+  return [buildTranscriptFile({ ...canonical, translatedDialogue })];
 }

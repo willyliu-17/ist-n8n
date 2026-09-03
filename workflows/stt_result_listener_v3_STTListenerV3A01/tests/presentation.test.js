@@ -9,8 +9,8 @@ const workflow = JSON.parse(fs.readFileSync(path.join(workflowDir, 'workflow.jso
 const state = require(path.join(workflowDir, 'nodes', 'Presentation_State', 'jsCode.js'));
 const reconciliation = require(path.join(workflowDir, 'nodes', 'Reconcile_Canonical', 'jsCode.js'));
 const transcript = require(path.join(workflowDir, 'nodes', 'Convert_Trans_to_Txt', 'jsCode.js'));
-const analysis = require(path.join(workflowDir, 'nodes', 'Convert_Analysis_to_Txt', 'jsCode.js'));
 const analysisFormat = require(path.join(workflowDir, 'nodes', 'Format_Analysis_Data', 'jsCode.js'));
+const analysis = analysisFormat;
 
 const PINNED_SLACK_2_3_UPLOAD_ITEMS = [
   { json: { id: 'F08ABC123', name: 'stt.txt', mimetype: 'text/plain' } },
@@ -26,7 +26,7 @@ const P3_IDS = new Map([
 const FAILURE_CATEGORIES = {
   'Failure Source Claim Owner': {
     failureSource: 'claim_owner', errorCode: 'presentation_claim_owner_failed', potentialDuplicateUpload: false,
-    sources: ['Re-read Presentation Claim', 'Require Presentation Owner', 'Select Next Stage'],
+    sources: ['Verify Presentation Claim'],
   },
   'Failure Source Side Effect Guard': {
     failureSource: 'side_effect_guard', errorCode: 'presentation_side_effect_guard_failed', potentialDuplicateUpload: false,
@@ -38,30 +38,30 @@ const FAILURE_CATEGORIES = {
   },
   'Failure Source Transcript': {
     failureSource: 'transcript', errorCode: 'presentation_transcript_failed', potentialDuplicateUpload: false,
-    sources: ['Translate Dialogue', 'Parse Translation', 'Convert Trans to Txt', 'Upload Transcript File', 'Extract Transcript Upload ID'],
+    sources: ['Translate Dialogue', 'Prepare Transcript File', 'Upload Transcript File', 'Extract Transcript Upload ID'],
   },
   'Failure Source Transcript Checkpoint': {
     failureSource: 'transcript_checkpoint', errorCode: 'potential_duplicate_upload', potentialDuplicateUpload: true,
-    sources: ['Checkpoint Transcript Upload', 'Re-read Transcript Checkpoint', 'Verify Transcript Checkpoint'],
+    sources: ['Checkpoint Transcript Upload', 'Verify Transcript Checkpoint'],
   },
   'Failure Source Analysis': {
     failureSource: 'analysis', errorCode: 'presentation_analysis_failed', potentialDuplicateUpload: false,
-    sources: ['Analyze Dialogue', 'Format Analysis Data', 'Convert Analysis to Txt', 'Upload Analysis File', 'Extract Analysis Upload ID'],
+    sources: ['Analyze Dialogue', 'Prepare Analysis File', 'Upload Analysis File', 'Extract Analysis Upload ID'],
   },
   'Failure Source Analysis Checkpoint': {
     failureSource: 'analysis_checkpoint', errorCode: 'potential_duplicate_upload', potentialDuplicateUpload: true,
-    sources: ['Checkpoint Analysis Upload', 'Re-read Analysis Checkpoint', 'Verify Analysis Checkpoint'],
+    sources: ['Checkpoint Analysis Upload', 'Verify Analysis Checkpoint'],
   },
   'Failure Source Message Update': {
     failureSource: 'message_update', errorCode: 'presentation_message_update_failed', potentialDuplicateUpload: false,
     sources: [
       'Update Processing Message', 'Prepare Message Checkpoint', 'Checkpoint Processing Message',
-      'Re-read Message Checkpoint', 'Verify Message Checkpoint',
+      'Verify Message Checkpoint',
     ],
   },
   'Failure Source Completion': {
     failureSource: 'complete', errorCode: 'presentation_complete_failed', potentialDuplicateUpload: false,
-    sources: ['Prepare Completion Snapshot', 'Complete Presentation', 'Re-read Completion', 'Verify Completion'],
+    sources: ['Prepare Completion Snapshot', 'Complete Presentation', 'Verify Completion'],
   },
 };
 const POSTCLAIM_FAILURE_SOURCE = Object.fromEntries(Object.entries(FAILURE_CATEGORIES)
@@ -124,6 +124,7 @@ test('is inactive with one typed Define Below attemptKey trigger and documented 
   assert.match(workflow.description, /Input: required attemptKey string/);
   assert.match(workflow.description, /Side effects:/);
   assert.match(workflow.description, /Output:/);
+  assert.match(workflow.description, /require Automation: error handler v3 assignment before activation/);
   assert.equal(workflow.nodes.some(({ type }) => type === 'n8n-nodes-base.webhook'), false);
 });
 
@@ -198,7 +199,29 @@ test('makes every read return all rows with alwaysOutputData', () => {
   }
 });
 
-test('claims exact canonical completed pending row then Limit 1 and re-read owner', () => {
+test('executes required shared reads once while preserving reconciliation loop limits', () => {
+  const executeOnceReads = workflow.nodes
+    .filter(({ type, executeOnce }) => type === 'n8n-nodes-base.dataTable' && executeOnce)
+    .map(({ name }) => name)
+    .sort();
+  assert.deepEqual(executeOnceReads, [
+    'Read Summary Request Rows',
+    'Re-read Frozen Conflict',
+    'Re-read Post-claim Frozen Conflict',
+  ].sort());
+  const limits = workflow.nodes
+    .filter(({ type }) => type === 'n8n-nodes-base.limit')
+    .map(({ name }) => name)
+    .sort();
+  assert.deepEqual(limits, [
+    'Limit Initial Reconciliation',
+    'Limit Reconciled Context',
+    'Limit Side Effect Context',
+    'Limit Side Effect Reconciliation',
+  ].sort());
+});
+
+test('claims exact canonical completed pending row then verifies the returned owner row', () => {
   const claim = node('Claim Presentation');
   const map = filters('Claim Presentation');
   for (const key of ['id', 'attemptKey', 'status', 'reconciliationStatus', 'canonicalRowID', 'presentationStatus', 'presentationAttempt']) assert.ok(map[key], key);
@@ -207,9 +230,8 @@ test('claims exact canonical completed pending row then Limit 1 and re-read owne
   assert.equal(map.presentationStatus.keyValue, 'pending');
   assert.equal(claim.parameters.columns.value.presentationStatus, 'presenting');
   assert.equal(claim.parameters.columns.value.presentationLeaseOwner, '={{ $execution.id }}');
-  assert.deepEqual(targets('Claim Presentation'), ['Limit Presentation Claim']);
-  assert.deepEqual(targets('Limit Presentation Claim'), ['Re-read Presentation Claim']);
-  assert.deepEqual(targets('Re-read Presentation Claim'), ['Require Presentation Owner']);
+  assert.equal(claim.alwaysOutputData, true);
+  assert.deepEqual(targets('Claim Presentation'), ['Verify Presentation Claim']);
 });
 
 test('keeps production system IDs numeric and canonical references string across every Data Table filter', () => {
@@ -235,11 +257,11 @@ test('keeps production system IDs numeric and canonical references string across
 });
 
 test('requires full reconciliation owner guard before every Slack side effect', () => {
-  assert.deepEqual(targets('Select Next Stage'), ['All Stages Checkpointed']);
-  assert.deepEqual(targets('All Stages Checkpointed', 1), ['Read Before Side Effect']);
+  assert.deepEqual(targets('Verify Presentation Claim'), ['Read Before Side Effect']);
   assert.deepEqual(targets('Read Before Side Effect'), ['Limit Side Effect Context']);
   assert.deepEqual(targets('Limit Side Effect Context'), ['Read Summary Before Side Effect']);
   assert.deepEqual(targets('Read Summary Before Side Effect'), ['Guard Side Effect Owner']);
+  assert.deepEqual(targets('Needs Side Effect Reconciliation', 1), ['Dispatch Presentation Stage']);
   for (const slack of ['Upload Transcript File', 'Upload Analysis File', 'Update Processing Message']) {
     const predecessors = workflow.nodes.filter(({ name }) => (
       (workflow.connections[name]?.main || []).some((output) => (output || []).some(({ node: target }) => target === slack))
@@ -257,22 +279,22 @@ test('routes every fallible node by phase without recursive failure handling', (
     'Require Eligible Canonical', 'Claim Presentation',
   ];
   const postClaim = [
-    'Re-read Presentation Claim', 'Require Presentation Owner', 'Select Next Stage', 'Read Before Side Effect',
+    'Verify Presentation Claim', 'Read Before Side Effect',
     'Read Summary Before Side Effect', 'Guard Side Effect Owner', 'Apply Side Effect Reconciliation',
     'Post-claim Freeze Canonical Conflict', 'Re-read Post-claim Frozen Conflict', 'Verify Post-claim Full Freeze',
-    'Translate Dialogue', 'Parse Translation', 'Convert Trans to Txt', 'Upload Transcript File',
-    'Extract Transcript Upload ID', 'Analyze Dialogue', 'Format Analysis Data', 'Convert Analysis to Txt',
+    'Translate Dialogue', 'Prepare Transcript File', 'Upload Transcript File',
+    'Extract Transcript Upload ID', 'Analyze Dialogue', 'Prepare Analysis File',
     'Upload Analysis File', 'Extract Analysis Upload ID', 'Update Processing Message', 'Prepare Message Checkpoint',
     'Checkpoint Transcript Upload', 'Checkpoint Analysis Upload', 'Checkpoint Processing Message',
-    'Re-read Transcript Checkpoint', 'Verify Transcript Checkpoint',
-    'Re-read Analysis Checkpoint', 'Verify Analysis Checkpoint',
-    'Re-read Message Checkpoint', 'Verify Message Checkpoint',
-    'Complete Presentation', 'Re-read Completion', 'Verify Completion',
+    'Verify Transcript Checkpoint',
+    'Verify Analysis Checkpoint',
+    'Verify Message Checkpoint',
+    'Complete Presentation', 'Verify Completion',
     'Prepare Completion Snapshot',
   ];
   const failureTerminal = [
-    'Read Failure Attempt Rows', 'Verify Failure Owner Snapshot',
-    'Plan Presentation Failure', 'Patch Presentation Failure', 'Re-read Failure State', 'Verify Failure State',
+    'Read Failure Attempt Rows', 'Plan Presentation Failure',
+    'Patch Presentation Failure', 'Verify Failure State',
   ];
   const intentionalTerminal = ['Write Masked Presentation Audit', 'Write Masked Terminal Audit'];
   const fallibleTypes = new Set([
@@ -283,8 +305,8 @@ test('routes every fallible node by phase without recursive failure handling', (
   const actual = workflow.nodes.filter(({ type }) => fallibleTypes.has(type)).map(({ name }) => name).sort();
   assert.deepEqual(classified, actual);
   for (const name of preClaim) {
-    assert.equal(node(name).onError, 'continueErrorOutput', name);
-    assert.deepEqual(targets(name, 1), ['Write Masked Terminal Audit'], name);
+    assert.equal(node(name).onError, 'stopWorkflow', name);
+    assert.deepEqual(targets(name, 1), [], name);
   }
   for (const name of postClaim) {
     assert.equal(node(name).onError, 'continueErrorOutput', name);
@@ -350,8 +372,38 @@ test('skips persisted checkpoints and recovers in strict stage order', () => {
   assert.equal(state.selectNextStage(row({ transcriptUploadID: 'F1', analysisUploadID: 'F2' })), 'message_update');
   assert.equal(state.selectNextStage(row({ transcriptUploadID: 'F1', analysisUploadID: 'F2', processingMessageUpdatedAtIso: NOW })), 'complete');
   for (const name of ['Verify Transcript Checkpoint', 'Verify Analysis Checkpoint', 'Verify Message Checkpoint']) {
-    assert.deepEqual(targets(name), ['Select Next Stage']);
+    assert.deepEqual(targets(name), ['Continue Presentation']);
   }
+  assert.equal(node('Continue Presentation').type, 'n8n-nodes-base.noOp');
+  assert.equal(node('Continue Presentation').typeVersion, 1);
+  assert.deepEqual(targets('Continue Presentation'), ['Read Before Side Effect']);
+  const guardEntrances = workflow.nodes.filter(({ name }) => targets(name).includes('Read Before Side Effect')).map(({ name }) => name).sort();
+  assert.deepEqual(guardEntrances, ['Continue Presentation', 'Limit Side Effect Reconciliation', 'Verify Presentation Claim'].sort());
+});
+
+test('uses one fail-closed switch only after the persisted owner guard', () => {
+  const router = node('Dispatch Presentation Stage');
+  assert.equal(router.type, 'n8n-nodes-base.switch');
+  assert.equal(router.typeVersion, 3.4);
+  assert.deepEqual(router.parameters.rules.values.map(({ outputKey }) => outputKey), [
+    'transcript', 'analysis', 'message_update', 'complete',
+  ]);
+  assert.equal(router.parameters.options.fallbackOutput, 'extra');
+  assert.deepEqual(targets('Dispatch Presentation Stage', 0), ['Transcript Is zh']);
+  assert.deepEqual(targets('Dispatch Presentation Stage', 1), ['Analyze Dialogue']);
+  assert.deepEqual(targets('Dispatch Presentation Stage', 2), ['Update Processing Message']);
+  assert.deepEqual(targets('Dispatch Presentation Stage', 3), ['Prepare Completion Snapshot']);
+  assert.deepEqual(targets('Dispatch Presentation Stage', 4), ['Failure Source Side Effect Guard']);
+});
+
+test('separates claim verification from persisted stage selection', () => {
+  const claimSource = fs.readFileSync(path.join(workflowDir, 'nodes', 'Require_Claim_Owner', 'jsCode.js'), 'utf8');
+  assert.match(claimSource, /presentation_claim_verified/);
+  assert.doesNotMatch(claimSource, /presentationStage|dispatchRoute/);
+
+  const guardSource = fs.readFileSync(path.join(workflowDir, 'nodes', 'Guard_Side_Effect', 'jsCode.js'), 'utf8');
+  assert.match(guardSource, /: 'complete'/);
+  assert.doesNotMatch(guardSource, /No side effect remains/);
 });
 
 test('requires the exact unexpired owner and fails closed on conflicts or zero-CAS state', () => {
@@ -427,7 +479,7 @@ test('verifies completion against the original claim and exact checkpoint snapsh
     ...checkpoint, presentationStatus: 'completed', presentationLeaseOwner: '', presentationLeaseUntilIso: '',
   };
   assert.equal(state.verifyCompletion([completed], expectation).id, 1);
-  assert.deepEqual(targets('All Stages Checkpointed'), ['Prepare Completion Snapshot']);
+  assert.deepEqual(targets('Dispatch Presentation Stage', 3), ['Prepare Completion Snapshot']);
   assert.deepEqual(targets('Prepare Completion Snapshot'), ['Complete Presentation']);
 
   assert.throws(() => state.verifyCompletion([], expectation), /not found/);
@@ -470,17 +522,14 @@ test('uses explicit sanitized graph constants before the common failure read', (
     assert.deepEqual(targets(name), ['Failure Context'], name);
   }
   assert.deepEqual(targets('Failure Context'), ['Read Failure Attempt Rows']);
-  assert.deepEqual(targets('Read Failure Attempt Rows'), ['Verify Failure Owner Snapshot']);
-  assert.deepEqual(targets('Verify Failure Owner Snapshot'), ['Plan Presentation Failure']);
+  assert.deepEqual(targets('Read Failure Attempt Rows'), ['Plan Presentation Failure']);
   assert.equal(workflow.nodes.some(({ name }) => name === 'Capture Presentation Error Context'), false);
   assert.equal(fs.existsSync(path.join(workflowDir, 'nodes', 'Capture_Error_Context', 'jsCode.js')), false);
   assert.doesNotMatch(JSON.stringify(workflow), /Capture Presentation Error Context/);
-  const verifySource = fs.readFileSync(path.join(workflowDir, 'nodes', 'Verify_Failure_Owner', 'jsCode.js'), 'utf8');
-  assert.match(verifySource, /Failure Context/);
-  assert.doesNotMatch(verifySource, /isExecuted|selectNextStage|persistedStage/);
   const source = fs.readFileSync(path.join(workflowDir, 'nodes', 'Plan_Failure', 'jsCode.js'), 'utf8');
-  assert.match(source, /Verify Failure Owner Snapshot/);
-  assert.doesNotMatch(source, /Capture Presentation Error Context|Require Presentation Owner|Claim Presentation|Guard Side Effect Owner|Verify Checkpoint/);
+  assert.match(source, /Failure Context/);
+  assert.match(source, /Claim Presentation/);
+  assert.doesNotMatch(source, /isExecuted|selectNextStage|persistedStage|Capture Presentation Error Context/);
 });
 
 test('failure owner verification uses latest persisted checkpoints and fails closed', () => {
@@ -546,8 +595,8 @@ test('post-claim business errors cannot reach the planner directly', () => {
   const planner = 'Plan Presentation Failure';
   const convergence = 'Failure Context';
   const failurePath = new Set([
-    ...Object.keys(FAILURE_CATEGORIES), convergence, 'Read Failure Attempt Rows', 'Verify Failure Owner Snapshot', planner,
-    'Patch Presentation Failure', 'Re-read Failure State', 'Verify Failure State',
+    ...Object.keys(FAILURE_CATEGORIES), convergence, 'Read Failure Attempt Rows', planner,
+    'Patch Presentation Failure', 'Verify Failure State',
     'Write Masked Presentation Audit', 'Write Masked Terminal Audit',
   ]);
   for (const candidate of workflow.nodes) {
@@ -600,10 +649,10 @@ test('rejects empty or malformed AI analysis and preserves report formatting', (
 test('uses exact binary keys through downstream Slack nodes', () => {
   assert.equal(node('Upload Transcript File').parameters.binaryPropertyName, 'stt_data');
   assert.equal(node('Upload Analysis File').parameters.binaryPropertyName, 'analysis_data');
-  assert.equal(node('Convert Trans to Txt').parameters.mode, 'runOnceForAllItems');
-  assert.equal(node('Convert Analysis to Txt').parameters.mode, 'runOnceForAllItems');
-  assert.deepEqual(targets('Convert Trans to Txt'), ['Upload Transcript File']);
-  assert.deepEqual(targets('Convert Analysis to Txt'), ['Upload Analysis File']);
+  assert.equal(node('Prepare Transcript File').parameters.mode, 'runOnceForAllItems');
+  assert.equal(node('Prepare Analysis File').parameters.mode, 'runOnceForAllItems');
+  assert.deepEqual(targets('Prepare Transcript File'), ['Upload Transcript File']);
+  assert.deepEqual(targets('Prepare Analysis File'), ['Upload Analysis File']);
 });
 
 test('uses deterministic persisted C0 routing and final text with no C09', () => {
@@ -632,18 +681,26 @@ test('implements failure attempts 1m, 5m, then terminal failed with only present
   assert.ok(Object.keys(first).every((key) => allowed.has(key)));
 });
 
-test('uses exact owner/checkpoint CAS and Limit/re-read for every presentation write', () => {
+test('uses exact owner/checkpoint CAS and verifies every returned presentation write row', () => {
   for (const name of ['Checkpoint Transcript Upload', 'Checkpoint Analysis Upload', 'Checkpoint Processing Message', 'Complete Presentation', 'Patch Presentation Failure']) {
     const map = filters(name);
     for (const key of ['id', 'attemptKey', 'status', 'reconciliationStatus', 'canonicalRowID', 'presentationStatus', 'presentationLeaseOwner', 'presentationLeaseUntilIso', 'presentationAttempt']) assert.ok(map[key], `${name}: ${key}`);
     assert.equal(node(name).parameters.matchType, 'allConditions', name);
     assert.equal(node(name).alwaysOutputData, true, name);
   }
-  assert.deepEqual(targets('Checkpoint Transcript Upload'), ['Limit Transcript Checkpoint Write']);
-  assert.deepEqual(targets('Checkpoint Analysis Upload'), ['Limit Analysis Checkpoint Write']);
-  assert.deepEqual(targets('Checkpoint Processing Message'), ['Limit Message Checkpoint Write']);
-  assert.deepEqual(targets('Patch Presentation Failure'), ['Limit Failure Patch']);
-  assert.deepEqual(targets('Limit Failure Patch'), ['Re-read Failure State']);
+  const writeToVerifier = {
+    'Checkpoint Transcript Upload': 'Verify Transcript Checkpoint',
+    'Checkpoint Analysis Upload': 'Verify Analysis Checkpoint',
+    'Checkpoint Processing Message': 'Verify Message Checkpoint',
+    'Complete Presentation': 'Verify Completion',
+    'Patch Presentation Failure': 'Verify Failure State',
+  };
+  for (const [write, verifier] of Object.entries(writeToVerifier)) {
+    assert.deepEqual(targets(write), [verifier], write);
+  }
+  for (const name of ['Re-read Presentation Claim', 'Re-read Transcript Checkpoint', 'Re-read Analysis Checkpoint', 'Re-read Message Checkpoint', 'Re-read Completion', 'Re-read Failure State']) {
+    assert.equal(workflow.nodes.some((candidate) => candidate.name === name), false, name);
+  }
   for (const name of ['Checkpoint Transcript Upload', 'Checkpoint Analysis Upload', 'Checkpoint Processing Message']) {
     assert.deepEqual(targets(name, 1), [POSTCLAIM_FAILURE_SOURCE[name]], `${name} error output`);
   }
