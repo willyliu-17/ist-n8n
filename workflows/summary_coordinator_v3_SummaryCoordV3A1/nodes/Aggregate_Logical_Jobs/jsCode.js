@@ -144,6 +144,7 @@ function aggregateLogicalJobs(request, rows) {
     retryRows.forEach((row) => retryTarget(row, attempts));
     const activeAttempts = attempts.filter((row) => !retryRows.includes(row));
     if (activeAttempts.some((row) => PENDING.has(row.status) || (row.status === 'manual_review' && !nonempty(row.manualReviewResolution)))) { unresolved.push(key); continue; }
+    if (activeAttempts.some((row) => row.status === 'timed_out')) { available.set(key, { stream, dialogue: '' }); continue; }
     if (activeAttempts.length && activeAttempts.every((row) => TERMINAL.has(row.status))) { failed.push(key); continue; }
     throw new Error('unsupported attempt status');
   }

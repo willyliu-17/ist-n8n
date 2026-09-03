@@ -918,13 +918,28 @@
           "mode": "name",
           "value": "summary_requests_v3"
         },
-        "matchType": "allConditions",
+        "matchType": "anyCondition",
         "filters": {
           "conditions": [
             {
               "keyName": "status",
               "condition": "eq",
               "keyValue": "ready"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "waiting_stt"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "summary_retry_pending"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "summary_dispatching"
             }
           ]
         },
@@ -1140,7 +1155,8 @@
         },
         "options": {
           "waitForSubWorkflow": false
-        }
+        },
+        "mode": "each"
       },
       "id": "1844b1d8-d6dd-4cdd-84c7-3d1ed8105887",
       "name": "Run Summary Coordinator Missed Event",

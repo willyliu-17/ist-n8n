@@ -53,6 +53,8 @@ const RETRYABLE_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MAX_AUTOMATIC_ATTEMPTS = 20;
 const STT_RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9, 13, 18, 25, 35, 48, 65, 88, 118, 158, 211, 281, 374, 497, 660]);
 const STT_RETRY_DEADLINE_MINUTES = 720;
+const SUMMARY_STT_RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9]);
+const SUMMARY_STT_RETRY_DEADLINE_MINUTES = 10;
 const RECONCILIATION_STATUSES = new Set(['pending', 'canonical', 'duplicate']);
 const REQUEST_STAGES = new Set(['ready', 'summary_dispatching', 'summary_retry_pending', 'completed']);
 const REQUEST_STATUSES = new Set(['creating', 'ready', 'waiting_stt', 'summary_dispatching', 'summary_retry_pending', 'manual_review', 'completed', 'failed', 'creation_failed']);
@@ -94,14 +96,21 @@ function nextRetryDelayMs(attemptNumber) {
   throw new Error('Attempt retry is terminal');
 }
 
-function sttRetryTiming(requestCreatedAtIso, attemptNumber) {
+function sttRetryPolicy(requestType) {
+  return requestType === 'standalone_stt'
+    ? { slots: STT_RETRY_SLOT_MINUTES, deadlineMinutes: STT_RETRY_DEADLINE_MINUTES }
+    : { slots: SUMMARY_STT_RETRY_SLOT_MINUTES, deadlineMinutes: SUMMARY_STT_RETRY_DEADLINE_MINUTES };
+}
+
+function sttRetryTiming(requestCreatedAtIso, attemptNumber, requestType = 'standalone_stt') {
   const attempt = Number(attemptNumber);
   if (!Number.isInteger(attempt) || attempt < 1) throw new Error('Invalid attempt number');
-  const deadlineAtIso = addMinutes(requestCreatedAtIso, STT_RETRY_DEADLINE_MINUTES);
+  const policy = sttRetryPolicy(requestType);
+  const deadlineAtIso = addMinutes(requestCreatedAtIso, policy.deadlineMinutes);
   return {
     deadlineAtIso,
-    nextRetryAtIso: attempt < MAX_AUTOMATIC_ATTEMPTS
-      ? addMinutes(requestCreatedAtIso, STT_RETRY_SLOT_MINUTES[attempt - 1])
+    nextRetryAtIso: attempt <= policy.slots.length
+      ? addMinutes(requestCreatedAtIso, policy.slots[attempt - 1])
       : '',
   };
 }
@@ -241,10 +250,11 @@ function fnv1a(value) {
   return hash.toString(16).padStart(8, '0');
 }
 
-function callbackFailure(errorCode, attemptNumber, nowIso, deadline, requestCreatedAtIso) {
+function callbackFailure(errorCode, attemptNumber, nowIso, deadline, requestCreatedAtIso, requestType) {
   const attempt = Number(attemptNumber);
-  const timing = sttRetryTiming(requestCreatedAtIso, attempt);
-  if (attempt >= MAX_AUTOMATIC_ATTEMPTS || strictIso(nowIso, 'current time') >= strictIso(timing.deadlineAtIso, 'retry deadline')) {
+  const timing = sttRetryTiming(requestCreatedAtIso, attempt, requestType);
+  const maximumAttempts = sttRetryPolicy(requestType).slots.length + 1;
+  if (attempt >= maximumAttempts || strictIso(nowIso, 'current time') >= strictIso(timing.deadlineAtIso, 'retry deadline')) {
     return {
       classification: deadline ? 'callback_deadline_exhausted' : 'callback_retry_exhausted',
       status: deadline ? 'timed_out' : 'failed',
@@ -260,7 +270,7 @@ function callbackFailure(errorCode, attemptNumber, nowIso, deadline, requestCrea
   };
 }
 
-function classifyAttemptFailure(outcome, attemptNumber, nowIso = new Date().toISOString(), requestCreatedAtIso = nowIso) {
+function classifyAttemptFailure(outcome, attemptNumber, nowIso = new Date().toISOString(), requestCreatedAtIso = nowIso, requestType = 'standalone_stt') {
   const attempt = Number(attemptNumber);
   if (!Number.isInteger(attempt) || attempt < 1) throw new Error('Invalid attempt number');
   strictIso(nowIso, 'current time');
@@ -274,9 +284,9 @@ function classifyAttemptFailure(outcome, attemptNumber, nowIso = new Date().toIS
       errorCode: '',
     };
   }
-  if (outcome?.deadlineExceeded === true) return callbackFailure('callback_deadline_exceeded', attempt, nowIso, true, requestCreatedAtIso);
-  if (outcome?.callbackEmpty === true) return callbackFailure('callback_empty_transcription', attempt, nowIso, false, requestCreatedAtIso);
-  if (outcome?.retryableServiceError === true) return callbackFailure('callback_retryable_service_error', attempt, nowIso, false, requestCreatedAtIso);
+  if (outcome?.deadlineExceeded === true) return callbackFailure('callback_deadline_exceeded', attempt, nowIso, true, requestCreatedAtIso, requestType);
+  if (outcome?.callbackEmpty === true) return callbackFailure('callback_empty_transcription', attempt, nowIso, false, requestCreatedAtIso, requestType);
+  if (outcome?.retryableServiceError === true) return callbackFailure('callback_retryable_service_error', attempt, nowIso, false, requestCreatedAtIso, requestType);
   const statusCode = Number(outcome?.statusCode);
   if (!Number.isInteger(statusCode) || statusCode < 100 || statusCode > 599) {
     return {
@@ -294,7 +304,7 @@ function classifyAttemptFailure(outcome, attemptNumber, nowIso = new Date().toIS
       status: 'waiting_callback',
       submittedAtIso: nowIso,
       callbackDeadlineAtIso: attempt <= MAX_AUTOMATIC_ATTEMPTS
-        ? (sttRetryTiming(requestCreatedAtIso, attempt).nextRetryAtIso || sttRetryTiming(requestCreatedAtIso, attempt).deadlineAtIso)
+        ? (sttRetryTiming(requestCreatedAtIso, attempt, requestType).nextRetryAtIso || sttRetryTiming(requestCreatedAtIso, attempt, requestType).deadlineAtIso)
         : addMinutes(nowIso, 24 * 60),
     };
   }
@@ -302,8 +312,9 @@ function classifyAttemptFailure(outcome, attemptNumber, nowIso = new Date().toIS
     return { classification: 'terminal_http_failure', status: 'failed', errorCode: `vds_http_${statusCode}`, nextRetryAtIso: '' };
   }
   if (RETRYABLE_HTTP_STATUSES.has(statusCode)) {
-    const timing = sttRetryTiming(requestCreatedAtIso, attempt);
-    if (attempt >= MAX_AUTOMATIC_ATTEMPTS || strictIso(nowIso, 'current time') >= strictIso(timing.deadlineAtIso, 'retry deadline')) return { classification: 'retry_exhausted', status: 'failed', errorCode: `vds_http_${statusCode}`, nextRetryAtIso: '' };
+    const timing = sttRetryTiming(requestCreatedAtIso, attempt, requestType);
+    const maximumAttempts = sttRetryPolicy(requestType).slots.length + 1;
+    if (attempt >= maximumAttempts || strictIso(nowIso, 'current time') >= strictIso(timing.deadlineAtIso, 'retry deadline')) return { classification: 'retry_exhausted', status: 'failed', errorCode: `vds_http_${statusCode}`, nextRetryAtIso: '' };
     return { classification: 'retryable_http_failure', status: 'retry_pending', errorCode: `vds_http_${statusCode}`, nextRetryAtIso: timing.nextRetryAtIso };
   }
   if (statusCode >= 500) {
@@ -328,7 +339,7 @@ function classifyAttemptFailure(outcome, attemptNumber, nowIso = new Date().toIS
 
 function planAttemptFailurePatch(attempt, outcome, nowIso = new Date().toISOString(), requestRow) {
   validateAttemptRow(attempt);
-  const result = classifyAttemptFailure(outcome, attempt.attempt, nowIso, requestRow?.createdAt || nowIso);
+  const result = classifyAttemptFailure(outcome, attempt.attempt, nowIso, requestRow?.createdAt || nowIso, requestRow?.requestType || attempt.requestType);
   const filters = {
     id: attempt.id,
     attemptKey: attempt.attemptKey,
@@ -439,7 +450,7 @@ function planRetryMaterializationClaim(oldAttempt, nowIso = new Date().toISOStri
   }
   if (!requestRow || requestRow.requestKey !== oldAttempt.requestKey) throw new Error('Retry materialization requires canonical request');
   validateRequestRow(requestRow);
-  const timing = sttRetryTiming(requestRow.createdAt, attemptNumber);
+  const timing = sttRetryTiming(requestRow.createdAt, attemptNumber, requestRow.requestType);
   if (now >= Date.parse(timing.deadlineAtIso)) {
     return {
       action: 'deadline_exhausted',
@@ -1472,7 +1483,7 @@ function planCallbackDeadline(row, nowIso = new Date().toISOString(), requestRow
   }
   if (!requestRow || requestRow.requestKey !== row.requestKey) throw new Error('Callback deadline requires canonical request');
   validateRequestRow(requestRow);
-  const failure = classifyAttemptFailure({ deadlineExceeded: true }, row.attempt, nowIso, requestRow.createdAt);
+  const failure = classifyAttemptFailure({ deadlineExceeded: true }, row.attempt, nowIso, requestRow.createdAt, requestRow.requestType);
   return {
     action: failure.classification,
     repairClass: 'callback_deadline',
@@ -1896,6 +1907,8 @@ if (typeof module !== 'undefined' && module.exports) {
     SUMMARY_CHECKPOINT_FIELDS,
     STT_RETRY_DEADLINE_MINUTES,
     STT_RETRY_SLOT_MINUTES,
+    SUMMARY_STT_RETRY_DEADLINE_MINUTES,
+    SUMMARY_STT_RETRY_SLOT_MINUTES,
     addMinutes,
     aggregateLogicalJobs,
     buildNextAttempt,

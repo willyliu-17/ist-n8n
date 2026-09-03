@@ -21,6 +21,8 @@ const {
   RESOLUTION_EPOCH_ISO,
   SCHEMA_KEYS,
   SUMMARY_CHECKPOINT_FIELDS,
+  SUMMARY_STT_RETRY_DEADLINE_MINUTES,
+  SUMMARY_STT_RETRY_SLOT_MINUTES,
   STT_RETRY_DEADLINE_MINUTES,
   STT_RETRY_SLOT_MINUTES,
   addMinutes,
@@ -369,6 +371,28 @@ test('callback deadline maps to retry_pending then timed_out terminal on attempt
     errorCode: 'callback_deadline_exceeded',
     nextRetryAtIso: '',
   });
+});
+
+test('summary callback deadline terminates at ten minutes while standalone keeps twelve hours', () => {
+  assert.equal(SUMMARY_STT_RETRY_DEADLINE_MINUTES, 10);
+  assert.deepEqual(SUMMARY_STT_RETRY_SLOT_MINUTES, [1, 2, 4, 6, 9]);
+  assert.deepEqual(sttRetryTiming(NOW, 6, 'suspect_summary'), {
+    deadlineAtIso: '2026-08-24T00:10:00.000Z',
+    nextRetryAtIso: '',
+  });
+  assert.deepEqual(sttRetryTiming(NOW, 6, 'standalone_stt'), {
+    deadlineAtIso: '2026-08-24T12:00:00.000Z',
+    nextRetryAtIso: '2026-08-24T00:13:00.000Z',
+  });
+  const summaryDeadline = classifyAttemptFailure(
+    { deadlineExceeded: true },
+    6,
+    '2026-08-24T00:10:00.000Z',
+    NOW,
+    'suspect_summary',
+  );
+  assert.equal(summaryDeadline.status, 'timed_out');
+  assert.equal(summaryDeadline.nextRetryAtIso, '');
 });
 
 test('unclassified 5xx never auto-resends and invalid attempt numbers fail closed', () => {
@@ -1165,6 +1189,17 @@ test('all seven repair classes are schedule-reachable', () => {
   ]));
 });
 
+test('summary missed-event read includes every repairable request status', () => {
+  const read = node('Read Summary Missed Event Candidates');
+  assert.equal(read.parameters.matchType, 'anyCondition');
+  assert.deepEqual(new Set(read.parameters.filters.conditions.map(({ keyName, condition, keyValue }) => `${keyName}:${condition}:${keyValue}`)), new Set([
+    'status:eq:waiting_stt',
+    'status:eq:ready',
+    'status:eq:summary_retry_pending',
+    'status:eq:summary_dispatching',
+  ]));
+});
+
 test('retry candidates are processed by the isolated typed sub-workflow in each mode', () => {
   const call = node('Process Retry Materialization Candidate');
   assert.equal(call.type, 'n8n-nodes-base.executeWorkflow');
@@ -1292,6 +1327,7 @@ test('summary missed-event call uses the coordinator selector and requestKey onl
   const call = node('Run Summary Coordinator Missed Event');
   assert.equal(call.parameters.workflowId.value, 'SummaryCoordV3A1');
   assert.equal(call.parameters.workflowId.cachedResultName, 'Summary: coordinator v3');
+  assert.equal(call.parameters.mode, 'each');
   assert.deepEqual(Object.keys(call.parameters.workflowInputs.value), ['requestKey']);
 });
 
@@ -1782,6 +1818,25 @@ test('Subtask E: callback deadline attempt 2 targets the absolute +2 minute slot
   assert.equal(plan.status, 'retry_pending');
   assert.equal(plan.errorCode, 'callback_deadline_exceeded');
   assert.equal(plan.nextRetryAtIso, '2026-08-24T00:02:00.000Z');
+});
+
+test('Subtask E: summary callback deadline attempt 6 times out while standalone keeps the 13-minute slot', () => {
+  const summary = planCallbackDeadline(
+    attempt({ attempt: 6, status: 'waiting_callback', callbackDeadlineAtIso: LATER }),
+    LATER,
+  );
+  assert.equal(summary.action, 'callback_deadline_exhausted');
+  assert.equal(summary.status, 'timed_out');
+  assert.equal(summary.nextRetryAtIso, '');
+
+  const standalone = planCallbackDeadline(
+    attempt({ attempt: 6, requestType: 'standalone_stt', status: 'waiting_callback', callbackDeadlineAtIso: LATER }),
+    LATER,
+    request({ requestType: 'standalone_stt' }),
+  );
+  assert.equal(standalone.action, 'callback_deadline');
+  assert.equal(standalone.status, 'retry_pending');
+  assert.equal(standalone.nextRetryAtIso, '2026-08-24T00:13:00.000Z');
 });
 
 test('Subtask E: callback deadline attempt 20 produces timed_out with no nextRetryAtIso', () => {

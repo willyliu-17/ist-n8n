@@ -23,6 +23,7 @@ const LOGICAL_PROVENANCE_FIELDS = Object.freeze([
 const ALLOWED_UNCONSUMED_STATUSES = new Set(['waiting_callback', 'retry_pending', 'manual_review']);
 const RECONCILIATION_STATUSES = new Set(['pending', 'canonical', 'duplicate']);
 const MAX_AUTOMATIC_ATTEMPTS = 20;
+const SUMMARY_MAX_AUTOMATIC_ATTEMPTS = 6;
 
 function systemRowID(value) {
   if (typeof value === 'number') return Number.isSafeInteger(value) && value > 0;
@@ -144,7 +145,10 @@ function resultPatch(canonical, normalized, hash, nowIso, desiredStatus, errorCo
 }
 
 function failurePatch(canonical, normalized, hash, nowIso, errorCode, terminalStatus = 'failed') {
-  if (canonical.attempt < MAX_AUTOMATIC_ATTEMPTS) {
+  const maximumAttempts = canonical.requestType === 'standalone_stt'
+    ? MAX_AUTOMATIC_ATTEMPTS
+    : SUMMARY_MAX_AUTOMATIC_ATTEMPTS;
+  if (canonical.attempt < maximumAttempts) {
     return resultPatch(
       canonical,
       normalized,

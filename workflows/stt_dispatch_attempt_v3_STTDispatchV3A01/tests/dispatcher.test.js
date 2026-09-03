@@ -26,6 +26,8 @@ const {
   MAX_AUTOMATIC_ATTEMPTS,
   RETRY_DEADLINE_MINUTES,
   RETRY_SLOT_MINUTES,
+  SUMMARY_RETRY_DEADLINE_MINUTES,
+  SUMMARY_RETRY_SLOT_MINUTES,
   classifyAck: classifyAckPolicy,
 } = require(ackCodePath);
 const {
@@ -103,6 +105,7 @@ function summaryRequest(overrides = {}) {
     id: 'summary-row-a',
     createdAt: NOW,
     requestKey: 'summary:req-001',
+    requestType: 'standalone_stt',
     status: 'ready',
     reconciliationStatus: 'canonical',
     canonicalRowID: 'summary-row-a',
@@ -349,6 +352,19 @@ test('classifies accepted HTTP responses and all absolute retry slots', () => {
   assert.equal(classifyAck({ statusCode: 202 }, attempt({ attempt: 20 }), NOW).callbackDeadlineAtIso, '2026-08-22T12:00:00.000Z');
   assert.equal(classifyAck({ statusCode: 202 }, attempt({ attempt: 21 }), NOW).callbackDeadlineAtIso, '2026-08-23T00:00:00.000Z');
   assert.equal(classifyAck({ statusCode: 503 }, attempt({ attempt: 21 }), NOW).status, 'failed');
+});
+
+test('caps summary-triggered STT retries at ten minutes without changing standalone STT', () => {
+  assert.equal(SUMMARY_RETRY_DEADLINE_MINUTES, 10);
+  assert.deepEqual(SUMMARY_RETRY_SLOT_MINUTES, [1, 2, 4, 6, 9]);
+  const requestRows = [summaryRequest({ requestType: 'suspect_summary' })];
+  SUMMARY_RETRY_SLOT_MINUTES.forEach((minutes, index) => {
+    const result = classifyAck({ statusCode: 503 }, attempt({ attempt: index + 1 }), NOW, requestRows);
+    assert.equal(result.status, 'retry_pending');
+    assert.equal(result.nextRetryAtIso, new Date(Date.parse(NOW) + minutes * 60_000).toISOString());
+  });
+  assert.equal(classifyAck({ statusCode: 202 }, attempt({ attempt: 6 }), NOW, requestRows).callbackDeadlineAtIso, '2026-08-22T00:10:00.000Z');
+  assert.equal(classifyAck({ statusCode: 503 }, attempt({ attempt: 6 }), NOW, requestRows).status, 'failed');
 });
 
 test('routes every transport error to manual review without automatic retry', () => {

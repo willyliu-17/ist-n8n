@@ -88,9 +88,20 @@ test('treats completed empty transcription as complete stream coverage', () => {
   assert.deepEqual(result.availableRoles, ['current', 'previous']);
   assert.equal(result.streams[0].dialogue, '');
 });
-test('reports partial and all_failed terminal coverage', () => {
+test('treats timed-out summary STT as empty transcription and keeps failed-only coverage terminal', () => {
   assert.equal(aggregateLogicalJobs(request(), [attempt('current'), attempt('previous', { status: 'failed', dialogue: '' })]).coverageStatus, 'partial');
-  assert.equal(aggregateLogicalJobs(request(), [attempt('current', { status: 'failed', dialogue: '' }), attempt('previous', { status: 'timed_out', dialogue: '' })]).action, 'all_failed');
+  const timedOut = aggregateLogicalJobs(request(), [attempt('current', { status: 'failed', dialogue: '' }), attempt('previous', { status: 'timed_out', dialogue: '' })]);
+  assert.equal(timedOut.action, 'ready');
+  assert.equal(timedOut.coverageStatus, 'partial');
+  assert.equal(timedOut.streams[0].dialogue, '');
+  const allTimedOut = aggregateLogicalJobs(request(), [
+    attempt('current', { status: 'timed_out', dialogue: '' }),
+    attempt('previous', { status: 'timed_out', dialogue: '' }),
+  ]);
+  assert.equal(allTimedOut.action, 'ready');
+  assert.equal(allTimedOut.coverageStatus, 'complete');
+  assert.deepEqual(allTimedOut.streams.map(({ dialogue }) => dialogue), ['', '']);
+  assert.equal(aggregateLogicalJobs(request(), [attempt('current', { status: 'failed', dialogue: '' }), attempt('previous', { status: 'failed', dialogue: '' })]).action, 'all_failed');
 });
 test('pending and unresolved manual block coverage', () => {
   assert.equal(aggregateLogicalJobs(request(), [attempt('current', { status: 'queued', dialogue: '' }), attempt('previous')]).action, 'pending');
@@ -231,6 +242,23 @@ test('preflight runtime wrapper calls pure validation and blocks pending, manual
   assert.throws(() => runPreflightRuntime([claimed], [attempt('current', { status: 'manual_review', dialogue: '' }), attempt('previous')], KEY, 'exec-a', NOW), /not usable/);
   assert.throws(() => runPreflightRuntime([claimed], [attempt('current', { status: 'failed', dialogue: '' }), attempt('previous', { status: 'failed', dialogue: '' })], KEY, 'exec-a', NOW), /not usable/);
   assert.throws(() => runPreflightRuntime([{ ...claimed, availableRolesJson: '[]' }], [attempt('current'), attempt('previous')], KEY, 'exec-a', NOW), /persisted coverage mismatch/);
+});
+test('preflight preserves timed-out summary STT as complete empty transcription', () => {
+  const attempts = [attempt('current'), attempt('previous', { status: 'timed_out', dialogue: '' })];
+  const coverage = aggregateLogicalJobs(request(), attempts);
+  const claimed = request({
+    status: 'summary_dispatching',
+    leaseOwner: 'exec-a',
+    leaseUntilIso: LATER,
+    coverageStatus: coverage.coverageStatus,
+    availableRolesJson: JSON.stringify(coverage.availableRoles),
+    missingRolesJson: JSON.stringify(coverage.missingRoles),
+    failedLogicalJobKeysJson: JSON.stringify(coverage.failedLogicalJobKeys),
+  });
+  const [result] = runPreflightRuntime([claimed], attempts, KEY, 'exec-a', NOW);
+  assert.equal(result.action, 'ai');
+  assert.equal(result.coverageStatus, 'complete');
+  assert.equal(result.streams[1].dialogue, '');
 });
 test('rejects malformed request context and corrupted attempt duplicate linkage', () => {
   assert.throws(() => validateRequestRows([request({ orderedStreamsJson: JSON.stringify([{ ...STREAMS[0], streamContext: [] }, STREAMS[1]]) })], KEY), /invalid ordered stream/);

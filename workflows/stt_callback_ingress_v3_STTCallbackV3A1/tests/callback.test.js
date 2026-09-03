@@ -455,7 +455,7 @@ test('accepts empty transcription while retrying service errors by the persisted
     assert.equal(empty.dialogue, '');
     assert.equal(empty.nextRetryAtIso, '');
     assert.equal(empty.desiredPresentationStatus, 'completed');
-    if (attemptNumber < MAX_AUTOMATIC_ATTEMPTS) {
+    if (attemptNumber < 6) {
       assert.equal(service.desiredStatus, 'retry_pending');
       assert.equal(service.nextRetryAtIso, row.callbackDeadlineAtIso);
     } else {
@@ -472,6 +472,13 @@ test('accepts empty transcription while retrying service errors by the persisted
   assert.equal(manual.desiredStatus, 'completed');
   assert.equal(manual.errorCode, 'callback_empty_transcription');
   assert.equal(manual.nextRetryAtIso, '');
+});
+
+test('standalone STT keeps the twenty-attempt callback retry policy', () => {
+  const standalone = (attemptNumber) => attempt({ attempt: attemptNumber, requestType: 'standalone_stt' });
+  const standaloneCallback = normalized({ context: callbackContext({ requestType: 'standalone_stt' }), retryableServiceError: true });
+  assert.equal(classifyClaim([standalone(6)], standaloneCallback, HASH, NOW).desiredStatus, 'retry_pending');
+  assert.equal(classifyClaim([standalone(20)], standaloneCallback, HASH, NOW).desiredStatus, 'failed');
 });
 
 test('preserves canonical permanence and freezes cross-table checkpoint conflicts', () => {
