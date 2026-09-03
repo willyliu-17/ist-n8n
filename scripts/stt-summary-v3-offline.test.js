@@ -122,6 +122,13 @@ test('loads and assembles every workflow from the authoritative inventory', () =
   }
 });
 
+test('tags every v3 inventory workflow with ist-bot-v3 exactly once', () => {
+  for (const { directory, workflow } of workflowEntries) {
+    const tags = workflow.tags || [];
+    assert.equal(tags.filter(({ name }) => name === 'ist-bot-v3').length, 1, directory);
+  }
+});
+
 test('uses the approved execution retention values across the v3 inventory', () => {
   const expected = {
     saveDataSuccessExecution: 'all',

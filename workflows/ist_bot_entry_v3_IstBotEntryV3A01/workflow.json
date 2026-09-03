@@ -268,5 +268,7 @@
   "settings": { "executionOrder": "v1", "callerPolicy": "workflowsFromSameOwner", "saveDataSuccessExecution": "all", "saveDataErrorExecution": "all", "saveManualExecutions": true, "saveExecutionProgress": false },
   "staticData": null,
   "meta": { "templateCredsSetupCompleted": true },
-  "tags": []
+  "tags": [
+    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
+  ]
 }
