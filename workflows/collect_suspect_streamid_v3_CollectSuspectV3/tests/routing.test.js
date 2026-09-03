@@ -4,6 +4,11 @@ const path = require('node:path');
 const test = require('node:test');
 
 const workflowDir = path.resolve(__dirname, '..');
+const queryLogsWorkflowDir = path.resolve(
+  workflowDir,
+  '..',
+  'query_steam_logs_v3_QueryLogsV3A0001',
+);
 const { buildWorkflow } = require('../../../scripts/utils');
 const {
   deduplicateCandidates,
@@ -25,6 +30,7 @@ const {
   verifyRootClaim,
 } = require('../nodes/Plan_Candidate_Root/jsCode');
 const { buildCandidateLogRequests } = require('../nodes/Build_Candidate_Log_Requests/jsCode');
+const { summarizeQueryLogResults } = require('../nodes/Summarize_Query_Log_Results/jsCode');
 
 const SQL_FILES = [
   'Comment_and_Caption_with_keywords1',
@@ -35,6 +41,10 @@ const SQL_FILES = [
 
 function readWorkflow() {
   return JSON.parse(fs.readFileSync(path.join(workflowDir, 'workflow.json'), 'utf8'));
+}
+
+function readQueryLogsWorkflow() {
+  return JSON.parse(fs.readFileSync(path.join(queryLogsWorkflowDir, 'workflow.json'), 'utf8'));
 }
 
 function nodeByName(workflow, name) {
@@ -256,6 +266,38 @@ test('builds previous then current Query Logs requests only for checkpointed can
   assert.throws(() => buildCandidateLogRequests([{ ...candidate, action: 'owned' }]), /checkpointed canonical/);
 });
 
+test('summarizes Query Logs child failures and detects missing or duplicated results', () => {
+  const expected = [
+    { streamID: '9001', target_thread_ts: '1787364000.000001' },
+    { streamID: '9002', target_thread_ts: '1787364000.000001' },
+  ];
+  const successful = expected.map((request) => ({ ...request, ok: true }));
+  assert.deepEqual(summarizeQueryLogResults(successful, expected), {
+    expectedCount: 2,
+    resultCount: 2,
+    successCount: 2,
+    failureCount: 0,
+    missingKeys: [],
+    unexpectedKeys: [],
+    failures: [],
+    allSucceeded: true,
+    errorMessage: '',
+  });
+
+  const failed = summarizeQueryLogResults([
+    { ...expected[0], ok: false, failedNode: 'Upload StreamLog1', errorMessage: 'connection timed out' },
+  ], expected);
+  assert.equal(failed.allSucceeded, false);
+  assert.equal(failed.failureCount, 1);
+  assert.deepEqual(failed.missingKeys, ['1787364000.000001:9002']);
+  assert.match(failed.errorMessage, /1 child error\(s\), 1 missing result\(s\)/);
+
+  const duplicated = summarizeQueryLogResults([successful[0], successful[0]], expected);
+  assert.equal(duplicated.allSucceeded, false);
+  assert.deepEqual(duplicated.missingKeys, ['1787364000.000001:9002']);
+  assert.deepEqual(duplicated.unexpectedKeys, ['1787364000.000001:9001']);
+});
+
 test('is inactive, manual-only, supports a configured date override, is C0-only, and routes resolver output only to the orchestrator', () => {
   const workflow = readWorkflow();
   assert.equal(workflow.active, false);
@@ -268,15 +310,17 @@ test('is inactive, manual-only, supports a configured date override, is C0-only,
   assert.deepEqual(nodeByName(workflow, 'Configure Target Date').parameters.assignments.assignments, [{ id: '12000001-0000-4000-8000-000000000043', name: 'targetDate', value: '', type: 'string' }]);
   assert.ok(workflow.connections['Manually Trigger'].main[0].some(({ node }) => node === 'Configure Target Date'));
   assert.ok(workflow.connections['Configure Target Date'].main[0].some(({ node }) => node === 'Build Candidate Query Config'));
-  assert.ok(workflow.nodes.every(({ type }) => !['n8n-nodes-base.wait', 'n8n-nodes-base.splitInBatches'].includes(type)));
+  assert.ok(workflow.nodes.every(({ type }) => type !== 'n8n-nodes-base.wait'));
   assert.equal(nodeByName(workflow, 'Resolve Stream Metadata').parameters.workflowId.value, 'StreamMetaV3A001');
   assert.equal(nodeByName(workflow, 'Resolve Stream Metadata').parameters.mode, 'each');
   assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.workflowId.value, 'SummaryOrchV3A01');
   assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.mode, 'each');
   const queryLogs = nodeByName(workflow, 'Call Query Steam Logs');
   assert.equal(queryLogs.parameters.workflowId.value, 'QueryLogsV3A0001');
-  assert.equal(queryLogs.parameters.mode, 'each');
-  assert.equal(queryLogs.parameters.options.waitForSubWorkflow, false);
+  assert.equal(queryLogs.parameters.mode, 'once');
+  assert.equal(queryLogs.parameters.options.waitForSubWorkflow, true);
+  assert.equal(queryLogs.alwaysOutputData, true);
+  assert.equal(queryLogs.onError, 'continueErrorOutput');
   assert.deepEqual(Object.keys(queryLogs.parameters.workflowInputs.value).sort(), ['channel', 'streamID', 'target_thread_ts']);
   assert.deepEqual(queryLogs.parameters.workflowInputs.schema.map(({ id, type, required }) => ({ id, type, required })), [
     { id: 'streamID', type: 'string', required: true },
@@ -284,12 +328,44 @@ test('is inactive, manual-only, supports a configured date override, is C0-only,
     { id: 'target_thread_ts', type: 'string', required: true },
   ]);
   assert.equal(queryLogs.parameters.workflowInputs.convertFieldsToString, false);
+  const queryLogsLoop = nodeByName(workflow, 'Query Logs Loop');
+  assert.equal(queryLogsLoop.type, 'n8n-nodes-base.splitInBatches');
+  assert.equal(queryLogsLoop.typeVersion, 3);
+  assert.equal(queryLogsLoop.parameters.batchSize, 1);
+  assert.deepEqual(queryLogsLoop.parameters.options, {});
+  assert.equal(nodeByName(workflow, 'Limit Query Logs Loop Done').parameters.maxItems, 1);
   assert.equal(nodeByName(workflow, 'Build Candidate Log Requests').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Build_Candidate_Log_Requests/jsCode.js');
   assert.deepEqual(workflow.connections['Verify Candidate Root Checkpoint'].main[0].map(({ node }) => node), [
     'Prepare Resolver Chunks', 'Build Candidate Log Requests',
   ]);
-  assert.deepEqual(workflow.connections['Build Candidate Log Requests'].main[0].map(({ node }) => node), ['Call Query Steam Logs']);
-  assert.equal(workflow.connections['Call Query Steam Logs'], undefined);
+  assert.deepEqual(workflow.connections['Build Candidate Log Requests'].main[0].map(({ node }) => node), ['Query Logs Loop']);
+  assert.deepEqual(workflow.connections['Query Logs Loop'].main, [
+    [{ node: 'Summarize Query Log Results', type: 'main', index: 0 }],
+    [{ node: 'Call Query Steam Logs', type: 'main', index: 0 }],
+  ]);
+  assert.deepEqual(workflow.connections['Call Query Steam Logs'].main, [
+    [{ node: 'Mark Query Logs Success', type: 'main', index: 0 }],
+    [{ node: 'Mark Query Logs Failure', type: 'main', index: 0 }],
+  ]);
+  assert.match(nodeByName(workflow, 'Mark Query Logs Failure').parameters.jsonOutput, /typeof error === 'string'/);
+  assert.deepEqual(workflow.connections['Mark Query Logs Success'].main[0], [{ node: 'Query Logs Loop', type: 'main', index: 0 }]);
+  assert.deepEqual(workflow.connections['Mark Query Logs Failure'].main[0], [{ node: 'Query Logs Loop', type: 'main', index: 0 }]);
+  assert.equal(nodeByName(workflow, 'Summarize Query Log Results').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Summarize_Query_Log_Results/jsCode.js');
+  assert.deepEqual(workflow.connections['Summarize Query Log Results'].main[0], [{ node: 'All Query Logs Succeeded', type: 'main', index: 0 }]);
+  assert.deepEqual(workflow.connections['All Query Logs Succeeded'].main, [
+    [{ node: 'Limit Query Logs Loop Done', type: 'main', index: 0 }],
+    [{ node: 'Fail Query Logs Delivery', type: 'main', index: 0 }],
+  ]);
+  assert.equal(nodeByName(workflow, 'Fail Query Logs Delivery').type, 'n8n-nodes-base.stopAndError');
+  assert.equal(nodeByName(workflow, 'Fail Query Logs Delivery').parameters.errorMessage, '={{ $json.errorMessage }}');
+  const queryLogsWorkflow = readQueryLogsWorkflow();
+  const slackNodes = queryLogsWorkflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.slack');
+  assert.equal(slackNodes.length, 7);
+  for (const node of slackNodes) {
+    assert.notEqual(node.retryOnFail, true, node.name);
+    assert.equal(node.maxTries, undefined, node.name);
+    assert.equal(node.waitBetweenTries, undefined, node.name);
+  }
   assert.match(nodeByName(workflow, 'Send Monitoring Report').parameters.text, /自動化異常 Stream 監控報告/);
   assert.match(nodeByName(workflow, 'Send Candidate Detail').parameters.text, /自動化檢測詳情/);
   assert.ok(!workflow.nodes.some(({ name }) => name === 'Send Candidate Root'));
