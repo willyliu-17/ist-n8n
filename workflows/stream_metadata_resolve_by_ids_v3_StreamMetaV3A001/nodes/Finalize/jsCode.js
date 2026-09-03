@@ -1,6 +1,6 @@
 const PROFILE_FIELDS = {
   core: ['liveStreamID', 'userID', 'openID', 'beginTime', 'endTime', 'duration', 'closeBy', 'streamMode', 'vliverModel', 'isOBS'],
-  stt: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'duration', 'caption', 'region', 'vliverModel', 'appVersion', 'deviceType', 'closeBy', 'streamMode', 'deviceModel', 'osVersion', 'publicIP', 'ipRegion', 'openID'],
+  stt: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'duration', 'caption', 'region', 'vliverModel', 'appVersion', 'deviceType', 'isOBS', 'closeBy', 'streamMode', 'deviceModel', 'osVersion', 'publicIP', 'ipRegion', 'openID'],
   vds: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'publishSec', 'region', 'ipRegion'],
 };
 

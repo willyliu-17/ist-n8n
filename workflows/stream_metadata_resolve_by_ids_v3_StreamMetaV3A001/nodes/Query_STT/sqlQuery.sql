@@ -22,6 +22,7 @@ SELECT
   stream.vliverModel,
   stream.deviceInfo.version AS appVersion,
   stream.deviceInfo.type AS deviceType,
+  stream.isOBS AS isOBS,
   identity.openID
 FROM `media17-1119.mongodb.LiveStreamV2` AS stream
 LEFT JOIN identity
@@ -46,6 +47,7 @@ QUALIFY ROW_NUMBER() OVER (
       stream.vliverModel AS vliverModel,
       stream.deviceInfo.version AS appVersion,
       stream.deviceInfo.type AS deviceType,
+      stream.isOBS AS isOBS,
       identity.openID AS openID
     )) DESC
 ) = 1

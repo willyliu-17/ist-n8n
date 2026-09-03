@@ -194,6 +194,25 @@ test('summary reactions restore the original category mapping on the original th
   assert.equal(reaction.onError, 'continueErrorOutput');
   assert.equal(workflow.connections['Parse Message Response'].main[0].some((edge) => edge.node === 'Map Summary Reactions'), true);
 });
+test('summary reactions put OBS letters first and retain device and category reactions', () => {
+  const reactions = mapSummaryReactions({
+    inferenceResultJson: JSON.stringify({ report: { summary: { responsibility_category_list: ['[1-b] Encoder Issue'] } } }),
+    orderedStreamsJson: JSON.stringify([{ streamContext: { isOBS: true, deviceType: 'ios', deviceModel: 'iPhone' } }]),
+  });
+  assert.deepEqual(reactions.map(({ emoji }) => emoji), [
+    'alphabet-white-o', 'alphabet-white-b', 'alphabet-white-s', 'device_iphone', 'movie_camera',
+  ]);
+});
+test('summary reactions only use the primary stream for OBS detection', () => {
+  const reactions = mapSummaryReactions({
+    inferenceResultJson: JSON.stringify({ report: { summary: { responsibility_category_list: [] } } }),
+    orderedStreamsJson: JSON.stringify([
+      { streamContext: { isOBS: false, deviceType: 'android' } },
+      { streamContext: { isOBS: true, deviceType: 'ios', deviceModel: 'iPad' } },
+    ]),
+  });
+  assert.deepEqual(reactions.map(({ emoji }) => emoji), ['android_robot']);
+});
 test('no historical execution references remain', () => { assert.equal(source.includes('$runIndex'), false); assert.equal(source.includes('isExecuted'), false); });
 test('crash windows are explicitly documented', () => assert.match(workflow.description, /may be duplicated during repair/));
 test('runtime Code sources are externalized and contain no sibling require', () => { workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.code').forEach((item) => assert.match(item.parameters.jsCode, /^__EXTERNAL_FILE__:\/\//)); assert.equal(source.includes("require('./Finalize_Request/jsCode')"), false); });

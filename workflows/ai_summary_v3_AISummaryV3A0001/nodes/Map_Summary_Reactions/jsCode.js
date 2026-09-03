@@ -27,6 +27,7 @@ function mapSummaryReactions(row) {
   const deviceType = String(context.type || context.deviceType || '').toLowerCase();
   const deviceModel = String(context.deviceModel || context.hardware || '').toLowerCase();
   const reactions = [];
+  if (context.isOBS === true) reactions.push('alphabet-white-o', 'alphabet-white-b', 'alphabet-white-s');
   if (deviceType === 'android') reactions.push('android_robot');
   if (deviceType === 'ios') reactions.push(deviceModel.includes('ipad') ? 'ipad' : 'device_iphone');
   for (const category of categories) {

@@ -119,13 +119,14 @@ test('finalizes complete rows for all profiles', () => {
   const stt = finalize(normalize('stt'), [{
     liveStreamID: '123', userID: 'u1', beginTime: '10', endTime: '20', duration: '10',
     caption: 'host 正在開播', region: 'TW', vliverModel: '0', appVersion: '1.2.3',
-    deviceType: 'ios', closeBy: 'normal', streamMode: 'normal', deviceModel: 'phone',
+    deviceType: 'ios', isOBS: false, closeBy: 'normal', streamMode: 'normal', deviceModel: 'phone',
     osVersion: '18', publicIP: '192.0.2.1', ipRegion: 'TW', openID: 'host',
   }])[0];
   assert.equal(stt.status, 'found');
   assert.equal(stt.source, 'livestream_v2');
   assert.equal(stt.eligible, true);
   assert.equal(stt.duration, 10);
+  assert.equal(stt.isOBS, false);
 
   const vds = finalize(normalize('vds'), [{
     liveStreamID: '123', userID: 'u1', beginTime: '10', endTime: '20', publishSec: '0',
@@ -298,7 +299,7 @@ test('keeps SQL fixed, narrow, parameterized, and batch-only', () => {
 
   const projectedFields = {
     core: ['liveStreamID', 'userID', 'openID', 'beginTime', 'endTime', 'duration', 'closeBy', 'streamMode', 'vliverModel', 'isOBS'],
-    stt: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'duration', 'region', 'vliverModel', 'appVersion', 'deviceType', 'openID'],
+    stt: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'duration', 'region', 'vliverModel', 'appVersion', 'deviceType', 'isOBS', 'openID'],
     vds: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'publishSec', 'region', 'ipRegion'],
   };
   for (const [profile, sql] of Object.entries(sqlFiles)) {
