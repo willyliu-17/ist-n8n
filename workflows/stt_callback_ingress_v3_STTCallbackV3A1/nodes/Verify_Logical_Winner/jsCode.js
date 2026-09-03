@@ -132,7 +132,7 @@ function result(action, current, expected) {
     logicalJobKey: expected.logicalJobKey,
     resultStatus: current.status,
     triggerPresentation: accepted && current.status === 'completed' && typeof current.dialogue === 'string' && current.dialogue.trim() !== '',
-    triggerCoordinator: accepted,
+    triggerCoordinator: accepted && current.requestType !== 'standalone_stt',
   };
 }
 

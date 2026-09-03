@@ -594,6 +594,31 @@ test('accepts nonempty and empty completed logical winners with the correct down
   assert.equal(emptyResult.triggerCoordinator, true);
 });
 
+test('does not trigger the summary coordinator for standalone STT callbacks', () => {
+  const standalone = attempt({
+    requestKey: LOGICAL_JOB_KEY,
+    requestType: 'standalone_stt',
+    status: 'completed',
+    consumedAtIso: NOW,
+    dialogue: 'hello world',
+    language: 'en',
+  });
+  const expected = classifyClaim(
+    [{ ...standalone, status: 'waiting_callback', consumedAtIso: '', dialogue: '', language: '' }],
+    normalized({ context: callbackContext({ requestKey: LOGICAL_JOB_KEY, requestType: 'standalone_stt' }) }),
+    HASH,
+    NOW,
+  );
+  const result = verifyLogicalWinner(
+    [standalone],
+    verifyCallbackState([standalone], expected),
+    expected,
+  );
+  assert.equal(result.action, 'accepted');
+  assert.equal(result.triggerPresentation, true);
+  assert.equal(result.triggerCoordinator, false);
+});
+
 test('selects the deterministic completed winner and gives the loser zero downstream triggers', () => {
   const currentExpected = classifyClaim([attempt()], normalized(), HASH, NOW);
   const current = attempt({
