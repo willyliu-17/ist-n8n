@@ -274,6 +274,9 @@ test('keeps SQL fixed, narrow, parameterized, and batch-only', () => {
   assert.match(sqlFiles.stt, /`media17-1119\.mongodb\.LiveStreamV2`/);
   assert.match(sqlFiles.stt, /FROM `media17-1119\.MatomoDataMart\.LiveStreamWithViewerInfo`/);
   assert.match(sqlFiles.stt, /NULLIF\(TRIM\(streamer\.openID\), ''\) AS openID/);
+  assert.match(sqlFiles.stt, /stream\.isOBS AS isOBS\s+FROM `media17-1119\.MatomoDataMart\.LiveStreamWithViewerInfo`/);
+  assert.equal((sqlFiles.stt.match(/stream\.isOBS AS isOBS/g) || []).length, 1);
+  assert.equal((sqlFiles.stt.match(/identity\.isOBS AS isOBS/g) || []).length, 2);
   assert.match(sqlFiles.stt, /LEFT JOIN identity\s+ON identity\.liveStreamID = CAST\(stream\.liveStreamID AS STRING\)\s+AND identity\.userID = stream\.userID/);
   assert.doesNotMatch(sqlFiles.stt, /`media17-1119\.mongodb\.User`/);
   assert.doesNotMatch(sqlFiles.stt, /正在開播|SPLIT\(caption/);

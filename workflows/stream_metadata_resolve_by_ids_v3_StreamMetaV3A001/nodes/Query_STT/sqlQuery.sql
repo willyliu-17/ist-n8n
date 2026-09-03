@@ -2,7 +2,8 @@
   SELECT
     liveStreamID,
     streamerID AS userID,
-    NULLIF(TRIM(streamer.openID), '') AS openID
+    NULLIF(TRIM(streamer.openID), '') AS openID,
+    stream.isOBS AS isOBS
   FROM `media17-1119.MatomoDataMart.LiveStreamWithViewerInfo`
   WHERE liveStreamID IN UNNEST({{ $('Validate and Normalize').first().json.stringIdsSqlLiteral }})
     AND beginTime >= TIMESTAMP(@window_start)
@@ -22,7 +23,7 @@ SELECT
   stream.vliverModel,
   stream.deviceInfo.version AS appVersion,
   stream.deviceInfo.type AS deviceType,
-  stream.isOBS AS isOBS,
+  identity.isOBS AS isOBS,
   identity.openID
 FROM `media17-1119.mongodb.LiveStreamV2` AS stream
 LEFT JOIN identity
@@ -47,7 +48,7 @@ QUALIFY ROW_NUMBER() OVER (
       stream.vliverModel AS vliverModel,
       stream.deviceInfo.version AS appVersion,
       stream.deviceInfo.type AS deviceType,
-      stream.isOBS AS isOBS,
+      identity.isOBS AS isOBS,
       identity.openID AS openID
     )) DESC
 ) = 1
