@@ -1,0 +1,243 @@
+{
+  "id": "AutomationProvV3A1",
+  "name": "Automation: provision state v3",
+  "description": "Read-only by-name existence probes for the expected v3 Data Table schema. Table creation and schema validation remain separately approved Production gates.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "31cba99a-4a90-4a6f-8df4-29b9d1567c31",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Provisioning_Manifest/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "eb292195-d708-4667-9a5a-b09a8bf38e0f",
+      "name": "Build Provisioning Manifest"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+                "conditions": [{ "id": "f11a5039-a7b1-49e2-b88e-6ea32c640d42", "leftValue": "={{ $json.tableName }}", "rightValue": "suspect_stt_candidates_v3", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+                "conditions": [{ "id": "3d87c558-410b-473e-8a38-6fa7d8c65274", "leftValue": "={{ $json.tableName }}", "rightValue": "stt_jobs_v3", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+                "conditions": [{ "id": "dc5f619a-27c8-4df3-a62c-7a5c85932b4b", "leftValue": "={{ $json.tableName }}", "rightValue": "summary_requests_v3", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+                "conditions": [{ "id": "6e17bc51-b64b-4e16-827f-4cb0fbdc92f1", "leftValue": "={{ $json.tableName }}", "rightValue": "automation_errors_v3", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "none" }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [480, 0],
+      "id": "1ac1f145-cb67-45e7-a4a2-912d67dcd477",
+      "name": "Route Expected Table"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "suspect_stt_candidates_v3"
+        },
+        "matchType": "anyCondition",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "isNotEmpty"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [720, -300],
+      "id": "c5e3a06c-279f-4f38-a507-439d728b6f4b",
+      "name": "Probe Suspect Candidates",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "anyCondition",
+        "filters": { "conditions": [{ "keyName": "id", "condition": "isNotEmpty" }] },
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [720, -100],
+      "id": "46741ee4-c298-44e4-a354-ea8d20719847",
+      "name": "Probe STT Jobs",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" },
+        "matchType": "anyCondition",
+        "filters": { "conditions": [{ "keyName": "id", "condition": "isNotEmpty" }] },
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [720, 100],
+      "id": "a1ece353-9468-407d-871b-1485942407aa",
+      "name": "Probe Summary Requests",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "automation_errors_v3" },
+        "matchType": "anyCondition",
+        "filters": { "conditions": [{ "keyName": "id", "condition": "isNotEmpty" }] },
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [720, 300],
+      "id": "7cf36d29-19af-48f2-85f5-5803a0d746a7",
+      "name": "Probe Automation Errors",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "mode": "append", "numberInputs": 4 },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [960, 0],
+      "id": "e037d1f8-604a-41ad-b01f-820b66aed3a6",
+      "name": "Wait for Table Probes"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Report_Expected_Schema/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 0],
+      "id": "e37124cc-8227-42ac-b5cb-40a872a01598",
+      "name": "Report Expected Schema"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Provisioning Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Provisioning Manifest": {
+      "main": [
+        [
+          {
+            "node": "Route Expected Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Expected Table": {
+      "main": [
+        [{ "node": "Probe Suspect Candidates", "type": "main", "index": 0 }],
+        [{ "node": "Probe STT Jobs", "type": "main", "index": 0 }],
+        [{ "node": "Probe Summary Requests", "type": "main", "index": 0 }],
+        [{ "node": "Probe Automation Errors", "type": "main", "index": 0 }]
+      ]
+    },
+    "Probe Suspect Candidates": {
+      "main": [[{ "node": "Wait for Table Probes", "type": "main", "index": 0 }]]
+    },
+    "Probe STT Jobs": {
+      "main": [[{ "node": "Wait for Table Probes", "type": "main", "index": 1 }]]
+    },
+    "Probe Summary Requests": {
+      "main": [[{ "node": "Wait for Table Probes", "type": "main", "index": 2 }]]
+    },
+    "Probe Automation Errors": {
+      "main": [[{ "node": "Wait for Table Probes", "type": "main", "index": 3 }]]
+    },
+    "Wait for Table Probes": {
+      "main": [
+        [
+          {
+            "node": "Report Expected Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  },
+  "tags": [
+    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
+  ]
+}

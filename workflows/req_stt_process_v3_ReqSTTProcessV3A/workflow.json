@@ -1,0 +1,555 @@
+{
+  "id": "ReqSTTProcessV3A",
+  "name": "Req STT process v3",
+  "description": "Inactive standalone STT adapter. Inputs: streamID:string, mode:string, mins:number, date:string, channel:string, target_thread_ts:string. Resolves profile=stt metadata, creates and reconciles attempt 1, then dispatches only the canonical attempt. Returns only the accepted canonical identity, stream, mode, and channel contract.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": { "values": [
+          { "name": "streamID", "type": "string" },
+          { "name": "mode", "type": "string" },
+          { "name": "mins", "type": "number" },
+          { "name": "date", "type": "string" },
+          { "name": "channel", "type": "string" },
+          { "name": "command_ts", "type": "string" },
+          { "name": "target_thread_ts", "type": "string" }
+        ] }
+      },
+      "id": "b596a7dc-b887-4f1d-b5d0-676641492162",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Normalize_Standalone_Input/jsCode.js" },
+      "id": "697f454c-e95e-46c2-9f58-5fca7d65415c",
+      "name": "Normalize Standalone Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "StreamMetaV3A001",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/StreamMetaV3A001",
+          "cachedResultName": "Stream Metadata: resolve by IDs v3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "streams": "={{ [{ liveStreamID: $json.streamID }] }}",
+            "lookupWindow": "={{ $json.lookupWindow }}",
+            "profile": "stt"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "streams", "displayName": "streams", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "array" },
+            { "id": "lookupWindow", "displayName": "lookupWindow", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "object" },
+            { "id": "profile", "displayName": "profile", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string" }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": { "waitForSubWorkflow": true }
+      },
+      "id": "0e6543d3-f790-46ae-8199-bef705bb1f67",
+      "name": "Resolve Base Discovery",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [
+          { "id": "discoveryPhase", "name": "discoveryPhase", "value": "base", "type": "string" }
+        ] },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "fa206f16-8659-45f8-900a-4553a6f6933b",
+      "name": "Tag Base Discovery",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [720, 0]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Normalize_Standalone_Input/jsCode.js" },
+      "id": "fd465465-a78a-4913-a7a4-e14d74c399c3",
+      "name": "Plan Base Discovery Window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 0]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [
+          { "id": "6421b933-518b-4c84-b8e1-f70a388d0032", "leftValue": "={{ $json.needsFallback }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }
+        ], "combinator": "and" },
+        "options": {}
+      },
+      "id": "f455ea84-98f6-4adb-9f68-a8cd4a8b5b48",
+      "name": "Needs Previous Fallback",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1200, 0]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "StreamMetaV3A001",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/StreamMetaV3A001",
+          "cachedResultName": "Stream Metadata: resolve by IDs v3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "streams": "={{ [{ liveStreamID: $json.streamID }] }}",
+            "lookupWindow": "={{ $json.previousFallbackWindow }}",
+            "profile": "stt"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "streams", "displayName": "streams", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "array" },
+            { "id": "lookupWindow", "displayName": "lookupWindow", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "object" },
+            { "id": "profile", "displayName": "profile", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string" }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": { "waitForSubWorkflow": true }
+      },
+      "id": "3413f63f-3182-4ec7-a032-49160067ccca",
+      "name": "Resolve Previous Fallback Discovery",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [1440, -160]
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [
+          { "id": "discoveryPhase", "name": "discoveryPhase", "value": "fallback", "type": "string" }
+        ] },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "2080c6c2-b965-49ee-bba5-e0079f885609",
+      "name": "Tag Previous Fallback Discovery",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1680, -160]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Normalize_Standalone_Input/jsCode.js" },
+      "id": "03da8203-754f-451f-b2d4-9fec3d94aa19",
+      "name": "Plan Fallback Discovery Window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, -160]
+    },
+    {
+      "parameters": {},
+      "id": "b3197470-fead-4d02-921f-a372776fa3b7",
+      "name": "Final Lookup Context",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2160, 0]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "StreamMetaV3A001",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/StreamMetaV3A001",
+          "cachedResultName": "Stream Metadata: resolve by IDs v3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "streams": "={{ [{ liveStreamID: $json.streamID }] }}",
+            "lookupWindow": "={{ $json.finalLookupWindow }}",
+            "profile": "stt"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "streams", "displayName": "streams", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "array" },
+            { "id": "lookupWindow", "displayName": "lookupWindow", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "object" },
+            { "id": "profile", "displayName": "profile", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string" }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": { "waitForSubWorkflow": true }
+      },
+      "id": "04313700-2398-4e95-9323-9af429683d0f",
+      "name": "Resolve Final Stream Context",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [2400, 0]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Normalize_Standalone_Input/jsCode.js" },
+      "id": "d43fe311-eb91-47ee-ac63-50d040c6cda5",
+      "name": "Require Eligible Stream Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 0]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0A4JJJKJMD", "mode": "id" },
+        "text": "=STT request accepted for processing\nStream: `{{ $json.liveStreamID }}`\nMode: `{{ $('Normalize Standalone Input').first().json.mode }}` {{ $('Normalize Standalone Input').first().json.mins }}m",
+        "otherOptions": { "thread_ts": { "replyValues": { "thread_ts": "={{ $('Normalize Standalone Input').first().json.target_thread_ts }}" } } }
+      },
+      "id": "0d2b5c4f-e13f-4f7c-a841-015649a4770b",
+      "name": "Create Processing Message",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [2880, 0],
+      "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Build_Standalone_Attempt/jsCode.js" },
+      "id": "8275d5ac-c490-4ab0-9684-862ead17031f",
+      "name": "Build Standalone Attempt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 0]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "attemptKey": "={{ $json.attemptKey }}", "logicalJobKey": "={{ $json.logicalJobKey }}", "requestKey": "={{ $json.requestKey }}", "requestType": "={{ $json.requestType }}",
+            "attempt": "={{ $json.attempt }}", "role": "={{ $json.role }}", "streamID": "={{ $json.streamID }}", "mode": "={{ $json.mode }}",
+            "durationMinutes": "={{ $json.durationMinutes }}", "streamContextJson": "={{ $json.streamContextJson }}", "status": "={{ $json.status }}", "callbackTokenHash": "={{ $json.callbackTokenHash }}",
+            "reconciliationStatus": "={{ $json.reconciliationStatus }}", "canonicalRowID": "={{ $json.canonicalRowID }}", "dispatchLeaseOwner": "={{ $json.dispatchLeaseOwner }}", "dispatchLeaseUntilIso": "={{ $json.dispatchLeaseUntilIso }}",
+            "submittedAtIso": "={{ $json.submittedAtIso }}", "callbackDeadlineAtIso": "={{ $json.callbackDeadlineAtIso }}", "manualReviewReason": "={{ $json.manualReviewReason }}", "manualReviewAtIso": "={{ $json.manualReviewAtIso }}",
+            "manualReviewResolution": "={{ $json.manualReviewResolution }}", "callbackTokenExpiresAtIso": "={{ $json.callbackTokenExpiresAtIso }}", "consumedAtIso": "={{ $json.consumedAtIso }}", "channel": "={{ $json.channel }}",
+            "threadTS": "={{ $json.threadTS }}", "processingMessageTS": "={{ $json.processingMessageTS }}", "dialogue": "={{ $json.dialogue }}", "language": "={{ $json.language }}",
+            "errorCode": "={{ $json.errorCode }}", "nextRetryAtIso": "={{ $json.nextRetryAtIso }}", "retryLeaseOwner": "={{ $json.retryLeaseOwner }}", "retryLeaseUntilIso": "={{ $json.retryLeaseUntilIso }}",
+            "duplicateCount": "={{ $json.duplicateCount }}", "presentationStatus": "={{ $json.presentationStatus }}", "presentationLeaseOwner": "={{ $json.presentationLeaseOwner }}", "presentationLeaseUntilIso": "={{ $json.presentationLeaseUntilIso }}",
+            "presentationAttempt": "={{ $json.presentationAttempt }}", "presentationNextRetryAtIso": "={{ $json.presentationNextRetryAtIso }}", "presentationErrorCode": "={{ $json.presentationErrorCode }}", "transcriptUploadID": "={{ $json.transcriptUploadID }}",
+            "analysisUploadID": "={{ $json.analysisUploadID }}", "processingMessageUpdatedAtIso": "={{ $json.processingMessageUpdatedAtIso }}", "createdAtIso": "={{ $json.createdAtIso }}", "updatedAtIso": "={{ $json.updatedAtIso }}"
+          },
+          "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "77aee305-cf7a-4d45-b1a8-a12e815c3d9b",
+      "name": "Insert Attempt",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [1440, 0],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Build Standalone Attempt').first().json.attemptKey }}" }] },
+        "returnAll": true, "options": {}
+      },
+      "id": "21337778-c8c2-46f7-ae73-486528b33f89",
+      "name": "Read All Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [1680, 0],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Canonical/jsCode.js" },
+      "id": "6925b68c-f1e8-4c89-a1dc-6586e09d41f4",
+      "name": "Plan Canonical Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 0]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [
+          { "id": "546b4564-e1c1-4d3d-8563-ea2c50ba17fc", "leftValue": "={{ $json.reconciliationAction }}", "rightValue": "manual_review", "operator": { "type": "string", "operation": "equals" } }
+        ], "combinator": "and" }, "options": {}
+      },
+      "id": "f19f33ce-2f16-4694-9aa5-8baea10593c0",
+      "name": "Is Manual Review Conflict",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [2160, 0]
+    },
+    {
+      "parameters": {},
+      "id": "41c8d1eb-dd1f-4f17-be6f-2e1d6884e536",
+      "name": "Freeze Conflict Plan",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2400, -240]
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" },
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
+          { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.expectedStatus }}" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }
+        ] },
+        "columns": { "mappingMode": "defineBelow", "value": {
+          "status": "manual_review", "manualReviewReason": "multiple_canonical_checkpoint_conflict",
+          "manualReviewAtIso": "={{ $now.toUTC().toISO() }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+        }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": {}
+      },
+      "id": "6a197e47-a83f-45a9-847b-24b1ea3ccb77",
+      "name": "Freeze Canonical Conflict",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [2640, -240],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "maxItems": 1 },
+      "id": "a66a0523-145f-4c0d-829a-f78cf22d4872",
+      "name": "Limit Conflict Writes",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [2880, -240]
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Build Standalone Attempt').first().json.attemptKey }}" }] },
+        "returnAll": true, "options": {}
+      },
+      "id": "85dd01b5-679f-4df0-bc89-14c4daef4a90",
+      "name": "Re-read Manual Review State",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [3120, -240],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Canonical/jsCode.js" },
+      "id": "58494377-3ea2-4d2b-a65a-505d1bb3cdb2",
+      "name": "Verify Frozen Conflict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3360, -240]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [
+          { "id": "b0d03525-354a-4179-a3ac-ce3a06cd3ce7", "leftValue": "={{ $json.reconciliationAction }}", "rightValue": "reconcile", "operator": { "type": "string", "operation": "equals" } }
+        ], "combinator": "and" }, "options": {}
+      },
+      "id": "d916f8b2-7c65-4075-964c-d8fd25b24895",
+      "name": "Needs Reconciliation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [2400, 80]
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" },
+          { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" },
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.expectedCanonicalRowID }}" }
+        ] },
+        "columns": { "mappingMode": "defineBelow", "value": {
+          "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}",
+          "canonicalRowID": "={{ $json.desiredCanonicalRowID }}",
+          "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+        }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": {}
+      },
+      "id": "63acf6c0-adb5-472d-afc6-3c7e9458a04b",
+      "name": "Apply Reconciliation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [2640, 80],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "maxItems": 1 },
+      "id": "d172811e-da6b-47c8-b97b-b43bcd24ed1a",
+      "name": "Limit Reconciliation Writes",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [2880, 80]
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Build Standalone Attempt').first().json.attemptKey }}" }] },
+        "returnAll": true, "options": {}
+      },
+      "id": "df57799a-d2ac-446a-8c05-881058fb6ca6",
+      "name": "Re-read After Reconciliation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [3120, 80],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Canonical/jsCode.js" },
+      "id": "46699c0f-c189-4396-815c-2239b78cdb16",
+      "name": "Verify Reconciled Canonical",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3360, 80]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [
+          { "id": "84956f42-a46b-41ea-9d34-13f2f11cfb00", "leftValue": "={{ $json.reconciliationAction }}", "rightValue": "manual_review", "operator": { "type": "string", "operation": "equals" } }
+        ], "combinator": "and" }, "options": {}
+      },
+      "id": "a77f59da-bb92-477a-a311-7ea9cd212356",
+      "name": "Post-Reconciliation Conflict",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [3600, 80]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [
+          { "id": "d47b0b10-7bc3-4c21-ae20-ed0ae72f4980", "leftValue": "={{ $json.reconciliationAction }}", "rightValue": "ready", "operator": { "type": "string", "operation": "equals" } }
+        ], "combinator": "and" }, "options": {}
+      },
+      "id": "a597cb55-7056-4636-a705-80ca4705df78",
+      "name": "Reconciliation Complete",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [3840, 160]
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [
+          { "id": "accepted", "name": "accepted", "value": true, "type": "boolean" },
+          { "id": "attemptKey", "name": "attemptKey", "value": "={{ $json.attemptKey }}", "type": "string" },
+          { "id": "logicalJobKey", "name": "logicalJobKey", "value": "={{ $json.logicalJobKey }}", "type": "string" },
+          { "id": "requestKey", "name": "requestKey", "value": "={{ $json.requestKey }}", "type": "string" },
+          { "id": "streamID", "name": "streamID", "value": "={{ $json.streamID }}", "type": "string" },
+          { "id": "mode", "name": "mode", "value": "={{ $json.mode }}", "type": "string" },
+          { "id": "channel", "name": "channel", "value": "={{ $json.channel }}", "type": "string" }
+        ] },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "221a7c63-1c33-4458-ac67-4116d41abfbd",
+      "name": "Return Accepted Contract",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [4080, 160]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "STTDispatchV3A01",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/STTDispatchV3A01",
+          "cachedResultName": "STT: dispatch attempt v3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": { "attemptKey": "={{ $json.attemptKey }}" },
+          "matchingColumns": [],
+          "schema": [{ "id": "attemptKey", "displayName": "attemptKey", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string" }],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": { "waitForSubWorkflow": false }
+      },
+      "id": "5510903a-4d28-4055-b091-00a0d365a3bf",
+      "name": "Dispatch Canonical Attempt",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [4320, 80]
+    }
+  ],
+  "connections": {
+    "Start": { "main": [[{ "node": "Normalize Standalone Input", "type": "main", "index": 0 }]] },
+    "Normalize Standalone Input": { "main": [[{ "node": "Resolve Base Discovery", "type": "main", "index": 0 }]] },
+    "Resolve Base Discovery": { "main": [[{ "node": "Tag Base Discovery", "type": "main", "index": 0 }]] },
+    "Tag Base Discovery": { "main": [[{ "node": "Plan Base Discovery Window", "type": "main", "index": 0 }]] },
+    "Plan Base Discovery Window": { "main": [[{ "node": "Needs Previous Fallback", "type": "main", "index": 0 }]] },
+    "Needs Previous Fallback": { "main": [
+      [{ "node": "Resolve Previous Fallback Discovery", "type": "main", "index": 0 }],
+      [{ "node": "Final Lookup Context", "type": "main", "index": 0 }]
+    ] },
+    "Resolve Previous Fallback Discovery": { "main": [[{ "node": "Tag Previous Fallback Discovery", "type": "main", "index": 0 }]] },
+    "Tag Previous Fallback Discovery": { "main": [[{ "node": "Plan Fallback Discovery Window", "type": "main", "index": 0 }]] },
+    "Plan Fallback Discovery Window": { "main": [[{ "node": "Final Lookup Context", "type": "main", "index": 0 }]] },
+    "Final Lookup Context": { "main": [[{ "node": "Resolve Final Stream Context", "type": "main", "index": 0 }]] },
+    "Resolve Final Stream Context": { "main": [[{ "node": "Require Eligible Stream Context", "type": "main", "index": 0 }]] },
+    "Require Eligible Stream Context": { "main": [[{ "node": "Create Processing Message", "type": "main", "index": 0 }]] },
+    "Create Processing Message": { "main": [[{ "node": "Build Standalone Attempt", "type": "main", "index": 0 }]] },
+    "Build Standalone Attempt": { "main": [[{ "node": "Insert Attempt", "type": "main", "index": 0 }]] },
+    "Insert Attempt": { "main": [[{ "node": "Read All Attempt Rows", "type": "main", "index": 0 }]] },
+    "Read All Attempt Rows": { "main": [[{ "node": "Plan Canonical Reconciliation", "type": "main", "index": 0 }]] },
+    "Plan Canonical Reconciliation": { "main": [[{ "node": "Is Manual Review Conflict", "type": "main", "index": 0 }]] },
+    "Is Manual Review Conflict": { "main": [
+      [{ "node": "Freeze Conflict Plan", "type": "main", "index": 0 }],
+      [{ "node": "Needs Reconciliation", "type": "main", "index": 0 }]
+    ] },
+    "Freeze Conflict Plan": { "main": [[{ "node": "Freeze Canonical Conflict", "type": "main", "index": 0 }]] },
+    "Freeze Canonical Conflict": { "main": [[{ "node": "Limit Conflict Writes", "type": "main", "index": 0 }]] },
+    "Limit Conflict Writes": { "main": [[{ "node": "Re-read Manual Review State", "type": "main", "index": 0 }]] },
+    "Re-read Manual Review State": { "main": [[{ "node": "Verify Frozen Conflict", "type": "main", "index": 0 }]] },
+    "Needs Reconciliation": { "main": [
+      [{ "node": "Apply Reconciliation", "type": "main", "index": 0 }],
+      [{ "node": "Return Accepted Contract", "type": "main", "index": 0 }]
+    ] },
+    "Apply Reconciliation": { "main": [[{ "node": "Limit Reconciliation Writes", "type": "main", "index": 0 }]] },
+    "Limit Reconciliation Writes": { "main": [[{ "node": "Re-read After Reconciliation", "type": "main", "index": 0 }]] },
+    "Re-read After Reconciliation": { "main": [[{ "node": "Verify Reconciled Canonical", "type": "main", "index": 0 }]] },
+    "Verify Reconciled Canonical": { "main": [[{ "node": "Post-Reconciliation Conflict", "type": "main", "index": 0 }]] },
+    "Post-Reconciliation Conflict": { "main": [
+      [{ "node": "Freeze Conflict Plan", "type": "main", "index": 0 }],
+      [{ "node": "Reconciliation Complete", "type": "main", "index": 0 }]
+    ] },
+    "Reconciliation Complete": { "main": [[{ "node": "Return Accepted Contract", "type": "main", "index": 0 }], []] },
+    "Return Accepted Contract": { "main": [[{ "node": "Dispatch Canonical Attempt", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  },
+  "staticData": null,
+  "meta": { "templateCredsSetupCompleted": true },
+  "tags": [
+    { "updatedAt": "2025-10-31T00:26:54.980Z", "createdAt": "2025-10-31T00:26:54.980Z", "id": "NeWKGUiW4rGfhYL9", "name": "stt" },
+    { "updatedAt": "2025-10-31T00:33:05.881Z", "createdAt": "2025-10-31T00:33:05.881Z", "id": "boreCiHZYpl3eDGl", "name": "ist-bot" },
+    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
+  ]
+}

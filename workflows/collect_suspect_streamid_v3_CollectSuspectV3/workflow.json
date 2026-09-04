@@ -1,0 +1,741 @@
+{
+  "id": "CollectSuspectV3",
+  "name": "Collect suspect streamID v3",
+  "description": "Inactive manual-only suspect candidate collector. An empty target-date override queries the prior Taipei business day; a YYYY-MM-DD override pins one business-day range. Persists provenance, reconciles canonical rows, resolves STT metadata in bounded chunks, dispatches Query Logs children serially without automatic Slack retries, and calls the Summary orchestrator.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "12000001-0000-4000-8000-000000000001",
+      "name": "Manually Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-1200, 0]
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [
+          { "id": "12000001-0000-4000-8000-000000000043", "name": "targetDate", "value": "", "type": "string" }
+        ] },
+        "options": {}
+      },
+      "id": "12000001-0000-4000-8000-000000000043",
+      "name": "Configure Target Date",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-1080, 0]
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [
+          { "id": "12000002-0000-4000-8000-000000000001", "name": "queryEnd", "value": "={{ (() => { const targetDate = $json.targetDate; if (!targetDate) return $now.setZone('Asia/Taipei').startOf('day').plus({ hours: 4 }).toISO(); if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(targetDate)) throw new Error('targetDate must be YYYY-MM-DD'); const value = DateTime.fromISO(`${targetDate}T04:00:00`, { zone: 'Asia/Taipei' }).plus({ days: 1 }); if (!value.isValid) throw new Error('targetDate is invalid'); return value.toISO(); })() }}", "type": "string" },
+          { "id": "12000002-0000-4000-8000-000000000002", "name": "searchKeywords", "value": "卡了|重開|當機|卡頓|轉圈|斷線|黑屏|沒畫面|重い|ラグ|カクカク|止まった|くるくる|落ち|見れない|再起動|枠取り直し", "type": "string" }
+        ] },
+        "options": {}
+      },
+      "id": "12000002-0000-4000-8000-000000000002",
+      "name": "Build Candidate Query Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-960, 0]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": { "__rl": true, "value": "media17-1119", "mode": "list", "cachedResultName": "Media17" },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/Comment_and_Caption_with_keywords/sqlQuery.sql",
+        "options": { "queryParameters": { "namedParameters": [
+          { "name": "query_end", "value": "={{ $json.queryEnd }}" },
+          { "name": "search_keywords", "value": "={{ $json.searchKeywords }}" }
+        ] } }
+      },
+      "id": "12000003-0000-4000-8000-000000000003",
+      "name": "Query Comment And Caption Candidates",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [-720, -240],
+      "alwaysOutputData": true,
+      "credentials": { "googleApi": { "id": "Dd7x1TQhh9YKbD8v", "name": "Google BigQuery account" } }
+    },
+    {
+      "parameters": { "assignments": { "assignments": [
+        { "id": "12000004-0000-4000-8000-000000000001", "name": "metricSource", "value": "commentCaptionKeyword", "type": "string" },
+        { "id": "12000004-0000-4000-8000-000000000002", "name": "streamID", "value": "={{ $json.streamID }}", "type": "string" },
+        { "id": "12000004-0000-4000-8000-000000000003", "name": "prevStreamID", "value": "={{ $json.prevStreamID || '' }}", "type": "string" },
+        { "id": "12000004-0000-4000-8000-000000000004", "name": "userID", "value": "={{ $json.userID || '' }}", "type": "string" }
+      ] }, "options": {} },
+      "id": "12000004-0000-4000-8000-000000000004",
+      "name": "Label Comment And Caption",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-480, -240]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": { "__rl": true, "value": "media17-1119", "mode": "list", "cachedResultName": "Media17" },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/Caption_with_keywords/sqlQuery.sql",
+        "options": { "queryParameters": { "namedParameters": [
+          { "name": "query_end", "value": "={{ $json.queryEnd }}" },
+          { "name": "search_keywords", "value": "={{ $json.searchKeywords }}" }
+        ] } }
+      },
+      "id": "12000005-0000-4000-8000-000000000005",
+      "name": "Query Caption Candidates",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [-720, 0],
+      "alwaysOutputData": true,
+      "credentials": { "googleApi": { "id": "Dd7x1TQhh9YKbD8v", "name": "Google BigQuery account" } }
+    },
+    {
+      "parameters": { "assignments": { "assignments": [
+        { "id": "12000006-0000-4000-8000-000000000001", "name": "metricSource", "value": "captionKeyword", "type": "string" },
+        { "id": "12000006-0000-4000-8000-000000000002", "name": "streamID", "value": "={{ $json.streamID }}", "type": "string" },
+        { "id": "12000006-0000-4000-8000-000000000003", "name": "prevStreamID", "value": "={{ $json.prevStreamID || '' }}", "type": "string" },
+        { "id": "12000006-0000-4000-8000-000000000004", "name": "userID", "value": "={{ $json.userID || '' }}", "type": "string" }
+      ] }, "options": {} },
+      "id": "12000006-0000-4000-8000-000000000006",
+      "name": "Label Caption",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-480, 0]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": { "__rl": true, "value": "media17-1119", "mode": "list", "cachedResultName": "Media17" },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/End_by_new_stream/sqlQuery.sql",
+        "options": { "queryParameters": { "namedParameters": [
+          { "name": "query_end", "value": "={{ $json.queryEnd }}" }
+        ] } }
+      },
+      "id": "12000007-0000-4000-8000-000000000007",
+      "name": "Query End By New Stream Candidates",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [-720, 240],
+      "alwaysOutputData": true,
+      "credentials": { "googleApi": { "id": "Dd7x1TQhh9YKbD8v", "name": "Google BigQuery account" } }
+    },
+    {
+      "parameters": { "assignments": { "assignments": [
+        { "id": "12000008-0000-4000-8000-000000000001", "name": "metricSource", "value": "endByNewStream", "type": "string" },
+        { "id": "12000008-0000-4000-8000-000000000002", "name": "streamID", "value": "={{ $json.streamID }}", "type": "string" },
+        { "id": "12000008-0000-4000-8000-000000000003", "name": "prevStreamID", "value": "={{ $json.prevStreamID || '' }}", "type": "string" },
+        { "id": "12000008-0000-4000-8000-000000000004", "name": "userID", "value": "={{ $json.userID || '' }}", "type": "string" }
+      ] }, "options": {} },
+      "id": "12000008-0000-4000-8000-000000000008",
+      "name": "Label End By New Stream",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-480, 240]
+    },
+    {
+      "parameters": { "mode": "append", "numberInputs": 3 },
+      "id": "12000009-0000-4000-8000-000000000009",
+      "name": "Merge Candidate Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [-240, 0]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Code_dedup/jsCode.js" },
+      "id": "1200000a-0000-4000-8000-00000000000a",
+      "name": "Deduplicate Candidate Provenance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "const detailedList = $input.all().map(({ json }) => ({\n  streamID: json.streamID,\n  prevStreamID: json.prevStreamID,\n  sources: JSON.parse(json.sourcesJson),\n}));\n\nreturn [{ json: { totalCount: detailedList.length, detailedList } }];" },
+      "id": "1200001e-0000-4000-8000-00000000001e",
+      "name": "Build Monitoring Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, -320]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0A4JJJKJMD", "mode": "id" },
+        "text": "={{ '🚨 *自動化異常 Stream 監控報告*\\n監控關鍵字: `' + $('Build Candidate Query Config').first().json.searchKeywords + '`\\n以及監控 endByNewStream Conditions: `Prev endByNewStream + Restart in 60s + Contracted TW streamer`\\n共發現 ' + $json.totalCount + ' 個可疑 Stream。\\n\\n詳細清單：\\n' + $json.detailedList.map(item => '• StreamID: ' + item.streamID + (item.prevStreamID ? ' (PrevStreamID: ' + item.prevStreamID + ')' : '') + ' (來源: ' + item.sources.join(', ') + ')').join('\\n') }}",
+        "otherOptions": {}
+      },
+      "id": "1200001f-0000-4000-8000-00000000001f",
+      "name": "Send Monitoring Report",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [480, -320],
+      "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "return $('Deduplicate Candidate Provenance').all().map(({ json }) => ({ json }));" },
+      "id": "12000020-0000-4000-8000-000000000020",
+      "name": "Restore Candidate Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, -320]
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "insert",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "suspect_stt_candidates_v3" },
+        "columns": { "mappingMode": "defineBelow", "value": {
+          "candidateKey": "={{ $json.candidateKey }}", "runID": "={{ $json.runID }}", "streamID": "={{ $json.streamID }}",
+          "prevStreamID": "={{ $json.prevStreamID }}", "sourcesJson": "={{ $json.sourcesJson }}", "channel": "={{ $json.channel }}",
+          "threadTS": "", "summaryRequestKey": "={{ $json.summaryRequestKey }}", "reconciliationStatus": "pending",
+          "canonicalRowID": "", "createdAtIso": "={{ $json.createdAtIso }}", "updatedAtIso": "={{ $json.updatedAtIso }}"
+        }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": {}
+      },
+      "id": "1200000b-0000-4000-8000-00000000000b",
+      "name": "Insert Pending Candidate",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [240, 0],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "suspect_stt_candidates_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [{ "keyName": "candidateKey", "condition": "eq", "keyValue": "={{ $json.candidateKey }}" }] },
+        "returnAll": true, "options": {}
+      },
+      "id": "1200000c-0000-4000-8000-00000000000c",
+      "name": "Read Candidate Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [480, 0],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Code_dedup/jsCode.js" },
+      "id": "1200000d-0000-4000-8000-00000000000d",
+      "name": "Plan Candidate Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 0]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [
+        { "id": "1200000e-0000-4000-8000-000000000001", "leftValue": "={{ $json.action }}", "rightValue": "reconcile", "operator": { "type": "string", "operation": "equals" } }
+      ], "combinator": "and" }, "options": {} },
+      "id": "1200000e-0000-4000-8000-00000000000e",
+      "name": "Candidate Reconciliation Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [960, 0]
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "suspect_stt_candidates_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" },
+          { "keyName": "candidateKey", "condition": "eq", "keyValue": "={{ $json.candidateKey }}" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "={{ $json.expectedReconciliationStatus }}" },
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.expectedCanonicalRowID) }}" }
+        ] },
+        "columns": { "mappingMode": "defineBelow", "value": {
+          "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}",
+          "canonicalRowID": "={{ $json.desiredCanonicalRowID }}",
+          "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+        }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": {}
+      },
+      "id": "1200000f-0000-4000-8000-00000000000f",
+      "name": "Apply Candidate Reconciliation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [1200, -160],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "suspect_stt_candidates_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [{ "keyName": "candidateKey", "condition": "eq", "keyValue": "={{ $json.candidateKey }}" }] },
+        "returnAll": true, "options": {}
+      },
+      "id": "12000010-0000-4000-8000-000000000010",
+      "name": "Re-read Candidate Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [1440, -160],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Code_dedup/jsCode.js" },
+      "id": "12000011-0000-4000-8000-000000000011",
+      "name": "Verify Candidate Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, -160]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [
+        { "id": "12000012-0000-4000-8000-000000000001", "leftValue": "={{ $json.action }}", "rightValue": "ready", "operator": { "type": "string", "operation": "equals" } }
+      ], "combinator": "and" }, "options": {} },
+      "id": "12000012-0000-4000-8000-000000000012",
+      "name": "Candidate Canonical Verified",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1920, -80]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Candidate_Root/jsCode.js" },
+      "id": "12100001-0000-4000-8000-000000000001",
+      "name": "Plan Candidate Root Ownership",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 0]
+    },
+    {
+      "parameters": { "rules": { "values": [
+        { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "12100002-0000-4000-8000-000000000001", "leftValue": "={{ $json.action }}", "rightValue": "ready", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" } },
+        { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "12100002-0000-4000-8000-000000000002", "leftValue": "={{ $json.action }}", "rightValue": "claim", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" } }
+      ] }, "options": { "fallbackOutput": "none" } },
+      "id": "12100002-0000-4000-8000-000000000002",
+      "name": "Route Candidate Root Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [2400, 0]
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "suspect_stt_candidates_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" },
+          { "keyName": "candidateKey", "condition": "eq", "keyValue": "={{ $json.candidateKey }}" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" },
+          { "keyName": "threadTS", "condition": "eq", "keyValue": "={{ $json.expectedThreadTS }}" }
+        ] },
+        "columns": { "mappingMode": "defineBelow", "value": {
+          "threadTS": "={{ $json.desiredThreadTS }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+        }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": {}
+      },
+      "id": "12100003-0000-4000-8000-000000000003",
+      "name": "Claim Candidate Root",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [2640, 160],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "suspect_stt_candidates_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [{ "keyName": "candidateKey", "condition": "eq", "keyValue": "={{ $json.candidateKey }}" }] },
+        "returnAll": true, "options": {}
+      },
+      "id": "12100004-0000-4000-8000-000000000004",
+      "name": "Read Claimed Candidate Root",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [2880, 160],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "mode": "append", "numberInputs": 2 },
+      "id": "12100005-0000-4000-8000-000000000005",
+      "name": "Merge Root Claim Carrier And Rows",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [3120, 160]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Candidate_Root/jsCode.js" },
+      "id": "12100006-0000-4000-8000-000000000006",
+      "name": "Verify Candidate Root Claim",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3360, 160]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0A4JJJKJMD", "mode": "id" },
+        "text": "=🔍 *自動化檢測詳情*\nStreamID: `{{ $json.streamID }}`\n來源: {{ JSON.parse($json.sourcesJson).join(', ') }}{{ ($json.sourcesJson.includes('commentCaptionKeyword') || $json.sourcesJson.includes('captionKeyword')) ? '\\n🎯 Hit Keywords: `' + $('Build Candidate Query Config').first().json.searchKeywords + '`' : '' }}{{ $json.sourcesJson.includes('endByNewStream') ? '\\n⏳ Hit Conditions: `Prev endByNewStream + Restart in 60s + Contracted TW streamer`' : '' }}{{ $json.prevStreamID ? '\\nPrevStreamID: `' + $json.prevStreamID + '`' : '' }}",
+        "otherOptions": {}
+      },
+      "id": "12100007-0000-4000-8000-000000000007",
+      "name": "Send Candidate Detail",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [3600, 160],
+      "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
+    },
+    {
+      "parameters": { "mode": "append", "numberInputs": 2 },
+      "id": "12100008-0000-4000-8000-000000000008",
+      "name": "Merge Root Owner And Slack",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [3840, 160]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Candidate_Root/jsCode.js" },
+      "id": "12100009-0000-4000-8000-000000000009",
+      "name": "Plan Candidate Root Checkpoint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4080, 160]
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "suspect_stt_candidates_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [
+          { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" },
+          { "keyName": "candidateKey", "condition": "eq", "keyValue": "={{ $json.candidateKey }}" },
+          { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+          { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" },
+          { "keyName": "threadTS", "condition": "eq", "keyValue": "={{ $json.expectedThreadTS }}" }
+        ] },
+        "columns": { "mappingMode": "defineBelow", "value": {
+          "threadTS": "={{ $json.desiredThreadTS }}", "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+        }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": {}
+      },
+      "id": "1210000a-0000-4000-8000-00000000000a",
+      "name": "Checkpoint Candidate Root",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [4320, 160],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "suspect_stt_candidates_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [{ "keyName": "candidateKey", "condition": "eq", "keyValue": "={{ $json.candidateKey }}" }] },
+        "returnAll": true, "options": {}
+      },
+      "id": "1210000b-0000-4000-8000-00000000000b",
+      "name": "Re-read Candidate Root",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [4560, 160],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "mode": "append", "numberInputs": 2 },
+      "id": "1210000c-0000-4000-8000-00000000000c",
+      "name": "Merge Root Checkpoint Carrier And Rows",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [4800, 160]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Candidate_Root/jsCode.js" },
+      "id": "1210000d-0000-4000-8000-00000000000d",
+      "name": "Verify Candidate Root Checkpoint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5040, 160]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Chunk_Resolver_Input/jsCode.js" },
+      "id": "12000018-0000-4000-8000-000000000018",
+      "name": "Prepare Resolver Chunks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5280, 0]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Build_Candidate_Log_Requests/jsCode.js" },
+      "id": "b5ad7b68-394f-4b29-9c2a-a7d9596fe5ae",
+      "name": "Build Candidate Log Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5280, 320]
+    },
+    {
+      "parameters": { "batchSize": 1, "options": {} },
+      "id": "78fcb9c7-70f7-4ef0-9fea-2fa4f76fe5ac",
+      "name": "Query Logs Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [5520, 320]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "QueryLogsV3A0001", "mode": "list", "cachedResultName": "Query Steam Logs v3" },
+        "workflowInputs": { "mappingMode": "defineBelow", "value": {
+          "streamID": "={{ $json.streamID }}", "channel": "={{ $json.channel }}", "target_thread_ts": "={{ $json.target_thread_ts }}", "lookbackDays": 3
+        }, "matchingColumns": [], "schema": [
+          { "id": "streamID", "displayName": "streamID", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "channel", "displayName": "channel", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "target_thread_ts", "displayName": "target_thread_ts", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "lookbackDays", "displayName": "lookbackDays", "type": "number", "required": false, "display": true, "canBeUsedToMatch": true }
+        ], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": { "waitForSubWorkflow": true },
+        "mode": "once"
+      },
+      "id": "dc374e7b-4641-4ff6-8c6f-18eabf01e65b",
+      "name": "Call Query Steam Logs",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [5760, 320],
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ { streamID: $('Query Logs Loop').item.json.streamID, channel: $('Query Logs Loop').item.json.channel, target_thread_ts: $('Query Logs Loop').item.json.target_thread_ts, ok: true, failedNode: '', errorMessage: '' } }}",
+        "options": {}
+      },
+      "id": "1f2a6b3c-8d41-4f07-9a52-0c8e7d6b5a14",
+      "name": "Mark Query Logs Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [6000, 320]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (() => { const source = $('Query Logs Loop').item.json; const error = $json.error; const errorMessage = typeof error === 'string' ? error : error?.message; return { streamID: source.streamID, channel: source.channel, target_thread_ts: source.target_thread_ts, ok: false, failedNode: String(error?.node?.name || error?.nodeName || $json.node?.name || 'Query Steam Logs v3').slice(0, 100), errorMessage: String(errorMessage || $json.message || 'Query Logs child failed').slice(0, 500) }; })() }}",
+        "options": {}
+      },
+      "id": "2a3b7c4d-9e52-4018-ab63-1d9f8e7c6b25",
+      "name": "Mark Query Logs Failure",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [6000, 480]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Summarize_Query_Log_Results/jsCode.js" },
+      "id": "3b4c8d5e-af63-4129-bc74-2ea09f8d7c36",
+      "name": "Summarize Query Log Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5760, 640]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [
+        { "id": "6e7fb081-d296-445c-af07-51d3c2b0af69", "leftValue": "={{ $json.allSucceeded }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }
+      ], "combinator": "and" }, "options": {} },
+      "id": "4c5d9e6f-b074-423a-8d85-3fb1a09e8d47",
+      "name": "All Query Logs Succeeded",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [6000, 640]
+    },
+    {
+      "parameters": { "maxItems": 1 },
+      "id": "a9a20342-5a5c-4fdd-8cc7-67933a73d0ca",
+      "name": "Limit Query Logs Loop Done",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [6240, 560]
+    },
+    {
+      "parameters": { "errorMessage": "={{ $json.errorMessage }}" },
+      "id": "5d6eaf70-c185-434b-9e96-40c2b1af9e58",
+      "name": "Fail Query Logs Delivery",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [6240, 720]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "StreamMetaV3A001", "mode": "list", "cachedResultName": "Stream Metadata: resolve by IDs v3" },
+        "workflowInputs": { "mappingMode": "defineBelow", "value": {
+          "streams": "={{ $json.streams }}", "lookupWindow": "={{ $json.lookupWindow }}", "profile": "stt"
+        }, "matchingColumns": [], "schema": [
+          { "id": "streams", "displayName": "streams", "type": "array", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "lookupWindow", "displayName": "lookupWindow", "type": "object", "required": false, "display": true, "canBeUsedToMatch": true },
+          { "id": "profile", "displayName": "profile", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true }
+        ], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": { "waitForSubWorkflow": true },
+        "mode": "each"
+      },
+      "id": "12000019-0000-4000-8000-000000000019",
+      "name": "Resolve Stream Metadata",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [5520, 0]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Resolver_Output/jsCode.js" },
+      "id": "1200001a-0000-4000-8000-00000000001a",
+      "name": "Reassemble Resolver Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5760, 0]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [
+        { "id": "12000021-0000-4000-8000-000000000021", "leftValue": "={{ $json.eligibilityError || '' }}", "rightValue": "", "operator": { "type": "string", "operation": "empty", "singleValue": true } }
+      ], "combinator": "and" }, "options": {} },
+      "id": "12000021-0000-4000-8000-000000000021",
+      "name": "Candidate Is Eligible",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [6000, 0]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0A4JJJKJMD", "mode": "id" },
+        "text": "=⚠️ 無法建立 Summary STT：{{ $json.eligibilityError }}",
+        "otherOptions": { "thread_ts": { "replyValues": { "thread_ts": "={{ $json.candidate.threadTS }}" } } }
+      },
+      "id": "12000022-0000-4000-8000-000000000022",
+      "name": "Send Candidate Eligibility Warning",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [6240, 160],
+      "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0A4JJJKJMD", "mode": "id" },
+        "text": "=Preparing `{{ $json.stream.role }}` stream `{{ $json.stream.liveStreamID }}` for STT",
+        "otherOptions": { "thread_ts": { "replyValues": { "thread_ts": "={{ $json.candidate.threadTS }}" } } }
+      },
+      "id": "1200001b-0000-4000-8000-00000000001b",
+      "name": "Send Processing Message",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [6000, 0],
+      "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Resolver_Output/jsCode.js" },
+      "id": "1200001c-0000-4000-8000-00000000001c",
+      "name": "Build Orchestrator Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6240, 0]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "SummaryOrchV3A01", "mode": "list", "cachedResultName": "Summary: orchestrate request v3" },
+        "workflowInputs": { "mappingMode": "defineBelow", "value": {
+          "requestKey": "={{ $json.requestKey }}", "requestType": "={{ $json.requestType }}", "orderedStreams": "={{ $json.orderedStreams }}",
+          "existingDialogues": "={{ $json.existingDialogues }}", "channel": "={{ $json.channel }}", "threadTS": "={{ $json.threadTS }}"
+        }, "matchingColumns": [], "schema": [
+          { "id": "requestKey", "displayName": "requestKey", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "requestType", "displayName": "requestType", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "orderedStreams", "displayName": "orderedStreams", "type": "array", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "existingDialogues", "displayName": "existingDialogues", "type": "object", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "channel", "displayName": "channel", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true },
+          { "id": "threadTS", "displayName": "threadTS", "type": "string", "required": true, "display": true, "canBeUsedToMatch": true }
+        ], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "options": { "waitForSubWorkflow": false },
+        "mode": "each"
+      },
+      "id": "1200001d-0000-4000-8000-00000000001d",
+      "name": "Call Summary Orchestrator",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [6480, 0]
+    }
+  ],
+  "connections": {
+    "Manually Trigger": { "main": [[{ "node": "Configure Target Date", "type": "main", "index": 0 }]] },
+    "Configure Target Date": { "main": [[{ "node": "Build Candidate Query Config", "type": "main", "index": 0 }]] },
+    "Build Candidate Query Config": { "main": [[
+      { "node": "Query Comment And Caption Candidates", "type": "main", "index": 0 },
+      { "node": "Query Caption Candidates", "type": "main", "index": 0 },
+      { "node": "Query End By New Stream Candidates", "type": "main", "index": 0 }
+    ]] },
+    "Query Comment And Caption Candidates": { "main": [[{ "node": "Label Comment And Caption", "type": "main", "index": 0 }]] },
+    "Label Comment And Caption": { "main": [[{ "node": "Merge Candidate Sources", "type": "main", "index": 0 }]] },
+    "Query Caption Candidates": { "main": [[{ "node": "Label Caption", "type": "main", "index": 0 }]] },
+    "Label Caption": { "main": [[{ "node": "Merge Candidate Sources", "type": "main", "index": 1 }]] },
+    "Query End By New Stream Candidates": { "main": [[{ "node": "Label End By New Stream", "type": "main", "index": 0 }]] },
+    "Label End By New Stream": { "main": [[{ "node": "Merge Candidate Sources", "type": "main", "index": 2 }]] },
+    "Merge Candidate Sources": { "main": [[{ "node": "Deduplicate Candidate Provenance", "type": "main", "index": 0 }]] },
+    "Deduplicate Candidate Provenance": { "main": [[{ "node": "Build Monitoring Report", "type": "main", "index": 0 }]] },
+    "Build Monitoring Report": { "main": [[{ "node": "Send Monitoring Report", "type": "main", "index": 0 }]] },
+    "Send Monitoring Report": { "main": [[{ "node": "Restore Candidate Items", "type": "main", "index": 0 }]] },
+    "Restore Candidate Items": { "main": [[{ "node": "Insert Pending Candidate", "type": "main", "index": 0 }]] },
+    "Insert Pending Candidate": { "main": [[{ "node": "Read Candidate Rows", "type": "main", "index": 0 }]] },
+    "Read Candidate Rows": { "main": [[{ "node": "Plan Candidate Reconciliation", "type": "main", "index": 0 }]] },
+    "Plan Candidate Reconciliation": { "main": [[{ "node": "Candidate Reconciliation Needed", "type": "main", "index": 0 }]] },
+    "Candidate Reconciliation Needed": { "main": [
+      [{ "node": "Apply Candidate Reconciliation", "type": "main", "index": 0 }],
+      [{ "node": "Plan Candidate Root Ownership", "type": "main", "index": 0 }]
+    ] },
+    "Apply Candidate Reconciliation": { "main": [[{ "node": "Re-read Candidate Rows", "type": "main", "index": 0 }]] },
+    "Re-read Candidate Rows": { "main": [[{ "node": "Verify Candidate Reconciliation", "type": "main", "index": 0 }]] },
+    "Verify Candidate Reconciliation": { "main": [[{ "node": "Candidate Canonical Verified", "type": "main", "index": 0 }]] },
+    "Candidate Canonical Verified": { "main": [[{ "node": "Plan Candidate Root Ownership", "type": "main", "index": 0 }], []] },
+    "Plan Candidate Root Ownership": { "main": [[{ "node": "Route Candidate Root Action", "type": "main", "index": 0 }]] },
+    "Route Candidate Root Action": { "main": [
+      [{ "node": "Prepare Resolver Chunks", "type": "main", "index": 0 }],
+      [
+        { "node": "Claim Candidate Root", "type": "main", "index": 0 },
+        { "node": "Merge Root Claim Carrier And Rows", "type": "main", "index": 0 }
+      ]
+    ] },
+    "Claim Candidate Root": { "main": [[{ "node": "Read Claimed Candidate Root", "type": "main", "index": 0 }]] },
+    "Read Claimed Candidate Root": { "main": [[{ "node": "Merge Root Claim Carrier And Rows", "type": "main", "index": 1 }]] },
+    "Merge Root Claim Carrier And Rows": { "main": [[{ "node": "Verify Candidate Root Claim", "type": "main", "index": 0 }]] },
+    "Verify Candidate Root Claim": { "main": [[
+       { "node": "Send Candidate Detail", "type": "main", "index": 0 },
+      { "node": "Merge Root Owner And Slack", "type": "main", "index": 0 }
+    ]] },
+    "Send Candidate Detail": { "main": [[{ "node": "Merge Root Owner And Slack", "type": "main", "index": 1 }]] },
+    "Merge Root Owner And Slack": { "main": [[{ "node": "Plan Candidate Root Checkpoint", "type": "main", "index": 0 }]] },
+    "Plan Candidate Root Checkpoint": { "main": [[
+      { "node": "Checkpoint Candidate Root", "type": "main", "index": 0 },
+      { "node": "Merge Root Checkpoint Carrier And Rows", "type": "main", "index": 0 }
+    ]] },
+    "Checkpoint Candidate Root": { "main": [[{ "node": "Re-read Candidate Root", "type": "main", "index": 0 }]] },
+    "Re-read Candidate Root": { "main": [[{ "node": "Merge Root Checkpoint Carrier And Rows", "type": "main", "index": 1 }]] },
+    "Merge Root Checkpoint Carrier And Rows": { "main": [[{ "node": "Verify Candidate Root Checkpoint", "type": "main", "index": 0 }]] },
+    "Verify Candidate Root Checkpoint": { "main": [[
+      { "node": "Prepare Resolver Chunks", "type": "main", "index": 0 },
+      { "node": "Build Candidate Log Requests", "type": "main", "index": 0 }
+    ]] },
+    "Prepare Resolver Chunks": { "main": [[{ "node": "Resolve Stream Metadata", "type": "main", "index": 0 }]] },
+    "Build Candidate Log Requests": { "main": [[{ "node": "Query Logs Loop", "type": "main", "index": 0 }]] },
+    "Query Logs Loop": { "main": [
+      [{ "node": "Summarize Query Log Results", "type": "main", "index": 0 }],
+      [{ "node": "Call Query Steam Logs", "type": "main", "index": 0 }]
+    ] },
+    "Call Query Steam Logs": { "main": [
+      [{ "node": "Mark Query Logs Success", "type": "main", "index": 0 }],
+      [{ "node": "Mark Query Logs Failure", "type": "main", "index": 0 }]
+    ] },
+    "Mark Query Logs Success": { "main": [[{ "node": "Query Logs Loop", "type": "main", "index": 0 }]] },
+    "Mark Query Logs Failure": { "main": [[{ "node": "Query Logs Loop", "type": "main", "index": 0 }]] },
+    "Summarize Query Log Results": { "main": [[{ "node": "All Query Logs Succeeded", "type": "main", "index": 0 }]] },
+    "All Query Logs Succeeded": { "main": [
+      [{ "node": "Limit Query Logs Loop Done", "type": "main", "index": 0 }],
+      [{ "node": "Fail Query Logs Delivery", "type": "main", "index": 0 }]
+    ] },
+    "Resolve Stream Metadata": { "main": [[{ "node": "Reassemble Resolver Output", "type": "main", "index": 0 }]] },
+    "Reassemble Resolver Output": { "main": [[{ "node": "Candidate Is Eligible", "type": "main", "index": 0 }]] },
+    "Candidate Is Eligible": { "main": [
+      [{ "node": "Send Processing Message", "type": "main", "index": 0 }],
+      [{ "node": "Send Candidate Eligibility Warning", "type": "main", "index": 0 }]
+    ] },
+    "Send Processing Message": { "main": [[{ "node": "Build Orchestrator Requests", "type": "main", "index": 0 }]] },
+    "Build Orchestrator Requests": { "main": [[{ "node": "Call Summary Orchestrator", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataSuccessExecution": "all", "saveDataErrorExecution": "all", "saveManualExecutions": true, "saveExecutionProgress": false },
+  "staticData": null,
+  "meta": { "templateCredsSetupCompleted": true },
+  "tags": [
+    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
+  ]
+}

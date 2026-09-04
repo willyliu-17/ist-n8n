@@ -1,0 +1,2632 @@
+{
+  "id": "RepairCandidateV3A1",
+  "name": "Repair: process candidate v3",
+  "description": "Inactive per-candidate repair processor. Inputs: repairClass:string (retry_materialization or presentation_lease), candidateKey:string, scanTimeIso:string. Reuses the scheduler retry and presentation CAS, reread, verification, and owner-call protocols for exactly one candidate.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "repairClass",
+              "type": "string"
+            },
+            {
+              "name": "candidateKey",
+              "type": "string"
+            },
+            {
+              "name": "scanTimeIso",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "c9cb0c01-fcc7-4b14-8e72-c1f9e27b8001",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const { repairClass, candidateKey, scanTimeIso } = $input.first().json;\nif (!['retry_materialization', 'presentation_lease'].includes(repairClass)) throw new Error('Unsupported repair class');\nif (typeof candidateKey !== 'string' || candidateKey === '') throw new Error('candidateKey is required');\nif (typeof scanTimeIso !== 'string' || !Number.isFinite(Date.parse(scanTimeIso)) || new Date(Date.parse(scanTimeIso)).toISOString() !== scanTimeIso) throw new Error('scanTimeIso must be a canonical ISO timestamp');\nreturn [{ json: { kind: 'candidate', repairClass, attemptKey: candidateKey, nowIso: scanTimeIso, __repairGroupKey: `attempt:${candidateKey}` } }];"
+      },
+      "id": "7b2a9a9e-7cd5-4b80-93f1-8ea9aee8a001",
+      "name": "Validate Retry Candidate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            { "id": "4481ce2d-e9cf-4cb8-8e35-9db35c53bd98", "leftValue": "={{ $json.repairClass }}", "rightValue": "retry_materialization", "operator": { "type": "string", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "97ac3c37-e2f2-45ab-a869-ab0f42d306e3",
+      "name": "Route Candidate Repair Class",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [640, 0]
+    },
+    {
+      "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" }] }, "returnAll": true, "options": {} },
+      "id": "2c10da49-80a7-4927-942b-d2dbcadae19c",
+      "name": "Re-read Presentation Repair Attempt",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [980, 320],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $json.requestKey }}" }] }, "returnAll": true, "options": {} },
+      "id": "58aed9a0-5542-4c29-9f77-41d6a75cb65f",
+      "name": "Read Presentation Summary Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [1140, 380],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "mode": "append", "numberInputs": 3 },
+      "id": "fa3c9170-9d74-48c3-9f05-89270dd42b12",
+      "name": "Merge Presentation Attempt And Summary",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [1300, 320]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'presentation_plan' } }));" },
+      "id": "8780c712-521c-49c3-8f29-aae536e78a4d",
+      "name": "Tag Plan Presentation Repair",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1370, 320]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js" },
+      "id": "e455d590-a446-49e4-b5ba-1329ec5ea04a",
+      "name": "Plan Presentation Repair",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 320]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "4b7f9cb2-ff09-4f9c-87f4-72c7321d5537", "leftValue": "={{ $json.action }}", "rightValue": "claim", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} },
+      "id": "9a230422-5d50-4e2d-90af-dda3a491cff9",
+      "name": "Presentation Repair Is Actionable",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1510, 320]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, __planCarrier: true, __planPhase: 'presentation-claim', repairMode: 'presentation_verify' } }));" },
+      "id": "ea52a494-6acc-4f21-9a69-e4d8b72f7beb",
+      "name": "Carry Presentation Repair Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 320]
+    },
+    {
+      "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "id", "condition": "eq", "keyValue": "={{ $json.filters.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.filters.attemptKey }}" }, { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.filters.canonicalRowID }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "={{ $json.filters.presentationStatus }}" }, { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $json.filters.presentationAttempt }}" }, { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $json.filters.presentationLeaseOwner }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.filters.presentationLeaseUntilIso }}" }] }, "columns": { "mappingMode": "defineBelow", "value": { "presentationStatus": "pending", "presentationLeaseOwner": "", "presentationLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
+      "id": "95855be1-8fdd-4ff1-a5c2-783f5b6a3189",
+      "name": "Patch Presentation Repair",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [1600, 280],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "maxItems": 50 },
+      "id": "4d2a4e0e-0b51-4ade-888a-e4a9cffc5452",
+      "name": "Limit Presentation Repair Patch",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [1760, 280]
+    },
+    {
+      "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" }] }, "returnAll": true, "options": {} },
+      "id": "faa3cfe1-64f0-4daa-83dd-df85f130212f",
+      "name": "Re-read Presentation Repair Patch",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [1920, 280],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "mode": "append", "numberInputs": 2 },
+      "id": "b2d35ec1-ea5e-4d3d-b77c-09ee259eb9a2",
+      "name": "Merge Presentation Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [2080, 320]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'presentation_verify' } }));" },
+      "id": "4481ce2d-e9cf-4cb8-8e35-9db35c53bd98",
+      "name": "Tag Verify Presentation Repair",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 320]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js" },
+      "id": "11282fb8-a054-4f7b-a606-ce5b61b17f7c",
+      "name": "Verify Presentation Repair",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2240, 320]
+    },
+    {
+      "parameters": { "workflowId": { "__rl": true, "value": "STTListenerV3A01", "mode": "list", "cachedResultUrl": "/workflow/STTListenerV3A01", "cachedResultName": "STT result listener v3" }, "workflowInputs": { "mappingMode": "defineBelow", "value": { "attemptKey": "={{ $json.attemptKey }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": { "waitForSubWorkflow": false } },
+      "id": "ecff8d9c-06af-4949-8b7f-276c0d55c728",
+      "name": "Run Presentation Owner Repair",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [2400, 320]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "d8120eb3-4d8b-4f2a-9e43-cb8f3dcdb0e4",
+      "name": "Read Retry Same Attempt",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        980,
+        -120
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "731ce2a7-7b00-47c9-9754-cb5ce8905756",
+      "name": "Read Retry Summary Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1140,
+        -60
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 3
+      },
+      "id": "16ff7ba7-8966-4c67-9ab2-3dbecef81dac",
+      "name": "Merge Retry Claim Attempt And Summary",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1300,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_claim' } }));"
+      },
+      "id": "a1f1c000-0003-4000-8000-000000000003",
+      "name": "Tag Retry Claim",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1370,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "1a1d1fe3-453f-4979-b637-1b39b54dd043",
+      "name": "Plan Exact Retry Claim",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            { "id": "59f8e5a8-a311-46e7-a932-fdd538d42791", "leftValue": "={{ $json.action }}", "rightValue": "claim", "operator": { "type": "string", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3dc32c6d-f32e-4c13-aeb5-3fbce24aa703",
+      "name": "Retry Claim Is Actionable",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1510, -120]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            { "id": "f5a158e4-1001-45d4-b1c5-3ba6fe77e3b4", "leftValue": "={{ $json.action }}", "rightValue": "deadline_exhausted", "operator": { "type": "string", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ab2ea8d8-1133-4538-8aa0-e2a5aa9882ae",
+      "name": "Retry Deadline Is Exhausted",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1580, 0]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.filters.id }}" },
+            { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.filters.attemptKey }}" },
+            { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.filters.status }}" },
+            { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+            { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.filters.canonicalRowID }}" },
+            { "keyName": "nextRetryAtIso", "condition": "eq", "keyValue": "={{ $json.filters.nextRetryAtIso }}" },
+            { "keyName": "retryLeaseOwner", "condition": "eq", "keyValue": "={{ $json.filters.retryLeaseOwner }}" },
+            { "keyName": "retryLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.filters.retryLeaseUntilIso }}" }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "timed_out",
+            "errorCode": "stt_retry_deadline_exceeded",
+            "nextRetryAtIso": "",
+            "retryLeaseOwner": "",
+            "retryLeaseUntilIso": "",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "f5d89d57-6ddd-40af-b55e-7d3b7105ab29",
+      "name": "Expire Retry Deadline Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [1740, 0],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all().map(({ json }) => json).filter((row) => row?.id);\nif (rows.length !== 1) throw new Error('Retry deadline transition requires exactly one updated row');\nconst row = rows[0];\nif (row.status !== 'timed_out' || row.errorCode !== 'stt_retry_deadline_exceeded' || row.nextRetryAtIso !== '' || row.retryLeaseOwner !== '' || row.retryLeaseUntilIso !== '' || row.reconciliationStatus !== 'canonical' || row.canonicalRowID !== String(row.id)) throw new Error('Retry deadline transition verification failed');\nreturn [{ json: { repairClass: 'retry_materialization', candidateKey: row.attemptKey, result: 'repaired', terminalStatus: row.status } }];"
+      },
+      "id": "a0f2423b-5faa-4ccb-a369-da7fe9265fe6",
+      "name": "Verify Retry Deadline Exhausted",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1900, 0]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, __planCarrier: true, __planPhase: 'retry-claim', repairMode: 'retry_verify_claim' } }));"
+      },
+      "id": "263774d4-66e1-441f-95e0-b3c2c8e8cb83",
+      "name": "Carry Retry Claim Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.status }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.canonicalRowID }}"
+            },
+            {
+              "keyName": "nextRetryAtIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.nextRetryAtIso }}"
+            },
+            {
+              "keyName": "retryLeaseOwner",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.retryLeaseOwner }}"
+            },
+            {
+              "keyName": "retryLeaseUntilIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.filters.retryLeaseUntilIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "retry_materializing",
+            "retryLeaseOwner": "={{ $json.leaseOwner }}",
+            "retryLeaseUntilIso": "={{ $json.retryLeaseUntilIso }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "eec54b19-3b71-46ef-a74b-c9cc6ebd0dd1",
+      "name": "Claim Retry Materialization Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        -180
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "a95e57b6-d77e-4ecd-bebe-6ce8a5b455ea",
+      "name": "Limit Retry Claim",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "091181e5-f980-44cf-8efc-dae5f3957933",
+      "name": "Re-read Retry Claim Owner",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        2060,
+        -180
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "1f34ec78-adf6-4c09-8924-bf9e8b8772d5",
+      "name": "Merge Retry Claim Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2220,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_claim' } }));"
+      },
+      "id": "a1f1c000-0004-4000-8000-000000000004",
+      "name": "Tag Verify Retry Claim Owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "7590b7f1-dd60-4f52-a4a2-e3c2efcb076d",
+      "name": "Verify Retry Claim Owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2380,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.nextAttemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "1ded44d5-6686-4dd4-8bc0-ebfbbf22fc04",
+      "name": "Read Next Retry Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        2540,
+        -180
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "19709787-05f8-4f83-8f6b-438274ca4466",
+      "name": "Merge Retry Next Carrier And Rows",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2700,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.oldAttempt ? $json.oldAttempt.requestKey : $json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "03781ebb-79ef-49be-93c7-f6449f68f4a5",
+      "name": "Read Next Retry Summary Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        -60
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "fc73ff56-4ae5-43cf-9c0e-1cf49bfae27b",
+      "name": "Merge Retry Next Context And Summary",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3020,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_plan_next' } }));"
+      },
+      "id": "a1f1c000-0005-4000-8000-000000000005",
+      "name": "Tag Next Retry Attempt Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3090,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "4e3d9b73-ff35-49fe-a3f0-23a21bc0d871",
+      "name": "Plan Next Retry Attempt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3160,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.nextPlan.action }}",
+              "rightValue": "insert",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9f6ba8e1-34a0-4e64-bcb8-b773a64c37eb",
+      "name": "Route Next Retry Insert",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3320,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json.expectedNext, ...json, __planCarrier: true, __planPhase: 'retry-next-insert', repairMode: 'retry_verify_next' } }));"
+      },
+      "id": "57a9b095-e3e1-4851-b81f-9d6326c7eb42",
+      "name": "Carry Next Retry Insert Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3500,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "attemptKey": "={{ $json.attemptKey }}",
+            "logicalJobKey": "={{ $json.logicalJobKey }}",
+            "requestKey": "={{ $json.requestKey }}",
+            "requestType": "={{ $json.requestType }}",
+            "attempt": "={{ $json.attempt }}",
+            "role": "={{ $json.role }}",
+            "streamID": "={{ $json.streamID }}",
+            "mode": "={{ $json.mode }}",
+            "durationMinutes": "={{ $json.durationMinutes }}",
+            "streamContextJson": "={{ $json.streamContextJson }}",
+            "status": "queued",
+            "callbackTokenHash": "",
+            "reconciliationStatus": "pending",
+            "canonicalRowID": "",
+            "dispatchLeaseOwner": "",
+            "dispatchLeaseUntilIso": "",
+            "submittedAtIso": "",
+            "callbackDeadlineAtIso": "",
+            "manualReviewReason": "",
+            "manualReviewAtIso": "",
+            "manualReviewResolution": "",
+            "callbackTokenExpiresAtIso": "",
+            "consumedAtIso": "",
+            "channel": "={{ $json.channel }}",
+            "threadTS": "={{ $json.threadTS }}",
+            "processingMessageTS": "={{ $json.processingMessageTS }}",
+            "dialogue": "",
+            "language": "",
+            "errorCode": "",
+            "nextRetryAtIso": "",
+            "retryLeaseOwner": "",
+            "retryLeaseUntilIso": "",
+            "duplicateCount": 0,
+            "presentationStatus": "pending",
+            "presentationLeaseOwner": "",
+            "presentationLeaseUntilIso": "",
+            "presentationAttempt": 0,
+            "presentationNextRetryAtIso": "",
+            "presentationErrorCode": "",
+            "transcriptUploadID": "",
+            "analysisUploadID": "",
+            "processingMessageUpdatedAtIso": "",
+            "createdAtIso": "={{ $now.toUTC().toISO() }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ac7251b3-25db-4d14-89ef-2296a36ff86d",
+      "name": "Insert Next Retry Attempt",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        3680,
+        -320
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "b84e3eb0-0b4f-4386-8dc0-2a733b0043ef",
+      "name": "Limit Next Retry Insert",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        3840,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "199fff67-8957-451e-87f7-ecdd231e4dc4",
+      "name": "Re-read Next Retry Insert Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        -320
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "c1cd6bd3-32ba-4926-89c7-d6b56df44a12",
+      "name": "Merge Insert Retry Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4180,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "queued"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "pending"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": ""
+            },
+            {
+              "keyName": "updatedAtIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.updatedAtIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "canonical",
+            "canonicalRowID": "={{ String($json.id) }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "91a6efaa-a55d-41eb-a3fc-01ea9ecf99f0",
+      "name": "Canonicalize Inserted Next Retry Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        4090,
+        -320
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_next' } }));"
+      },
+      "id": "a1f1c000-0006-4000-8000-000000000006",
+      "name": "Tag Verify Next Retry Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4400,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.nextPlan.action }}",
+              "rightValue": "reconcile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bd92ffe2-4c92-4404-92a9-85a99bdf71b9",
+      "name": "Route Next Retry Reconcile",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3500,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().flatMap(({ json }) => (json.nextPlan.mutations || []).map((mutation) => ({ json: { ...json, mutation, __planCarrier: true, __planPhase: 'retry-next-reconcile', repairMode: 'retry_verify_next' } })));"
+      },
+      "id": "f88586ea-c0cb-413b-8fbf-f83835e3baa8",
+      "name": "Carry Next Retry Reconcile Mutations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3680,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedReconciliationStatus }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedCanonicalRowID }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "={{ $json.mutation.desiredReconciliationStatus }}",
+            "canonicalRowID": "={{ $json.mutation.desiredCanonicalRowID }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ee2ec84c-b299-476d-bf57-c0ef6840f0bf",
+      "name": "Reconcile Next Retry Attempt Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        3840,
+        -160
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "f31f1121-40d3-4a0b-b32e-2f2aae1b4bb1",
+      "name": "Limit Next Retry Reconciliation",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "3c258313-6b7d-4f43-99c6-13aaa8c6d468",
+      "name": "Re-read Reconcile Next Retry Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        4160,
+        -160
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "eab41ab3-f954-42e8-b7fa-7784f9d176d9",
+      "name": "Merge Reconcile Retry Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4320,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_next' } }));"
+      },
+      "id": "a1f1c000-0007-4000-8000-000000000007",
+      "name": "Tag Verify Next Retry Reconcile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4480,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.nextPlan.action }}",
+              "rightValue": "manual_review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4a7a1e6d-9ece-4af0-b30b-4e6519aaea10",
+      "name": "Route Next Retry Manual Review",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3680,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().flatMap(({ json }) => (json.nextPlan.mutations || []).map((mutation) => ({ json: { ...json, mutation, __planCarrier: true, __planPhase: 'retry-next-freeze', repairMode: 'retry_verify_freeze' } })));"
+      },
+      "id": "42ba26f4-7c31-4093-8bb7-c7ee967dbb53",
+      "name": "Carry Next Retry Freeze Mutations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.expectedCanonicalRowID }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "manual_review",
+            "manualReviewReason": "multiple_canonical_checkpoint_conflict",
+            "manualReviewAtIso": "={{ $now.toUTC().toISO() }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "3d0bda0a-638a-49e2-b1c3-a8e7f3c24e3d",
+      "name": "Freeze Next Retry Checkpoint Conflict Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        -40
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "5d416f5c-9db4-49a3-baa1-06daf222fdb9",
+      "name": "Limit Next Retry Freeze",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        4160,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.mutation.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "cd086ecd-ed7e-4b64-af23-9d1203e53174",
+      "name": "Re-read Freeze Next Retry Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        4320,
+        -40
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "05ed703e-21dd-4074-83a9-572155393774",
+      "name": "Merge Freeze Retry Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_freeze' } }));"
+      },
+      "id": "a1f1c000-0009-4000-8000-000000000009",
+      "name": "Tag Verify Next Retry Freeze",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "febf1202-5b9e-4902-a354-f5b1878fc15a",
+      "name": "Verify Next Retry Freeze",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.nextAttemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "d78350d6-ad83-44ea-ac48-000d5d2bdb95",
+      "name": "Re-read Ready Next Retry Attempt Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        3840,
+        100
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "894b00dd-f47b-4970-a3d5-e3b0f9672277",
+      "name": "Merge Ready Next Retry Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4040,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_next' } }));"
+      },
+      "id": "a1f1c000-0008-4000-8000-000000000008",
+      "name": "Tag Verify Next Retry Ready",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4200,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "bad0352a-c6d7-4f5b-92fc-e4a079c68248",
+      "name": "Verify Next Retry Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4640,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_plan_old_transition' } }));"
+      },
+      "id": "a1f1c000-0010-4000-8000-000000000010",
+      "name": "Tag Plan Auto Retry Old Transition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4740,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "533c252b-9e5d-470c-9efa-ccc74d5967da",
+      "name": "Plan Auto Retry Old Transition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4840,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.transition.filters.id }}"
+            },
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.transition.filters.attemptKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "retry_materializing"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ $json.transition.filters.canonicalRowID }}"
+            },
+            {
+              "keyName": "retryLeaseOwner",
+              "condition": "eq",
+              "keyValue": "={{ $json.transition.filters.retryLeaseOwner }}"
+            },
+            {
+              "keyName": "retryLeaseUntilIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.transition.filters.retryLeaseUntilIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "retry_materialized",
+            "retryLeaseOwner": "",
+            "retryLeaseUntilIso": "",
+            "manualReviewResolution": "={{ $json.transition.desired.manualReviewResolution }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "8959f6bf-6ece-42d4-930d-c2cead055305",
+      "name": "Transition Old Retry Materialized Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        5020,
+        -260
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "ec2ae664-a85d-488c-9f43-036199853e7a",
+      "name": "Limit Old Retry Transition",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        5180,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "18f4b30f-a283-48ed-baa4-1ba55eef2f9d",
+      "name": "Re-read Old Retry Transition",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        5340,
+        -260
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.manualReviewResolution.slice('retry_created:'.length) }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "dd2b44b2-8eb5-4fd6-a59b-6bf583b20629",
+      "name": "Re-read Next Retry Transition",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        5520,
+        -300
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "df1c71cb-1a4d-4a32-a2b0-c70ec728d45b",
+      "name": "Merge Old And Next Retry Rereads",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        5700,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "a0f3b6aa-ee8a-4b3e-8985-82caa76c902e",
+      "name": "Merge Retry Old Carrier And Rereads",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        5880,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'retry_verify_old' } }));"
+      },
+      "id": "a1f1c000-0011-4000-8000-000000000011",
+      "name": "Tag Verify Auto Retry Old Transition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5970,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Repairs/jsCode.js"
+      },
+      "id": "f505d92f-cb26-4c4c-957c-a19bf473cafb",
+      "name": "Verify Auto Retry Old Transition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6060,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "attemptKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.attemptKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "aced86c1-7a87-4257-87aa-f20470145187",
+      "name": "Re-read Next Before Retry Dispatch",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        6240,
+        -200
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all().map(({ json }) => json).filter((row) => row && Number.isInteger(row.id) && row.id > 0);\nif (rows.length === 0) throw new Error('Retry dispatch preflight rows not found');\nconst canonicals = rows.filter((row) => row.reconciliationStatus === 'canonical' && row.canonicalRowID === String(row.id));\nif (canonicals.length !== 1) throw new Error('Retry dispatch preflight requires exactly one canonical');\nconst canonical = canonicals[0];\nif (canonical.status !== 'queued' || canonical.dispatchLeaseOwner !== '' || canonical.dispatchLeaseUntilIso !== '') throw new Error('Retry dispatch preflight failed');\nif (rows.some((row) => row.attemptKey !== canonical.attemptKey || (row.id !== canonical.id && (row.reconciliationStatus !== 'duplicate' || row.canonicalRowID !== String(canonical.id))))) throw new Error('Retry dispatch preflight row set mismatch');\nreturn [{ json: { attemptKey: canonical.attemptKey } }];"
+      },
+      "id": "b68467aa-46f5-466c-a476-4304685fd3f1",
+      "name": "Preflight Canonical Next Retry Dispatch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6420,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "STTDispatchV3A01",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/STTDispatchV3A01",
+          "cachedResultName": "STT: dispatch attempt v3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "attemptKey": "={{ $json.attemptKey }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "392169de-2356-4af8-8a8f-f1b0383e69bc",
+      "name": "Dispatch Canonical Next Retry Attempt",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        6600,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const input = $('Validate Retry Candidate Input').first().json;\nreturn [{ json: { repairClass: input.repairClass, candidateKey: input.attemptKey, result: 'repaired', nextAttemptKey: input.repairClass === 'retry_materialization' ? $('Preflight Canonical Next Retry Dispatch').first().json.attemptKey : '' } }];"
+      },
+      "id": "b92b8e2e-6c00-4f77-a0be-b4b4e08b1001",
+      "name": "Return Repaired",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6840,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{ json: { repairClass: 'retry_materialization', candidateKey: $('Validate Retry Candidate Input').first().json.attemptKey, result: 'manual_review', nextAttemptKey: $json.nextAttemptKey || '' } }];"
+      },
+      "id": "77720de0-ffa2-43b3-bfc2-57133d089001",
+      "name": "Return Manual Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const input = $('Validate Retry Candidate Input').first().json;\nreturn [{ json: { repairClass: input.repairClass, candidateKey: input.attemptKey, result: 'noop', nextAttemptKey: '' } }];"
+      },
+      "id": "3a5ea592-f493-48d8-8f51-0c1b749ef001",
+      "name": "Return Noop",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        120
+      ]
+    }
+  ],
+  "connections": {
+    "Read Retry Same Attempt": {
+      "main": [
+        [
+          {
+            "node": "Read Retry Summary Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry Claim Attempt And Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Retry Summary Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry Claim Attempt And Summary",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Retry Claim Attempt And Summary": {
+      "main": [
+        [
+          {
+            "node": "Tag Retry Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Retry Claim": {
+      "main": [
+        [
+          {
+            "node": "Plan Exact Retry Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Exact Retry Claim": {
+      "main": [
+        [
+          {
+            "node": "Retry Claim Is Actionable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Claim Is Actionable": {
+      "main": [
+        [
+          {
+            "node": "Carry Retry Claim Plan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Retry Deadline Is Exhausted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Deadline Is Exhausted": {
+      "main": [
+        [
+          {
+            "node": "Expire Retry Deadline Exact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Noop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expire Retry Deadline Exact": {
+      "main": [
+        [
+          {
+            "node": "Verify Retry Deadline Exhausted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Retry Claim Plan": {
+      "main": [
+        [
+          {
+            "node": "Claim Retry Materialization Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry Claim Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Retry Materialization Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Retry Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Retry Claim": {
+      "main": [
+        [
+          {
+            "node": "Re-read Retry Claim Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Retry Claim Owner": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry Claim Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Retry Claim Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Retry Claim Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Retry Claim Owner": {
+      "main": [
+        [
+          {
+            "node": "Verify Retry Claim Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Retry Claim Owner": {
+      "main": [
+        [
+          {
+            "node": "Read Next Retry Attempt Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry Next Carrier And Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Next Retry Attempt Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry Next Carrier And Rows",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Retry Next Carrier And Rows": {
+      "main": [
+        [
+          {
+            "node": "Read Next Retry Summary Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry Next Context And Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Next Retry Summary Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry Next Context And Summary",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Retry Next Context And Summary": {
+      "main": [
+        [
+          {
+            "node": "Tag Next Retry Attempt Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Next Retry Attempt Plan": {
+      "main": [
+        [
+          {
+            "node": "Plan Next Retry Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Next Retry Attempt": {
+      "main": [
+        [
+          {
+            "node": "Route Next Retry Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Next Retry Insert": {
+      "main": [
+        [
+          {
+            "node": "Carry Next Retry Insert Plan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Next Retry Reconcile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Next Retry Insert Plan": {
+      "main": [
+        [
+          {
+            "node": "Insert Next Retry Attempt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Insert Retry Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Next Retry Attempt": {
+      "main": [
+        [
+          {
+            "node": "Limit Next Retry Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Next Retry Insert": {
+      "main": [
+        [
+          {
+            "node": "Re-read Next Retry Insert Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Next Retry Insert Rows": {
+      "main": [
+        [
+          {
+            "node": "Canonicalize Inserted Next Retry Exact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canonicalize Inserted Next Retry Exact": {
+      "main": [
+        [
+          {
+            "node": "Merge Insert Retry Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Insert Retry Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Next Retry Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Next Retry Insert": {
+      "main": [
+        [
+          {
+            "node": "Verify Next Retry Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Next Retry Reconcile": {
+      "main": [
+        [
+          {
+            "node": "Carry Next Retry Reconcile Mutations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Next Retry Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Next Retry Reconcile Mutations": {
+      "main": [
+        [
+          {
+            "node": "Reconcile Next Retry Attempt Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Reconcile Retry Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reconcile Next Retry Attempt Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Next Retry Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Next Retry Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Re-read Reconcile Next Retry Attempt Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Reconcile Next Retry Attempt Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Reconcile Retry Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Reconcile Retry Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Next Retry Reconcile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Next Retry Reconcile": {
+      "main": [
+        [
+          {
+            "node": "Verify Next Retry Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Next Retry Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Carry Next Retry Freeze Mutations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Re-read Ready Next Retry Attempt Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Ready Next Retry Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Next Retry Freeze Mutations": {
+      "main": [
+        [
+          {
+            "node": "Freeze Next Retry Checkpoint Conflict Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Freeze Retry Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freeze Next Retry Checkpoint Conflict Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Next Retry Freeze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Next Retry Freeze": {
+      "main": [
+        [
+          {
+            "node": "Re-read Freeze Next Retry Attempt Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Freeze Next Retry Attempt Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Freeze Retry Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Freeze Retry Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Next Retry Freeze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Next Retry Freeze": {
+      "main": [
+        [
+          {
+            "node": "Verify Next Retry Freeze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Next Retry Freeze": {
+      "main": [
+        [
+          {
+            "node": "Return Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Ready Next Retry Attempt Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Ready Next Retry Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Ready Next Retry Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Next Retry Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Next Retry Ready": {
+      "main": [
+        [
+          {
+            "node": "Verify Next Retry Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Next Retry Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Tag Plan Auto Retry Old Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Plan Auto Retry Old Transition": {
+      "main": [
+        [
+          {
+            "node": "Plan Auto Retry Old Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Auto Retry Old Transition": {
+      "main": [
+        [
+          {
+            "node": "Transition Old Retry Materialized Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry Old Carrier And Rereads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transition Old Retry Materialized Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Old Retry Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Old Retry Transition": {
+      "main": [
+        [
+          {
+            "node": "Re-read Old Retry Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Old Retry Transition": {
+      "main": [
+        [
+          {
+            "node": "Re-read Next Retry Transition",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Old And Next Retry Rereads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Next Retry Transition": {
+      "main": [
+        [
+          {
+            "node": "Merge Old And Next Retry Rereads",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Old And Next Retry Rereads": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry Old Carrier And Rereads",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Retry Old Carrier And Rereads": {
+      "main": [
+        [
+          {
+            "node": "Tag Verify Auto Retry Old Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Verify Auto Retry Old Transition": {
+      "main": [
+        [
+          {
+            "node": "Verify Auto Retry Old Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Auto Retry Old Transition": {
+      "main": [
+        [
+          {
+            "node": "Re-read Next Before Retry Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Next Before Retry Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Preflight Canonical Next Retry Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preflight Canonical Next Retry Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Dispatch Canonical Next Retry Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch Canonical Next Retry Attempt": {
+      "main": [
+        [
+          {
+            "node": "Return Repaired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Validate Retry Candidate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Retry Candidate Input": {
+      "main": [
+        [
+          {
+            "node": "Route Candidate Repair Class",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Candidate Repair Class": {
+      "main": [
+        [
+          {
+            "node": "Read Retry Same Attempt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry Claim Attempt And Summary",
+            "type": "main",
+            "index": 2
+          }
+        ],
+        [
+          {
+            "node": "Re-read Presentation Repair Attempt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Presentation Attempt And Summary",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Re-read Presentation Repair Attempt": {
+      "main": [
+        [
+          {
+            "node": "Read Presentation Summary Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Presentation Attempt And Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Presentation Summary Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Presentation Attempt And Summary",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Presentation Attempt And Summary": {
+      "main": [[{ "node": "Tag Plan Presentation Repair", "type": "main", "index": 0 }]]
+    },
+    "Tag Plan Presentation Repair": {
+      "main": [[{ "node": "Plan Presentation Repair", "type": "main", "index": 0 }]]
+    },
+    "Plan Presentation Repair": {
+      "main": [[{ "node": "Presentation Repair Is Actionable", "type": "main", "index": 0 }]]
+    },
+    "Presentation Repair Is Actionable": {
+      "main": [
+        [{ "node": "Carry Presentation Repair Plan", "type": "main", "index": 0 }],
+        [{ "node": "Return Noop", "type": "main", "index": 0 }]
+      ]
+    },
+    "Carry Presentation Repair Plan": {
+      "main": [[
+        { "node": "Patch Presentation Repair", "type": "main", "index": 0 },
+        { "node": "Merge Presentation Plan And Reread", "type": "main", "index": 0 }
+      ]]
+    },
+    "Patch Presentation Repair": {
+      "main": [[{ "node": "Limit Presentation Repair Patch", "type": "main", "index": 0 }]]
+    },
+    "Limit Presentation Repair Patch": {
+      "main": [[{ "node": "Re-read Presentation Repair Patch", "type": "main", "index": 0 }]]
+    },
+    "Re-read Presentation Repair Patch": {
+      "main": [[{ "node": "Merge Presentation Plan And Reread", "type": "main", "index": 1 }]]
+    },
+    "Merge Presentation Plan And Reread": {
+      "main": [[{ "node": "Tag Verify Presentation Repair", "type": "main", "index": 0 }]]
+    },
+    "Tag Verify Presentation Repair": {
+      "main": [[{ "node": "Verify Presentation Repair", "type": "main", "index": 0 }]]
+    },
+    "Verify Presentation Repair": {
+      "main": [[{ "node": "Run Presentation Owner Repair", "type": "main", "index": 0 }]]
+    },
+    "Run Presentation Owner Repair": {
+      "main": [[{ "node": "Return Repaired", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  },
+  "tags": [
+    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
+  ]
+}

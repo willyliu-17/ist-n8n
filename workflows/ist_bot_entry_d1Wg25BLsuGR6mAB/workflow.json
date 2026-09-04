@@ -7,38 +7,31 @@
   "nodes": [
     {
       "parameters": {
-        "trigger": [
-          "message"
-        ],
-        "channelId": {
-          "__rl": true,
-          "value": "C09F0SYG57D",
-          "mode": "id"
-        },
-        "options": {}
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "event",
+              "type": "object"
+            }
+          ]
+        }
       },
-      "type": "n8n-nodes-base.slackTrigger",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
       "position": [
         -272,
         0
       ],
       "id": "d09073a7-b9da-4156-a021-5c324eacce6b",
-      "name": "Slack Trigger",
-      "webhookId": "aa71edab-62f0-453f-8d70-8ea77eba6b4c",
-      "credentials": {
-        "slackApi": {
-          "id": "9sfslX7caXSFAVUN",
-          "name": "n8n-streaming-testing"
-        }
-      }
+      "name": "Start"
     },
     {
       "parameters": {
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Slack Trigger').params.channelId.value }}",
+          "value": "={{ $('Command parser').first().json.channel }}",
           "mode": "id"
         },
         "text": "=```\n{{ JSON.stringify($json, null, 2) }}\n```",
@@ -51,7 +44,7 @@
           },
           "thread_ts": {
             "replyValues": {
-              "thread_ts": "={{ $('Slack Trigger').item.json.ts }}"
+              "thread_ts": "={{ $('Command parser').first().json.thread_ts }}"
             }
           }
         }
@@ -670,7 +663,7 @@
     }
   ],
   "connections": {
-    "Slack Trigger": {
+    "Start": {
       "main": [
         [
           {
@@ -759,7 +752,8 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
   "staticData": null,
   "meta": {

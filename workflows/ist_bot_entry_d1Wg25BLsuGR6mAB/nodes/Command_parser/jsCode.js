@@ -141,41 +141,53 @@ function parseCommand(line) {
   return { group, action, args, positionals, text: line };
 }
 
-const out = [];
+const CHANNEL = 'C09F0SYG57D';
+const SLACK_TIMESTAMP_PATTERN = /^\d{10,}\.\d{6}$/;
 
-for (const it of items) {
-  const j = it.json;
-
+function parseBotItem(input) {
+  const hasWrappedEvent = input && typeof input === 'object' && Object.hasOwn(input, 'event');
+  if (hasWrappedEvent && (!input.event || typeof input.event !== 'object' || Array.isArray(input.event))) {
+    throw new Error('Slack event must be an object');
+  }
+  const j = hasWrappedEvent ? input.event : input;
   // Skip if missing payload
-  if (j == null) continue;
+  if (j == null) return null;
 
   // Skip bot messages
-  if (j && typeof j === 'object' && j.bot_id) continue;
+  if (j && typeof j === 'object' && j.bot_id) return null;
+  if (j.channel !== CHANNEL) throw new Error('Slack event channel is not allowed');
+  if (!SLACK_TIMESTAMP_PATTERN.test(j.ts || '')) throw new Error('Invalid Slack event timestamp');
+  if (!SLACK_TIMESTAMP_PATTERN.test(j.event_ts || '')) throw new Error('Invalid Slack event timestamp');
+  if (j.thread_ts != null && !SLACK_TIMESTAMP_PATTERN.test(j.thread_ts)) throw new Error('Invalid Slack thread timestamp');
 
   const texts = pickCandidateTexts(j);
   const cmdLine = findFirstCommandLineFromTexts(texts);
-  if (!cmdLine) continue;
+  if (!cmdLine) return null;
 
   const parsed = parseCommand(cmdLine);
-  if (!parsed || !parsed.group || !parsed.action) continue;
+  if (!parsed || !parsed.group || !parsed.action) return null;
 
   const { group, action, args, positionals, text } = parsed;
-
-  out.push({
-    json: {
-      client_msg_id: j.client_msg_id,
-      ts: j.ts,
-      event_ts: j.event_ts,
-      routeKey: `${group}:${action}`,
-      group,
-      action,
-      args,
-      positionals,
-      text,
-      channel: j.channel,
-      channel_type: j.channel_type,
-    },
-  });
+  return {
+    client_msg_id: j.client_msg_id,
+    ts: j.ts,
+    event_ts: j.event_ts,
+    thread_ts: j.thread_ts ?? j.ts,
+    routeKey: `${group}:${action}`,
+    group,
+    action,
+    args,
+    positionals,
+    text,
+    channel: j.channel,
+    channel_type: j.channel_type,
+  };
 }
 
-return out;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { CHANNEL, parseBotItem, parseCommand };
+}
+
+if (typeof items !== 'undefined') {
+  return items.map(({ json }) => parseBotItem(json)).filter(Boolean).map((json) => ({ json }));
+}
