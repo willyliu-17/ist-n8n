@@ -424,7 +424,7 @@ test('requires the exact unexpired owner and fails closed on conflicts or zero-C
   }), /mismatch/);
 });
 
-test('parses the pinned n8n 1.123.27 Slack 2.3 expanded upload item only', () => {
+test('parses the pinned Slack 2.3 upload shape supported by Production n8n 2.38.2', () => {
   assert.equal(state.extractSlackUploadID(PINNED_SLACK_2_3_UPLOAD_ITEMS), 'F08ABC123');
   for (const items of [
     [],
