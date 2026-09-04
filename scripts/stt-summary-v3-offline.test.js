@@ -148,14 +148,14 @@ test('keeps every source Data Table reference as one authoritative static name p
   assert.deepEqual(new Set(references.map(({ tableName }) => tableName)), new Set(V3_DATA_TABLE_NAMES));
 });
 
-test('pins Data Table nodes to the version registered by Production n8n 1.123.27', () => {
+test('pins Data Table nodes to a version supported by Production n8n 2.38.2', () => {
   const nodes = workflowEntries.flatMap(({ workflow }) => workflow.nodes)
     .filter(({ type }) => type === 'n8n-nodes-base.dataTable');
   assert.ok(nodes.length > 0);
   assert.ok(nodes.every(({ typeVersion }) => typeVersion === 1));
 });
 
-test('pins Execute Workflow Trigger nodes to the version registered by Production n8n 1.123.27', () => {
+test('pins Execute Workflow Trigger nodes to versions supported by Production n8n 2.38.2', () => {
   const nodes = workflowEntries.flatMap(({ workflow }) => workflow.nodes)
     .filter(({ type }) => type === 'n8n-nodes-base.executeWorkflowTrigger');
   assert.ok(nodes.length > 0);
