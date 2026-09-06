@@ -37,6 +37,18 @@
                     "leftValue": "={{ $json.channel }}",
                     "rightValue": "C09F0SYG57D",
                     "operator": { "type": "string", "operation": "equals" }
+                  },
+                  {
+                    "id": "14000002-0000-4000-8000-000000000003",
+                    "leftValue": "={{ $json.bot_id || '' }}",
+                    "rightValue": "",
+                    "operator": { "type": "string", "operation": "equals" }
+                  },
+                  {
+                    "id": "14000002-0000-4000-8000-000000000004",
+                    "leftValue": "={{ $json.subtype || '' }}",
+                    "rightValue": "",
+                    "operator": { "type": "string", "operation": "equals" }
                   }
                 ],
                 "combinator": "and"
@@ -50,6 +62,18 @@
                     "id": "14000002-0000-4000-8000-000000000002",
                     "leftValue": "={{ $json.channel }}",
                     "rightValue": "C0A4JJJKJMD",
+                    "operator": { "type": "string", "operation": "equals" }
+                  },
+                  {
+                    "id": "14000002-0000-4000-8000-000000000005",
+                    "leftValue": "={{ $json.bot_id || '' }}",
+                    "rightValue": "",
+                    "operator": { "type": "string", "operation": "equals" }
+                  },
+                  {
+                    "id": "14000002-0000-4000-8000-000000000006",
+                    "leftValue": "={{ $json.subtype || '' }}",
+                    "rightValue": "",
                     "operator": { "type": "string", "operation": "equals" }
                   }
                 ],

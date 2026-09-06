@@ -32,11 +32,20 @@ function reassembleContexts(plan, resolverRows) {
 }
 
 function eligibilityError(context) {
-  if (!context || context.status === 'not_found' || context.eligible !== true
-    || context.profile !== 'stt' || context.source !== 'livestream_v2') {
-    return `Stream ${context?.liveStreamID || 'unknown'} is not eligible for Summary STT`;
+  if (context && context.status !== 'not_found' && context.eligible === true
+    && context.profile === 'stt' && context.source === 'livestream_v2') return null;
+  const reasons = [];
+  if (!context) reasons.push('resolver context missing');
+  else {
+    if (context.status) reasons.push(`status=${context.status}`);
+    if (context.profile !== 'stt') reasons.push(`profile=${context.profile || 'missing'}`);
+    if (context.source !== 'livestream_v2') reasons.push(`source=${context.source || 'missing'}`);
+    if (Array.isArray(context.missingFields) && context.missingFields.length) {
+      reasons.push(`missingFields=${context.missingFields.join(',')}`);
+    }
+    if (!reasons.length) reasons.push('resolver marked stream ineligible');
   }
-  return null;
+  return `Stream ${context?.liveStreamID || 'unknown'} is not eligible for Summary STT (${reasons.join('; ')})`;
 }
 
 function buildReassembledRequests(calls, resolverRows) {
@@ -49,21 +58,19 @@ function buildReassembledRequests(calls, resolverRows) {
   const output = [];
   for (const plan of grouped.values()) {
     const contexts = reassembleContexts(plan, resolverRows);
-    const error = contexts.map(eligibilityError).find(Boolean);
-    if (error) {
-      output.push({ candidate: plan.candidate, eligibilityError: error });
-      continue;
-    }
     for (const position of plan.positions) {
       const context = contexts[position.originalIndex];
+      const error = eligibilityError(context);
       output.push({
         candidate: plan.candidate,
+        eligibilityError: error || '',
         stream: {
           role: position.role,
           liveStreamID: position.liveStreamID,
           mode: position.mode,
           durationMinutes: 5,
           streamContext: context,
+          ...(error ? { sttEligible: false } : {}),
         },
       });
     }

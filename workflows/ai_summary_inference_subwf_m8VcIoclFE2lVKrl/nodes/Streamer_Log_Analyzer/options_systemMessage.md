@@ -5,6 +5,7 @@
 1. 數據接收：直接解析輸入 payload.data（推流指標列表）。
 2. 指標判讀：依門檻判斷異常。
 3. 例外處理：排除預期內波動（IP/解析度/網路切換）。
+4. IP 證據：使用 UserIP 與 IPRegion 判斷 IP change 或跨區路徑，但回報時不可輸出完整 IP 位址。
 
 【核心指標門檻】
 - 範圍說明：SL 聚焦串流傳輸 Metrics（Ping/Bitrate/UnsentCount/NetworkType/解析度變化等）。

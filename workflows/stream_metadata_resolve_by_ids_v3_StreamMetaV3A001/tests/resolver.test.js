@@ -17,6 +17,16 @@ function normalize(profile, streams = [{ liveStreamID: '123' }]) {
   return validateAndNormalize({ streams, lookupWindow: explicitWindow, profile });
 }
 
+function sttRow(overrides = {}) {
+  return {
+    liveStreamID: '123', userID: 'u1', beginTime: '10', endTime: '20', duration: '10',
+    caption: 'host is live', region: 'TW', vliverModel: '0', appVersion: '1.2.3',
+    deviceType: 'ios', isOBS: false, closeBy: 'normal', streamMode: 'normal', deviceModel: 'phone',
+    osVersion: '18', publicIP: '192.0.2.1', ipRegion: 'TW', openID: 'host',
+    ...overrides,
+  };
+}
+
 test('validates input and uses strict numeric IDs', () => {
   const invalidInputs = [
     { streams: [], profile: 'stt' },
@@ -135,6 +145,45 @@ test('finalizes complete rows for all profiles', () => {
   assert.equal(vds.status, 'found');
   assert.equal(vds.eligible, true);
   assert.equal(vds.publishSec, 0);
+});
+
+test('normalizes OBS booleans and boolean strings while rejecting other nonempty values', () => {
+  for (const [isOBS, expected] of [[true, true], [false, false], ['true', true], ['false', false]]) {
+    const result = finalize(normalize('stt'), [sttRow({ isOBS })])[0];
+    assert.equal(result.isOBS, expected);
+    assert.equal(result.missingFields.includes('isOBS'), false);
+  }
+
+  for (const isOBS of ['TRUE', '1', 1, {}]) {
+    const result = finalize(normalize('stt'), [sttRow({ isOBS })])[0];
+    assert.equal(result.isOBS, null);
+    assert.equal(result.status, 'partial');
+    assert.equal(result.missingFields.includes('isOBS'), true);
+  }
+});
+
+test('defaults missing STT vliverModel to zero but rejects invalid nonempty values', () => {
+  for (const vliverModel of [null, undefined, '', '   ']) {
+    const result = finalize(normalize('stt'), [sttRow({ vliverModel })])[0];
+    assert.equal(result.vliverModel, 0);
+    assert.equal(result.missingFields.includes('vliverModel'), false);
+    assert.equal(result.eligible, true);
+  }
+
+  for (const vliverModel of [-1, '-1', false, '0x10']) {
+    const result = finalize(normalize('stt'), [sttRow({ vliverModel })])[0];
+    assert.equal(result.vliverModel, null);
+    assert.equal(result.missingFields.includes('vliverModel'), true);
+    assert.equal(result.eligible, false);
+  }
+});
+
+test('requires region for STT eligibility', () => {
+  const result = finalize(normalize('stt'), [sttRow({ region: null })])[0];
+
+  assert.equal(result.status, 'partial');
+  assert.equal(result.eligible, false);
+  assert.equal(result.missingFields.includes('region'), true);
 });
 
 test('distinguishes partial and not_found and computes eligibility', () => {
@@ -302,7 +351,7 @@ test('keeps SQL fixed, narrow, parameterized, and batch-only', () => {
 
   const projectedFields = {
     core: ['liveStreamID', 'userID', 'openID', 'beginTime', 'endTime', 'duration', 'closeBy', 'streamMode', 'vliverModel', 'isOBS'],
-    stt: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'duration', 'region', 'vliverModel', 'appVersion', 'deviceType', 'isOBS', 'openID'],
+    stt: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'duration', 'closeBy', 'streamMode', 'caption', 'region', 'vliverModel', 'appVersion', 'deviceType', 'deviceModel', 'osVersion', 'publicIP', 'ipRegion', 'isOBS', 'openID'],
     vds: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'publishSec', 'region', 'ipRegion'],
   };
   for (const [profile, sql] of Object.entries(sqlFiles)) {

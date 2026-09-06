@@ -1135,11 +1135,12 @@ function aggregateLogicalJobs(request, rows) {
   validateRequestRow(request);
   const streams = parseOrderedStreams(request);
   const existing = parseExistingDialogues(request);
+  const expected = parseExpectedLogicalJobKeys(request, streams, existing);
   if (!Array.isArray(rows)) throw new Error('attempt rows must be an array');
   const grouped = new Map();
   for (const row of rows.filter((candidate) => candidate && candidate.id)) {
     validateAttemptRow(row);
-    if (row.requestKey !== request.requestKey) throw new Error('attempt request linkage mismatch');
+    if (row.requestKey !== request.requestKey || !expected.includes(row.logicalJobKey)) throw new Error('attempt request linkage mismatch');
     const group = grouped.get(row.attemptKey) || [];
     group.push(row);
     grouped.set(row.attemptKey, group);
@@ -1156,6 +1157,7 @@ function aggregateLogicalJobs(request, rows) {
   const available = new Map();
   const failed = [];
   const unresolved = [];
+  const hardFailed = new Set();
   for (const stream of streams) {
     const key = `${request.requestKey}:${stream.role}:${stream.liveStreamID}:${stream.mode}`;
     const persisted = existing[stream.role];
@@ -1163,11 +1165,9 @@ function aggregateLogicalJobs(request, rows) {
       available.set(key, { stream, dialogue: persisted.dialogue });
       continue;
     }
+    if (!expected.includes(key)) continue;
     const attempts = canonicalByLogical.get(key) || [];
-    if (!attempts.length) {
-      unresolved.push(key);
-      continue;
-    }
+    if (!attempts.length) throw new Error('missing canonical attempt');
     const successes = attempts.filter((row) => row.status === 'completed');
     if (successes.length) {
       available.set(key, { stream, dialogue: [...successes].sort((a, b) => a.attempt - b.attempt || compareRows(a, b))[0].dialogue });
@@ -1180,22 +1180,32 @@ function aggregateLogicalJobs(request, rows) {
       unresolved.push(key);
       continue;
     }
+    if (activeAttempts.some((row) => row.status === 'timed_out')) {
+      failed.push(key);
+      continue;
+    }
     if (activeAttempts.length && activeAttempts.every((row) => TERMINAL_ATTEMPT_STATUSES.has(row.status))) {
       failed.push(key);
+      hardFailed.add(key);
       continue;
     }
     throw new Error('unsupported attempt status');
   }
   if (unresolved.length) return { action: 'pending', status: 'waiting_stt', unresolvedLogicalJobKeys: unresolved };
   const resolved = streams.filter((stream) => available.has(`${request.requestKey}:${stream.role}:${stream.liveStreamID}:${stream.mode}`));
-  const coverageStatus = resolved.length === streams.length ? 'complete' : resolved.length ? 'partial' : 'all_failed';
+  const allFailed = resolved.length === 0 && expected.length === streams.length
+    && expected.length > 0 && hardFailed.size === expected.length;
+  const coverageStatus = allFailed ? 'all_failed' : resolved.length === streams.length ? 'complete' : 'partial';
   return {
-    action: coverageStatus === 'all_failed' ? 'all_failed' : 'ready',
+    action: allFailed ? 'all_failed' : 'ready',
     coverageStatus,
     availableRoles: resolved.map((stream) => stream.role),
     missingRoles: streams.filter((stream) => !resolved.includes(stream)).map((stream) => stream.role),
     failedLogicalJobKeys: failed,
-    streams: resolved.map((stream) => ({ ...stream, dialogue: available.get(`${request.requestKey}:${stream.role}:${stream.liveStreamID}:${stream.mode}`).dialogue })),
+    streams: streams.map((stream) => ({
+      ...stream,
+      dialogue: available.get(`${request.requestKey}:${stream.role}:${stream.liveStreamID}:${stream.mode}`)?.dialogue || '',
+    })),
   };
 }
 
@@ -1220,13 +1230,17 @@ function parseOrderedStreams(request) {
     if (typeof stream.durationMinutes !== 'number' || !Number.isFinite(stream.durationMinutes) || stream.durationMinutes <= 0) {
       throw new Error('Invalid ordered stream duration');
     }
+    if (Object.hasOwn(stream, 'sttEligible') && typeof stream.sttEligible !== 'boolean') throw new Error('Invalid ordered stream sttEligible');
     const context = stream.streamContext;
     if (!context || typeof context !== 'object' || Array.isArray(context)) throw new Error('Invalid stream context');
-    if (context.liveStreamID !== stream.liveStreamID || context.eligible !== true) throw new Error('Resolved stream context is not eligible');
-    for (const field of ['beginTime', 'endTime']) {
-      if (typeof context[field] !== 'number' || !Number.isFinite(context[field])) throw new Error('Invalid stream context time');
+    if (context.liveStreamID !== stream.liveStreamID || typeof context.eligible !== 'boolean') throw new Error('Invalid resolved stream context');
+    if (stream.sttEligible !== false) {
+      if (context.eligible !== true) throw new Error('Resolved stream context is not eligible');
+      for (const field of ['beginTime', 'endTime']) {
+        if (typeof context[field] !== 'number' || !Number.isFinite(context[field])) throw new Error('Invalid stream context time');
+      }
+      if (context.endTime < context.beginTime) throw new Error('Invalid stream context range');
     }
-    if (context.endTime < context.beginTime) throw new Error('Invalid stream context range');
   }
   return streams;
 }
@@ -1247,6 +1261,24 @@ function parseExistingDialogues(request) {
   return value;
 }
 
+function parseExpectedLogicalJobKeys(request, streams, existing) {
+  let expectedKeys;
+  try {
+    expectedKeys = JSON.parse(request.expectedLogicalJobKeysJson);
+  } catch {
+    throw new Error('Invalid expectedLogicalJobKeysJson');
+  }
+  if (!Array.isArray(expectedKeys)) throw new Error('Invalid expectedLogicalJobKeysJson');
+  const computed = streams
+    .filter((stream) => stream.sttEligible !== false && !existing[stream.role])
+    .map((stream) => `${request.requestKey}:${stream.role}:${stream.liveStreamID}:${stream.mode}`);
+  if (computed.length !== expectedKeys.length || new Set(expectedKeys).size !== expectedKeys.length
+    || computed.some((key, index) => key !== expectedKeys[index])) {
+    throw new Error('Immutable expected keys mismatch');
+  }
+  return expectedKeys;
+}
+
 function planCreationRepair(request, attempts = [], nowIso = new Date().toISOString()) {
   validateRequestRow(request);
   strictIso(nowIso, 'current time');
@@ -1260,20 +1292,7 @@ function planCreationRepair(request, attempts = [], nowIso = new Date().toISOStr
   if (owner !== '' && untilParsed > Date.parse(nowIso)) return { action: 'noop', repairClass: 'creation_lease', reason: 'creation_lease_active' };
   const orderedStreams = parseOrderedStreams(request);
   const existingDialogues = parseExistingDialogues(request);
-  let expectedKeys;
-  try {
-    expectedKeys = JSON.parse(request.expectedLogicalJobKeysJson);
-  } catch {
-    throw new Error('Invalid expectedLogicalJobKeysJson');
-  }
-  if (!Array.isArray(expectedKeys)) throw new Error('Invalid expectedLogicalJobKeysJson');
-  const computed = orderedStreams
-    .filter((stream) => !existingDialogues[stream.role])
-    .map((stream) => `${request.requestKey}:${stream.role}:${stream.liveStreamID}:${stream.mode}`);
-  if (computed.length !== expectedKeys.length || new Set(expectedKeys).size !== expectedKeys.length
-    || computed.some((key, index) => key !== expectedKeys[index])) {
-    throw new Error('Immutable expected keys mismatch');
-  }
+  parseExpectedLogicalJobKeys(request, orderedStreams, existingDialogues);
   if (Array.isArray(attempts) && attempts.length > 0) {
     for (const att of attempts) {
       if (att && att.id) {

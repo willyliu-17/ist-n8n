@@ -13,19 +13,22 @@ function finiteNumber(value, fieldName) {
   return value;
 }
 
-function canonicalContext(context, liveStreamID, index) {
+function canonicalContext(context, liveStreamID, index, sttEligible) {
   if (!context || typeof context !== 'object' || Array.isArray(context)) throw new Error(`orderedStreams[${index}].streamContext must be an object`);
-  if (context.liveStreamID !== liveStreamID || context.eligible !== true
+  if (context.liveStreamID !== liveStreamID || typeof context.eligible !== 'boolean'
     || context.profile !== 'stt' || context.source !== 'livestream_v2') {
-    throw new Error(`orderedStreams[${index}].streamContext is not resolver-owned eligible STT context`);
+    throw new Error(`orderedStreams[${index}].streamContext is not resolver-owned STT context`);
   }
-  for (const field of ['userID', 'openID', 'region']) requiredString(context[field], `streamContext.${field}`);
-  const beginTime = finiteNumber(context.beginTime, 'streamContext.beginTime');
-  const endTime = finiteNumber(context.endTime, 'streamContext.endTime');
-  const duration = finiteNumber(context.duration, 'streamContext.duration');
-  const vliverModel = finiteNumber(context.vliverModel, 'streamContext.vliverModel');
-  if (beginTime <= 0 || endTime <= beginTime || duration < 0 || vliverModel < 0) {
-    throw new Error(`orderedStreams[${index}].streamContext has invalid numeric ranges`);
+  if (sttEligible) {
+    if (context.eligible !== true) throw new Error(`orderedStreams[${index}].streamContext is not eligible for STT`);
+    for (const field of ['userID', 'openID', 'region']) requiredString(context[field], `streamContext.${field}`);
+    const beginTime = finiteNumber(context.beginTime, 'streamContext.beginTime');
+    const endTime = finiteNumber(context.endTime, 'streamContext.endTime');
+    const duration = finiteNumber(context.duration, 'streamContext.duration');
+    const vliverModel = finiteNumber(context.vliverModel, 'streamContext.vliverModel');
+    if (beginTime <= 0 || endTime <= beginTime || duration < 0 || vliverModel < 0) {
+      throw new Error(`orderedStreams[${index}].streamContext has invalid numeric ranges`);
+    }
   }
   return { ...context };
 }
@@ -70,10 +73,14 @@ function normalizeRequest(input) {
     if (!mode) throw new Error(`orderedStreams[${index}].mode is invalid`);
     const durationMinutes = finiteNumber(stream.durationMinutes, `orderedStreams[${index}].durationMinutes`);
     if (durationMinutes <= 0) throw new Error(`orderedStreams[${index}].durationMinutes must be positive`);
+    if (Object.hasOwn(stream, 'sttEligible') && typeof stream.sttEligible !== 'boolean') {
+      throw new Error(`orderedStreams[${index}].sttEligible must be a boolean`);
+    }
+    const sttEligible = Object.hasOwn(stream, 'sttEligible') ? stream.sttEligible : stream.streamContext?.eligible === true;
     const logicalJobKey = `${requestKey}:${role}:${liveStreamID}:${mode}`;
     const dialogue = existingDialogueFor(input.existingDialogues, role, logicalJobKey);
     let processingMessageTS = '';
-    if (dialogue === '') {
+    if (dialogue === '' && sttEligible) {
       processingMessageTS = requiredString(stream.processingMessageTS, `orderedStreams[${index}].processingMessageTS`);
       if (!SLACK_TIMESTAMP_PATTERN.test(processingMessageTS)) {
         throw new Error(`orderedStreams[${index}].processingMessageTS must be a persisted Slack timestamp`);
@@ -84,7 +91,8 @@ function normalizeRequest(input) {
       liveStreamID,
       mode,
       durationMinutes,
-      streamContext: canonicalContext(stream.streamContext, liveStreamID, index),
+      streamContext: canonicalContext(stream.streamContext, liveStreamID, index, sttEligible),
+      ...(sttEligible ? {} : { sttEligible: false }),
       ...(processingMessageTS ? { processingMessageTS } : {}),
     };
   });
@@ -99,7 +107,10 @@ function normalizeRequest(input) {
     const logicalJobKey = `${requestKey}:${stream.role}:${stream.liveStreamID}:${stream.mode}`;
     const dialogue = existingDialogueFor(input.existingDialogues, stream.role, logicalJobKey);
     if (dialogue) existingDialogues[stream.role] = { logicalJobKey, dialogue };
-    else expectedLogicalJobKeys.push(logicalJobKey);
+    else if (stream.sttEligible !== false) expectedLogicalJobKeys.push(logicalJobKey);
+  }
+  if (expectedLogicalJobKeys.length === 0 && Object.keys(existingDialogues).length === 0) {
+    throw new Error('Summary request requires at least one usable STT evidence source');
   }
   return {
     requestKey,

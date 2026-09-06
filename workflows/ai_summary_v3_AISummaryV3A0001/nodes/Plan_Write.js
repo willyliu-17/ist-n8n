@@ -9,7 +9,7 @@ function currentOwner(carrier, rows) {
 function planWrite(items) {
   const carrier = items.find((item) => item?.kind === 'carrier');
   const row = currentOwner(carrier, items.filter((item) => item?.id));
-  const values = carrier.nextStage === 'inference' ? { inferenceResultJson: carrier.inferenceResultJson, summaryMarkdown: carrier.summaryMarkdown } : carrier.nextStage === 'upload' ? { summaryUploadID: carrier.checkpointValue } : carrier.nextStage === 'message' ? { summaryMessageTS: carrier.checkpointValue } : carrier.nextStage === 'complete' ? { status: 'completed', leaseOwner: '', leaseUntilIso: '' } : null;
+  const values = carrier.nextStage === 'inference' ? { inferenceResultJson: carrier.inferenceResultJson, summaryMarkdown: carrier.summaryMarkdown } : carrier.nextStage === 'upload' ? { summaryUploadID: carrier.checkpointValue } : carrier.nextStage === 'message' ? { summaryMessageTS: carrier.checkpointValue } : carrier.nextStage === 'complete' ? { status: 'completed', nextRetryAtIso: '', errorCode: '', leaseOwner: '', leaseUntilIso: '' } : null;
   const requiredValues = carrier.nextStage === 'complete' ? [values?.status] : Object.values(values || {});
   if (!values || requiredValues.some((value) => value === undefined || value === '')) throw new Error('checkpoint payload missing');
   return { kind: 'plan', input: carrier.input, requestKey: carrier.input.requestKey, row, ownerConditions: carrier.ownerConditions, nextStage: carrier.nextStage, values };

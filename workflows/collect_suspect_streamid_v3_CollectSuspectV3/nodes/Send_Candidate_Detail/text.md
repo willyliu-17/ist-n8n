@@ -1,0 +1,3 @@
+=🔍 *自動化檢測詳情*
+StreamID: `{{ $json.streamID }}`
+來源: {{ JSON.parse($json.sourcesJson).join(', ') }}{{ ($json.sourcesJson.includes('commentCaptionKeyword') || $json.sourcesJson.includes('captionKeyword')) ? '\n🎯 Hit Keywords: `' + $('Build Candidate Query Config').first().json.searchKeywords + '`' : '' }}{{ $json.sourcesJson.includes('endByNewStream') ? '\n⏳ Hit Conditions: `Prev endByNewStream + Restart in 60s + Contracted TW streamer`' : '' }}{{ $json.prevStreamID ? '\nPrevStreamID: `' + $json.prevStreamID + '`' : '' }}

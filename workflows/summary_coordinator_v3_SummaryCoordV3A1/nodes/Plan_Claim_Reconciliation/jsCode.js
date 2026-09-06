@@ -21,25 +21,33 @@ function compareRows(left, right) {
 }
 function hasCheckpoint(row) { return CHECKPOINTS.some((key) => nonempty(row[key] || '')); }
 function logicalKey(request, stream) { return `${request.requestKey}:${stream.role}:${stream.liveStreamID}:${stream.mode}`; }
-function plainObject(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
+function plainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
 function requestImmutables(row) {
   const streams = json(row.orderedStreamsJson, 'orderedStreamsJson', Array.isArray);
   const expected = json(row.expectedLogicalJobKeysJson, 'expectedLogicalJobKeysJson', Array.isArray);
   const existing = json(row.existingDialoguesJson, 'existingDialoguesJson', (value) => value && !Array.isArray(value));
-  if (!streams.length || streams.length !== expected.length || new Set(expected).size !== expected.length) throw new Error('request immutable fields mismatch');
+  if (!streams.length || new Set(expected).size !== expected.length) throw new Error('request immutable fields mismatch');
   const roles = new Set();
-  streams.forEach((stream, index) => {
+  streams.forEach((stream) => {
     const context = stream?.streamContext;
+    const sttEligible = stream?.sttEligible !== false;
     if (!stream || !nonempty(stream.role) || roles.has(stream.role) || !nonempty(String(stream.liveStreamID)) || !['fromStart', 'fromEnd'].includes(stream.mode)
-      || !plainObject(context) || String(context.liveStreamID) !== String(stream.liveStreamID) || context.eligible !== true
-      || !Number.isFinite(context.beginTime) || !Number.isFinite(context.endTime) || context.endTime < context.beginTime) throw new Error('invalid ordered stream');
+      || Object.hasOwn(stream, 'sttEligible') && typeof stream.sttEligible !== 'boolean'
+      || !plainObject(context) || String(context.liveStreamID) !== String(stream.liveStreamID)
+      || sttEligible && (context.eligible !== true || !Number.isFinite(context.beginTime)
+        || !Number.isFinite(context.endTime) || context.endTime < context.beginTime)) throw new Error('invalid ordered stream');
     roles.add(stream.role);
-    if (expected[index] !== logicalKey(row, stream)) throw new Error('expected logical identity mismatch');
   });
   for (const [role, dialogue] of Object.entries(existing)) {
     const stream = streams.find((candidate) => candidate.role === role);
     if (!stream || !dialogue || dialogue.logicalJobKey !== logicalKey(row, stream) || !nonempty(dialogue.dialogue)) throw new Error('invalid existing dialogue');
   }
+  const expectedFromStreams = streams
+    .filter((stream) => stream.sttEligible !== false && !existing[stream.role])
+    .map((stream) => logicalKey(row, stream));
+  if (JSON.stringify(expectedFromStreams) !== JSON.stringify(expected)) throw new Error('expected logical identity mismatch');
 }
 function validateRequestRows(rows, requestKey) {
   if (!nonempty(requestKey) || !Array.isArray(rows) || rows.length === 0) throw new Error('request rows not found');
@@ -74,7 +82,7 @@ function planRequestReconciliation(rows, requestKey) {
   return mutations.length ? { action: 'reconcile', winnerRowID: winner.id, mutations } : { action: 'ready', winnerRowID: winner.id, canonical: winner };
 }
 function planClaimReconciliation(rows, requestKey) { return planRequestReconciliation(rows, requestKey); }
-if (typeof module !== 'undefined' && module.exports) module.exports = { planClaimReconciliation };
+if (typeof module !== 'undefined' && module.exports) module.exports = { plainObject, planClaimReconciliation };
 if (typeof $input !== 'undefined') {
   const plan = planClaimReconciliation($input.all().map(({ json: row }) => row).filter((row) => row && Object.hasOwn(row, 'id')), $('Start').first().json.requestKey);
   if (plan.action === 'ready') return [{ json: { ...plan.canonical, action: 'ready' } }];

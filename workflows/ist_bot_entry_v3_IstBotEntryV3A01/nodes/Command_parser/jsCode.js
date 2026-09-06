@@ -42,7 +42,7 @@ function parseBotItem(input) {
     throw new Error('Slack event must be an object');
   }
   const event = hasWrappedEvent ? input.event : input;
-  if (!event || typeof event !== 'object' || event.bot_id) return null;
+  if (!event || typeof event !== 'object' || event.bot_id || event.subtype) return null;
   if (event.channel !== CHANNEL) throw new Error('Slack event channel is not allowed');
   if (!SLACK_TIMESTAMP_PATTERN.test(event.ts || '')) throw new Error('Invalid Slack event timestamp');
   if (!SLACK_TIMESTAMP_PATTERN.test(event.event_ts || '')) throw new Error('Invalid Slack event timestamp');

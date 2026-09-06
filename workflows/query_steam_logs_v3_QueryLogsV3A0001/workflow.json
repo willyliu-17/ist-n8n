@@ -856,12 +856,14 @@
     },
     {
       "parameters": {
-        "method": "GET",
+        "method": "POST",
         "url": "https://slack.com/api/files.getUploadURLExternal",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "slackApi",
-        "sendQuery": true,
-        "queryParameters": {
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "specifyBody": "keypair",
+        "bodyParameters": {
           "parameters": [
             {
               "name": "filename",
@@ -873,7 +875,9 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "timeout": 30000
+        }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
@@ -883,6 +887,9 @@
       ],
       "id": "8f678514-3735-431d-ba51-db516e85c839",
       "name": "Get Slack Upload URL",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",

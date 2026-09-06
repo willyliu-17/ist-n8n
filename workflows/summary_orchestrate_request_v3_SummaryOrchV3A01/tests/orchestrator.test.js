@@ -196,6 +196,61 @@ test('maps existing dialogue by role or exact logical identity and creates no at
   assert.throws(() => normalized({ existingDialogues: { current: 'one', [key]: 'two' } }), /ambiguous/i);
 });
 
+test('keeps unavailable stream context while creating attempts only for eligible streams', () => {
+  for (const unavailableRole of ['previous', 'current']) {
+    const previous = stream({
+      role: 'previous', liveStreamID: '8001', mode: 'last', processingMessageTS: '1787364002.000003',
+      streamContext: { ...stream().streamContext, liveStreamID: '8001', userID: 'user-2', openID: 'open-2' },
+    });
+    const current = stream();
+    const unavailable = unavailableRole === 'previous' ? previous : current;
+    unavailable.sttEligible = false;
+    unavailable.processingMessageTS = undefined;
+    unavailable.streamContext = { ...unavailable.streamContext, eligible: false, openID: null, missingFields: ['openID'] };
+    const result = normalized({ orderedStreams: [previous, current] });
+    const expectedRole = unavailableRole === 'previous' ? 'current' : 'previous';
+
+    assert.equal(result.orderedStreams.length, 2);
+    assert.equal(result.orderedStreams.find(({ role }) => role === unavailableRole).sttEligible, false);
+    assert.equal(Object.hasOwn(result.orderedStreams.find(({ role }) => role === unavailableRole), 'processingMessageTS'), false);
+    assert.equal(result.expectedLogicalJobKeys.length, 1);
+    assert.match(result.expectedLogicalJobKeys[0], new RegExp(`:${expectedRole}:`));
+    assert.equal(buildAttempts(result, NOW).length, 1);
+  }
+});
+
+test('rejects requests with no STT attempt and no existing dialogue', () => {
+  const unavailable = stream({
+    sttEligible: false,
+    processingMessageTS: undefined,
+    streamContext: { ...stream().streamContext, eligible: false, openID: null, missingFields: ['openID'] },
+  });
+  assert.throws(() => normalized({ orderedStreams: [unavailable] }), /usable STT evidence/i);
+});
+
+test('initial coverage treats unavailable streams as missing without dispatching them', () => {
+  const unavailable = stream({
+    role: 'previous', liveStreamID: '8001', mode: 'last', sttEligible: false, processingMessageTS: undefined,
+    streamContext: { ...stream().streamContext, liveStreamID: '8001', eligible: false, openID: null, missingFields: ['openID'] },
+  });
+  const result = normalized({ orderedStreams: [unavailable, stream()] });
+  const attempts = buildAttempts(result, NOW).map((value, index) => ({
+    id: 100 + index, createdAt: NOW, updatedAt: NOW, ...value,
+    reconciliationStatus: 'canonical', canonicalRowID: String(100 + index),
+  }));
+  const coverage = verifyCoverage({
+    ...requestRow(), orderedStreamsJson: result.orderedStreamsJson,
+    existingDialoguesJson: result.existingDialoguesJson,
+    expectedLogicalJobKeysJson: result.expectedLogicalJobKeysJson,
+  }, attempts);
+
+  assert.equal(coverage.status, 'waiting_stt');
+  assert.equal(coverage.coverageStatus, 'waiting_stt');
+  assert.deepEqual(JSON.parse(coverage.availableRolesJson), []);
+  assert.deepEqual(JSON.parse(coverage.missingRolesJson), ['previous', 'current']);
+  assert.equal(coverage.dispatchAttempts.length, 1);
+});
+
 test('builds exact Task 1 attempt schema and deterministic keys for missing dialogues', () => {
   const attempts = buildAttempts(normalized(), NOW);
   assert.equal(attempts.length, 1);
