@@ -2,21 +2,23 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const {
   aggregateLogicalJobs, planRequestReconciliation, planRequestResolution, runRequestResolution,
-  validateRequestRows, verifyRequestReconciliation,
+  plainObject: aggregatePlainObject, validateRequestRows, verifyRequestReconciliation,
 } = require('../nodes/Aggregate_Logical_Jobs/jsCode');
 const { buildSummaryInput } = require('../nodes/Build_Summary_Input/jsCode');
 const {
   planAllFailedWrite, planCoverageFromRuntime, planCoverageWrite, verifyCoverageWrite,
 } = require('../nodes/Plan_Coverage_Write/jsCode');
 const { planClaim } = require('../nodes/Plan_Claim/jsCode');
+const { plainObject: claimPlainObject } = require('../nodes/Plan_Claim_Reconciliation/jsCode');
 const { verifyClaim, verifyClaimRuntime } = require('../nodes/Verify_Claim/jsCode');
 const { splitPlanAndRows, verifyPlan, verifyCarrierInput: verifyInitialCarrierInput } = require('../nodes/Verify_Initial_Plan/jsCode');
 const { verifyCarrierInput: verifyClaimTimeCarrierInput } = require('../nodes/Verify_Claim_Time_Plan/jsCode');
 const { verifyCarrierInput: verifyPreflightCarrierInput } = require('../nodes/Verify_Preflight_Plan/jsCode');
 const { splitPlanAndRows: splitCoverageCarrierAndRows } = require('../nodes/Verify_Request_Write/jsCode');
-const { preflightAI, runPreflightRuntime } = require('../nodes/Preflight_AI/jsCode');
+const { plainObject: preflightPlainObject, preflightAI, runPreflightRuntime } = require('../nodes/Preflight_AI/jsCode');
 
 const NOW = '2026-08-24T00:00:00.000Z';
 const LATER = '2026-08-24T00:10:00.000Z';
@@ -35,11 +37,22 @@ function attempt(role = 'current', overrides = {}) {
   const logicalJobKey = `${KEY}:${role}:${stream.liveStreamID}:${stream.mode}`;
   const number = overrides.attempt || 1;
   const { id = (role === 'current' ? 200 + number : 210 + number), canonicalRowID, ...rest } = overrides;
-  return { id, createdAt: NOW, updatedAt: NOW, requestKey: KEY, requestType: 'suspect', logicalJobKey, attemptKey: `${logicalJobKey}:${number}`, attempt: number, role, streamID: String(stream.liveStreamID), mode: stream.mode, streamContextJson: JSON.stringify(stream.streamContext), status: 'completed', dialogue: `${role} dialogue`, reconciliationStatus: 'canonical', canonicalRowID: canonicalRowID === undefined ? String(id) : String(canonicalRowID), manualReviewResolution: '', ...rest };
+  return { id, createdAt: NOW, updatedAt: NOW, requestKey: KEY, requestType: 'suspect', logicalJobKey, attemptKey: `${logicalJobKey}:${number}`, attempt: number, role, streamID: String(stream.liveStreamID), mode: stream.mode, streamContextJson: JSON.stringify(stream.streamContext), status: 'completed', dialogue: `${role} dialogue`, language: '', errorCode: '', reconciliationStatus: 'canonical', canonicalRowID: canonicalRowID === undefined ? String(id) : String(canonicalRowID), manualReviewResolution: '', ...rest };
 }
 function manual(id, stage = 'ready', checkpoint = '') {
   return request({ id, canonicalRowID: String(id), status: 'manual_review', manualReviewOriginalStage: stage, summaryMarkdown: checkpoint, createdAt: id === 101 ? NOW : LATER, manualReviewResolution: '', manualResolutionDecisionID: '', manualResolutionWinnerRowID: '' });
 }
+
+test('accepts plain records across runtime realms', () => {
+  const foreignRecord = vm.runInNewContext('({ eligible: true })');
+  for (const predicate of [aggregatePlainObject, claimPlainObject, preflightPlainObject]) {
+    assert.equal(predicate(foreignRecord), true);
+    assert.equal(predicate(Object.create(null)), true);
+    assert.equal(predicate([]), false);
+    assert.equal(predicate(null), false);
+    assert.equal(predicate('context'), false);
+  }
+});
 
 test('validates complete request system linkage and immutable JSON', () => {
   validateRequestRows([request()], KEY);
@@ -74,34 +87,89 @@ test('freezes all competing canonicals when a duplicate or pending row carries a
   }
 });
 test('aggregates lowest completed nonempty dialogue in ordered streams', () => {
-  const result = aggregateLogicalJobs(request(), [attempt('current', { attempt: 2, id: 202, canonicalRowID: '202', dialogue: 'later' }), attempt('current'), attempt('previous')]);
+  const result = aggregateLogicalJobs(request(), [attempt('current', { attempt: 2, id: 202, canonicalRowID: '202', dialogue: 'later' }), attempt('current', { language: 'zh' }), attempt('previous')]);
   assert.equal(result.coverageStatus, 'complete'); assert.equal(result.streams[0].dialogue, 'current dialogue');
   assert.deepEqual(result.availableRoles, ['current', 'previous']);
+  assert.deepEqual(result.streams[0].transcript, { outcome: 'transcribed', language: 'zh', errorCode: '' });
 });
 test('treats completed empty transcription as complete stream coverage', () => {
   const result = aggregateLogicalJobs(request(), [
-    attempt('current', { dialogue: '', errorCode: 'callback_empty_transcription' }),
+    attempt('current', { dialogue: '', language: '', errorCode: 'callback_empty_transcription' }),
     attempt('previous'),
   ]);
   assert.equal(result.action, 'ready');
   assert.equal(result.coverageStatus, 'complete');
   assert.deepEqual(result.availableRoles, ['current', 'previous']);
   assert.equal(result.streams[0].dialogue, '');
+  assert.deepEqual(result.streams[0].transcript, { outcome: 'empty', language: '', errorCode: 'callback_empty_transcription' });
 });
-test('treats timed-out summary STT as empty transcription and keeps failed-only coverage terminal', () => {
+test('treats timed-out summary STT as missing evidence and keeps failed-only coverage terminal', () => {
   assert.equal(aggregateLogicalJobs(request(), [attempt('current'), attempt('previous', { status: 'failed', dialogue: '' })]).coverageStatus, 'partial');
   const timedOut = aggregateLogicalJobs(request(), [attempt('current', { status: 'failed', dialogue: '' }), attempt('previous', { status: 'timed_out', dialogue: '' })]);
   assert.equal(timedOut.action, 'ready');
   assert.equal(timedOut.coverageStatus, 'partial');
-  assert.equal(timedOut.streams[0].dialogue, '');
+  assert.deepEqual(timedOut.availableRoles, []);
+  assert.deepEqual(timedOut.missingRoles, ['current', 'previous']);
+  assert.deepEqual(timedOut.streams.map(({ dialogue }) => dialogue), ['', '']);
+  assert.deepEqual(timedOut.streams.map(({ transcript }) => transcript.outcome), ['failed', 'timed_out']);
   const allTimedOut = aggregateLogicalJobs(request(), [
     attempt('current', { status: 'timed_out', dialogue: '' }),
     attempt('previous', { status: 'timed_out', dialogue: '' }),
   ]);
   assert.equal(allTimedOut.action, 'ready');
-  assert.equal(allTimedOut.coverageStatus, 'complete');
+  assert.equal(allTimedOut.coverageStatus, 'partial');
+  assert.deepEqual(allTimedOut.availableRoles, []);
+  assert.deepEqual(allTimedOut.missingRoles, ['current', 'previous']);
   assert.deepEqual(allTimedOut.streams.map(({ dialogue }) => dialogue), ['', '']);
   assert.equal(aggregateLogicalJobs(request(), [attempt('current', { status: 'failed', dialogue: '' }), attempt('previous', { status: 'failed', dialogue: '' })]).action, 'all_failed');
+});
+test('uses the actual timed-out attempt for transcript metadata during aggregation and preflight', () => {
+  const attempts = [
+    attempt('current', { status: 'timed_out', dialogue: '', language: 'zh', errorCode: 'TIMEOUT_EVIDENCE' }),
+    attempt('current', { attempt: 2, id: 202, canonicalRowID: '202', status: 'failed', dialogue: '', language: 'en', errorCode: 'WRONG_FAILED' }),
+    attempt('previous'),
+  ];
+  const coverage = aggregateLogicalJobs(request(), attempts);
+  assert.deepEqual(coverage.streams[0].transcript, { outcome: 'timed_out', language: 'zh', errorCode: 'TIMEOUT_EVIDENCE' });
+
+  const claimed = request({
+    status: 'summary_dispatching',
+    leaseOwner: 'exec-a',
+    leaseUntilIso: LATER,
+    coverageStatus: coverage.coverageStatus,
+    availableRolesJson: JSON.stringify(coverage.availableRoles),
+    missingRolesJson: JSON.stringify(coverage.missingRoles),
+    failedLogicalJobKeysJson: JSON.stringify(coverage.failedLogicalJobKeys),
+  });
+  const [preflight] = runPreflightRuntime([claimed], attempts, KEY, 'exec-a', NOW);
+  assert.deepEqual(preflight.streams[0].transcript, { outcome: 'timed_out', language: 'zh', errorCode: 'TIMEOUT_EVIDENCE' });
+});
+
+test('keeps an unavailable stream in partial AI evidence without requiring an attempt', () => {
+  const streams = [
+    STREAMS[0],
+    { ...STREAMS[1], sttEligible: false, streamContext: { ...STREAMS[1].streamContext, eligible: false, openID: null, missingFields: ['openID'] } },
+  ];
+  const result = aggregateLogicalJobs(request({
+    orderedStreamsJson: JSON.stringify(streams),
+    expectedLogicalJobKeysJson: JSON.stringify([expected[0]]),
+  }), [attempt('current')]);
+
+  assert.equal(result.action, 'ready');
+  assert.equal(result.coverageStatus, 'partial');
+  assert.deepEqual(result.availableRoles, ['current']);
+  assert.deepEqual(result.missingRoles, ['previous']);
+  assert.equal(result.streams.length, 2);
+  assert.equal(result.streams[1].dialogue, '');
+  assert.equal(result.streams[1].transcript.outcome, 'ineligible');
+  assert.equal(result.streams[1].streamContext.eligible, false);
+});
+test('marks caller-provided dialogue distinctly without creating an attempt', () => {
+  const existingDialoguesJson = JSON.stringify({ current: { logicalJobKey: expected[0], dialogue: 'provided dialogue' } });
+  const result = aggregateLogicalJobs(request({ existingDialoguesJson, expectedLogicalJobKeysJson: JSON.stringify([expected[1]]) }), [attempt('previous')]);
+
+  assert.equal(result.streams[0].dialogue, 'provided dialogue');
+  assert.deepEqual(result.streams[0].transcript, { outcome: 'provided', language: '', errorCode: '' });
 });
 test('pending and unresolved manual block coverage', () => {
   assert.equal(aggregateLogicalJobs(request(), [attempt('current', { status: 'queued', dialogue: '' }), attempt('previous')]).action, 'pending');
@@ -243,7 +311,7 @@ test('preflight runtime wrapper calls pure validation and blocks pending, manual
   assert.throws(() => runPreflightRuntime([claimed], [attempt('current', { status: 'failed', dialogue: '' }), attempt('previous', { status: 'failed', dialogue: '' })], KEY, 'exec-a', NOW), /not usable/);
   assert.throws(() => runPreflightRuntime([{ ...claimed, availableRolesJson: '[]' }], [attempt('current'), attempt('previous')], KEY, 'exec-a', NOW), /persisted coverage mismatch/);
 });
-test('preflight preserves timed-out summary STT as complete empty transcription', () => {
+test('preflight preserves timed-out stream metadata as partial missing evidence', () => {
   const attempts = [attempt('current'), attempt('previous', { status: 'timed_out', dialogue: '' })];
   const coverage = aggregateLogicalJobs(request(), attempts);
   const claimed = request({
@@ -257,8 +325,11 @@ test('preflight preserves timed-out summary STT as complete empty transcription'
   });
   const [result] = runPreflightRuntime([claimed], attempts, KEY, 'exec-a', NOW);
   assert.equal(result.action, 'ai');
-  assert.equal(result.coverageStatus, 'complete');
+  assert.equal(result.coverageStatus, 'partial');
+  assert.deepEqual(result.availableRoles, ['current']);
+  assert.deepEqual(result.missingRoles, ['previous']);
   assert.equal(result.streams[1].dialogue, '');
+  assert.equal(result.streams[1].transcript.outcome, 'timed_out');
 });
 test('rejects malformed request context and corrupted attempt duplicate linkage', () => {
   assert.throws(() => validateRequestRows([request({ orderedStreamsJson: JSON.stringify([{ ...STREAMS[0], streamContext: [] }, STREAMS[1]]) })], KEY), /invalid ordered stream/);
@@ -270,6 +341,8 @@ test('AI input is a natural resolved allowlist without storage fields', () => {
   const aggregate = aggregateLogicalJobs(request(), [attempt('current'), attempt('previous', { status: 'failed', dialogue: '' })]);
   const input = buildSummaryInput(request({ leaseOwner: 'secret', reconciliationStatus: 'canonical' }), aggregate);
   assert.deepEqual(Object.keys(input), ['requestKey', 'requestType', 'channel', 'threadTS', 'coverageStatus', 'availableRoles', 'missingRoles', 'failedLogicalJobKeys', 'streams']);
+  assert.equal(input.streams.length, 2);
+  assert.deepEqual(input.streams.map(({ transcript }) => transcript.outcome), ['transcribed', 'failed']);
   assert.doesNotMatch(JSON.stringify(input), /leaseOwner|canonicalRowID|streamContextJson/);
 });
 test('manual resolution selects one checkpoint and identical earliest checkpoint', () => {

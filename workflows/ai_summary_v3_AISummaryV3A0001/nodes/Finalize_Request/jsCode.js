@@ -1,6 +1,7 @@
 const CHANNEL = 'C0A4JJJKJMD';
 const TS = /^\d{10,}\.\d{6}$/;
 const CHECKPOINTS = ['inferenceResultJson', 'summaryMarkdown', 'summaryUploadID', 'summaryMessageTS'];
+const TRANSCRIPT_OUTCOMES = new Set(['provided', 'transcribed', 'empty', 'timed_out', 'failed', 'ineligible']);
 
 function text(value) { return typeof value === 'string' ? value.trim() : ''; }
 function systemRowID(value) { return Number.isInteger(value) && value > 0; }
@@ -15,13 +16,30 @@ function validateInput(input) {
   if (!input || Object.keys(input).length !== keys.length || keys.some((key) => !(key in input))) throw new Error('input must contain exactly nine fields');
   if (!text(input.requestKey) || !text(input.requestType) || input.channel !== CHANNEL || !TS.test(input.threadTS)) throw new Error('invalid request routing');
   if (!['complete', 'partial'].includes(input.coverageStatus) || !Array.isArray(input.availableRoles) || !Array.isArray(input.missingRoles) || !Array.isArray(input.failedLogicalJobKeys) || !Array.isArray(input.streams) || input.streams.length === 0) throw new Error('invalid resolved coverage');
+  const availableRoles = new Set(input.availableRoles);
+  const missingRoles = new Set(input.missingRoles);
+  if (availableRoles.size !== input.availableRoles.length || missingRoles.size !== input.missingRoles.length
+    || [...availableRoles].some((role) => missingRoles.has(role))) throw new Error('invalid role coverage');
+  const streamRoles = new Set();
   input.streams.forEach((stream) => {
-    const keys = ['role', 'liveStreamID', 'mode', 'dialogue', 'streamContext'];
+    const keys = ['role', 'liveStreamID', 'mode', 'dialogue', 'transcript', 'streamContext'];
     if (!stream || Object.keys(stream).length !== keys.length || keys.some((key) => !(key in stream))) throw new Error('invalid resolved stream shape');
-    if (!text(stream.role) || !text(stream.liveStreamID) || !['fromStart', 'fromEnd'].includes(stream.mode) || typeof stream.dialogue !== 'string' || !stream.streamContext || Array.isArray(stream.streamContext) || typeof stream.streamContext !== 'object') throw new Error('invalid resolved stream');
+    if (!text(stream.role) || !text(stream.liveStreamID) || !['fromStart', 'fromEnd'].includes(stream.mode) || typeof stream.dialogue !== 'string' || !stream.transcript || Array.isArray(stream.transcript) || typeof stream.transcript !== 'object' || !stream.streamContext || Array.isArray(stream.streamContext) || typeof stream.streamContext !== 'object') throw new Error('invalid resolved stream');
+    if (Object.keys(stream.transcript).length !== 3 || !TRANSCRIPT_OUTCOMES.has(stream.transcript.outcome)
+      || typeof stream.transcript.language !== 'string' || typeof stream.transcript.errorCode !== 'string') throw new Error('invalid transcript outcome');
+    if (streamRoles.has(stream.role) || (!availableRoles.has(stream.role) && !missingRoles.has(stream.role))) throw new Error('invalid stream role coverage');
+    const availableOutcome = ['provided', 'transcribed', 'empty'].includes(stream.transcript.outcome);
+    if (availableRoles.has(stream.role) !== availableOutcome
+      || stream.transcript.outcome === 'empty' && stream.dialogue !== ''
+      || stream.transcript.outcome !== 'empty' && availableOutcome && stream.dialogue === ''
+      || missingRoles.has(stream.role) && stream.dialogue !== '') throw new Error('transcript outcome does not match stream coverage');
+    streamRoles.add(stream.role);
     const { beginTime, endTime } = stream.streamContext;
-    if (!Number.isFinite(beginTime) || !Number.isFinite(endTime) || beginTime > endTime) throw new Error('invalid resolved stream time window');
+    if (availableRoles.has(stream.role) && (!Number.isFinite(beginTime) || !Number.isFinite(endTime) || beginTime > endTime)) throw new Error('invalid resolved stream time window');
   });
+  if (streamRoles.size !== availableRoles.size + missingRoles.size
+    || input.coverageStatus === 'complete' && missingRoles.size !== 0
+    || input.coverageStatus === 'partial' && missingRoles.size === 0) throw new Error('coverage status does not match stream roles');
   return input;
 }
 function hasCheckpoint(row) { return CHECKPOINTS.some((key) => text(row[key])); }
@@ -69,7 +87,7 @@ function failurePlan(row, stage, errorCode, now = new Date()) {
 }
 function completePlan(row) {
   if (!CHECKPOINTS.every((key) => text(row[key]))) throw new Error('all checkpoints are required before completion');
-  return { action: 'complete', conditions: ownerConditions(row), values: { status: 'completed', leaseOwner: '', leaseUntilIso: '' } };
+  return { action: 'complete', conditions: ownerConditions(row), values: { status: 'completed', nextRetryAtIso: '', errorCode: '', leaseOwner: '', leaseUntilIso: '' } };
 }
 function verify(row, plan) {
   if (!row || row.id !== plan.conditions.id) throw new Error('write verifier did not read canonical row');

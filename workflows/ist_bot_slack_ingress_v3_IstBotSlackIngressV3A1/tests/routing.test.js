@@ -42,6 +42,13 @@ test('owns the only workspace Slack trigger and routes exactly two channels', ()
     'C0A4JJJKJMD',
   ]);
   assert.ok(rules.every(({ conditions }) => conditions.conditions[0].leftValue === '={{ $json.channel }}'));
+  for (const { conditions } of rules) {
+    assert.deepEqual(conditions.conditions.slice(1).map(({ leftValue, rightValue }) => ({ leftValue, rightValue })), [
+      { leftValue: "={{ $json.bot_id || '' }}", rightValue: '' },
+      { leftValue: "={{ $json.subtype || '' }}", rightValue: '' },
+    ]);
+    assert.ok(conditions.conditions.every(({ operator }) => operator.type === 'string' && operator.operation === 'equals'));
+  }
 
   assert.deepEqual(workflow.connections['Route Supported Channel'].main, [
     [{ node: 'Call Legacy Entry', type: 'main', index: 0 }],

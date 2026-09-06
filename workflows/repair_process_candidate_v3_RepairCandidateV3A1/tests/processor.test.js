@@ -182,7 +182,7 @@ test('processor has no structurally unreachable nodes', () => {
   assert.deepEqual(new Set(names), reached);
 });
 
-test('processor aggregate ignores materialized predecessors when the latest retry is terminal', () => {
+test('processor aggregate treats timeout as partial and hard failure as all_failed', () => {
   const requestKey = 'summary:req-001';
   const logicalJobKey = `${requestKey}:current:9001:fromStart`;
   const streamContext = { liveStreamID: '9001', eligible: true, beginTime: 1787360400, endTime: 1787364000 };
@@ -217,7 +217,7 @@ test('processor aggregate ignores materialized predecessors when the latest retr
     updatedAtIso: '2026-08-24T00:00:00.000Z',
     reconciliationStatus: 'canonical',
   });
-  const result = aggregateLogicalJobs(request, [
+  const attempts = [
     {
       ...baseAttempt,
       id: 10,
@@ -236,8 +236,71 @@ test('processor aggregate ignores materialized predecessors when the latest retr
       manualReviewResolution: '',
       canonicalRowID: '11',
     },
-  ]);
+  ];
+  const result = aggregateLogicalJobs(request, attempts);
 
-  assert.equal(result.action, 'all_failed');
-  assert.equal(result.coverageStatus, 'all_failed');
+  assert.equal(result.action, 'ready');
+  assert.equal(result.coverageStatus, 'partial');
+  assert.deepEqual(result.failedLogicalJobKeys, [logicalJobKey]);
+  assert.equal(result.streams.length, 1);
+  assert.equal(result.streams[0].dialogue, '');
+
+  const hardFailure = aggregateLogicalJobs(request, attempts.map((row) => (
+    row.status === 'timed_out' ? { ...row, status: 'failed' } : row
+  )));
+  assert.equal(hardFailure.action, 'all_failed');
+  assert.equal(hardFailure.coverageStatus, 'all_failed');
+});
+
+test('processor aggregate preserves unavailable paired stream without expecting an attempt', () => {
+  const requestKey = 'summary:req-002';
+  const logicalJobKey = `${requestKey}:current:9001:fromStart`;
+  const currentContext = { liveStreamID: '9001', eligible: true, beginTime: 1787360400, endTime: 1787364000 };
+  const unavailableContext = { liveStreamID: '9002', eligible: false, profile: 'stt', source: 'livestream_v2' };
+  const request = tableRow('summary_requests_v3', {
+    id: 2,
+    requestKey,
+    requestType: 'suspect',
+    channel: 'C0A4JJJKJMD',
+    threadTS: '1234567890.123456',
+    status: 'waiting_stt',
+    orderedStreamsJson: JSON.stringify([
+      { role: 'current', liveStreamID: '9001', mode: 'fromStart', durationMinutes: 5, streamContext: currentContext },
+      { role: 'suspect', liveStreamID: '9002', mode: 'fromStart', durationMinutes: 5, streamContext: unavailableContext, sttEligible: false },
+    ]),
+    expectedLogicalJobKeysJson: JSON.stringify([logicalJobKey]),
+    existingDialoguesJson: '{}',
+    reconciliationStatus: 'canonical',
+    canonicalRowID: '2',
+  });
+  const completed = tableRow('stt_jobs_v3', {
+    id: 20,
+    attemptKey: `${logicalJobKey}:1`,
+    logicalJobKey,
+    requestKey,
+    requestType: 'suspect',
+    attempt: 1,
+    role: 'current',
+    streamID: '9001',
+    mode: 'fromStart',
+    durationMinutes: 5,
+    streamContextJson: JSON.stringify(currentContext),
+    status: 'completed',
+    channel: 'C0A4JJJKJMD',
+    threadTS: '1234567890.123456',
+    processingMessageTS: '1234567891.123456',
+    dialogue: 'current transcript',
+    reconciliationStatus: 'canonical',
+    canonicalRowID: '20',
+  });
+
+  const result = aggregateLogicalJobs(request, [completed]);
+
+  assert.equal(result.action, 'ready');
+  assert.equal(result.coverageStatus, 'partial');
+  assert.deepEqual(result.availableRoles, ['current']);
+  assert.deepEqual(result.missingRoles, ['suspect']);
+  assert.equal(result.streams.length, 2);
+  assert.equal(result.streams[0].dialogue, 'current transcript');
+  assert.equal(result.streams[1].dialogue, '');
 });

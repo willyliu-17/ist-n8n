@@ -26,26 +26,41 @@ function checkpointVector(row) { return CHECKPOINTS.map((key) => row[key] || '')
 function hasCheckpoint(row) { return checkpointVector(row).some(nonempty); }
 function sameVector(left, right) { return checkpointVector(left).every((value, index) => value === checkpointVector(right)[index]); }
 function logicalKey(request, stream) { return `${request.requestKey}:${stream.role}:${stream.liveStreamID}:${stream.mode}`; }
-function plainObject(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
+function plainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+function transcript(outcome, row = {}) {
+  return {
+    outcome,
+    language: typeof row.language === 'string' ? row.language : '',
+    errorCode: typeof row.errorCode === 'string' ? row.errorCode : '',
+  };
+}
 
 function requestImmutables(row) {
   const streams = json(row.orderedStreamsJson, 'orderedStreamsJson', Array.isArray);
   const expected = json(row.expectedLogicalJobKeysJson, 'expectedLogicalJobKeysJson', Array.isArray);
   const existing = json(row.existingDialoguesJson, 'existingDialoguesJson', (value) => value && !Array.isArray(value));
-  if (!streams.length || streams.length !== expected.length || new Set(expected).size !== expected.length) throw new Error('request immutable fields mismatch');
+  if (!streams.length || new Set(expected).size !== expected.length) throw new Error('request immutable fields mismatch');
   const roles = new Set();
-  streams.forEach((stream, index) => {
+  streams.forEach((stream) => {
     const context = stream?.streamContext;
+    const sttEligible = stream?.sttEligible !== false;
     if (!stream || !nonempty(stream.role) || roles.has(stream.role) || !nonempty(String(stream.liveStreamID)) || !['fromStart', 'fromEnd'].includes(stream.mode)
-      || !plainObject(context) || String(context.liveStreamID) !== String(stream.liveStreamID) || context.eligible !== true
-      || !Number.isFinite(context.beginTime) || !Number.isFinite(context.endTime) || context.endTime < context.beginTime) throw new Error('invalid ordered stream');
+      || Object.hasOwn(stream, 'sttEligible') && typeof stream.sttEligible !== 'boolean'
+      || !plainObject(context) || String(context.liveStreamID) !== String(stream.liveStreamID)
+      || sttEligible && (context.eligible !== true || !Number.isFinite(context.beginTime)
+        || !Number.isFinite(context.endTime) || context.endTime < context.beginTime)) throw new Error('invalid ordered stream');
     roles.add(stream.role);
-    if (expected[index] !== logicalKey(row, stream)) throw new Error('expected logical identity mismatch');
   });
   for (const [role, dialogue] of Object.entries(existing)) {
     const stream = streams.find((candidate) => candidate.role === role);
     if (!stream || !dialogue || dialogue.logicalJobKey !== logicalKey(row, stream) || !nonempty(dialogue.dialogue)) throw new Error('invalid existing dialogue');
   }
+  const expectedFromStreams = streams
+    .filter((stream) => stream.sttEligible !== false && !existing[stream.role])
+    .map((stream) => logicalKey(row, stream));
+  if (JSON.stringify(expectedFromStreams) !== JSON.stringify(expected)) throw new Error('expected logical identity mismatch');
   return { streams, expected, existing };
 }
 function validateRequestRows(rows, requestKey) {
@@ -102,6 +117,7 @@ function validateAttempt(row, request, expected, streams) {
   if (!stream || row.role !== stream.role || row.streamID !== String(stream.liveStreamID) || row.mode !== stream.mode) throw new Error('attempt immutable context mismatch');
   const context = json(row.streamContextJson, 'streamContextJson', (value) => value && !Array.isArray(value));
   if (JSON.stringify(context) !== JSON.stringify(stream.streamContext)) throw new Error('attempt stream context mismatch');
+  if (typeof row.dialogue !== 'string' || typeof row.language !== 'string' || typeof row.errorCode !== 'string') throw new Error('invalid attempt transcript fields');
 }
 function retryTarget(row, attempts) {
   const resolution = row.manualReviewResolution || '';
@@ -131,27 +147,37 @@ function aggregateLogicalJobs(request, rows) {
     const list = canonicalByLogical.get(canonical[0].logicalJobKey) || [];
     list.push(canonical[0]); canonicalByLogical.set(canonical[0].logicalJobKey, list);
   }
-  const available = new Map(); const failed = []; const unresolved = [];
+  const available = new Map(); const transcripts = new Map(); const failed = []; const unresolved = []; const hardFailed = new Set();
   for (const stream of streams) {
     const key = logicalKey(request, stream);
     const persisted = existing[stream.role];
-    if (persisted) { available.set(key, { stream, dialogue: persisted.dialogue }); continue; }
+    if (persisted) { available.set(key, { stream, dialogue: persisted.dialogue }); transcripts.set(key, transcript('provided')); continue; }
+    if (!expected.includes(key)) { transcripts.set(key, transcript('ineligible')); continue; }
     const attempts = canonicalByLogical.get(key) || [];
     if (!attempts.length) throw new Error('missing canonical attempt');
     const successes = attempts.filter((row) => row.status === 'completed');
-    if (successes.length) { available.set(key, { stream, dialogue: [...successes].sort((a, b) => a.attempt - b.attempt || compareRows(a, b))[0].dialogue }); continue; }
+    if (successes.length) {
+      const winner = [...successes].sort((a, b) => a.attempt - b.attempt || compareRows(a, b))[0];
+      available.set(key, { stream, dialogue: winner.dialogue });
+      transcripts.set(key, transcript(winner.dialogue === '' ? 'empty' : 'transcribed', winner));
+      continue;
+    }
     const retryRows = attempts.filter((row) => row.status === 'retry_materialized' || (row.status === 'manual_review' && nonempty(row.manualReviewResolution)));
     retryRows.forEach((row) => retryTarget(row, attempts));
     const activeAttempts = attempts.filter((row) => !retryRows.includes(row));
     if (activeAttempts.some((row) => PENDING.has(row.status) || (row.status === 'manual_review' && !nonempty(row.manualReviewResolution)))) { unresolved.push(key); continue; }
-    if (activeAttempts.some((row) => row.status === 'timed_out')) { available.set(key, { stream, dialogue: '' }); continue; }
-    if (activeAttempts.length && activeAttempts.every((row) => TERMINAL.has(row.status))) { failed.push(key); continue; }
+    const timedOut = [...activeAttempts].filter((row) => row.status === 'timed_out').sort((a, b) => b.attempt - a.attempt || compareRows(a, b))[0];
+    const terminal = [...activeAttempts].sort((a, b) => b.attempt - a.attempt || compareRows(a, b))[0];
+    if (timedOut) { failed.push(key); transcripts.set(key, transcript('timed_out', timedOut)); continue; }
+    if (activeAttempts.length && activeAttempts.every((row) => TERMINAL.has(row.status))) { failed.push(key); hardFailed.add(key); transcripts.set(key, transcript('failed', terminal)); continue; }
     throw new Error('unsupported attempt status');
   }
   if (unresolved.length) return { action: 'pending', status: 'waiting_stt', unresolvedLogicalJobKeys: unresolved };
   const resolved = streams.filter((stream) => available.has(logicalKey(request, stream)));
-  const coverageStatus = resolved.length === streams.length ? 'complete' : resolved.length ? 'partial' : 'all_failed';
-  return { action: coverageStatus === 'all_failed' ? 'all_failed' : 'ready', coverageStatus, availableRoles: resolved.map((stream) => stream.role), missingRoles: streams.filter((stream) => !resolved.includes(stream)).map((stream) => stream.role), failedLogicalJobKeys: failed, streams: resolved.map((stream) => ({ ...stream, dialogue: available.get(logicalKey(request, stream)).dialogue })) };
+  const allFailed = resolved.length === 0 && expected.length === streams.length
+    && expected.length > 0 && hardFailed.size === expected.length;
+  const coverageStatus = allFailed ? 'all_failed' : resolved.length === streams.length ? 'complete' : 'partial';
+  return { action: allFailed ? 'all_failed' : 'ready', coverageStatus, availableRoles: resolved.map((stream) => stream.role), missingRoles: streams.filter((stream) => !resolved.includes(stream)).map((stream) => stream.role), failedLogicalJobKeys: failed, streams: streams.map((stream) => ({ ...stream, dialogue: available.get(logicalKey(request, stream))?.dialogue || '', transcript: transcripts.get(logicalKey(request, stream)) })) };
 }
 
 function planRequestResolution(rows, approval) {
@@ -205,7 +231,7 @@ function runRequestResolution(rows, approval, options = {}) {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { aggregateLogicalJobs, compareRows, nonempty, planRequestReconciliation, planRequestResolution, requestImmutables, runRequestResolution, strictIso, systemRowID, validateRequestRows, verifyRequestReconciliation };
+if (typeof module !== 'undefined' && module.exports) module.exports = { aggregateLogicalJobs, compareRows, nonempty, plainObject, planRequestReconciliation, planRequestResolution, requestImmutables, runRequestResolution, strictIso, systemRowID, validateRequestRows, verifyRequestReconciliation };
 if (typeof $input !== 'undefined') {
   const requestRows = $('Read All Request Rows').all().map(({ json: row }) => row).filter((row) => row && Object.hasOwn(row, 'id'));
   const requestKey = $('Start').first().json.requestKey;

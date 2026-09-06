@@ -6,7 +6,7 @@ const PROFILE_FIELDS = {
 
 const REQUIRED_FIELDS = {
   core: ['liveStreamID', 'userID', 'beginTime', 'endTime'],
-  stt: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'openID', 'duration', 'vliverModel'],
+  stt: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'openID', 'duration', 'region', 'vliverModel'],
   vds: ['liveStreamID', 'userID', 'beginTime', 'endTime', 'publishSec'],
 };
 
@@ -28,6 +28,11 @@ function parseNonNegativeDecimal(value) {
 }
 
 function normalizeField(field, value) {
+  if (field === 'isOBS') {
+    if (typeof value === 'boolean') return { missing: false, value };
+    if (value === 'true' || value === 'false') return { missing: false, value: value === 'true' };
+    return { missing: true, value: null };
+  }
   if (NUMERIC_FIELDS.has(field)) {
     const parsed = parseNonNegativeDecimal(value);
     return { missing: parsed === null, value: parsed };
@@ -71,10 +76,13 @@ function finalize(normalized, rows) {
       return output;
     }
 
-    const normalizedFields = new Map(OUTPUT_FIELDS.map((field) => [
-      field,
-      normalizeField(field, row[field]),
-    ]));
+    const normalizedFields = new Map(OUTPUT_FIELDS.map((field) => {
+      const rawValue = field === 'vliverModel' && normalized.profile === 'stt'
+        && (row[field] === null || row[field] === undefined || (typeof row[field] === 'string' && row[field].trim() === ''))
+        ? 0
+        : row[field];
+      return [field, normalizeField(field, rawValue)];
+    }));
     for (const field of OUTPUT_FIELDS) {
       if (field !== 'liveStreamID') output[field] = normalizedFields.get(field).value;
     }

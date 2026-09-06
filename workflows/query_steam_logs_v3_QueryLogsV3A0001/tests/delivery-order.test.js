@@ -86,8 +86,20 @@ test('files use one external upload completion and zero files use one summary me
 
   const getUrl = node('Get Slack Upload URL');
   assert.equal(getUrl.typeVersion, 4.3);
+  assert.equal(getUrl.parameters.method, 'POST');
   assert.equal(getUrl.parameters.url, 'https://slack.com/api/files.getUploadURLExternal');
   assert.equal(getUrl.parameters.nodeCredentialType, 'slackApi');
+  assert.equal(getUrl.parameters.sendBody, true);
+  assert.equal(getUrl.parameters.contentType, 'form-urlencoded');
+  assert.equal(getUrl.parameters.specifyBody, 'keypair');
+  assert.deepEqual(getUrl.parameters.bodyParameters.parameters, [
+    { name: 'filename', value: '={{ $json.fileName }}' },
+    { name: 'length', value: '={{ $json.length }}' },
+  ]);
+  assert.equal(getUrl.parameters.options.timeout, 30000);
+  assert.equal(getUrl.retryOnFail, true);
+  assert.equal(getUrl.maxTries, 3);
+  assert.equal(getUrl.waitBetweenTries, 5000);
   assert.ok(getUrl.credentials.slackApi);
 
   const upload = node('Upload Slack File Content');
@@ -110,7 +122,7 @@ test('files use one external upload completion and zero files use one summary me
   );
 });
 
-test('delivery graph has no delete, reply lookup, retry, or legacy file upload', () => {
+test('delivery graph has no delete, reply lookup, retry loop, or legacy file upload', () => {
   const forbiddenNames = [
     'Get Thread Replies',
     'Build File Message Cleanup',
@@ -204,7 +216,7 @@ test('uploaded file IDs become one threaded completion payload', () => {
   }]);
 });
 
-test('final output fails closed on a Slack API error', () => {
+test('standalone log delivery fails closed on a Slack API error', () => {
   const execute = new Function('$input', code('output'));
   assert.throws(
     () => execute({ first: () => ({ json: { ok: false, error: 'invalid_auth' } }) }),

@@ -113,6 +113,9 @@ test('rejects malformed typed events and bot messages', () => {
   assert.equal(parseBotItem({ event: {
     channel: CHANNEL, ts: THREAD_TS, event_ts: THREAD_TS, text: '!stt ping', bot_id: 'B01',
   } }), null);
+  assert.equal(parseBotItem({ event: {
+    channel: CHANNEL, ts: THREAD_TS, event_ts: THREAD_TS, text: '!stt ping', subtype: 'message_changed',
+  } }), null);
 });
 
 test('builds exact default and explicit lookup windows', () => {

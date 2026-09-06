@@ -25,9 +25,10 @@ function verifyCoverage(request, attemptRows) {
   }
   const availableRoles = streams.filter((stream) => dialogues[stream.role]?.dialogue).map((stream) => stream.role);
   const missingRoles = streams.filter((stream) => !dialogues[stream.role]?.dialogue).map((stream) => stream.role);
+  const waiting = expectedKeys.length > 0;
   return {
-    status: expectedKeys.length ? 'waiting_stt' : 'ready',
-    coverageStatus: expectedKeys.length ? 'waiting_stt' : 'complete',
+    status: waiting ? 'waiting_stt' : 'ready',
+    coverageStatus: waiting ? 'waiting_stt' : availableRoles.length === streams.length ? 'complete' : 'partial',
     availableRolesJson: JSON.stringify(availableRoles),
     missingRolesJson: JSON.stringify(missingRoles),
     failedLogicalJobKeysJson: '[]',

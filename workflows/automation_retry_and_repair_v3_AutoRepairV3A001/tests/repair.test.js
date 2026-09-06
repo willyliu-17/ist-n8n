@@ -1108,6 +1108,65 @@ test('creation repair rebuilds the exact orchestrator input from persisted JSON'
   assert.throws(() => planCreationRepair(request({ status: 'creating', creationLeaseOwner: '', creationLeaseUntilIso: '', expectedLogicalJobKeysJson: '["wrong:key"]', leaseOwner: '', leaseUntilIso: '' }), [], NOW), /Immutable expected keys mismatch/);
 });
 
+test('creation repair preserves unavailable paired streams without expecting STT attempts', () => {
+  const orderedStreams = [
+    JSON.parse(request().orderedStreamsJson)[0],
+    {
+      role: 'suspect',
+      liveStreamID: '9002',
+      mode: 'fromStart',
+      durationMinutes: 5,
+      streamContext: { liveStreamID: '9002', eligible: false, profile: 'stt', source: 'livestream_v2' },
+      sttEligible: false,
+    },
+  ];
+  const creating = request({
+    status: 'creating',
+    creationLeaseOwner: '',
+    creationLeaseUntilIso: '',
+    leaseOwner: '',
+    leaseUntilIso: '',
+    orderedStreamsJson: JSON.stringify(orderedStreams),
+    expectedLogicalJobKeysJson: JSON.stringify([LOGICAL]),
+  });
+
+  const plan = planCreationRepair(creating, [], NOW);
+
+  assert.equal(plan.action, 'resume_creation');
+  assert.deepEqual(plan.input.orderedStreams, orderedStreams);
+});
+
+test('repair aggregate preserves partial stream metadata and distinguishes timeout from hard failure', () => {
+  const unavailable = {
+    role: 'suspect',
+    liveStreamID: '9002',
+    mode: 'fromStart',
+    durationMinutes: 5,
+    streamContext: { liveStreamID: '9002', eligible: false, profile: 'stt', source: 'livestream_v2' },
+    sttEligible: false,
+  };
+  const paired = request({
+    status: 'waiting_stt',
+    orderedStreamsJson: JSON.stringify([JSON.parse(request().orderedStreamsJson)[0], unavailable]),
+    expectedLogicalJobKeysJson: JSON.stringify([LOGICAL]),
+  });
+  const completed = aggregateLogicalJobs(paired, [attempt({ status: 'completed', dialogue: 'current transcript' })]);
+  assert.equal(completed.action, 'ready');
+  assert.equal(completed.coverageStatus, 'partial');
+  assert.deepEqual(completed.availableRoles, ['current']);
+  assert.deepEqual(completed.missingRoles, ['suspect']);
+  assert.equal(completed.streams.length, 2);
+  assert.equal(completed.streams[1].dialogue, '');
+
+  const timedOut = aggregateLogicalJobs(request({ status: 'waiting_stt' }), [attempt({ status: 'timed_out' })]);
+  assert.equal(timedOut.action, 'ready');
+  assert.equal(timedOut.coverageStatus, 'partial');
+
+  const hardFailed = aggregateLogicalJobs(request({ status: 'waiting_stt' }), [attempt({ status: 'failed' })]);
+  assert.equal(hardFailed.action, 'all_failed');
+  assert.equal(hardFailed.coverageStatus, 'all_failed');
+});
+
 test('scan treats creation, summary, presentation, and duplicate classes as one bounded planner', () => {
   const duplicateAttempts = [
     attempt({ id: systemID('dup-a'), attemptKey: `${LOGICAL}:1`, canonicalRowID: String(systemID('dup-a')), status: 'queued' }),

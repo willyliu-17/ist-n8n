@@ -1,4 +1,4 @@
-DECLARE start_timestamp TIMESTAMP;
+=DECLARE start_timestamp TIMESTAMP;
 DECLARE end_timestamp TIMESTAMP;
 
 SET end_timestamp = TIMESTAMP_ADD(TIMESTAMP_SECONDS({{ $json.endTime }}), INTERVAL 5 MINUTE);

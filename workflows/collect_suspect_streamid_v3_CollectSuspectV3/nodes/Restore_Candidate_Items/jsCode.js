@@ -1,0 +1,1 @@
+return $('Deduplicate Candidate Provenance').all().map(({ json }) => ({ json }));

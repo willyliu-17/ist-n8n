@@ -2,7 +2,7 @@ function buildInferenceAggregate(input, eventEvidence = []) {
   const streams = input.streams.map((stream) => {
     const evidence = eventEvidence.filter((event) => String(event.liveStreamID || event.LiveStreamID || event.streamID || event.StreamID || '') === stream.liveStreamID);
     const details = [
-      { type: 'dialogue', liveStreamID: stream.liveStreamID, role: stream.role, mode: stream.mode, dialogue: stream.dialogue },
+      { type: 'dialogue', liveStreamID: stream.liveStreamID, role: stream.role, mode: stream.mode, dialogue: stream.dialogue, transcript: stream.transcript },
       { type: 'streamInfo', liveStreamID: stream.liveStreamID, streamInfo: [stream.streamContext] },
     ];
     for (const evidenceType of ['streamerLog', 'streamEventLog']) {

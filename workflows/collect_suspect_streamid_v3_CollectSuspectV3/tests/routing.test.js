@@ -23,6 +23,7 @@ const {
   eligibilityError,
   reassembleContexts,
 } = require('../nodes/Reassemble_Resolver_Output/jsCode');
+const { buildOrchestratorRequests } = require('../nodes/Build_Orchestrator_Requests/jsCode');
 const {
   buildRootCheckpointPlans,
   planRootOwnership,
@@ -51,6 +52,13 @@ function nodeByName(workflow, name) {
   const node = workflow.nodes.find((candidate) => candidate.name === name);
   assert.ok(node, `Missing node: ${name}`);
   return node;
+}
+
+function externalValue(value) {
+  const prefix = '__EXTERNAL_FILE__://';
+  return typeof value === 'string' && value.startsWith(prefix)
+    ? fs.readFileSync(path.join(workflowDir, value.slice(prefix.length)), 'utf8')
+    : value;
 }
 
 function context(liveStreamID, inputIndex, overrides = {}) {
@@ -122,7 +130,7 @@ test('returns an eligibility error for a bad candidate stream without throwing',
   assert.match(eligibilityError({ liveStreamID: '9', status: 'not_found', eligible: false }), /Stream 9 is not eligible/);
 });
 
-test('skips only the candidate with an ineligible stream and preserves other requests', () => {
+test('marks only the ineligible stream and preserves other candidate streams', () => {
   const calls = [
     {
       candidate: { candidateKey: 'candidate-good' },
@@ -142,6 +150,61 @@ test('skips only the candidate with an ineligible stream and preserves other req
   assert.equal(output[0].stream.liveStreamID, '7');
   assert.equal(output[1].candidate.candidateKey, 'candidate-bad');
   assert.match(output[1].eligibilityError, /Stream 8 is not eligible/);
+  assert.equal(output[1].stream.liveStreamID, '8');
+  assert.equal(output[1].stream.sttEligible, false);
+});
+
+test('builds partial paired requests when previous or current STT is unavailable', () => {
+  const candidate = { candidateKey: 'candidate-pair', summaryRequestKey: 'summary-pair', threadTS: '1787364000.000001' };
+  const calls = [{
+    candidate,
+    positions: [
+      { originalIndex: 0, role: 'previous', liveStreamID: '7', mode: 'fromEnd' },
+      { originalIndex: 1, role: 'current', liveStreamID: '8', mode: 'fromStart' },
+    ],
+  }];
+
+  for (const unavailableID of ['7', '8']) {
+    const reassembled = buildReassembledRequests(calls, [
+      context('7', 0, unavailableID === '7' ? { eligible: false, missingFields: ['openID'] } : {}),
+      context('8', 1, unavailableID === '8' ? { eligible: false, missingFields: ['duration'] } : {}),
+    ]);
+    const eligible = reassembled.filter(({ eligibilityError: error }) => !error);
+    const unavailable = reassembled.filter(({ eligibilityError: error }) => error);
+    assert.equal(eligible.length, 1);
+    assert.equal(unavailable.length, 1);
+    assert.equal(unavailable[0].stream.liveStreamID, unavailableID);
+    assert.match(unavailable[0].eligibilityError, /missingFields=/);
+
+    const requests = buildOrchestratorRequests(reassembled, [{ message: { ts: '1787364001.000002' } }]);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].orderedStreams.length, 2);
+    assert.deepEqual(requests[0].orderedStreams.map(({ liveStreamID }) => liveStreamID), ['7', '8']);
+    const unavailableStream = requests[0].orderedStreams.find(({ liveStreamID }) => liveStreamID === unavailableID);
+    const eligibleStream = requests[0].orderedStreams.find(({ liveStreamID }) => liveStreamID !== unavailableID);
+    assert.equal(unavailableStream.sttEligible, false);
+    assert.equal(Object.hasOwn(unavailableStream, 'processingMessageTS'), false);
+    assert.equal(eligibleStream.processingMessageTS, '1787364001.000002');
+  }
+});
+
+test('emits per-stream warnings and no orchestrator request when both streams are ineligible', () => {
+  const candidate = { candidateKey: 'candidate-bad-pair', summaryRequestKey: 'summary-bad-pair', threadTS: '1787364000.000001' };
+  const calls = [{
+    candidate,
+    positions: [
+      { originalIndex: 0, role: 'previous', liveStreamID: '7', mode: 'fromEnd' },
+      { originalIndex: 1, role: 'current', liveStreamID: '8', mode: 'fromStart' },
+    ],
+  }];
+  const reassembled = buildReassembledRequests(calls, [
+    context('7', 0, { eligible: false, missingFields: ['openID'] }),
+    context('8', 1, { eligible: false, missingFields: ['duration'] }),
+  ]);
+
+  assert.equal(reassembled.length, 2);
+  assert.ok(reassembled.every(({ eligibilityError: error, stream: value }) => error && value.sttEligible === false));
+  assert.deepEqual(buildOrchestratorRequests(reassembled, []), []);
 });
 
 test('deduplicates provenance and preserves an existing candidate canonical', () => {
@@ -266,7 +329,7 @@ test('builds previous then current Query Logs requests only for checkpointed can
   assert.throws(() => buildCandidateLogRequests([{ ...candidate, action: 'owned' }]), /checkpointed canonical/);
 });
 
-test('summarizes Query Logs child failures and detects missing or duplicated results', () => {
+test('summarizes best-effort Query Logs failures and detects missing or duplicated results', () => {
   const expected = [
     { streamID: '9001', target_thread_ts: '1787364000.000001' },
     { streamID: '9002', target_thread_ts: '1787364000.000001' },
@@ -291,6 +354,17 @@ test('summarizes Query Logs child failures and detects missing or duplicated res
   assert.equal(failed.failureCount, 1);
   assert.deepEqual(failed.missingKeys, ['1787364000.000001:9002']);
   assert.match(failed.errorMessage, /1 child error\(s\), 1 missing result\(s\)/);
+
+  const completedWithFailure = summarizeQueryLogResults([
+    successful[0],
+    { ...expected[1], ok: false, failedNode: 'Get Slack Upload URL', errorMessage: 'connection timed out' },
+  ], expected);
+  assert.equal(completedWithFailure.resultCount, 2);
+  assert.equal(completedWithFailure.successCount, 1);
+  assert.equal(completedWithFailure.failureCount, 1);
+  assert.deepEqual(completedWithFailure.missingKeys, []);
+  assert.deepEqual(completedWithFailure.unexpectedKeys, []);
+  assert.equal(completedWithFailure.allSucceeded, false);
 
   const duplicated = summarizeQueryLogResults([successful[0], successful[0]], expected);
   assert.equal(duplicated.allSucceeded, false);
@@ -319,7 +393,7 @@ test('is inactive, manual-only, supports a configured date override, is C0-only,
   assert.equal(queryLogs.parameters.workflowId.value, 'QueryLogsV3A0001');
   assert.equal(queryLogs.parameters.mode, 'once');
   assert.equal(queryLogs.parameters.options.waitForSubWorkflow, true);
-  assert.equal(queryLogs.alwaysOutputData, true);
+  assert.equal(queryLogs.alwaysOutputData, undefined);
   assert.equal(queryLogs.onError, 'continueErrorOutput');
   assert.deepEqual(Object.keys(queryLogs.parameters.workflowInputs.value).sort(), ['channel', 'lookbackDays', 'streamID', 'target_thread_ts']);
   assert.equal(queryLogs.parameters.workflowInputs.value.lookbackDays, 3);
@@ -349,17 +423,18 @@ test('is inactive, manual-only, supports a configured date override, is C0-only,
     [{ node: 'Mark Query Logs Success', type: 'main', index: 0 }],
     [{ node: 'Mark Query Logs Failure', type: 'main', index: 0 }],
   ]);
-  assert.match(nodeByName(workflow, 'Mark Query Logs Failure').parameters.jsonOutput, /typeof error === 'string'/);
+  assert.match(externalValue(nodeByName(workflow, 'Mark Query Logs Failure').parameters.jsonOutput), /typeof error === 'string'/);
   assert.deepEqual(workflow.connections['Mark Query Logs Success'].main[0], [{ node: 'Query Logs Loop', type: 'main', index: 0 }]);
   assert.deepEqual(workflow.connections['Mark Query Logs Failure'].main[0], [{ node: 'Query Logs Loop', type: 'main', index: 0 }]);
   assert.equal(nodeByName(workflow, 'Summarize Query Log Results').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Summarize_Query_Log_Results/jsCode.js');
   assert.deepEqual(workflow.connections['Summarize Query Log Results'].main[0], [{ node: 'All Query Logs Succeeded', type: 'main', index: 0 }]);
   assert.deepEqual(workflow.connections['All Query Logs Succeeded'].main, [
     [{ node: 'Limit Query Logs Loop Done', type: 'main', index: 0 }],
-    [{ node: 'Fail Query Logs Delivery', type: 'main', index: 0 }],
+    [{ node: 'Limit Query Logs Loop Done', type: 'main', index: 0 }],
   ]);
-  assert.equal(nodeByName(workflow, 'Fail Query Logs Delivery').type, 'n8n-nodes-base.stopAndError');
-  assert.equal(nodeByName(workflow, 'Fail Query Logs Delivery').parameters.errorMessage, '={{ $json.errorMessage }}');
+  assert.equal(workflow.nodes.some(({ name }) => name === 'Fail Query Logs Delivery'), false);
+  assert.match(workflow.description, /best-effort attachments/);
+  assert.match(workflow.description, /Summary orchestrator independently/);
   const queryLogsWorkflow = readQueryLogsWorkflow();
   const slackNodes = queryLogsWorkflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.slack');
   assert.equal(slackNodes.length, 2);
@@ -368,8 +443,8 @@ test('is inactive, manual-only, supports a configured date override, is C0-only,
     assert.equal(node.maxTries, undefined, node.name);
     assert.equal(node.waitBetweenTries, undefined, node.name);
   }
-  assert.match(nodeByName(workflow, 'Send Monitoring Report').parameters.text, /自動化異常 Stream 監控報告/);
-  assert.match(nodeByName(workflow, 'Send Candidate Detail').parameters.text, /自動化檢測詳情/);
+  assert.match(externalValue(nodeByName(workflow, 'Send Monitoring Report').parameters.text), /自動化異常 Stream 監控報告/);
+  assert.match(externalValue(nodeByName(workflow, 'Send Candidate Detail').parameters.text), /自動化檢測詳情/);
   assert.ok(!workflow.nodes.some(({ name }) => name === 'Send Candidate Root'));
   assert.deepEqual(workflow.connections['Deduplicate Candidate Provenance'].main[0].map(({ node }) => node), ['Build Monitoring Report']);
   assert.deepEqual(workflow.connections['Send Monitoring Report'].main[0].map(({ node }) => node), ['Restore Candidate Items']);

@@ -1,0 +1,1 @@
+={{ { streamID: $('Query Logs Loop').item.json.streamID, channel: $('Query Logs Loop').item.json.channel, target_thread_ts: $('Query Logs Loop').item.json.target_thread_ts, ok: true, failedNode: '', errorMessage: '' } }}

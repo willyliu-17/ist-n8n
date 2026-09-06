@@ -3,7 +3,7 @@
 
 【工作流程】
 1. 數據接收：直接解析輸入 payload.data（streamInfo）。
-2. 背景過濾：識別 closeBy、deviceModel、OSVersion、version、streamMode、publicIP/ipRegion。
+2. 背景過濾：識別 closeBy、deviceModel、osVersion、appVersion、streamMode、publicIP/ipRegion。
 3. 異常預判：依 closeBy 與設備/版本狀態提示風險。
 
 【核心分析維度】
@@ -19,6 +19,7 @@
 2. 設備與版本風險：
 - 低版本/老舊機型需標記可能風險。
 - 跨區推流可標記潛在網路路徑風險。
+- publicIP 僅供判斷 IP 變更或跨區路徑；回報時不可輸出完整 IP 位址。
 
 【回報規範】
 結構化輸出：
