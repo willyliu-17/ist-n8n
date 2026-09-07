@@ -2,8 +2,8 @@ const RETRYABLE_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MAX_AUTOMATIC_ATTEMPTS = 20;
 const RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9, 13, 18, 25, 35, 48, 65, 88, 118, 158, 211, 281, 374, 497, 660]);
 const RETRY_DEADLINE_MINUTES = 720;
-const SUMMARY_RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9]);
-const SUMMARY_RETRY_DEADLINE_MINUTES = 10;
+const SUMMARY_RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9, 13, 18, 25]);
+const SUMMARY_RETRY_DEADLINE_MINUTES = 30;
 const SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES = 150;
 
 function addMinutes(iso, minutes) {

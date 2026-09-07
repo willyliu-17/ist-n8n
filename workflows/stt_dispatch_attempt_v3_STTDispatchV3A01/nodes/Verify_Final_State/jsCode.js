@@ -43,7 +43,14 @@ function verifyFinalState(rows, expected, owner) {
   const canonical = requireCanonical(rows);
   const fields = expectedFields(expected);
   if (canonical.attemptKey !== expected.attemptKey) throw new Error('Final state attempt key mismatch');
-  if (isExpectedState(canonical, expected, fields)) return { action: 'verified', canonical };
+  if (isExpectedState(canonical, expected, fields)) {
+    return {
+      action: 'verified',
+      canonical,
+      attemptKey: canonical.attemptKey,
+      triggerPresentation: canonical.status === 'failed',
+    };
+  }
 
   const remainsOwnedDispatching = (
     canonical.status === 'dispatching' &&

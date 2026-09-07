@@ -53,8 +53,8 @@ const RETRYABLE_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MAX_AUTOMATIC_ATTEMPTS = 20;
 const STT_RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9, 13, 18, 25, 35, 48, 65, 88, 118, 158, 211, 281, 374, 497, 660]);
 const STT_RETRY_DEADLINE_MINUTES = 720;
-const SUMMARY_STT_RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9]);
-const SUMMARY_STT_RETRY_DEADLINE_MINUTES = 10;
+const SUMMARY_STT_RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9, 13, 18, 25]);
+const SUMMARY_STT_RETRY_DEADLINE_MINUTES = 30;
 const SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES = 150;
 const RECONCILIATION_STATUSES = new Set(['pending', 'canonical', 'duplicate']);
 const REQUEST_STAGES = new Set(['ready', 'summary_dispatching', 'summary_retry_pending', 'completed']);
@@ -72,6 +72,7 @@ const REPAIR_CLASS_ORDER = Object.freeze([
 ]);
 const REPAIR_CLASS_CAP = 50;
 const CHANNEL = 'C0A4JJJKJMD';
+const ALLOWED_CHANNELS = new Set([CHANNEL, 'C09F0SYG57D']);
 const RESOLUTION_EPOCH_ISO = '1970-01-01T00:00:00.000Z';
 
 function nonempty(value) {
@@ -197,7 +198,7 @@ function validateAttemptRow(row) {
   }
   if (row.attemptKey !== `${row.logicalJobKey}:${attemptNumber}`) throw new Error('Invalid attempt identity');
   if (!['fromStart', 'fromEnd'].includes(row.mode)) throw new Error('Invalid attempt mode');
-  if (row.channel !== CHANNEL) throw new Error('Invalid attempt channel');
+  if (!ALLOWED_CHANNELS.has(row.channel)) throw new Error('Invalid attempt channel');
   if (typeof row.durationMinutes !== 'number' || !Number.isFinite(row.durationMinutes) || row.durationMinutes <= 0) throw new Error('Invalid attempt duration');
   let context;
   try {
@@ -1012,7 +1013,7 @@ function maskedAuditPlans(rows, plan, approval) {
 function planPresentationRepair(attempt, nowIso = new Date().toISOString()) {
   validateAttemptRow(attempt);
   strictIso(nowIso, 'current time');
-  if (attempt.status !== 'completed') throw new Error('Presentation repair requires a completed attempt');
+  if (!['completed', 'failed', 'timed_out'].includes(attempt.status)) throw new Error('Presentation repair requires a terminal attempt');
   const presentationAttempt = Number(attempt.presentationAttempt || 0);
   if (!Number.isInteger(presentationAttempt) || presentationAttempt < 0) throw new Error('Invalid presentation attempt');
   if (presentationAttempt >= 3) throw new Error('Presentation attempt cap reached');
@@ -1040,7 +1041,7 @@ function planPresentationRepair(attempt, nowIso = new Date().toISOString()) {
       attemptKey: attempt.attemptKey,
       reconciliationStatus: 'canonical',
       canonicalRowID: String(attempt.id),
-      status: 'completed',
+      status: attempt.status,
       presentationStatus: attempt.presentationStatus,
       presentationAttempt,
       presentationLeaseOwner: owner,
@@ -1062,14 +1063,14 @@ function verifyPresentationRepair(rows, plan) {
   if (canonicals.length !== 1) throw new Error('Presentation repair requires exactly one canonical');
   const row = canonicals[0];
   if (plan?.filters?.id && row.id !== plan.filters.id) throw new Error('Presentation repair identity mismatch');
-  if (row.status !== 'completed' || row.presentationStatus !== 'pending') throw new Error('Presentation repair transition not verified');
+  if (!['completed', 'failed', 'timed_out'].includes(row.status) || row.presentationStatus !== 'pending') throw new Error('Presentation repair transition not verified');
   if (row.presentationLeaseOwner !== '' || row.presentationLeaseUntilIso !== '') throw new Error('Presentation repair lease was not cleared');
   return { action: 'verified', canonical: row };
 }
 
 function planPresentationOwnerCall(attempt) {
   validateAttemptRow(attempt);
-  if (attempt.status !== 'completed' || attempt.presentationStatus !== 'pending') throw new Error('Presentation owner call requires verified pending transition');
+  if (!['completed', 'failed', 'timed_out'].includes(attempt.status) || attempt.presentationStatus !== 'pending') throw new Error('Presentation owner call requires verified pending transition');
   return {
     action: 'call_owner',
     repairClass: 'presentation_lease',
@@ -1125,7 +1126,7 @@ function planMissedEvent(kind, row, context = {}, nowIso = new Date().toISOStrin
     };
   }
   if (kind === 'presentation_owner') {
-    if (row.status !== 'completed') throw new Error('Presentation owner event requires completed attempt');
+    if (!['completed', 'failed', 'timed_out'].includes(row.status)) throw new Error('Presentation owner event requires terminal attempt');
     return {
       action: 'call_owner',
       targetWorkflow: 'STTListenerV3A01',
@@ -1298,7 +1299,7 @@ function planCreationRepair(request, attempts = [], nowIso = new Date().toISOStr
   validateRequestRow(request);
   strictIso(nowIso, 'current time');
   if (request.status !== 'creating') return { action: 'noop', repairClass: 'creation_lease', reason: 'request_already_accepted' };
-  if (request.channel !== CHANNEL) throw new Error('Invalid request channel');
+  if (!ALLOWED_CHANNELS.has(request.channel)) throw new Error('Invalid request channel');
   if (!/^\d{10,}\.\d{6}$/.test(request.threadTS)) throw new Error('Invalid request threadTS');
   const owner = request.creationLeaseOwner || '';
   const until = request.creationLeaseUntilIso || '';

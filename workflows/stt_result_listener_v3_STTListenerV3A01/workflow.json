@@ -1,7 +1,7 @@
 {
   "id": "STTListenerV3A01",
   "name": "STT result listener v3",
-  "description": "Inactive stateful presentation-only owner. Input: required attemptKey string. Side effects: uploads transcript and Gemini analysis text files to the persisted C0 Slack thread, updates the persisted processing message, and checkpoints each stage in stt_jobs_v3. Output: attemptKey, presentation status, and persisted presentation checkpoints. Pre-claim faults stop the execution and require Automation: error handler v3 assignment before activation; post-claim faults use local lease-aware recovery. Upload success before checkpoint persistence retains a potential_duplicate_upload crash window requiring manual reconciliation.",
+  "description": "Inactive stateful presentation-only owner. Input: required attemptKey string. Side effects: uploads transcript and Gemini analysis text files to the persisted allowlisted Slack thread, updates the persisted processing message, and checkpoints each stage in stt_jobs_v3. Output: attemptKey, presentation status, and persisted presentation checkpoints. Pre-claim faults stop the execution and require Automation: error handler v3 assignment before activation; post-claim faults use local lease-aware recovery. Upload success before checkpoint persistence retains a potential_duplicate_upload crash window requiring manual reconciliation.",
   "active": false,
   "isArchived": false,
   "nodes": [
@@ -84,7 +84,7 @@
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
-        { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+        { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.status }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "pending" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $json.expectedPresentationAttempt }}" }
       ] }, "columns": { "mappingMode": "defineBelow", "value": { "presentationStatus": "presenting", "presentationLeaseOwner": "={{ $execution.id }}", "presentationLeaseUntilIso": "={{ $now.toUTC().plus({ hours: 24 }).toISO() }}", "presentationAttempt": "={{ $json.nextPresentationAttempt }}", "presentationNextRetryAtIso": "", "presentationErrorCode": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
@@ -168,7 +168,7 @@
       "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5040, 520], "id": "c3127801-d8a5-44f3-b9ea-424f55baa693", "name": "Prepare Transcript File", "onError": "continueErrorOutput"
     },
     {
-      "parameters": { "resource": "file", "binaryPropertyName": "stt_data", "options": { "channelId": "C0A4JJJKJMD", "initialComment": "=📝 STT 結果 | StreamID: `{{ $('Guard Side Effect Owner').first().json.streamID }}`", "threadTs": "={{ $('Guard Side Effect Owner').first().json.threadTS }}" } },
+      "parameters": { "resource": "file", "binaryPropertyName": "stt_data", "options": { "channelId": "={{ $('Guard Side Effect Owner').first().json.channel }}", "initialComment": "=📝 STT 結果 | StreamID: `{{ $('Guard Side Effect Owner').first().json.streamID }}`", "threadTs": "={{ $('Guard Side Effect Owner').first().json.threadTS }}" } },
       "type": "n8n-nodes-base.slack", "typeVersion": 2.3, "position": [5280, 520], "id": "8e97754b-c138-4f30-b70f-2a75e55ca206", "name": "Upload Transcript File", "alwaysOutputData": true, "onError": "continueErrorOutput",
       "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
     },
@@ -186,7 +186,7 @@
       "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [4800, 760], "id": "8b001399-7b16-4178-9780-d543ef70ac55", "name": "Prepare Analysis File", "onError": "continueErrorOutput"
     },
     {
-      "parameters": { "resource": "file", "binaryPropertyName": "analysis_data", "options": { "channelId": "C0A4JJJKJMD", "initialComment": "=🧐 異常分析報告 StreamID: `{{ $('Guard Side Effect Owner').first().json.streamID }}`", "threadTs": "={{ $('Guard Side Effect Owner').first().json.threadTS }}" } },
+      "parameters": { "resource": "file", "binaryPropertyName": "analysis_data", "options": { "channelId": "={{ $('Guard Side Effect Owner').first().json.channel }}", "initialComment": "=🧐 異常分析報告 StreamID: `{{ $('Guard Side Effect Owner').first().json.streamID }}`", "threadTs": "={{ $('Guard Side Effect Owner').first().json.threadTS }}" } },
       "type": "n8n-nodes-base.slack", "typeVersion": 2.3, "position": [5040, 760], "id": "12bfc7bf-7414-4414-bc90-0741eef5e905", "name": "Upload Analysis File", "alwaysOutputData": true, "onError": "continueErrorOutput",
       "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
     },
@@ -195,7 +195,7 @@
       "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5280, 760], "id": "174e7b06-72d7-4166-ad73-4bf642da7a00", "name": "Extract Analysis Upload ID", "onError": "continueErrorOutput"
     },
     {
-      "parameters": { "operation": "update", "channelId": { "__rl": true, "value": "C0A4JJJKJMD", "mode": "id" }, "ts": "={{ $('Guard Side Effect Owner').first().json.processingMessageTS }}", "text": "__EXTERNAL_FILE__://nodes/Update_Processing_Msg/text.md", "updateFields": {}, "otherOptions": {} },
+      "parameters": { "operation": "update", "channelId": { "__rl": true, "value": "={{ $('Guard Side Effect Owner').first().json.channel }}", "mode": "id" }, "ts": "={{ $('Guard Side Effect Owner').first().json.processingMessageTS }}", "text": "__EXTERNAL_FILE__://nodes/Update_Processing_Msg/text.md", "updateFields": {}, "otherOptions": {} },
       "type": "n8n-nodes-base.slack", "typeVersion": 2.3, "position": [4560, 1000], "id": "b6280913-39a3-48cb-9176-7a22f91a8353", "name": "Update Processing Message", "alwaysOutputData": true, "onError": "continueErrorOutput",
       "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
     },
@@ -206,7 +206,7 @@
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.attemptKey }}" },
-        { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+        { "keyName": "status", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.status }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($('Guard Side Effect Owner').first().json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
         { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationLeaseUntilIso }}" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationAttempt }}" },
@@ -217,7 +217,7 @@
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.attemptKey }}" },
-        { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+        { "keyName": "status", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.status }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($('Guard Side Effect Owner').first().json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
         { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationLeaseUntilIso }}" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationAttempt }}" },
@@ -228,7 +228,7 @@
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.attemptKey }}" },
-        { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+        { "keyName": "status", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.status }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($('Guard Side Effect Owner').first().json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
         { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationLeaseUntilIso }}" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $('Guard Side Effect Owner').first().json.presentationAttempt }}" },
@@ -252,7 +252,7 @@
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
-        { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+        { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.status }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
         { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.presentationLeaseUntilIso }}" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $json.presentationAttempt }}" },
@@ -342,7 +342,7 @@
     {
       "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [
         { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.attemptKey }}" },
-        { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
+        { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.status }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" },
         { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "presenting" },
         { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.presentationLeaseUntilIso }}" },
         { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $json.presentationAttempt }}" }, { "keyName": "transcriptUploadID", "condition": "eq", "keyValue": "={{ $json.transcriptUploadID || '' }}" },
@@ -361,6 +361,18 @@
     {
       "parameters": { "resource": "row", "operation": "insert", "dataTableId": { "__rl": true, "mode": "name", "value": "automation_errors_v3" }, "columns": { "mappingMode": "defineBelow", "value": { "errorKey": "={{ 'presentation-terminal:' + String($('Start').first().json.attemptKey || 'invalid') + ':' + $execution.id }}", "component": "stt_result_listener", "reconciliationStatus": "pending", "canonicalRowID": "", "requestKey": "", "logicalJobKey": "", "attemptKey": "={{ String($('Start').first().json.attemptKey || '') }}", "executionID": "={{ $execution.id }}", "workflowName": "STT result listener v3", "nodeName": "presentation_terminal", "errorCode": "presentation_terminal_error", "messageMasked": "Presentation workflow terminal failure recorded", "retryable": false, "createdAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
       "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [8160, 2040], "id": "56997f8b-cb23-4567-b0f4-c38441e7a885", "name": "Write Masked Terminal Audit", "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "logicalJobKey", "condition": "eq", "keyValue": "={{ $('Require Eligible Canonical').first().json.logicalJobKey }}" }] }, "returnAll": true, "options": {} },
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [2040, 360], "id": "a689c889-a7aa-4ff1-b80e-1ac631cb1e70", "name": "Read Eligible Logical Job Rows", "alwaysOutputData": true, "onError": "stopWorkflow"
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Require_Logical_Presentation_Winner/jsCode.js" },
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [2280, 360], "id": "b3fd5eb4-dd37-4e89-a593-d0c5569a5f01", "name": "Require Logical Presentation Winner", "onError": "stopWorkflow"
+    },
+    {
+      "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "logicalJobKey", "condition": "eq", "keyValue": "={{ $('Claim Presentation').first().json.logicalJobKey }}" }] }, "returnAll": true, "options": {} },
+      "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [3360, 480], "id": "d3c266df-635f-44fc-b4aa-3c4e22ab7c31", "name": "Read Logical Job Before Side Effect", "alwaysOutputData": true, "onError": "continueErrorOutput", "executeOnce": true
     }
   ],
   "connections": {
@@ -381,7 +393,9 @@
     "Re-read Frozen Conflict": { "main": [[{ "node": "Verify Full Freeze", "type": "main", "index": 0 }]] },
     "Verify Full Freeze": { "main": [[]] },
     "Read Eligible State": { "main": [[{ "node": "Require Eligible Canonical", "type": "main", "index": 0 }]] },
-    "Require Eligible Canonical": { "main": [[{ "node": "Claim Presentation", "type": "main", "index": 0 }]] },
+    "Require Eligible Canonical": { "main": [[{ "node": "Read Eligible Logical Job Rows", "type": "main", "index": 0 }]] },
+    "Read Eligible Logical Job Rows": { "main": [[{ "node": "Require Logical Presentation Winner", "type": "main", "index": 0 }]] },
+    "Require Logical Presentation Winner": { "main": [[{ "node": "Claim Presentation", "type": "main", "index": 0 }]] },
     "Claim Presentation": { "main": [[{ "node": "Verify Presentation Claim", "type": "main", "index": 0 }]] },
     "Verify Presentation Claim": { "main": [[{ "node": "Read Before Side Effect", "type": "main", "index": 0 }], [{ "node": "Failure Source Claim Owner", "type": "main", "index": 0 }]] },
     "Dispatch Presentation Stage": { "main": [
@@ -394,7 +408,8 @@
     "Prepare Completion Snapshot": { "main": [[{ "node": "Complete Presentation", "type": "main", "index": 0 }], [{ "node": "Failure Source Completion", "type": "main", "index": 0 }]] },
     "Read Before Side Effect": { "main": [[{ "node": "Limit Side Effect Context", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
     "Limit Side Effect Context": { "main": [[{ "node": "Read Summary Before Side Effect", "type": "main", "index": 0 }]] },
-    "Read Summary Before Side Effect": { "main": [[{ "node": "Guard Side Effect Owner", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
+    "Read Summary Before Side Effect": { "main": [[{ "node": "Read Logical Job Before Side Effect", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
+    "Read Logical Job Before Side Effect": { "main": [[{ "node": "Guard Side Effect Owner", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
     "Guard Side Effect Owner": { "main": [[{ "node": "Side Effect Conflict", "type": "main", "index": 0 }], [{ "node": "Failure Source Side Effect Guard", "type": "main", "index": 0 }]] },
     "Side Effect Conflict": { "main": [[{ "node": "Post-claim Freeze Conflict Plan", "type": "main", "index": 0 }], [{ "node": "Needs Side Effect Reconciliation", "type": "main", "index": 0 }]] },
     "Needs Side Effect Reconciliation": { "main": [[{ "node": "Apply Side Effect Reconciliation", "type": "main", "index": 0 }], [{ "node": "Dispatch Presentation Stage", "type": "main", "index": 0 }]] },

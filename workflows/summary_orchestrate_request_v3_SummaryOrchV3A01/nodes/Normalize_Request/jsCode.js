@@ -1,4 +1,5 @@
 const CHANNEL = 'C0A4JJJKJMD';
+const ALLOWED_CHANNELS = new Set([CHANNEL, 'C09F0SYG57D']);
 const MODES = Object.freeze({ first: 'fromStart', last: 'fromEnd', fromStart: 'fromStart', fromEnd: 'fromEnd' });
 const SLACK_TIMESTAMP_PATTERN = /^\d{10,}\.\d{6}$/;
 const DECIMAL_ID_PATTERN = /^\d+$/;
@@ -80,7 +81,7 @@ function normalizeRequest(input) {
   const requestType = requiredString(input.requestType, 'requestType');
   const channel = requiredString(input.channel, 'channel');
   const threadTS = requiredString(input.threadTS, 'threadTS');
-  if (channel !== CHANNEL) throw new Error('channel must be the C0 test channel');
+  if (!ALLOWED_CHANNELS.has(channel)) throw new Error('channel is not allowed');
   if (!SLACK_TIMESTAMP_PATTERN.test(threadTS)) throw new Error('threadTS must be a strict Slack timestamp');
   if (!Array.isArray(input.orderedStreams) || input.orderedStreams.length === 0) throw new Error('orderedStreams must be a non-empty array');
   if (!input.existingDialogues || typeof input.existingDialogues !== 'object' || Array.isArray(input.existingDialogues)) {
@@ -155,6 +156,7 @@ function normalizeRequest(input) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CHANNEL,
+    ALLOWED_CHANNELS,
     MODES,
     SINGLE_STREAM_REQUEST_TYPE,
     SLACK_TIMESTAMP_PATTERN,

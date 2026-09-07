@@ -102,7 +102,7 @@ if (typeof $input !== 'undefined') {
       requestType: 'suspect_summary',
       orderedStreams: streams,
       existingDialogues: {},
-      channel: 'C0A4JJJKJMD',
+      channel: candidate.channel,
       threadTS: candidate.threadTS,
     } }));
   }

@@ -301,9 +301,10 @@ test('enforces VDS numeric boundaries and preserves valid decimal-string payload
   }
 });
 
-test('accepts only the canonical mode, C0 channel, and fixed HTTPS callback path', () => {
+test('accepts only the canonical mode, allowlisted channels, and fixed HTTPS callback path', () => {
   assert.throws(() => buildVdsPayload(attempt({ mode: 'first' }), TOKEN, CALLBACK_URL), /canonical mode/i);
-  assert.throws(() => buildVdsPayload(attempt({ channel: 'C09F0SYG57D' }), TOKEN, CALLBACK_URL), /channel/i);
+  assert.equal(buildVdsPayload(attempt({ channel: 'C09F0SYG57D' }), TOKEN, CALLBACK_URL).webhookConfiguration.context.channel, 'C09F0SYG57D');
+  assert.throws(() => buildVdsPayload(attempt({ channel: 'C0OTHER' }), TOKEN, CALLBACK_URL), /channel/i);
   assert.throws(() => buildVdsPayload(attempt(), TOKEN, 'http://n8n.example/webhook/stt-callback-v3'), /https/i);
   assert.throws(() => buildVdsPayload(attempt(), TOKEN, 'https://n8n.example/webhook/other'), /callback path/i);
   assert.throws(() => buildVdsPayload(attempt(), TOKEN, `${CALLBACK_URL}?token=x`), /callback path/i);
@@ -378,17 +379,17 @@ test('classifies standalone ACKs without a summary request row', () => {
   );
 });
 
-test('caps summary-triggered STT retries at ten minutes without changing standalone STT', () => {
-  assert.equal(SUMMARY_RETRY_DEADLINE_MINUTES, 10);
-  assert.deepEqual(SUMMARY_RETRY_SLOT_MINUTES, [1, 2, 4, 6, 9]);
+test('caps summary-triggered STT retries at thirty minutes without changing standalone STT', () => {
+  assert.equal(SUMMARY_RETRY_DEADLINE_MINUTES, 30);
+  assert.deepEqual(SUMMARY_RETRY_SLOT_MINUTES, [1, 2, 4, 6, 9, 13, 18, 25]);
   const requestRows = [summaryRequest({ requestType: 'suspect_summary' })];
   SUMMARY_RETRY_SLOT_MINUTES.forEach((minutes, index) => {
     const result = classifyAck({ statusCode: 503 }, attempt({ attempt: index + 1 }), NOW, requestRows);
     assert.equal(result.status, 'retry_pending');
     assert.equal(result.nextRetryAtIso, new Date(Date.parse(NOW) + minutes * 60_000).toISOString());
   });
-  assert.equal(classifyAck({ statusCode: 202 }, attempt({ attempt: 6 }), NOW, requestRows).callbackDeadlineAtIso, '2026-08-22T00:10:00.000Z');
-  assert.equal(classifyAck({ statusCode: 503 }, attempt({ attempt: 6 }), NOW, requestRows).status, 'failed');
+  assert.equal(classifyAck({ statusCode: 202 }, attempt({ attempt: 9 }), NOW, requestRows).callbackDeadlineAtIso, '2026-08-22T00:30:00.000Z');
+  assert.equal(classifyAck({ statusCode: 503 }, attempt({ attempt: 9 }), NOW, requestRows).status, 'failed');
 });
 
 test('keeps full-stream callbacks pending for 150 minutes while submission retries stay bounded', () => {
@@ -978,7 +979,9 @@ test('routes ACK classes to canonical final patches with Limit 1 and re-read', (
   assert.equal(nodeByName(workflow, 'Patch Manual Review').parameters.columns.value.manualReviewReason, 'vds_submit_outcome_ambiguous');
   assert.equal(targets(workflow, 'Patch Manual Review').length, 1);
   assert.deepEqual(targets(workflow, 'Re-read Final State'), ['Verify Final State']);
-  assert.deepEqual(targets(workflow, 'Verify Final State'), ['Needs Final State Fallback']);
+  assert.deepEqual(targets(workflow, 'Verify Final State'), ['Needs Final State Fallback', 'Trigger Terminal Presentation']);
+  assert.deepEqual(targets(workflow, 'Trigger Terminal Presentation', 0), ['Run Terminal Presentation']);
+  assert.deepEqual(targets(workflow, 'Trigger Terminal Presentation', 1), []);
   assert.deepEqual(targets(workflow, 'Needs Final State Fallback', 0), ['Patch Final State Unconfirmed']);
   assert.deepEqual(targets(workflow, 'Patch Final State Unconfirmed'), ['Limit Final State Fallback']);
   assert.deepEqual(targets(workflow, 'Limit Final State Fallback'), ['Re-read Final Fallback']);

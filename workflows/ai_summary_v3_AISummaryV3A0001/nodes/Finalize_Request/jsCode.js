@@ -1,4 +1,5 @@
 const CHANNEL = 'C0A4JJJKJMD';
+const ALLOWED_CHANNELS = new Set([CHANNEL, 'C09F0SYG57D']);
 const TS = /^\d{10,}\.\d{6}$/;
 const CHECKPOINTS = ['inferenceResultJson', 'summaryMarkdown', 'summaryUploadID', 'summaryMessageTS'];
 const TRANSCRIPT_OUTCOMES = new Set(['provided', 'transcribed', 'empty', 'timed_out', 'failed', 'ineligible']);
@@ -14,7 +15,7 @@ function exactArray(actual, expected, name) {
 function validateInput(input) {
   const keys = ['requestKey', 'requestType', 'channel', 'threadTS', 'coverageStatus', 'availableRoles', 'missingRoles', 'failedLogicalJobKeys', 'streams'];
   if (!input || Object.keys(input).length !== keys.length || keys.some((key) => !(key in input))) throw new Error('input must contain exactly nine fields');
-  if (!text(input.requestKey) || !text(input.requestType) || input.channel !== CHANNEL || !TS.test(input.threadTS)) throw new Error('invalid request routing');
+  if (!text(input.requestKey) || !text(input.requestType) || !ALLOWED_CHANNELS.has(input.channel) || !TS.test(input.threadTS)) throw new Error('invalid request routing');
   if (!['complete', 'partial'].includes(input.coverageStatus) || !Array.isArray(input.availableRoles) || !Array.isArray(input.missingRoles) || !Array.isArray(input.failedLogicalJobKeys) || !Array.isArray(input.streams) || input.streams.length === 0) throw new Error('invalid resolved coverage');
   const availableRoles = new Set(input.availableRoles);
   const missingRoles = new Set(input.missingRoles);
@@ -96,5 +97,5 @@ function verify(row, plan) {
 }
 function result(row) { return { requestKey: row.requestKey, status: row.status, coverageStatus: row.coverageStatus, summaryMessageTS: row.summaryMessageTS, summaryUploadID: row.summaryUploadID }; }
 
-if (typeof module !== 'undefined') module.exports = { CHANNEL, validateInput, reconcile, ownerConditions, stagePlan, checkpointPlan, failurePlan, completePlan, systemRowID, verify, result };
+if (typeof module !== 'undefined') module.exports = { ALLOWED_CHANNELS, CHANNEL, validateInput, reconcile, ownerConditions, stagePlan, checkpointPlan, failurePlan, completePlan, systemRowID, verify, result };
 if (typeof $input !== 'undefined') return $input.all().map(({ json: input }) => ({ json: validateInput(input) }));

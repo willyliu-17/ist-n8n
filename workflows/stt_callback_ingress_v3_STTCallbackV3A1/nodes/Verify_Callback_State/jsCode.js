@@ -54,7 +54,7 @@ function verifyCallbackState(rows, expected) {
       requestKey: expected.requestKey,
       logicalJobKey: expected.logicalJobKey,
       resultStatus: canonical.status,
-      triggerPresentation: canonical.status === 'completed' && canonical.dialogue.trim() !== '',
+       triggerPresentation: ['completed', 'failed', 'timed_out'].includes(canonical.status),
       triggerCoordinator: true,
     };
   }

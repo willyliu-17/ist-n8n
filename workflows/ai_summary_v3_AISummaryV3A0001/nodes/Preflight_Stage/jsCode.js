@@ -7,6 +7,6 @@ if (canonical.length !== 1) throw new Error('preflight reconciliation gate faile
 const row = canonical[0];
 if (row.id !== carrier.row.id || row.status !== 'summary_dispatching' || row.leaseOwner !== carrier.row.leaseOwner || row.leaseUntilIso !== carrier.row.leaseUntilIso || Date.parse(row.leaseUntilIso) <= Date.now()) throw new Error('preflight owner gate failed');
 const stage = carrier.nextStage;
-const done = stage === 'inference' ? row.inferenceResultJson && row.summaryMarkdown : stage === 'upload' ? row.summaryUploadID : row.summaryMessageTS;
+const done = stage === 'inference' ? row.inferenceResultJson && row.summaryMarkdown : stage === 'upload' ? row.summaryUploadID : stage === 'status' ? row.summaryMessageTS : false;
 if (done) return [];
 return [{ json: { ...carrier, row, ownerConditions: { id: row.id, requestKey: row.requestKey, status: row.status, reconciliationStatus: 'canonical', canonicalRowID: String(row.id), leaseOwner: row.leaseOwner, leaseUntilIso: row.leaseUntilIso } } }];

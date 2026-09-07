@@ -1,4 +1,4 @@
-const CHANNEL = 'C0A4JJJKJMD';
+const ALLOWED_CHANNELS = new Set(['C0A4JJJKJMD', 'C09F0SYG57D']);
 const SLACK_TIMESTAMP_PATTERN = /^\d{10,}\.\d{6}$/;
 const STREAM_ID_PATTERN = /^[0-9]{1,20}$/;
 
@@ -18,20 +18,20 @@ function buildCandidateLogRequests(candidates) {
       || candidate.canonicalRowID !== String(candidate.id)) {
       throw new Error('Only a checkpointed canonical candidate can query logs');
     }
-    if (candidate.channel !== CHANNEL) throw new Error('Candidate channel is not allowed');
+    if (!ALLOWED_CHANNELS.has(candidate.channel)) throw new Error('Candidate channel is not allowed');
     if (!SLACK_TIMESTAMP_PATTERN.test(candidate.threadTS || '')) throw new Error('Candidate thread timestamp is invalid');
 
     const target_thread_ts = candidate.threadTS;
     if (candidate.prevStreamID) {
       requests.push({
         streamID: requiredStreamID(candidate.prevStreamID, 'prevStreamID'),
-        channel: CHANNEL,
+        channel: candidate.channel,
         target_thread_ts,
       });
     }
     requests.push({
       streamID: requiredStreamID(candidate.streamID, 'streamID'),
-      channel: CHANNEL,
+      channel: candidate.channel,
       target_thread_ts,
     });
   }

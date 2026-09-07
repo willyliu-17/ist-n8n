@@ -2,11 +2,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 
 const workflowDir = path.resolve(__dirname, '..');
 const processorDir = path.resolve(__dirname, '../../repair_process_candidate_v3_RepairCandidateV3A1');
 const schema = require('../../automation_provision_state_v3_AutomationProvV3A1/nodes/State_Schema/schema.json');
 const workflow = JSON.parse(fs.readFileSync(path.join(workflowDir, 'workflow.json'), 'utf8'));
+const callbackDeadlineRouteSource = fs.readFileSync(path.join(workflowDir, 'nodes', 'Route_Verified_Callback_Deadline_Presentation', 'jsCode.js'), 'utf8');
 const processor = JSON.parse(fs.readFileSync(path.join(processorDir, 'workflow.json'), 'utf8'));
 const {
   ATTEMPT_CHECKPOINT_FIELDS,
@@ -284,7 +286,8 @@ test('full 44-field attempt schema matches the provisioned stt_jobs_v3 contract'
   assert.ok(validateAttemptRow(attempt()));
   assert.throws(() => validateAttemptRow({ ...attempt(), id: 0 }), /system field/);
   assert.throws(() => validateAttemptRow(attempt({ attemptKey: 'broken' })), /attempt identity/);
-  assert.throws(() => validateAttemptRow(attempt({ channel: 'C09F0SYG57D' })), /channel/);
+  assert.ok(validateAttemptRow(attempt({ channel: 'C09F0SYG57D' })));
+  assert.throws(() => validateAttemptRow(attempt({ channel: 'C0OTHER' })), /channel/);
   assert.throws(() => validateAttemptRow(attempt({ mode: 'first' })), /mode/);
 });
 
@@ -374,11 +377,11 @@ test('callback deadline maps to retry_pending then timed_out terminal on attempt
   });
 });
 
-test('summary callback deadline terminates at ten minutes while standalone keeps twelve hours', () => {
-  assert.equal(SUMMARY_STT_RETRY_DEADLINE_MINUTES, 10);
-  assert.deepEqual(SUMMARY_STT_RETRY_SLOT_MINUTES, [1, 2, 4, 6, 9]);
-  assert.deepEqual(sttRetryTiming(NOW, 6, 'suspect_summary'), {
-    deadlineAtIso: '2026-08-24T00:10:00.000Z',
+test('summary callback deadline terminates at thirty minutes while standalone keeps twelve hours', () => {
+  assert.equal(SUMMARY_STT_RETRY_DEADLINE_MINUTES, 30);
+  assert.deepEqual(SUMMARY_STT_RETRY_SLOT_MINUTES, [1, 2, 4, 6, 9, 13, 18, 25]);
+  assert.deepEqual(sttRetryTiming(NOW, 9, 'suspect_summary'), {
+    deadlineAtIso: '2026-08-24T00:30:00.000Z',
     nextRetryAtIso: '',
   });
   assert.deepEqual(sttRetryTiming(NOW, 6, 'standalone_stt'), {
@@ -387,7 +390,7 @@ test('summary callback deadline terminates at ten minutes while standalone keeps
   });
   const summaryDeadline = classifyAttemptFailure(
     { deadlineExceeded: true },
-    6,
+    9,
     '2026-08-24T00:10:00.000Z',
     NOW,
     'suspect_summary',
@@ -1022,7 +1025,7 @@ test('presentation repair converts due retry and expired presenting to claimable
   });
   assert.equal(planPresentationRepair(active, NOW).reason, 'presentation_lease_active');
   assert.throws(() => planPresentationRepair(attempt({ status: 'completed', presentationStatus: 'retry_pending', presentationAttempt: 3, presentationNextRetryAtIso: NOW }), NOW), /cap reached/);
-  assert.throws(() => planPresentationRepair(attempt({ status: 'queued' }), NOW), /completed attempt/);
+  assert.throws(() => planPresentationRepair(attempt({ status: 'queued' }), NOW), /terminal attempt/);
 });
 
 test('presentation owner is called only after a verified transition', () => {
@@ -1927,9 +1930,9 @@ test('Subtask E: callback deadline attempt 2 targets the absolute +2 minute slot
   assert.equal(plan.nextRetryAtIso, '2026-08-24T00:02:00.000Z');
 });
 
-test('Subtask E: summary callback deadline attempt 6 times out while standalone keeps the 13-minute slot', () => {
+test('Subtask E: summary callback deadline attempt 9 times out while standalone keeps the 13-minute slot', () => {
   const summary = planCallbackDeadline(
-    attempt({ attempt: 6, status: 'waiting_callback', callbackDeadlineAtIso: LATER }),
+    attempt({ attempt: 9, status: 'waiting_callback', callbackDeadlineAtIso: LATER }),
     LATER,
   );
   assert.equal(summary.action, 'callback_deadline_exhausted');
@@ -2330,10 +2333,159 @@ test('Subtask F: presentation repair returns noop for presentationStatus pending
   }
 });
 
-test('Subtask F: presentation repair returns noop when attempt status is not completed', () => {
-  for (const st of ['queued', 'dispatching', 'waiting_callback', 'retry_pending', 'failed']) {
+test('Subtask F: presentation repair rejects nonterminal attempt statuses', () => {
+  for (const st of ['queued', 'dispatching', 'waiting_callback', 'retry_pending']) {
     const att = attempt({ status: st, presentationStatus: 'retry_pending', presentationNextRetryAtIso: NOW });
-    assert.throws(() => planPresentationRepair(att, NOW), /requires a completed attempt/);
+    assert.throws(() => planPresentationRepair(att, NOW), /requires a terminal attempt/);
+  }
+});
+
+test('Subtask F: presentation repair accepts failed and timed_out terminal attempts', () => {
+  for (const status of ['failed', 'timed_out']) {
+    const plan = planPresentationRepair(attempt({
+      status,
+      presentationStatus: 'retry_pending',
+      presentationNextRetryAtIso: NOW,
+    }), NOW);
+    assert.equal(plan.action, 'claim');
+    assert.equal(plan.filters.status, status);
+  }
+});
+
+test('scheduler bounded presentation scan includes pending failed and timed_out terminal attempts', () => {
+  for (const status of ['failed', 'timed_out']) {
+    const candidates = bounded('presentation_lease', [attempt({
+      status,
+      presentationStatus: 'retry_pending',
+      presentationNextRetryAtIso: NOW,
+    })]);
+    assert.equal(candidates.length, 1, status);
+    assert.equal(candidates[0].status, status);
+  }
+});
+
+test('scheduler bounds presentation repair reads to terminal statuses', () => {
+  const reader = node('Read Presentation Repair Candidates');
+  assert.equal(reader.parameters.matchType, 'anyCondition');
+  assert.deepEqual(reader.parameters.filters.conditions.map(({ keyValue }) => keyValue), ['completed', 'failed', 'timed_out']);
+  assert.deepEqual(targets('Read Presentation Repair Candidates'), ['Tag Presentation Repair Bounded Scan']);
+  assert.deepEqual(targets('Tag Presentation Repair Bounded Scan'), ['Plan Bounded Presentation Repair']);
+  assert.deepEqual(targets('Plan Bounded Presentation Repair'), ['Route Bounded Presentation Repair']);
+  assert.deepEqual(targets('Route Bounded Presentation Repair', 0), ['Limit Presentation Repair Candidates 50']);
+  assert.deepEqual(targets('Limit Presentation Repair Candidates 50'), ['Process Presentation Lease Candidate']);
+});
+
+test('scheduler invokes the listener only after a reread confirms callback timeout CAS', () => {
+  assert.deepEqual(targets('Verify Callback Deadline Patch'), ['Merge Callback Deadline Plans And Readback']);
+  assert.deepEqual(targets('Merge Callback Deadline Plans And Readback'), ['Route Verified Callback Deadline Presentation']);
+  const merge = node('Merge Callback Deadline Plans And Readback');
+  assert.deepEqual(merge.parameters, { mode: 'append', numberInputs: 2 });
+  assert.deepEqual(workflow.connections['Plan Callback Deadline Actual'].main[0], [
+    { node: 'Patch Callback Deadline', type: 'main', index: 0 },
+    { node: merge.name, type: 'main', index: 0 },
+  ]);
+  assert.equal(workflow.connections['Verify Callback Deadline Patch'].main[0][0].index, 1);
+  assert.deepEqual(targets('Route Verified Callback Deadline Presentation'), ['Run Callback Deadline Presentation']);
+  const runner = workflow.nodes.find(({ name }) => name === 'Run Callback Deadline Presentation');
+  assert.equal(runner.parameters.workflowId.value, 'STTListenerV3A01');
+  assert.equal(runner.parameters.workflowInputs.value.attemptKey, '={{ $json.attemptKey }}');
+  assert.equal(runner.parameters.mode, 'each');
+  assert.equal(runner.parameters.options.waitForSubWorkflow, false);
+  const timedOut = deadlineRouteBatch(['timed_out']);
+  assert.deepEqual(runCallbackDeadlineRoute([...timedOut.plans, ...timedOut.rows]), [{ json: { attemptKey: timedOut.rows[0].attemptKey } }]);
+  const retry = deadlineRouteBatch(['retry_pending']);
+  assert.deepEqual(runCallbackDeadlineRoute([...retry.plans, ...retry.rows]), []);
+});
+
+function deadlineRouteBatch(statuses) {
+  const plans = [];
+  const rows = [];
+  statuses.forEach((status, index) => {
+    const number = status === 'timed_out' ? 9 : 6;
+    const logicalJobKey = `${LOGICAL}-${index}`;
+    const before = attempt({ id: `deadline-route-${index}`, status: 'waiting_callback', attempt: number,
+      logicalJobKey, attemptKey: `${logicalJobKey}:${number}`, callbackDeadlineAtIso: NOW, nextRetryAtIso: '' });
+    const plan = planCallbackDeadline(before, NOW);
+    assert.equal(plan.desired.status, status);
+    plans.push({ plan, attemptKey: before.attemptKey, __repairGroupKey: `attempt:${before.attemptKey}` });
+    rows.push({ ...before, ...plan.desired });
+  });
+  return { plans, rows };
+}
+
+function runCallbackDeadlineRoute(items) {
+  const result = vm.runInNewContext(`(() => {${callbackDeadlineRouteSource}\n})()`, {
+    $input: { all: () => items.map(json => ({ json })) }, Error,
+  });
+  return JSON.parse(JSON.stringify(result));
+}
+
+test('callback deadline routes 1, 6 and 50 distinct timeouts without losing a candidate', () => {
+  for (const count of [1, 6, 50]) {
+    const { plans, rows } = deadlineRouteBatch(Array(count).fill('timed_out'));
+    assert.deepEqual(runCallbackDeadlineRoute([...plans, ...rows.toReversed()]), rows.map(({ attemptKey }) => ({ json: { attemptKey } })));
+  }
+});
+
+test('callback deadline accepts the observed six-row retry batch and mixed terminal batches', () => {
+  const retry = deadlineRouteBatch(Array(6).fill('retry_pending'));
+  assert.deepEqual(runCallbackDeadlineRoute([...retry.plans, ...retry.rows]), []);
+  const mixed = deadlineRouteBatch(['timed_out', 'retry_pending', 'timed_out', 'retry_pending', 'retry_pending', 'timed_out']);
+  assert.deepEqual(runCallbackDeadlineRoute([...mixed.rows.toReversed(), ...mixed.plans]), mixed.rows.filter(r => r.status === 'timed_out').map(({ attemptKey }) => ({ json: { attemptKey } })));
+});
+
+test('callback deadline rejects missing, duplicate, unplanned and malformed batches before emitting any notifications', () => {
+  const { plans, rows } = deadlineRouteBatch(Array(6).fill('timed_out'));
+  const badBatches = [
+    [], rows, plans, [...plans, {}], [...plans, ...rows.slice(1)],
+    [...plans, plans[0], ...rows], [...plans, ...rows, rows[0]],
+    [...plans.slice(1), ...rows],
+    [...plans, ...rows, { ...rows[0], id: 9999, canonicalRowID: '9999' }],
+    [...plans, ...rows.slice(0, -1), { ...rows.at(-1), canonicalRowID: 'wrong' }],
+  ];
+  for (const items of badBatches) assert.throws(() => runCallbackDeadlineRoute(items), /Callback deadline/);
+  const overCap = deadlineRouteBatch(Array(51).fill('timed_out'));
+  assert.throws(() => runCallbackDeadlineRoute([...overCap.plans, ...overCap.rows]), /Callback deadline/);
+});
+
+test('callback deadline verifies identity, deadline and every desired value against the original plan', () => {
+  const { plans, rows } = deadlineRouteBatch(['timed_out']);
+  for (const change of [
+    { id: 9999, canonicalRowID: '9999' }, { status: 'waiting_callback' },
+    { errorCode: 'different_error' }, { nextRetryAtIso: LATER }, { updatedAtIso: LATER },
+    { callbackDeadlineAtIso: LATER }, { reconciliationStatus: 'duplicate' },
+  ]) assert.throws(() => runCallbackDeadlineRoute([...plans, { ...rows[0], ...change }]), /Callback deadline/);
+  const retry = deadlineRouteBatch(['retry_pending']);
+  assert.throws(() => runCallbackDeadlineRoute([...retry.plans, { ...retry.rows[0], nextRetryAtIso: '' }]), /Callback deadline/);
+});
+
+test('callback deadline keeps well-linked noncanonical siblings from producing extra notifications', () => {
+  const { plans, rows } = deadlineRouteBatch(['timed_out']);
+  const duplicate = { ...rows[0], id: 9998, reconciliationStatus: 'duplicate' };
+  const pending = { ...rows[0], id: 9999, reconciliationStatus: 'pending', canonicalRowID: '' };
+  assert.deepEqual(runCallbackDeadlineRoute([...plans, ...rows, duplicate, pending]), [{ json: { attemptKey: rows[0].attemptKey } }]);
+  assert.throws(() => runCallbackDeadlineRoute([...plans, ...rows, { ...duplicate, canonicalRowID: 'wrong' }]), /Callback deadline/);
+});
+
+test('callback deadline runtime planner, write expressions and readback route preserve six independent jobs', () => {
+  const code = fs.readFileSync(path.join(workflowDir, 'nodes/Plan_Repairs/jsCode.js'), 'utf8');
+  for (const status of ['retry_pending', 'timed_out']) {
+    const batch = deadlineRouteBatch(Array(6).fill(status));
+    const input = batch.rows.map(row => ({ ...row, status: 'waiting_callback', nowIso: NOW, repairMode: 'actual:callback_deadline' }));
+    input.push({ ...request(), repairMode: 'actual:callback_deadline' });
+    const planned = Function('$input', code)({ all: () => input.map(json => ({ json })) });
+    assert.equal(planned.length, 6);
+    const readback = planned.map(({ json }, index) => ({
+      ...input[index],
+      ...Object.fromEntries(Object.entries(node('Patch Callback Deadline').parameters.columns.value).map(([key, expression]) => [
+        key, vm.runInNewContext(expression.slice(3, -2), { $json: json }),
+      ])),
+    }));
+    const output = runCallbackDeadlineRoute([...planned.map(({ json }) => json), ...readback.toReversed()]);
+    assert.equal(output.length, status === 'timed_out' ? 6 : 0);
+    const runner = node('Run Callback Deadline Presentation');
+    const keys = output.map(({ json }) => vm.runInNewContext(runner.parameters.workflowInputs.value.attemptKey.slice(3, -2), { $json: json }));
+    assert.equal(new Set(keys).size, output.length);
   }
 });
 

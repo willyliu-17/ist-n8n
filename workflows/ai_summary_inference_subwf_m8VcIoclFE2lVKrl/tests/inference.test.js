@@ -5,6 +5,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { createHash } = require('node:crypto');
 const { buildWorkflow } = require('../../../scripts/utils');
+const { validateInferenceReport } = require('../nodes/Validate_Inference_Report/jsCode');
 
 const workflow = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'workflow.json'), 'utf8'));
 
@@ -28,6 +29,10 @@ test('prompts distinguish transcript outcomes and prohibit raw IP output', () =>
 const root = path.resolve(__dirname, '..');
 const built = buildWorkflow(root);
 const byName = (name) => built.nodes.find((node) => node.name === name);
+function inferenceErrorCode(source) {
+  const expression = byName('Raise Inference Error').parameters.errorMessage.trim();
+  return vm.runInNewContext(expression.slice(3, -2), { $json: source });
+}
 
 function render(expression, analysisMode, data = []) {
   const context = {
@@ -112,4 +117,49 @@ test('single-stream schema only changes descriptions, not required fields or enu
   assert.match(single.properties.report.properties.subjective_motivation.properties.recovery_status.description, /跨場重開後恢復不適用/);
   assert.match(single.properties.report.properties.summary.properties.responsibility_category_list.description, /空陣列/);
   assert.doesNotMatch(single.properties.report.properties.summary.properties.causal_summary.description, /前一場關播原因/);
+});
+
+test('sanitizes the observed empty-generation error without leaking provider text', () => {
+  const observed = "Cannot read properties of undefined (reading 'message')";
+  assert.equal(inferenceErrorCode({ error: observed }), 'summary_model_empty_response');
+  assert.equal(inferenceErrorCode({ error: { message: observed } }), 'summary_model_empty_response');
+  assert.equal(inferenceErrorCode({ error: 'Model output does not fit required format' }), 'summary_model_output_invalid');
+  assert.equal(inferenceErrorCode({ error: 'Failed to parse secret transcript' }), 'summary_model_output_invalid');
+  assert.equal(inferenceErrorCode({ error: 'https://example.invalid/?token=secret' }), 'summary_inference_failed');
+  assert.equal(inferenceErrorCode({}), 'summary_inference_failed');
+});
+
+test('whole-agent retries belong to Summary and every inference outcome has a guarded path', () => {
+  const agent = byName('AI Agent');
+  assert.notEqual(agent.retryOnFail, true);
+  assert.equal(agent.alwaysOutputData, true);
+  assert.equal(agent.onError, 'continueErrorOutput');
+  assert.deepEqual(built.connections['AI Agent'].main, [
+    [{ node: 'Validate Inference Report', type: 'main', index: 0 }],
+    [{ node: 'Raise Inference Error', type: 'main', index: 0 }],
+  ]);
+  assert.equal(byName('Raise Inference Error').type, 'n8n-nodes-base.stopAndError');
+  assert.equal(byName('Raise Inference Error').parameters.errorType, 'errorMessage');
+});
+
+test('validates the schema-shaped report and fails closed on empty or partial model outputs', () => {
+  const schema = JSON.parse(render(byName('Structured Output Parser').parameters.inputSchema));
+  function sample(spec) {
+    if (spec.type === 'object') return Object.fromEntries(Object.entries(spec.properties).map(([key, value]) => [key, sample(value)]));
+    if (spec.type === 'array') return [];
+    return 'Evidence-based result';
+  }
+  const output = sample(schema);
+  assert.deepEqual(validateInferenceReport([{ output }]), { output });
+  for (const items of [[], [{}], [{ output: '' }], [{ output: { report: {} } }], [{ output }, { output }]]) {
+    assert.throws(() => validateInferenceReport(items), /summary_model_output_invalid/);
+  }
+  const malformed = structuredClone(output);
+  malformed.report.summary.causal_summary = '';
+  assert.throws(() => validateInferenceReport([{ output: malformed }]), /summary_model_output_invalid/);
+  delete malformed.report.summary.fact_check;
+  assert.throws(() => validateInferenceReport([{ output: malformed }]), /summary_model_output_invalid/);
+  assert.throws(() => vm.runInNewContext(`(function () { ${byName('Validate Inference Report').parameters.jsCode} })()`, {
+    $input: { all: () => [{ json: {} }] },
+  }), /summary_model_output_invalid/);
 });

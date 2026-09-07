@@ -32,6 +32,7 @@ const SUMMARY_CHECKPOINT_FIELDS = Object.freeze([
   'inferenceResultJson', 'summaryMarkdown', 'summaryUploadID', 'summaryMessageTS',
 ]);
 const RECONCILIATION_STATUSES = new Set(['pending', 'canonical', 'duplicate']);
+const ALLOWED_CHANNELS = new Set(['C0A4JJJKJMD', 'C09F0SYG57D']);
 
 function strictIso(value, field) {
   if (typeof value !== 'string' || !value) throw new Error(`Invalid ${field}`);
@@ -156,10 +157,9 @@ function requireEligibleCanonical(rows) {
   const canonicals = attemptRows.filter((row) => row.reconciliationStatus === 'canonical');
   if (canonicals.length !== 1) throw new Error('Expected exactly one canonical row');
   const canonical = canonicals[0];
-  if (canonical.status !== 'completed') throw new Error('Canonical STT status is not completed');
-  if (typeof canonical.dialogue !== 'string' || !canonical.dialogue.trim()) throw new Error('Canonical dialogue is empty');
+  if (!['completed', 'failed', 'timed_out'].includes(canonical.status)) throw new Error('Canonical STT status is not terminal');
   if (canonical.presentationStatus !== 'pending') throw new Error('Canonical presentation is not pending');
-  if (canonical.channel !== 'C0A4JJJKJMD') throw new Error('Invalid presentation channel');
+  if (!ALLOWED_CHANNELS.has(canonical.channel)) throw new Error('Invalid presentation channel');
   if (typeof canonical.threadTS !== 'string' || !canonical.threadTS) throw new Error('Invalid threadTS');
   if (typeof canonical.processingMessageTS !== 'string' || !canonical.processingMessageTS) throw new Error('Invalid processingMessageTS');
   const presentationAttempt = Number(canonical.presentationAttempt || 0);
@@ -174,21 +174,30 @@ function requireCanonicalOwner(rows, executionID, nowIso) {
   const canonicals = attemptRows.filter((row) => row.reconciliationStatus === 'canonical');
   if (canonicals.length !== 1) throw new Error('Expected exactly one canonical owner');
   const canonical = canonicals[0];
-  if (canonical.status !== 'completed' || !String(canonical.dialogue || '').trim()) throw new Error('Canonical is not presentation eligible');
+  if (!['completed', 'failed', 'timed_out'].includes(canonical.status)) throw new Error('Canonical is not presentation eligible');
   if (canonical.presentationStatus !== 'presenting') throw new Error('Canonical presentation is not presenting');
   if (canonical.presentationLeaseOwner !== executionID) throw new Error('Presentation lease owner mismatch');
   if (strictIso(canonical.presentationLeaseUntilIso, 'presentation lease') <= strictIso(nowIso, 'current time')) {
     throw new Error('Presentation lease expired');
   }
-  if (canonical.channel !== 'C0A4JJJKJMD') throw new Error('Invalid presentation channel');
+  if (!ALLOWED_CHANNELS.has(canonical.channel)) throw new Error('Invalid presentation channel');
   return canonical;
 }
 
 function selectNextStage(row) {
+  if (row.status !== 'completed' || !String(row.dialogue || '').trim()) {
+    return String(row.processingMessageUpdatedAtIso || '') ? 'complete' : 'message_update';
+  }
   if (!String(row.transcriptUploadID || '')) return 'transcript';
   if (!String(row.analysisUploadID || '')) return 'analysis';
   if (!String(row.processingMessageUpdatedAtIso || '')) return 'message_update';
   return 'complete';
+}
+
+function presentationCheckpointFields(row) {
+  return row.status === 'completed' && String(row.dialogue || '').trim()
+    ? PRESENTATION_CHECKPOINT_FIELDS
+    : ['processingMessageUpdatedAtIso'];
 }
 
 function planSideEffectGuard(rows, summaryRows, executionID, nowIso, stage) {
@@ -213,7 +222,8 @@ function extractSlackUploadID(items) {
 }
 
 function buildFinalText(row) {
-  return `🤖 STT Done\nStream: \`${row.streamID}\`\nMode: \`${row.mode}\` ${row.durationMinutes}m`;
+  const title = row.status === 'completed' ? 'STT Done' : row.status === 'timed_out' ? 'STT Timed Out' : 'STT Failed';
+  return `🤖 ${title}\nStream: \`${row.streamID}\`\nMode: \`${row.mode}\` ${row.durationMinutes}m`;
 }
 
 function planPresentationFailure(row, nowIso, errorCode) {
@@ -248,7 +258,7 @@ function verifyFailureOwnerSnapshot(rows, claim, errorContext, executionID, nowI
   for (const field of immutableFields) {
     if (row[field] !== claim[field]) throw new Error(`Failure claim provenance mismatch: ${field}`);
   }
-  if (row.canonicalRowID !== String(row.id) || row.status !== 'completed' || row.presentationStatus !== 'presenting') {
+  if (row.canonicalRowID !== String(row.id) || !['completed', 'failed', 'timed_out'].includes(row.status) || row.presentationStatus !== 'presenting') {
     throw new Error('Failure canonical is not presenting');
   }
   if (row.presentationLeaseOwner !== executionID || row.presentationLeaseOwner !== claim.presentationLeaseOwner) {
@@ -333,8 +343,9 @@ function buildCompletionExpectation(claim, checkpoint) {
   }
   const claimFields = ['id', 'attemptKey', 'attempt', 'presentationAttempt', ...COMPLETION_PROVENANCE_FIELDS];
   const expectedClaim = Object.fromEntries(claimFields.map((field) => [field, claim[field]]));
-  const expectedCheckpoints = Object.fromEntries(PRESENTATION_CHECKPOINT_FIELDS.map((field) => [field, checkpoint[field]]));
-  if (PRESENTATION_CHECKPOINT_FIELDS.some((field) => typeof expectedCheckpoints[field] !== 'string' || !expectedCheckpoints[field])) {
+  const checkpointFields = presentationCheckpointFields(claim);
+  const expectedCheckpoints = Object.fromEntries(checkpointFields.map((field) => [field, checkpoint[field]]));
+  if (checkpointFields.some((field) => typeof expectedCheckpoints[field] !== 'string' || !expectedCheckpoints[field])) {
     throw new Error('Completion checkpoint is missing');
   }
   return { expectedClaim, expectedCheckpoints };
@@ -345,7 +356,7 @@ function verifyCompletion(rows, expectation) {
   const canonicals = attemptRows.filter((row) => row.reconciliationStatus === 'canonical');
   if (canonicals.length !== 1) throw new Error('Expected exactly one completion canonical');
   const row = canonicals[0];
-  if (row.canonicalRowID !== String(row.id) || row.status !== 'completed' || row.presentationStatus !== 'completed') {
+  if (row.canonicalRowID !== String(row.id) || !['completed', 'failed', 'timed_out'].includes(row.status) || row.presentationStatus !== 'completed') {
     throw new Error('Presentation completion state mismatch');
   }
   if (row.presentationLeaseOwner !== '' || row.presentationLeaseUntilIso !== '') throw new Error('Presentation completion lease was not cleared');
@@ -353,9 +364,9 @@ function verifyCompletion(rows, expectation) {
     if (row[field] !== value) throw new Error(`Completion claim mismatch: ${field}`);
   }
   for (const [field, value] of Object.entries(expectation.expectedCheckpoints || {})) {
-    if (!PRESENTATION_CHECKPOINT_FIELDS.includes(field) || row[field] !== value) throw new Error(`Completion checkpoint mismatch: ${field}`);
+    if (!presentationCheckpointFields(row).includes(field) || row[field] !== value) throw new Error(`Completion checkpoint mismatch: ${field}`);
   }
-  if (Object.keys(expectation.expectedCheckpoints || {}).length !== PRESENTATION_CHECKPOINT_FIELDS.length) {
+  if (Object.keys(expectation.expectedCheckpoints || {}).length !== presentationCheckpointFields(row).length) {
     throw new Error('Completion checkpoints are incomplete');
   }
   return row;
@@ -390,6 +401,7 @@ if (typeof module !== 'undefined' && module.exports) {
     planPresentationFailure,
     planSideEffectGuard,
     presentationLeaseExpiry,
+    presentationCheckpointFields,
     requireCanonicalOwner,
     requireEligibleCanonical,
     selectNextStage,
@@ -404,9 +416,13 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 if (typeof $input !== 'undefined') {
-  const mode = $input.first().json.presentationHelperMode;
+  const input = $input.first().json;
+  const mode = input.presentationHelperMode;
   if (mode === 'validate_input') {
-    return [{ json: { attemptKey: validateAttemptKey($input.first().json.attemptKey) } }];
+    return [{ json: { attemptKey: validateAttemptKey(input.attemptKey) } }];
   }
+  if (mode === 'require_eligible') return [{ json: requireEligibleCanonical(input.rows) }];
+  if (mode === 'next_stage') return [{ json: { presentationStage: selectNextStage(input.row) } }];
+  if (mode === 'final_text') return [{ json: { text: buildFinalText(input.row) } }];
   throw new Error('Presentation helper mode is required');
 }

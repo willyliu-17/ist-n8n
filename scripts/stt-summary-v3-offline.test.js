@@ -117,7 +117,7 @@ test('loads and assembles every workflow from the authoritative inventory', () =
   assert.equal(new Set(V3_WORKFLOW_INVENTORY.map(([, directory]) => directory)).size, V3_WORKFLOW_INVENTORY.length);
   for (const { directory, name, workflow } of workflowEntries) {
     assert.equal(workflow.name, name, directory);
-    assert.equal(workflow.active, false, directory);
+    assert.equal(workflow.active, workflow.id === 'CollectSuspectV3', directory);
     assertConnectionTargets(workflow, directory);
   }
 });
@@ -202,13 +202,14 @@ test('limits the execution-bound callback exclusion to the exact Tencent invento
   }
 });
 
-test('keeps C09 routing isolated to the single Slack ingress and callback tokens out of HTTP URLs', () => {
+test('limits literal channel IDs to the approved pair and keeps callback tokens out of HTTP URLs', () => {
   for (const { directory, workflow } of workflowEntries) {
     const source = JSON.stringify(workflow);
     if (directory === 'workflows/ist_bot_slack_ingress_v3_IstBotSlackIngressV3A1') {
       assert.match(source, /C09F0SYG57D/, directory);
-    } else {
-      assert.doesNotMatch(source, /C09F0SYG57D/, directory);
+    }
+    for (const channel of source.match(/\bC(?=[A-Z0-9]{0,9}\d)[A-Z0-9]{10}\b/g) || []) {
+      assert.ok(['C0A4JJJKJMD', 'C09F0SYG57D'].includes(channel), `${directory}: unexpected channel ${channel}`);
     }
     for (const node of workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.httpRequest')) {
       assert.doesNotMatch(String(node.parameters?.url || ''), /callbackToken|callbackTokenHash/i, `${directory}:${node.name}`);
@@ -233,12 +234,18 @@ test('keeps exactly one Slack trigger in the v3 inventory', () => {
   }]);
 });
 
-test('keeps suspect collection inactive and manual-only', () => {
+test('enables suspect collection with manual and daily Taipei triggers', () => {
   const { workflow } = workflowEntries.find(({ directory }) =>
     directory === 'workflows/collect_suspect_streamid_v3_CollectSuspectV3');
   const triggers = workflow.nodes.filter(({ type }) => type.toLowerCase().includes('trigger'));
-  assert.equal(workflow.active, false);
-  assert.deepEqual(triggers.map(({ type }) => type), ['n8n-nodes-base.manualTrigger']);
+  assert.equal(workflow.active, true);
+  assert.deepEqual(triggers.map(({ type }) => type), ['n8n-nodes-base.manualTrigger', 'n8n-nodes-base.scheduleTrigger']);
+  assert.equal(workflow.settings.timezone, 'Asia/Taipei');
+  assert.deepEqual(triggers[1].parameters.rule.interval, [{ triggerAtHour: 10, triggerAtMinute: 0 }]);
+  for (const [name, channel] of [['Configure Manual Run', 'C0A4JJJKJMD'], ['Configure Scheduled Run', 'C09F0SYG57D']]) {
+    const config = workflow.nodes.find((node) => node.name === name);
+    assert.equal(config.parameters.assignments.assignments.find((field) => field.name === 'channel').value, channel);
+  }
 });
 
 test('executes the Query Logs checker with the Code node input contract', () => {

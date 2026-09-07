@@ -217,6 +217,33 @@ test('uses stage-specific safe error codes when raw errors cannot be persisted',
   assert.equal(sanitizeStageError({ carrier, error: { message: 'bad https://secret.example/token' } }).errorCode, 'summary_inference_failed');
   assert.equal(sanitizeStageError({ carrier: { ...carrier, nextStage: 'upload' }, message: 'timeout' }).errorCode, 'timeout');
 });
+test('normalizes only allowlisted n8n positive line suffixes across observed error carriers', () => {
+  const carrier = { kind: 'carrier', input: input(), row: row(), nextStage: 'inference' };
+  assert.equal(sanitizeStageError({ carrier, error: 'summary_model_output_invalid [line 9]' }).errorCode, 'summary_model_output_invalid');
+  assert.equal(sanitizeStageError({ carrier, error: { message: 'summary_model_empty_response [line 12]' } }).errorCode, 'summary_model_empty_response');
+  assert.equal(sanitizeStageError({ carrier, message: 'summary_model_output_invalid [line 1]' }).errorCode, 'summary_model_output_invalid');
+});
+test('rejects malformed, sensitive, and unknown n8n line-suffixed errors without leaking them', () => {
+  const carrier = { kind: 'carrier', input: input(), row: row(), nextStage: 'inference' };
+  for (const raw of [
+    'summary_model_output_invalid [line 0]',
+    'summary_model_output_invalid [line -1]',
+    'summary_model_output_invalid [line 1.5]',
+    'summary_model_output_invalid [line 9] extra',
+    'summary_model_output_invalid [line 9]\nprivate transcript',
+    'summary_model_output_invalid [line 9]\n',
+    'summary_model_output_invalid [line 9]\r\n',
+    'summary_model_output_invalid [line 9]\u2028',
+    'summary_model_output_invalid\n',
+    'summary_model_output_invalid [line 9] https://secret.example/a?token=x',
+    'summary_model_output_invalid [line 9] 192.0.2.10',
+    'unknown_error [line 9]',
+  ]) {
+    const errorCode = sanitizeStageError({ carrier, error: raw }).errorCode;
+    assert.equal(errorCode, 'summary_inference_failed');
+    assert.doesNotMatch(errorCode, /https|token|192\.0\.2\.10|unknown_error/);
+  }
+});
 test('side effects have continue error output and no retries', () => { for (const name of ['Call AI SUMMARY Inference SubWF', 'Upload Summary File', 'Post Summary Message']) { const item = node(name); assert.equal(item.onError, 'continueErrorOutput'); assert.notEqual(item.retryOnFail, true); } });
 test('side effects are ordered inference upload message', () => { const order = ['Call AI SUMMARY Inference SubWF', 'Upload Summary File', 'Post Summary Message'].map((name) => workflow.nodes.indexOf(node(name))); assert.ok(order[0] < order[1] && order[1] < order[2]); });
 test('writes use only summary_requests_v3 allConditions and always output', () => workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.dataTable' && item.parameters.operation === 'update').forEach((item) => { assert.equal(item.parameters.dataTableId.value, 'summary_requests_v3'); assert.equal(item.parameters.matchType, 'allConditions'); assert.equal(item.alwaysOutputData, true); }));
@@ -236,7 +263,7 @@ test('summary reactions restore the original category mapping on the original th
   assert.equal(reaction.parameters.resource, 'reaction');
   assert.equal(reaction.parameters.timestamp, '={{ $json.input.threadTS }}');
   assert.equal(reaction.onError, 'continueErrorOutput');
-  assert.equal(workflow.connections['Parse Message Response'].main[0].some((edge) => edge.node === 'Map Summary Reactions'), true);
+  assert.equal(workflow.connections['Merge Completion Status Carrier And Output'].main[0].some((edge) => edge.node === 'Map Summary Reactions'), true);
 });
 test('summary reactions put OBS letters first and retain device and category reactions', () => {
   const reactions = mapSummaryReactions({
@@ -289,7 +316,7 @@ test('event evidence waits for carrier and both query branches', () => {
     .find((edge) => edge.node === merge.name).index;
 
   assert.deepEqual(merge.parameters, { mode: 'append', numberInputs: 3 });
-  assert.equal(inputIndex('Preflight Inference Owner'), 0);
+  assert.equal(inputIndex('Merge Inference Status Carrier And Output'), 0);
   assert.equal(inputIndex('StreamerLog'), 1);
   assert.equal(inputIndex('StreamerEventLog'), 2);
   assert.equal(node('StreamerLog').alwaysOutputData, true);
@@ -336,7 +363,7 @@ test('checkpoint loop returns its carrier and refreshed row to the stage planner
   }
 });
 test('binary is retained through upload carrier and Slack receives data', () => { assert.equal(node('Build Summary File').parameters.jsCode.includes('Prepare_Summary_File'), true); assert.equal(node('Upload Summary File').parameters.binaryPropertyName, 'data'); });
-test('Slack nodes retain the pinned credential and C0 thread routing', () => ['Upload Summary File', 'Post Summary Message'].forEach((name) => { const item = node(name); assert.equal(item.credentials.slackApi.id, '9sfslX7caXSFAVUN'); assert.match(JSON.stringify(item.parameters), /C0A4JJJKJMD/); }));
+test('Slack nodes retain the pinned credential and persisted channel routing', () => ['Upload Summary File', 'Post Summary Message', 'Update Summary Status Before Upload', 'Update Summary Status Complete', 'Update Summary Status Failure'].forEach((name) => { const item = node(name); assert.equal(item.credentials.slackApi.id, '9sfslX7caXSFAVUN'); assert.match(JSON.stringify(item.parameters), /\$json\.(input\.)?channel/); }));
 test('summary notification posts a message instead of managing a channel', () => {
   const item = node('Post Summary Message');
   assert.equal(item.parameters.resource, 'message');
@@ -518,4 +545,96 @@ test('every persisted write plan carries a top-level requestKey for zero-CAS rer
   assert.equal(planFailure([failure, row()], NOW).requestKey, input().requestKey);
   const nextStageSource = fs.readFileSync(path.join(root, 'nodes', 'Plan_Next_Stage', 'jsCode.js'), 'utf8');
   assert.match(nextStageSource, /requestKey: input\.input\.requestKey/);
+});
+test('one persisted status message is created before inference and updated through upload, completion, and failure', () => {
+  const route = node('Route Next Stage');
+  assert.equal(route.parameters.rules.values[4].conditions.conditions[0].rightValue, 'status');
+  assert.equal(workflow.connections['Preflight Message Owner'].main[0].some((edge) => edge.node === 'Post Summary Message'), true);
+  assert.equal(workflow.connections['Update Summary Status Before Upload'].main[1][0].node, 'Sanitize Stage Error');
+  assert.equal(workflow.connections['Update Summary Status Complete'].main[1][0].node, 'Sanitize Stage Error');
+  assert.equal(workflow.connections['Verify Failure'].main[0].some((edge) => edge.node === 'Build Failure Status'), true);
+  for (const name of ['Update Summary Status Before Inference', 'Update Summary Status Before Upload', 'Update Summary Status Complete', 'Update Summary Status Failure']) {
+    const item = node(name);
+    assert.equal(item.parameters.resource, 'message');
+    assert.equal(item.parameters.operation, 'update');
+    assert.match(item.parameters.ts, /summaryMessageTS/);
+  }
+});
+test('updates the waiting or retry message before inference and preserves both merge inputs', () => {
+  const targets = (name) => workflow.connections[name].main[0];
+  assert.deepEqual(targets('Preflight Inference Owner'), [
+    { node: 'Update Summary Status Before Inference', type: 'main', index: 0 },
+    { node: 'Merge Inference Status Carrier And Output', type: 'main', index: 0 },
+  ]);
+  assert.deepEqual(targets('Update Summary Status Before Inference'), [
+    { node: 'Merge Inference Status Carrier And Output', type: 'main', index: 1 },
+  ]);
+  assert.deepEqual(targets('Merge Inference Status Carrier And Output'), [
+    { node: 'Build Event Query Items', type: 'main', index: 0 },
+    { node: 'Merge Event Evidence And Carrier', type: 'main', index: 0 },
+  ]);
+  assert.equal(workflow.connections['Update Summary Status Before Inference'].main[1][0].node, 'Sanitize Stage Error');
+  assert.match(node('Update Summary Status Before Inference').parameters.text, /analysis in progress/);
+});
+test('upload response merge receives the carrier before checkpointing a successful upload', () => {
+  assert.deepEqual(workflow.connections['Build Summary File'].main[0], [
+    { node: 'Upload Summary File', type: 'main', index: 0 },
+    { node: 'Merge Upload Carrier And Output', type: 'main', index: 0 },
+  ]);
+  assert.equal(workflow.connections['Upload Summary File'].main[0][0].index, 1);
+  const carrier = { kind: 'carrier', input: input(), row: row({ summaryMessageTS: '1787364000.000002' }), nextStage: 'upload' };
+  const parsed = parseSlackResponse({ ...carrier, id: 'F_VERIFIED_UPLOAD' });
+  const { planWrite } = require('../nodes/Plan_Write.js');
+  assert.deepEqual(planWrite([parsed, carrier.row]).values, { summaryUploadID: 'F_VERIFIED_UPLOAD' });
+});
+test('a persisted waiting message skips a second post but still schedules inference', () => {
+  const vm = require('node:vm');
+  const code = fs.readFileSync(path.join(root, 'nodes/Plan_Next_Stage/jsCode.js'), 'utf8');
+  const persisted = row({ summaryMessageTS: '1787364000.000002' });
+  const items = [{ json: { kind: 'carrier', input: input() } }, { json: persisted }];
+  const [result] = vm.runInNewContext(`(function () { ${code} })()`, { $input: { all: () => items } });
+  assert.equal(result.json.nextStage, 'inference');
+  assert.equal(result.json.row.summaryMessageTS, persisted.summaryMessageTS);
+});
+
+test('preserves classified child errors, bounds retries and updates the same status message', () => {
+  const carrier = { kind: 'carrier', input: input(), row: row(), nextStage: 'inference' };
+  const sanitized = sanitizeStageError({ ...carrier, error: 'summary_model_empty_response' });
+  assert.equal(sanitized.errorCode, 'summary_model_empty_response');
+  assert.equal(sanitizeStageError({ ...carrier, error: 'provider error with private transcript' }).errorCode, 'summary_inference_failed');
+  const { planFailure } = require('../nodes/Plan_Failure.js');
+  const vm = require('node:vm');
+  const code = fs.readFileSync(path.join(root, 'nodes/Build_Failure_Status.js'), 'utf8');
+  for (const attempt of [0, 1, 2]) {
+    const persisted = row({ summaryAttempt: attempt, summaryMessageTS: '1787364000.000002' });
+    const plan = planFailure([{ ...sanitized, row: persisted }, persisted], NOW);
+    assert.equal(plan.values.summaryAttempt, attempt + 1);
+    assert.equal(plan.values.status, attempt === 2 ? 'failed' : 'summary_retry_pending');
+    const [status] = vm.runInNewContext(`(function () { ${code} })()`, {
+      $input: { first: () => ({ json: { ...persisted, ...plan.values } }) },
+    });
+    assert.equal(status.json.summaryMessageTS, persisted.summaryMessageTS);
+    assert.match(status.json.statusText, /no usable response/);
+    assert.match(status.json.statusText, attempt === 2 ? /failed after the retry limit/ : /will retry/);
+  }
+});
+test('runtime line-formatted invalid reports retain their classified failure through retry three', () => {
+  const carrier = { kind: 'carrier', input: input(), row: row(), nextStage: 'inference' };
+  const sanitized = sanitizeStageError({ ...carrier, error: 'summary_model_output_invalid [line 9]' });
+  const { planFailure } = require('../nodes/Plan_Failure.js');
+  const vm = require('node:vm');
+  const code = fs.readFileSync(path.join(root, 'nodes/Build_Failure_Status.js'), 'utf8');
+
+  assert.equal(sanitized.errorCode, 'summary_model_output_invalid');
+  for (const attempt of [0, 1, 2]) {
+    const persisted = row({ summaryAttempt: attempt, summaryMessageTS: '1787364000.000002' });
+    const plan = planFailure([{ ...sanitized, row: persisted }, persisted], NOW);
+    const [status] = vm.runInNewContext(`(function () { ${code} })()`, {
+      $input: { first: () => ({ json: { ...persisted, ...plan.values } }) },
+    });
+    assert.equal(plan.values.summaryAttempt, attempt + 1);
+    assert.equal(plan.values.status, attempt === 2 ? 'failed' : 'summary_retry_pending');
+    assert.equal(status.json.summaryMessageTS, persisted.summaryMessageTS);
+    assert.match(status.json.statusText, /invalid report/);
+  }
 });

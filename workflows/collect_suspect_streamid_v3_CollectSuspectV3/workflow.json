@@ -1,8 +1,8 @@
 {
   "id": "CollectSuspectV3",
   "name": "Collect suspect streamID v3",
-  "description": "Inactive manual-only suspect candidate collector. An empty target-date override queries the prior Taipei business day; a YYYY-MM-DD override pins one business-day range. Persists provenance, reconciles canonical rows, resolves STT metadata in bounded chunks, dispatches Query Logs children serially as best-effort attachments without automatic Slack retries, and calls the Summary orchestrator independently.",
-  "active": false,
+  "description": "Active suspect candidate collector. Manual runs default to the test channel and permit an allowlisted channel override; the daily 10:00 Asia/Taipei schedule always uses the production channel. An empty target-date override queries the prior Taipei business day; a YYYY-MM-DD override pins one business-day range. Persists provenance, reconciles canonical rows, resolves STT metadata in bounded chunks, posts STT then log-collecting statuses before asynchronously calling the Summary orchestrator, and dispatches Query Logs children serially as best-effort attachments without automatic Slack retries.",
+  "active": true,
   "activeVersionId": null,
   "isArchived": false,
   "sourceWorkflowId": null,
@@ -28,18 +28,74 @@
               "name": "targetDate",
               "value": "",
               "type": "string"
+            },
+            {
+              "id": "12000001-0000-4000-8000-000000000044",
+              "name": "channel",
+              "value": "C0A4JJJKJMD",
+              "type": "string"
             }
           ]
         },
         "options": {}
       },
       "id": "12000001-0000-4000-8000-000000000043",
-      "name": "Configure Target Date",
+      "name": "Configure Manual Run",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
         -1088,
         0
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10,
+              "triggerAtMinute": 0
+            }
+          ]
+        },
+        "misfirePolicy": "skip"
+      },
+      "id": "12000001-0000-4000-8000-000000000045",
+      "name": "Daily 10:00 Taipei Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -1200,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "12000001-0000-4000-8000-000000000046",
+              "name": "targetDate",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "12000001-0000-4000-8000-000000000047",
+              "name": "channel",
+              "value": "C09F0SYG57D",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "12000001-0000-4000-8000-000000000048",
+      "name": "Configure Scheduled Run",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1088,
+        160
       ]
     },
     {
@@ -60,6 +116,7 @@
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
       "id": "12000002-0000-4000-8000-000000000002",
@@ -1359,9 +1416,57 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
+        7200,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Log_Collecting_Statuses/jsCode.js"
+      },
+      "id": "9f39f6e8-75b9-4f77-b9d4-b70527995678",
+      "name": "Build Log Collecting Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
         6688,
         -80
       ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "messageType": "text",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel }}",
+          "mode": "id"
+        },
+        "text": "={{ $json.logStatusText }}",
+        "otherOptions": {
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.threadTS }}"
+            }
+          }
+        }
+      },
+      "id": "fe06e470-89bd-4467-9046-7fc29bddcad0",
+      "name": "Send Log Collecting Status",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        6944,
+        -80
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
     },
     {
       "parameters": {
@@ -1446,9 +1551,64 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        6944,
+        7456,
         -80
       ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "1d599078-4125-474a-b93d-11b3f136909c",
+      "name": "Merge Log Status Update Inputs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        5792,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Log_Status_Updates/jsCode.js"
+      },
+      "id": "0802b5c7-b23c-4181-8d0f-f2c8d79e40cd",
+      "name": "Build Log Status Updates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6032,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "update",
+        "messageType": "text",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel }}",
+          "mode": "id"
+        },
+        "ts": "={{ Number($json.ts) }}",
+        "text": "={{ $json.text }}",
+        "otherOptions": {}
+      },
+      "id": "f26a4f91-e6b4-4aec-b1d2-ab1523581d4c",
+      "name": "Update Log Collecting Status",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        6288,
+        528
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      }
     }
   ],
   "connections": {
@@ -1456,14 +1616,36 @@
       "main": [
         [
           {
-            "node": "Configure Target Date",
+            "node": "Configure Manual Run",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Configure Target Date": {
+    "Configure Manual Run": {
+      "main": [
+        [
+          {
+            "node": "Build Candidate Query Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 10:00 Taipei Trigger": {
+      "main": [
+        [
+          {
+            "node": "Configure Scheduled Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configure Scheduled Run": {
       "main": [
         [
           {
@@ -1911,6 +2093,11 @@
             "node": "Summarize Query Log Results",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge Log Status Update Inputs",
+            "type": "main",
+            "index": 0
           }
         ],
         [
@@ -2035,9 +2222,36 @@
       "main": [
         [
           {
+            "node": "Build Log Collecting Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Log Collecting Status": {
+      "main": [
+        [
+          {
+            "node": "Send Log Collecting Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Log Collecting Status": {
+      "main": [
+        [
+          {
             "node": "Build Orchestrator Requests",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge Log Status Update Inputs",
+            "type": "main",
+            "index": 1
           }
         ]
       ]
@@ -2047,6 +2261,28 @@
         [
           {
             "node": "Call Summary Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Log Status Updates": {
+      "main": [
+        [
+          {
+            "node": "Update Log Collecting Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Log Status Update Inputs": {
+      "main": [
+        [
+          {
+            "node": "Build Log Status Updates",
             "type": "main",
             "index": 0
           }
@@ -2064,7 +2300,8 @@
     "saveManualExecutions": true,
     "saveExecutionProgress": false,
     "errorWorkflow": "run4KT7goJGVeOOk",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "timezone": "Asia/Taipei"
   },
   "staticData": null,
   "pinData": {},

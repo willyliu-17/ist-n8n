@@ -17,6 +17,7 @@ const {
   planCallbackDeadline,
 } = require('../nodes/Plan_Repairs/jsCode');
 const schema = require('../../automation_provision_state_v3_AutomationProvV3A1/nodes/State_Schema/schema.json');
+const { verifyRetryDeadlineExhausted } = require('../nodes/Verify_Retry_Deadline_Exhausted/jsCode');
 
 function tableRow(table, overrides) {
   return {
@@ -103,7 +104,9 @@ test('processor has the typed candidate contract, self-contained helper, and exp
   assert.deepEqual(targets(processor, 'Plan Exact Retry Claim'), ['Retry Claim Is Actionable']);
   assert.deepEqual(targets(processor, 'Retry Claim Is Actionable'), ['Carry Retry Claim Plan', 'Retry Deadline Is Exhausted']);
   assert.deepEqual(targets(processor, 'Retry Deadline Is Exhausted'), ['Expire Retry Deadline Exact', 'Return Noop']);
-  assert.deepEqual(targets(processor, 'Expire Retry Deadline Exact'), ['Verify Retry Deadline Exhausted']);
+  assert.deepEqual(targets(processor, 'Expire Retry Deadline Exact'), ['Limit Retry Deadline Patch']);
+  assert.deepEqual(targets(processor, 'Limit Retry Deadline Patch'), ['Re-read Retry Deadline State']);
+  assert.deepEqual(targets(processor, 'Re-read Retry Deadline State'), ['Verify Retry Deadline Exhausted']);
   const expiry = processor.nodes.find(({ name }) => name === 'Expire Retry Deadline Exact');
   assert.equal(expiry.parameters.operation, 'update');
   assert.equal(expiry.parameters.matchType, 'allConditions');
@@ -167,7 +170,14 @@ test('processor isolates the complete presentation lease subgraph with explicit 
   assert.equal(processor.connections['Carry Presentation Repair Plan'].main[0].find(({ node }) => node === 'Merge Presentation Plan And Reread').index, 0);
   assert.equal(processor.connections['Re-read Presentation Repair Patch'].main[0][0].index, 1);
   assert.deepEqual(targets(processor, 'Verify Presentation Repair'), ['Run Presentation Owner Repair']);
+  assert.deepEqual(targets(processor, 'Verify Retry Deadline Exhausted'), ['Run Presentation Owner Repair']);
   assert.deepEqual(targets(processor, 'Run Presentation Owner Repair'), ['Return Repaired']);
+  const presentationPatch = processor.nodes.find(({ name }) => name === 'Patch Presentation Repair');
+  assert.equal(Object.fromEntries(presentationPatch.parameters.filters.conditions.map(({ keyName, keyValue }) => [keyName, keyValue])).status, '={{ $json.filters.status }}');
+  const retryVerifier = processor.nodes.find(({ name }) => name === 'Verify Retry Deadline Exhausted');
+  const retryCode = fs.readFileSync(path.join(processorDir, retryVerifier.parameters.jsCode.replace('__EXTERNAL_FILE__://', '')), 'utf8');
+  assert.match(retryCode, /presentationStatus !== 'pending'/);
+  assert.match(retryCode, /attemptKey: row\.attemptKey/);
   const helper = fs.readFileSync(path.join(processorDir, 'nodes/Plan_Repairs/jsCode.js'), 'utf8');
   assert.match(helper, /Retry claim requires exactly one candidate carrier/);
   assert.match(helper, /Presentation repair requires exactly one candidate carrier/);
@@ -178,6 +188,23 @@ test('processor isolates the complete presentation lease subgraph with explicit 
     assert.match(code, /repairClass: input\.repairClass/);
     assert.match(code, /nextAttemptKey:/);
   }
+});
+
+test('retry-deadline notification requires an exact fresh canonical readback', () => {
+  const plan = { filters: { id: 1, attemptKey: 'job:9' } };
+  const row = { id: 1, attemptKey: 'job:9', status: 'timed_out', errorCode: 'stt_retry_deadline_exceeded',
+    retryLeaseOwner: '', retryLeaseUntilIso: '', nextRetryAtIso: '', reconciliationStatus: 'canonical',
+    canonicalRowID: '1', presentationStatus: 'pending' };
+  assert.equal(verifyRetryDeadlineExhausted([row], plan).attemptKey, 'job:9');
+  for (const rows of [[], [{}], [row, { ...row, id: 2, canonicalRowID: '2' }],
+    [{ ...row, status: 'retry_pending' }], [{ ...row, id: 2, canonicalRowID: '2' }],
+    [{ ...row, attemptKey: 'different:9' }], [{ ...row, presentationStatus: 'completed' }]]) {
+    assert.throws(() => verifyRetryDeadlineExhausted(rows, plan), /transition/);
+  }
+  const reread = processor.nodes.find(({ name }) => name === 'Re-read Retry Deadline State');
+  assert.equal(reread.parameters.returnAll, true);
+  assert.equal(reread.alwaysOutputData, true);
+  assert.match(reread.parameters.filters.conditions[0].keyValue, /Retry Deadline Is Exhausted/);
 });
 
 test('processor has no structurally unreachable nodes', () => {
