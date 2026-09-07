@@ -2,6 +2,8 @@ const CHANNEL = 'C0A4JJJKJMD';
 const MODES = Object.freeze({ first: 'fromStart', last: 'fromEnd', fromStart: 'fromStart', fromEnd: 'fromEnd' });
 const SLACK_TIMESTAMP_PATTERN = /^\d{10,}\.\d{6}$/;
 const DECIMAL_ID_PATTERN = /^\d+$/;
+const SINGLE_STREAM_REQUEST_TYPE = 'single_stream_summary';
+const SINGLE_STREAM_REQUEST_KEY_PATTERN = /^bot-summary:\d{10,}\.\d{6}:(\d+)$/;
 
 function requiredString(value, fieldName) {
   if (typeof value !== 'string' || value.trim() === '') throw new Error(`${fieldName} must be a non-empty string`);
@@ -44,6 +46,29 @@ function existingDialogueFor(existingDialogues, role, logicalJobKey) {
   if (value.role !== undefined && value.role !== role) throw new Error(`existingDialogues.${role} role mismatch`);
   if (value.logicalJobKey !== undefined && value.logicalJobKey !== logicalJobKey) throw new Error(`existingDialogues.${role} logical identity mismatch`);
   return requiredString(value.dialogue, `existingDialogues.${role}.dialogue`);
+}
+
+function validateSingleStreamRequest(requestKey, orderedStreams) {
+  const requestKeyMatch = SINGLE_STREAM_REQUEST_KEY_PATTERN.exec(requestKey);
+  if (!requestKeyMatch) throw new Error('single_stream_summary requestKey is invalid');
+  if (orderedStreams.length !== 1) throw new Error('single_stream_summary requires exactly one stream');
+  const [stream] = orderedStreams;
+  if (stream.role !== 'current' || stream.mode !== 'fromStart') {
+    throw new Error('single_stream_summary stream must be current fromStart');
+  }
+  if (requestKeyMatch[1] !== stream.liveStreamID) {
+    throw new Error('single_stream_summary requestKey stream ID mismatch');
+  }
+  const { beginTime, endTime, closeBy } = stream.streamContext;
+  if (!Number.isFinite(beginTime) || !Number.isFinite(endTime) || endTime <= beginTime) {
+    throw new Error('single_stream_summary requires a valid ended stream');
+  }
+  if (endTime > Math.floor(Date.now() / 1000)) throw new Error('single_stream_summary stream has not ended yet');
+  if (closeBy === null || closeBy === undefined || (typeof closeBy === 'string' && closeBy.trim() === '')) {
+    throw new Error('single_stream_summary requires a closing marker');
+  }
+  const durationMinutes = Math.ceil((endTime - beginTime) / 60);
+  if (stream.durationMinutes !== durationMinutes) throw new Error('single_stream_summary durationMinutes must cover the full stream');
 }
 
 function normalizeRequest(input) {
@@ -101,6 +126,7 @@ function normalizeRequest(input) {
   for (const key of Object.keys(input.existingDialogues)) {
     if (!knownKeys.has(key)) throw new Error(`existingDialogues contains unknown identity: ${key}`);
   }
+  if (requestType === SINGLE_STREAM_REQUEST_TYPE) validateSingleStreamRequest(requestKey, orderedStreams);
   const existingDialogues = {};
   const expectedLogicalJobKeys = [];
   for (const stream of orderedStreams) {
@@ -127,7 +153,13 @@ function normalizeRequest(input) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { CHANNEL, MODES, SLACK_TIMESTAMP_PATTERN, normalizeRequest };
+  module.exports = {
+    CHANNEL,
+    MODES,
+    SINGLE_STREAM_REQUEST_TYPE,
+    SLACK_TIMESTAMP_PATTERN,
+    normalizeRequest,
+  };
 }
 
 if (typeof $input !== 'undefined') {

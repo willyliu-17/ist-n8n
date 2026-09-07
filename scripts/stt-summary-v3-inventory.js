@@ -37,6 +37,7 @@ const V3_EXTERNAL_WORKFLOW_DEPENDENCIES = Object.freeze([
 const V3_OFFLINE_TEST_FILES = Object.freeze([
     'scripts/deploy-utils.test.js',
     'scripts/stt-summary-v3-offline.test.js',
+    'scripts/single-stream-summary-v3.test.js',
     'workflows/automation_provision_state_v3_AutomationProvV3A1/tests/contracts.test.js',
     'workflows/stream_metadata_resolve_by_ids_v3_StreamMetaV3A001/tests/resolver.test.js',
     'workflows/stt_dispatch_attempt_v3_STTDispatchV3A01/tests/dispatcher.test.js',
@@ -49,6 +50,7 @@ const V3_OFFLINE_TEST_FILES = Object.freeze([
     'workflows/automation_retry_and_repair_v3_AutoRepairV3A001/tests/repair.test.js',
     'workflows/repair_process_candidate_v3_RepairCandidateV3A1/tests/processor.test.js',
     'workflows/ai_summary_inference_subwf_m8VcIoclFE2lVKrl/tests/inference.test.js',
+    'workflows/ai_summary_inference_subwf_m8VcIoclFE2lVKrl/tests/long-dialogue.test.js',
     'workflows/ai_summary_v3_AISummaryV3A0001/tests/summary.test.js',
     'workflows/query_steam_logs_v3_QueryLogsV3A0001/tests/delivery-order.test.js',
     'workflows/collect_suspect_streamid_v3_CollectSuspectV3/tests/routing.test.js',

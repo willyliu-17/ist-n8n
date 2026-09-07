@@ -435,6 +435,27 @@ test('BigQuery casing and child aggregate contract are normalized at the runtime
   assert.match(fs.readFileSync(path.join(root, 'nodes', 'StreamerLog', 'sqlQuery.sql'), 'utf8'), /'streamerLog' AS evidenceType/);
   assert.match(fs.readFileSync(path.join(root, 'nodes', 'StreamerEventLog', 'sqlQuery.sql'), 'utf8'), /'streamEventLog' AS evidenceType/);
 });
+test('only the explicit single-stream request type selects full inference mode', () => {
+  const vm = require('node:vm');
+  const values = node('Call AI SUMMARY Inference SubWF').parameters.workflowInputs.value;
+  const expression = values.analysisMode.slice(3, -2);
+  for (const requestType of ['suspect', 'standalone_summary', 'standalone_stt', 'single_stream_summary']) {
+    const mode = vm.runInNewContext(expression, { $json: { input: input({ requestType }) } });
+    assert.equal(mode, requestType === 'single_stream_summary' ? 'single_stream_full' : '');
+  }
+  const single = input({ requestType: 'single_stream_summary' });
+  assert.equal(helper.validateInput(single), single);
+  assert.equal(buildInferenceAggregate(single).streams[0].details[0].dialogue, single.streams[0].dialogue);
+});
+test('single-stream reports redact IP literals from dialogue and generated evidence without masking timestamps', () => {
+  const { normalizeInference } = require('../nodes/Normalize_Inference/jsCode');
+  const report = { summary: 'At 12:34:56: 198.51.100.7, 2001:db8::7, ::1, and ::ffff:192.0.2.8. version 999.1.1.1' };
+  const normalized = normalizeInference({ input: input({ requestType: 'single_stream_summary' }), output: { report } });
+  for (const address of ['198.51.100.7', '2001:db8::7', '::1', '::ffff:192.0.2.8']) assert.equal(normalized.inferenceResultJson.includes(address), false);
+  assert.match(normalized.inference.report.summary, /12:34:56/);
+  assert.match(normalized.inference.report.summary, /999\.1\.1\.1/);
+  assert.deepEqual(normalizeInference({ input: input(), output: { report } }).inference.report, report);
+});
 test('post-update rereads use the direct persisted requestKey', () => {
   for (const name of ['Re-read Reconciled Request', 'Re-read Frozen Request', 'Re-read Inference Request', 'Re-read Upload Request', 'Re-read Message Request', 'Re-read Failure Request', 'Re-read Completion Request']) {
     const expression = node(name).parameters.filters.conditions[0].keyValue;

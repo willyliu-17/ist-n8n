@@ -481,6 +481,116 @@ test('standalone STT keeps the twenty-attempt callback retry policy', () => {
   assert.equal(classifyClaim([standalone(20)], standaloneCallback, HASH, NOW).desiredStatus, 'failed');
 });
 
+test('single-stream summary remains claimable at 130 minutes and terminally records callback service failures', () => {
+  const at130 = '2026-08-22T02:10:00.000Z';
+  const row = attempt({
+    requestType: 'single_stream_summary',
+    callbackDeadlineAtIso: '2026-08-22T02:30:00.000Z',
+    callbackTokenExpiresAtIso: '2026-08-23T00:00:00.000Z',
+  });
+  const context = callbackContext({ requestType: 'single_stream_summary' });
+  const success = classifyClaim([row], normalized({ context }), HASH, at130, [row]);
+  assert.equal(success.desiredStatus, 'completed');
+
+  const empty = classifyClaim(
+    [row],
+    normalized({ context, transcription: '' }),
+    HASH,
+    at130,
+    [row],
+  );
+  assert.equal(empty.desiredStatus, 'completed');
+  assert.equal(empty.errorCode, 'callback_empty_transcription');
+  assert.equal(empty.nextRetryAtIso, '');
+
+  const timeout = classifyClaim(
+    [row],
+    normalized({ context, statusCode: 504, retryableServiceError: true }),
+    HASH,
+    at130,
+    [row],
+  );
+  assert.equal(timeout.desiredStatus, 'failed');
+  assert.equal(timeout.errorCode, 'callback_service_504');
+  assert.equal(timeout.nextRetryAtIso, '');
+
+  const nonRetryableTimeout = normalizeCallback({
+    body: callbackBody({ statusCode: 400, error: 'timeout', webhook: { context } }),
+  });
+  assert.equal(nonRetryableTimeout.valid, true);
+  assert.equal(Object.hasOwn(nonRetryableTimeout, 'error'), false);
+  const nonRetryableResult = classifyClaim([row], nonRetryableTimeout, HASH, at130, [row]);
+  assert.equal(nonRetryableResult.desiredStatus, 'failed');
+  assert.equal(nonRetryableResult.errorCode, 'callback_service_400');
+  assert.equal(nonRetryableResult.nextRetryAtIso, '');
+
+  const expired = classifyClaim(
+    [row],
+    normalized({ context, statusCode: 504, retryableServiceError: true }),
+    HASH,
+    '2026-08-22T02:30:00.000Z',
+    [row],
+  );
+  assert.equal(expired.desiredStatus, 'timed_out');
+  assert.equal(expired.errorCode, 'callback_deadline_expired');
+  assert.equal(expired.nextRetryAtIso, '');
+
+  for (const transcription of ['late transcript', '']) {
+    const atDeadline = classifyClaim(
+      [row],
+      normalized({ context, transcription }),
+      HASH,
+      '2026-08-22T02:30:00.000Z',
+      [row],
+    );
+    assert.equal(atDeadline.desiredStatus, 'timed_out', `deadline transcription=${JSON.stringify(transcription)}`);
+    assert.equal(atDeadline.errorCode, 'callback_deadline_expired');
+    assert.equal(atDeadline.nextRetryAtIso, '');
+
+    const afterDeadline = classifyClaim(
+      [row],
+      normalized({ context, transcription }),
+      HASH,
+      '2026-08-22T02:31:00.000Z',
+      [row],
+    );
+    assert.equal(afterDeadline.desiredStatus, 'timed_out', `late transcription=${JSON.stringify(transcription)}`);
+    assert.equal(afterDeadline.errorCode, 'callback_deadline_expired');
+  }
+
+  const claimedBeforeDeadline = classifyClaim([row], normalized({ context }), HASH, '2026-08-22T02:29:59.999Z', [row]);
+  const persisted = {
+    ...row,
+    status: 'completed',
+    consumedAtIso: '2026-08-22T02:29:59.999Z',
+    dialogue: claimedBeforeDeadline.dialogue,
+    language: claimedBeforeDeadline.language,
+    errorCode: claimedBeforeDeadline.errorCode,
+    nextRetryAtIso: claimedBeforeDeadline.nextRetryAtIso,
+    presentationStatus: claimedBeforeDeadline.desiredPresentationStatus,
+  };
+  assert.equal(verifyCallbackState([persisted], claimedBeforeDeadline).action, 'verified');
+  assert.equal(classifyClaim([persisted], normalized({ context }), HASH, '2026-08-22T02:31:00.000Z', [persisted]).action, 'duplicate');
+
+  const consumed = {
+    ...row,
+    status: 'completed',
+    consumedAtIso: at130,
+    dialogue: 'persisted transcript',
+  };
+  const lateDuplicate = classifyClaim([consumed], normalized({ context }), HASH, '2026-08-22T03:00:00.000Z', [consumed]);
+  assert.equal(lateDuplicate.action, 'duplicate');
+  assert.equal(lateDuplicate.reason, 'already_consumed');
+});
+
+test('legacy summary accepts a late successful callback without changing its existing timing policy', () => {
+  const row = attempt({ callbackDeadlineAtIso: '2026-08-22T00:10:00.000Z' });
+  const result = classifyClaim([row], normalized(), HASH, '2026-08-22T00:11:00.000Z', [row]);
+  assert.equal(result.desiredStatus, 'completed');
+  assert.equal(result.dialogue, 'hello world');
+  assert.equal(result.nextRetryAtIso, '');
+});
+
 test('preserves canonical permanence and freezes cross-table checkpoint conflicts', () => {
   const existing = attempt({ id: 26, canonicalRowID: '26' });
   const later = attempt({

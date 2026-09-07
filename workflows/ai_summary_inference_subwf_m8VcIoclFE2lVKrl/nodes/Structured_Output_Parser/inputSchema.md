@@ -1,11 +1,11 @@
-{
+={
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "AI Summary Report",
   "type": "object",
   "properties": {
     "report": {
       "type": "object",
-      "description": "直播異常歸因報告",
+      "description": "{{ $('Start').first().json.analysisMode === 'single_stream_full' ? '單場直播完整技術分析報告；不預設異常、前場或重開' : '直播異常歸因報告' }}",
       "properties": {
         "subjective_motivation": {
           "type": "object",
@@ -21,7 +21,7 @@
             },
             "recovery_status": {
               "type": "string",
-              "description": "描述重開後的恢復情況與殘留問題"
+              "description": "{{ $('Start').first().json.analysisMode === 'single_stream_full' ? '描述本場內有證據的恢復情況，無證據則無法判定；跨場重開後恢復不適用' : '描述重開後的恢復情況與殘留問題' }}"
             }
           },
           "required": [
@@ -71,7 +71,7 @@
             },
             "responsibility_category_list": {
               "type": "array",
-              "description": "responsibility_category欄位的enum list [array of string )[<level enum>] ,eg [1-a] enum請參考[Issue 定義]，只關注直播間異關播的root cause",
+              "description": "{{ $('Start').first().json.analysisMode === 'single_stream_full' ? '本場有證據的問題標籤；沒有問題時可為空陣列，不能為填滿標籤而虛構異常' : 'responsibility_category欄位的enum list [array of string )[<level enum>] ,eg [1-a] enum請參考[Issue 定義]，只關注直播間異關播的root cause' }}",
               "items": {
                 "type": "string",
                 "enum": [
@@ -92,11 +92,11 @@
             },
             "causal_summary": {
               "type": "string",
-              "description": "針對主播抱怨綜合分析事故發生 以及前一場關播原因的核心因果關係，若有多個原因且有因果關係，請著重在root cause，若主播有提及曾經有做過什麼操作可以列在這邊補充（ ex. 主播自己懷疑是禮物太多，主播自己懷疑開啟了某個功能導致這個現象）"
+              "description": "{{ $('Start').first().json.analysisMode === 'single_stream_full' ? '只依本場對話與技術證據說明因果、正常結果或資料不足，不引用未提供的前場或後場；區分主播主張與已驗證事實' : '針對主播抱怨綜合分析事故發生 以及前一場關播原因的核心因果關係，若有多個原因且有因果關係，請著重在root cause，若主播有提及曾經有做過什麼操作可以列在這邊補充（ ex. 主播自己懷疑是禮物太多，主播自己懷疑開啟了某個功能導致這個現象）' }}"
             },
             "other_issue": {
               "type": "string",
-              "description": "(1)跟核心主播抱怨、重新開播無關的問題可以在此列出，(2) log的指標互斥而無法解釋 eg. （Stream Event Log）Video Encoder Resume但是（Streamer Log）bitrate沒有恢復  (3) log有警訊但是時間跟開關播時間對不上"
+              "description": "{{ $('Start').first().json.analysisMode === 'single_stream_full' ? '列出本場其他獨立問題、指標矛盾或時間無法對齊的警訊；沒有則明示，不預設重新開播' : '(1)跟核心主播抱怨、重新開播無關的問題可以在此列出，(2) log的指標互斥而無法解釋 eg. （Stream Event Log）Video Encoder Resume但是（Streamer Log）bitrate沒有恢復  (3) log有警訊但是時間跟開關播時間對不上' }}"
             },
             "exclusion_reason": {
               "type": "object",

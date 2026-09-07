@@ -25,6 +25,24 @@ function requireEligible(context) {
   return context;
 }
 
+function requireEndedSingleStream(context) {
+  requireEligible(context);
+  if (!Number.isFinite(context.beginTime) || !Number.isFinite(context.endTime) || context.endTime <= context.beginTime) {
+    throw new Error(`Stream ${context.liveStreamID} does not have a valid ended time range`);
+  }
+  if (context.endTime > Math.floor(Date.now() / 1000)) {
+    throw new Error(`Stream ${context.liveStreamID} has not ended yet`);
+  }
+  if (context.closeBy === null || context.closeBy === undefined || (typeof context.closeBy === 'string' && context.closeBy.trim() === '')) {
+    throw new Error(`Stream ${context.liveStreamID} does not have a closing marker`);
+  }
+  return context;
+}
+
+function isSingleStreamPlan(plan) {
+  return plan?.requestType === 'single_stream_summary';
+}
+
 function eligibleContext(rows, liveStreamID) {
   return (rows || []).find((row) => row?.liveStreamID === liveStreamID
     && row.eligible === true && row.profile === 'stt' && row.source === 'livestream_v2');
@@ -78,7 +96,18 @@ function finalResolutionCalls(plan, previous, current) {
     .map((call) => ({ ...call, plan: { ...plan, finalLookupWindow } }));
 }
 
+function finalSingleResolutionCalls(plan, current) {
+  requireEndedSingleStream(current);
+  return buildSummaryResolverCalls([plan.positions[0].liveStreamID], plan.lookupWindow)
+    .map((call) => ({ ...call, plan }));
+}
+
 function planAfterBaseDiscovery(plan, rows) {
+  if (isSingleStreamPlan(plan)) {
+    const current = eligibleContext(rows, plan.positions[0].liveStreamID);
+    if (!current) throw new Error('Summary base discovery could not resolve current stream');
+    return finalSingleResolutionCalls(plan, current);
+  }
   const previous = eligibleContext(rows, plan.positions[0].liveStreamID);
   const current = eligibleContext(rows, plan.positions[1].liveStreamID);
   if (!current) throw new Error('Summary base discovery could not resolve current stream');
@@ -99,8 +128,30 @@ function planAfterFallbackDiscovery(plan, baseRows, fallbackRows) {
   return finalResolutionCalls(plan, previous, current);
 }
 
+function buildOrderedSummaryStreams(plan, contexts) {
+  return plan.positions.map((position) => {
+    const streamContext = isSingleStreamPlan(plan)
+      ? requireEndedSingleStream(contexts[position.originalIndex])
+      : requireEligible(contexts[position.originalIndex]);
+    return {
+      role: position.role,
+      liveStreamID: position.liveStreamID,
+      mode: position.mode,
+      durationMinutes: isSingleStreamPlan(plan)
+        ? Math.ceil((streamContext.endTime - streamContext.beginTime) / 60)
+        : 5,
+      streamContext,
+    };
+  });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { planAfterBaseDiscovery, planAfterFallbackDiscovery, reassembleSummaryContexts };
+  module.exports = {
+    buildOrderedSummaryStreams,
+    planAfterBaseDiscovery,
+    planAfterFallbackDiscovery,
+    reassembleSummaryContexts,
+  };
 }
 
 if (typeof $input !== 'undefined') {
@@ -154,14 +205,8 @@ if (typeof $input !== 'undefined') {
   if (!finalCalls.length) finalCalls = $('Build Summary Resolution Plan').all().map(({ json }) => json);
   const plan = finalCalls[0].plan;
   const contexts = reassembleSummaryContexts(plan.positions.map(({ liveStreamID }) => liveStreamID), rows);
-  return plan.positions.map((position) => ({ json: {
+  return buildOrderedSummaryStreams(plan, contexts).map((stream) => ({ json: {
     plan,
-    stream: {
-      role: position.role,
-      liveStreamID: position.liveStreamID,
-      mode: position.mode,
-      durationMinutes: 5,
-      streamContext: requireEligible(contexts[position.originalIndex]),
-    },
+    stream,
   } }));
 }
