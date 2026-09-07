@@ -27,6 +27,9 @@ const { acceptedResult } = require('../nodes/Return_Result/jsCode');
 const { verifyAttemptInsert, verifyRequestInsert } = require('../nodes/Verify_Insert/jsCode');
 const { verifyMutations } = require('../nodes/Verify_Reconciliation_Write/jsCode');
 const { verifyDispatchAttempt } = require('../nodes/Verify_Dispatch_Attempt/jsCode');
+const { planInitialSummaryStatus } = require('../nodes/Plan_Initial_Summary_Status/jsCode');
+const { parseInitialSummaryStatus } = require('../nodes/Parse_Initial_Summary_Status/jsCode');
+const { verifyInitialSummaryStatus } = require('../nodes/Verify_Initial_Summary_Status/jsCode');
 
 const NOW = '2026-08-24T00:00:00.000Z';
 const CHANNEL = 'C0A4JJJKJMD';
@@ -200,7 +203,7 @@ test('accepts only a complete, ended single-stream summary at its boundary', () 
 test('fails closed on candidate ownership, duplicate roles, invalid routing, or incomplete dispatcher context', () => {
   assert.equal(Object.hasOwn(input(), 'candidateRows'), false);
   const invalid = [
-    input({ channel: 'C09F0SYG57D' }),
+    input({ channel: 'C0OTHER' }),
     input({ threadTS: '1787364000' }),
     input({ candidateRows: [{ id: 'candidate-1' }], orderedStreams: [] }),
     input({ orderedStreams: [stream(), stream()] }),
@@ -490,6 +493,67 @@ test('detects zero-CAS or partial final transition and returns only the natural 
   });
 });
 
+test('plans the initial Summary status for waiting_stt and ready while reusing a persisted timestamp', () => {
+  const waiting = {
+    ...requestRow(), status: 'creating', creationLeaseOwner: 'exec-1',
+    creationLeaseUntilIso: '2026-08-25T00:00:00.000Z', updatedAt: NOW, updatedAtIso: NOW,
+    channel: CHANNEL, threadTS: '1787364000.000001',
+  };
+  const waitingPlan = planInitialSummaryStatus([waiting], {
+    ...waiting, status: 'waiting_stt', coverageStatus: 'waiting_stt', expectedCreationLeaseOwner: 'exec-1', dispatchAttempts: [],
+  }, 'exec-1', NOW);
+  assert.equal(waitingPlan.summaryMessageAction, 'post');
+  assert.equal(waitingPlan.summaryMessageText, 'AI summary request started. Waiting for STT results.');
+
+  const readyPlan = planInitialSummaryStatus([{ ...waiting, summaryMessageTS: '1787364003.000004' }], {
+    ...waiting, status: 'ready', coverageStatus: 'complete', expectedCreationLeaseOwner: 'exec-1', dispatchAttempts: [],
+  }, 'exec-1', NOW);
+  assert.equal(readyPlan.summaryMessageAction, 'reuse');
+  assert.equal(readyPlan.summaryMessageTS, '1787364003.000004');
+  assert.equal(readyPlan.summaryMessageText, 'AI summary queued. Preparing analysis.');
+});
+
+test('rejects invalid initial Summary Slack envelopes and verifies only an exact current-owner checkpoint', () => {
+  const row = {
+    ...requestRow(), status: 'creating', creationLeaseOwner: 'exec-1',
+    creationLeaseUntilIso: '2026-08-25T00:00:00.000Z', updatedAt: NOW, updatedAtIso: NOW,
+  };
+  const plan = planInitialSummaryStatus([row], {
+    ...row, status: 'waiting_stt', expectedCreationLeaseOwner: 'exec-1', dispatchAttempts: [],
+  }, 'exec-1', NOW);
+  const response = { ok: true, channel: CHANNEL, message: { thread_ts: row.threadTS, ts: '1787364003.000004' }, message_timestamp: '1787364003.000004' };
+  const checkpointPlan = parseInitialSummaryStatus(plan, response, '2026-08-24T00:00:01.000Z');
+  assert.equal(checkpointPlan.summaryMessageTS, '1787364003.000004');
+  for (const invalid of [
+    { ...response, ok: false },
+    { ...response, channel: 'C0OTHER' },
+    { ...response, message: { ...response.message, thread_ts: '1787364000.000099' } },
+    { ...response, message: { ...response.message, ts: 1787364003.000004 } },
+    { ...response, message_timestamp: '1787364003.000005' },
+  ]) assert.throws(() => parseInitialSummaryStatus(plan, invalid), /Slack initial summary status/i);
+
+  const persisted = { ...row, summaryMessageTS: checkpointPlan.summaryMessageTS, updatedAtIso: '2026-08-24T00:00:01.000Z' };
+  assert.equal(verifyInitialSummaryStatus([persisted], checkpointPlan, 'exec-1', NOW).status, 'waiting_stt');
+  assert.throws(() => verifyInitialSummaryStatus([], checkpointPlan, 'exec-1', NOW), /exactly one canonical/i);
+  assert.throws(() => verifyInitialSummaryStatus([{ ...persisted, creationLeaseOwner: 'exec-other' }], checkpointPlan, 'exec-1', NOW), /not persisted exactly/i);
+  assert.throws(() => verifyInitialSummaryStatus([{ ...persisted, summaryMessageTS: '' }], checkpointPlan, 'exec-1', NOW), /not persisted exactly/i);
+  assert.throws(() => verifyInitialSummaryStatus([{ ...persisted, updatedAtIso: NOW }], checkpointPlan, 'exec-1', NOW), /not persisted exactly/i);
+});
+
+test('fails closed on duplicate canonicals, expired owners, and stale initial Summary status plans', () => {
+  const row = {
+    ...requestRow(), status: 'creating', creationLeaseOwner: 'exec-1',
+    creationLeaseUntilIso: '2026-08-25T00:00:00.000Z', updatedAt: NOW, updatedAtIso: NOW,
+  };
+  const coverage = { ...row, status: 'waiting_stt', expectedCreationLeaseOwner: 'exec-1', dispatchAttempts: [] };
+  assert.throws(() => planInitialSummaryStatus([row, { ...row, id: 2, canonicalRowID: '2' }], coverage, 'exec-1', NOW), /exactly one canonical/i);
+  assert.throws(() => planInitialSummaryStatus([{ ...row, creationLeaseUntilIso: '2026-08-23T00:00:00.000Z' }], coverage, 'exec-1', NOW), /does not own/i);
+  assert.throws(() => planInitialSummaryStatus([row], { ...coverage, id: 2 }, 'exec-1', NOW), /snapshot mismatch/i);
+  assert.throws(() => planInitialSummaryStatus([{ ...row, channel: 'C0OTHER' }], { ...coverage, channel: 'C0OTHER' }, 'exec-1', NOW), /routing is invalid/i);
+  assert.throws(() => planInitialSummaryStatus([{ ...row, creationLeaseUntilIso: '2026-08-25T01:00:00.000Z' }], coverage, 'exec-1', NOW), /snapshot mismatch/i);
+  assert.throws(() => planInitialSummaryStatus([{ ...row, updatedAt: 'not-a-timestamp' }], coverage, 'exec-1', NOW), /system field/i);
+});
+
 test('fails closed on zero-CAS inserts, partial reconciliation writes, and stale dispatch rows', () => {
   const expectedAttempt = buildAttempts(normalized(), NOW)[0];
   assert.throws(() => verifyRequestInsert([], normalized()), /zero-CAS/i);
@@ -514,7 +578,7 @@ test('fails closed on zero-CAS inserts, partial reconciliation writes, and stale
   ], attemptRow().attemptKey), /canonical queued/i);
 });
 
-test('defines the exact inactive typed subworkflow contract without candidate rows or credentials', () => {
+test('defines the exact inactive typed subworkflow contract without candidate rows', () => {
   const workflow = readWorkflow();
   const triggers = workflow.nodes.filter(({ type }) => type.toLowerCase().includes('trigger'));
   assert.equal(workflow.id, 'SummaryOrchV3A01');
@@ -528,7 +592,9 @@ test('defines the exact inactive typed subworkflow contract without candidate ro
     { name: 'channel', type: 'string' }, { name: 'threadTS', type: 'string' },
   ]);
   assert.doesNotMatch(JSON.stringify(triggers[0]), /candidate/i);
-  assert.ok(workflow.nodes.every((node) => !node.credentials));
+  const credentialed = workflow.nodes.filter((node) => node.credentials);
+  assert.deepEqual(credentialed.map(({ name }) => name), ['Post Initial Summary Status']);
+  assert.deepEqual(credentialed[0].credentials, { slackApi: { id: '9sfslX7caXSFAVUN', name: 'n8n-streaming-testing' } });
 });
 
 test('uses only authoritative by-name state tables and exact allConditions soft-CAS writes', () => {
@@ -598,6 +664,32 @@ test('enforces exact request claim and final transition CAS filters', () => {
   assert.equal(nodeByName(workflow, 'Transition Request State').parameters.columns.value.creationLeaseUntilIso, '');
 });
 
+test('posts and verifies the initial Summary status before transition or dispatch', () => {
+  const workflow = readWorkflow();
+  const checkpoint = nodeByName(workflow, 'Checkpoint Initial Summary Status');
+  const post = nodeByName(workflow, 'Post Initial Summary Status');
+  assert.equal(post.retryOnFail, undefined);
+  assert.equal(post.onError, undefined);
+  assert.deepEqual(Object.keys(filterMap(checkpoint)), [
+    'id', 'requestKey', 'status', 'reconciliationStatus', 'canonicalRowID', 'creationLeaseOwner',
+    'creationLeaseUntilIso', 'updatedAt', 'summaryMessageTS', 'inferenceResultJson', 'summaryMarkdown', 'summaryUploadID',
+  ]);
+  assert.deepEqual(Object.keys(checkpoint.parameters.columns.value), ['summaryMessageTS', 'updatedAtIso']);
+  assert.equal(checkpoint.parameters.columns.value.updatedAtIso, '={{ $json.checkpointUpdatedAtIso }}');
+  assert.deepEqual(targets(workflow, 'Checkpoint Initial Summary Status'), ['Limit Initial Summary Status Checkpoint']);
+  assert.deepEqual(targets(workflow, 'Limit Initial Summary Status Checkpoint'), ['Re-read Initial Summary Status']);
+  assert.deepEqual(targets(workflow, 'Re-read Initial Summary Status'), ['Verify Initial Summary Status']);
+  assert.deepEqual(targets(workflow, 'Verify Initial Summary Status'), ['Transition Request State']);
+  const transitionAncestors = ancestors(workflow, 'Transition Request State');
+  assert.ok(transitionAncestors.has('Verify Initial Summary Status'));
+  assert.ok(transitionAncestors.has('Plan Initial Summary Status'));
+  assert.ok(ancestors(workflow, 'Dispatch Verified Attempts').has('Verify Initial Summary Status'));
+  assert.ok(ancestors(workflow, 'Run Summary Coordinator').has('Verify Initial Summary Status'));
+  assert.deepEqual(targets(workflow, 'Plan Initial Summary Status'), ['Initial Summary Status Needs Post']);
+  assert.deepEqual(targets(workflow, 'Initial Summary Status Needs Post', 0), ['Post Initial Summary Status', 'Merge Initial Summary Status Response']);
+  assert.deepEqual(targets(workflow, 'Initial Summary Status Needs Post', 1), ['Transition Request State']);
+});
+
 test('dispatches only after verified request transition and never redispatches accepted replay states', () => {
   const workflow = readWorkflow();
   const dispatchAncestors = ancestors(workflow, 'Dispatch Verified Attempts');
@@ -661,7 +753,7 @@ test('uses no logs, secrets, candidate table, legacy table, or retained executio
     .join('\n');
   assert.doesNotMatch(code, /console\.(?:log|debug|info|warn|error)/);
   assert.doesNotMatch(JSON.stringify(workflow), /suspect_stt_candidates_v3|AISummaryV2|C09F0SYG57D/);
-  assert.doesNotMatch(JSON.stringify(workflow), /api[_-]?key|"callbackToken"|"credentials"/i);
+  assert.doesNotMatch(JSON.stringify(workflow), /api[_-]?key|"callbackToken"/i);
   assert.deepEqual(workflow.settings, {
     executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all',
     saveManualExecutions: true, saveExecutionProgress: false,

@@ -881,6 +881,14 @@
       "position": [9120, 160],
       "id": "a10b18b7-d25a-4cc5-9584-0d38c086aebd",
       "name": "Verify Final Fallback"
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "b18a5e3c-e1d3-4b85-91bb-c8577adc23c7", "leftValue": "={{ $json.triggerPresentation }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }], "combinator": "and" }, "options": {} },
+      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [8160, 400], "id": "b18a5e3c-e1d3-4b85-91bb-c8577adc23c7", "name": "Trigger Terminal Presentation"
+    },
+    {
+      "parameters": { "workflowId": { "__rl": true, "value": "STTListenerV3A01", "mode": "list", "cachedResultUrl": "/workflow/STTListenerV3A01", "cachedResultName": "STT result listener v3" }, "workflowInputs": { "mappingMode": "defineBelow", "value": { "attemptKey": "={{ $json.attemptKey }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": { "waitForSubWorkflow": false } },
+      "type": "n8n-nodes-base.executeWorkflow", "typeVersion": 1.2, "position": [8400, 400], "id": "c3fa4a3c-7533-4b6b-97d6-330d0dc86960", "name": "Run Terminal Presentation", "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -952,7 +960,8 @@
     "Patch Manual Review": { "main": [[{ "node": "Limit Manual Review Patch", "type": "main", "index": 0 }]] },
     "Limit Manual Review Patch": { "main": [[{ "node": "Re-read Final State", "type": "main", "index": 0 }]] },
     "Re-read Final State": { "main": [[{ "node": "Verify Final State", "type": "main", "index": 0 }]] },
-    "Verify Final State": { "main": [[{ "node": "Needs Final State Fallback", "type": "main", "index": 0 }]] },
+    "Verify Final State": { "main": [[{ "node": "Needs Final State Fallback", "type": "main", "index": 0 }, { "node": "Trigger Terminal Presentation", "type": "main", "index": 0 }]] },
+    "Trigger Terminal Presentation": { "main": [[{ "node": "Run Terminal Presentation", "type": "main", "index": 0 }], []] },
     "Needs Final State Fallback": { "main": [
       [{ "node": "Patch Final State Unconfirmed", "type": "main", "index": 0 }],
       []

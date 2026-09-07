@@ -142,8 +142,9 @@ function resultPatch(canonical, normalized, hash, nowIso, desiredStatus, errorCo
     language: desiredStatus === 'completed' && normalized.transcription !== '' ? normalized.language : '',
     errorCode,
     nextRetryAtIso,
-    desiredPresentationStatus: desiredStatus === 'completed' && normalized.transcription === ''
-      ? 'completed'
+    // All terminal outcomes are presented by the listener, including an empty transcript.
+    desiredPresentationStatus: ['completed', 'failed', 'timed_out'].includes(desiredStatus)
+      ? 'pending'
       : canonical.presentationStatus,
   };
 }

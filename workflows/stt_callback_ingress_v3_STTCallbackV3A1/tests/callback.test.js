@@ -166,7 +166,7 @@ test('normalizes only body.webhook.context in object or key/value-array form', (
     { body: { ...callbackBody(), webhook: { context: [...entries, entries[0]] } } },
     { body: { ...callbackBody(), webhook: { context: [{ Key: 'attemptKey', value: 'mixed' }, ...vdsEntries.slice(1)] } } },
     { body: { ...callbackBody(), webhook: { context: callbackContext({ mode: 'first' }) } } },
-    { body: { ...callbackBody(), webhook: { context: callbackContext({ channel: 'C09F0SYG57D' }) } } },
+    { body: { ...callbackBody(), webhook: { context: callbackContext({ channel: 'C0OTHER' }) } } },
     { body: { ...callbackBody(), webhook: { context: callbackContext({ callbackToken: 'ABC' }) } } },
     { body: { ...callbackBody(), transcription: [] } },
   ]) {
@@ -454,7 +454,7 @@ test('accepts empty transcription while retrying service errors by the persisted
     assert.equal(empty.errorCode, 'callback_empty_transcription');
     assert.equal(empty.dialogue, '');
     assert.equal(empty.nextRetryAtIso, '');
-    assert.equal(empty.desiredPresentationStatus, 'completed');
+    assert.equal(empty.desiredPresentationStatus, 'pending');
     if (attemptNumber < 6) {
       assert.equal(service.desiredStatus, 'retry_pending');
       assert.equal(service.nextRetryAtIso, row.callbackDeadlineAtIso);
@@ -692,7 +692,7 @@ test('accepts nonempty and empty completed logical winners with the correct down
     language: '',
     errorCode: 'callback_empty_transcription',
     nextRetryAtIso: '',
-    presentationStatus: 'completed',
+    presentationStatus: 'pending',
   });
   const emptyResult = verifyLogicalWinner(
     [emptyCompleted],
@@ -700,8 +700,23 @@ test('accepts nonempty and empty completed logical winners with the correct down
     emptyExpected,
   );
   assert.equal(emptyResult.action, 'accepted');
-  assert.equal(emptyResult.triggerPresentation, false);
+  assert.equal(emptyResult.triggerPresentation, true);
   assert.equal(emptyResult.triggerCoordinator, true);
+});
+
+test('routes verified terminal failed callbacks to presentation unless a newer attempt is active or completed', () => {
+  const expected = classifyClaim([attempt()], normalized({ statusCode: 400, transcription: '' }), HASH, NOW);
+  const failed = attempt({
+    status: 'failed', consumedAtIso: NOW, dialogue: '', language: '', errorCode: 'callback_service_400', nextRetryAtIso: '', presentationStatus: 'pending',
+  });
+  const verified = verifyCallbackState([failed], expected);
+  assert.equal(verifyLogicalWinner([failed], verified, expected).triggerPresentation, true);
+
+  const newerActive = attempt({ id: 2, canonicalRowID: '2', attemptKey: `${LOGICAL_JOB_KEY}:2`, attempt: 2, status: 'waiting_callback', callbackTokenHash: 'd'.repeat(64) });
+  assert.equal(verifyLogicalWinner([failed, newerActive], verified, expected).triggerPresentation, false);
+
+  const newerCompleted = { ...newerActive, status: 'completed', consumedAtIso: '2026-08-22T00:11:00.000Z', dialogue: 'winner', language: 'en' };
+  assert.equal(verifyLogicalWinner([failed, newerCompleted], verified, expected).triggerPresentation, false);
 });
 
 test('does not trigger the summary coordinator for standalone STT callbacks', () => {

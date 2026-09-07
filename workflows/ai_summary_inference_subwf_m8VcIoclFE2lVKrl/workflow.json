@@ -1,7 +1,7 @@
 {
   "id": "m8VcIoclFE2lVKrl",
   "name": "AI SUMMARY Inference SubWF",
-  "description": null,
+  "description": "Stateless inference with typed aggregateData, evalConfig and analysisMode inputs. Returns one validated output.report object. Model/parser failures are sanitized; Summary owns bounded whole-request retries. Never converts empty model responses into successful reports.",
   "active": false,
   "isArchived": false,
   "nodes": [
@@ -189,7 +189,24 @@
       ],
       "id": "efbc4e46-cb65-4949-afa9-e9727a2ddee2",
       "name": "AI Agent",
-      "retryOnFail": true
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": { "errorType": "errorMessage", "errorMessage": "__EXTERNAL_FILE__://nodes/Raise_Inference_Error/errorMessage.md" },
+      "id": "0eed6318-225d-48b2-86ee-39086bdedee5",
+      "name": "Raise Inference Error",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [-160, -160]
+    },
+    {
+      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Validate_Inference_Report/jsCode.js" },
+      "id": "05109e06-97eb-4759-a0fa-ccae2f640e90",
+      "name": "Validate Inference Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-160, -320]
     },
     {
       "parameters": {
@@ -334,6 +351,12 @@
     }
   ],
   "connections": {
+    "AI Agent": {
+      "main": [
+        [{ "node": "Validate Inference Report", "type": "main", "index": 0 }],
+        [{ "node": "Raise Inference Error", "type": "main", "index": 0 }]
+      ]
+    },
     "Start": {
       "main": [
         [

@@ -78,12 +78,13 @@ function buildReassembledRequests(calls, resolverRows) {
   return output;
 }
 
-function buildOrchestratorRequests(requests, messageRows) {
+function buildOrchestratorRequests(requests, messageRows, logStatusResponses = []) {
   const eligibleRequests = requests.filter(({ stream }) => stream && stream.sttEligible !== false);
   if (eligibleRequests.length !== messageRows.length) throw new Error('Processing message count mismatch');
   const processingMessages = new Map();
   eligibleRequests.forEach((request, index) => {
-    const processingMessageTS = messageRows[index]?.message?.ts;
+    const processingMessageTS = messageRows[index]?.message_timestamp;
+    if (typeof processingMessageTS !== 'string') throw new Error('Invalid persisted processing message timestamp');
     if (!/^\d{10,}\.\d{6}$/.test(processingMessageTS || '')) throw new Error('Invalid persisted processing message timestamp');
     processingMessages.set(request, processingMessageTS);
   });
@@ -101,16 +102,23 @@ function buildOrchestratorRequests(requests, messageRows) {
     if (request.stream.sttEligible !== false) group.eligibleCount += 1;
   }
 
-  return [...grouped.values()]
+  const output = [...grouped.values()]
     .filter(({ eligibleCount }) => eligibleCount > 0)
     .map(({ candidate, streams }) => ({
       requestKey: candidate.summaryRequestKey,
       requestType: 'suspect_summary',
       orderedStreams: streams,
       existingDialogues: {},
-      channel: 'C0A4JJJKJMD',
+      channel: candidate.channel,
       threadTS: candidate.threadTS,
     }));
+  if (output.length !== logStatusResponses.length) throw new Error('Log collecting status count mismatch');
+  logStatusResponses.forEach((response) => {
+    const timestamp = response?.message_timestamp;
+    if (typeof timestamp !== 'string') throw new Error('Invalid log collecting status timestamp');
+    if (!/^\d{10,}\.\d{6}$/.test(timestamp)) throw new Error('Invalid log collecting status timestamp');
+  });
+  return output;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -119,11 +127,12 @@ if (typeof module !== 'undefined' && module.exports) {
 
 if (typeof $input !== 'undefined') {
   const inputRows = $input.all().map(({ json }) => json);
-  if (inputRows.some(({ message }) => message?.ts)) {
+  if (inputRows.some(({ message_timestamp }) => message_timestamp)) {
     const requests = $('Reassemble Resolver Output').all()
       .map(({ json }) => json)
       .filter(({ stream }) => stream);
-    return buildOrchestratorRequests(requests, inputRows).map((json) => ({ json }));
+    const processingRows = $('Send Processing Message').all().map(({ json }) => json);
+    return buildOrchestratorRequests(requests, processingRows, inputRows).map((json) => ({ json }));
   }
 
   const calls = $('Prepare Resolver Chunks').all().map(({ json }) => json);

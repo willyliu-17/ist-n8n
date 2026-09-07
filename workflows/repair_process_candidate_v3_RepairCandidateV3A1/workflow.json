@@ -124,7 +124,7 @@
       "position": [1560, 320]
     },
     {
-      "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "id", "condition": "eq", "keyValue": "={{ $json.filters.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.filters.attemptKey }}" }, { "keyName": "status", "condition": "eq", "keyValue": "completed" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.filters.canonicalRowID }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "={{ $json.filters.presentationStatus }}" }, { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $json.filters.presentationAttempt }}" }, { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $json.filters.presentationLeaseOwner }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.filters.presentationLeaseUntilIso }}" }] }, "columns": { "mappingMode": "defineBelow", "value": { "presentationStatus": "pending", "presentationLeaseOwner": "", "presentationLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
+      "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "id", "condition": "eq", "keyValue": "={{ $json.filters.id }}" }, { "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $json.filters.attemptKey }}" }, { "keyName": "status", "condition": "eq", "keyValue": "={{ $json.filters.status }}" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ $json.filters.canonicalRowID }}" }, { "keyName": "presentationStatus", "condition": "eq", "keyValue": "={{ $json.filters.presentationStatus }}" }, { "keyName": "presentationAttempt", "condition": "eq", "keyValue": "={{ $json.filters.presentationAttempt }}" }, { "keyName": "presentationLeaseOwner", "condition": "eq", "keyValue": "={{ $json.filters.presentationLeaseOwner }}" }, { "keyName": "presentationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.filters.presentationLeaseUntilIso }}" }] }, "columns": { "mappingMode": "defineBelow", "value": { "presentationStatus": "pending", "presentationLeaseOwner": "", "presentationLeaseUntilIso": "", "updatedAtIso": "={{ $now.toUTC().toISO() }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} },
       "id": "95855be1-8fdd-4ff1-a5c2-783f5b6a3189",
       "name": "Patch Presentation Repair",
       "type": "n8n-nodes-base.dataTable",
@@ -366,13 +366,36 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const rows = $input.all().map(({ json }) => json).filter((row) => row?.id);\nif (rows.length !== 1) throw new Error('Retry deadline transition requires exactly one updated row');\nconst row = rows[0];\nif (row.status !== 'timed_out' || row.errorCode !== 'stt_retry_deadline_exceeded' || row.nextRetryAtIso !== '' || row.retryLeaseOwner !== '' || row.retryLeaseUntilIso !== '' || row.reconciliationStatus !== 'canonical' || row.canonicalRowID !== String(row.id)) throw new Error('Retry deadline transition verification failed');\nreturn [{ json: { repairClass: 'retry_materialization', candidateKey: row.attemptKey, result: 'repaired', terminalStatus: row.status } }];"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Retry_Deadline_Exhausted/jsCode.js"
       },
       "id": "a0f2423b-5faa-4ccb-a369-da7fe9265fe6",
       "name": "Verify Retry Deadline Exhausted",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1900, 0]
+    },
+    {
+      "parameters": { "maxItems": 1 },
+      "id": "8b9a8601-5f08-4f61-a9f7-0bd235f51d47",
+      "name": "Limit Retry Deadline Patch",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [1780, 80]
+    },
+    {
+      "parameters": {
+        "resource": "row", "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "stt_jobs_v3" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [{ "keyName": "attemptKey", "condition": "eq", "keyValue": "={{ $('Retry Deadline Is Exhausted').first().json.filters.attemptKey }}" }] },
+        "returnAll": true, "options": {}
+      },
+      "id": "4e47cf4e-c4ee-45a4-a824-22ec8013034c",
+      "name": "Re-read Retry Deadline State",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [1840, 80],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -1843,7 +1866,7 @@
       "main": [
         [
           {
-            "node": "Verify Retry Deadline Exhausted",
+            "node": "Limit Retry Deadline Patch",
             "type": "main",
             "index": 0
           }
@@ -2614,6 +2637,15 @@
     },
     "Verify Presentation Repair": {
       "main": [[{ "node": "Run Presentation Owner Repair", "type": "main", "index": 0 }]]
+    },
+    "Verify Retry Deadline Exhausted": {
+      "main": [[{ "node": "Run Presentation Owner Repair", "type": "main", "index": 0 }]]
+    },
+    "Limit Retry Deadline Patch": {
+      "main": [[{ "node": "Re-read Retry Deadline State", "type": "main", "index": 0 }]]
+    },
+    "Re-read Retry Deadline State": {
+      "main": [[{ "node": "Verify Retry Deadline Exhausted", "type": "main", "index": 0 }]]
     },
     "Run Presentation Owner Repair": {
       "main": [[{ "node": "Return Repaired", "type": "main", "index": 0 }]]

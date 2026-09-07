@@ -23,12 +23,14 @@ if ($('Patch Presentation Failure').isExecuted) {
 }
 if ($('Complete Presentation').isExecuted) {
   const expectation = $('Prepare Completion Snapshot').first().json.completionExpectation;
-  if (row.canonicalRowID !== String(row.id) || row.status !== 'completed' || row.presentationStatus !== 'completed') throw new Error('Presentation completion was not confirmed');
+  if (row.canonicalRowID !== String(row.id) || !['completed', 'failed', 'timed_out'].includes(row.status) || row.presentationStatus !== 'completed') throw new Error('Presentation completion was not confirmed');
   if (row.presentationLeaseOwner !== '' || row.presentationLeaseUntilIso !== '') throw new Error('Presentation completion lease was not cleared');
   for (const [field, value] of Object.entries(expectation.expectedClaim || {})) {
     if (row[field] !== value) throw new Error(`Completion claim mismatch: ${field}`);
   }
-  const checkpointFields = ['transcriptUploadID', 'analysisUploadID', 'processingMessageUpdatedAtIso'];
+  const checkpointFields = row.status === 'completed' && String(row.dialogue || '').trim()
+    ? ['transcriptUploadID', 'analysisUploadID', 'processingMessageUpdatedAtIso']
+    : ['processingMessageUpdatedAtIso'];
   if (Object.keys(expectation.expectedCheckpoints || {}).length !== checkpointFields.length) throw new Error('Completion checkpoints are incomplete');
   for (const field of checkpointFields) {
     if (row[field] !== expectation.expectedCheckpoints[field]) throw new Error(`Completion checkpoint mismatch: ${field}`);
@@ -41,7 +43,7 @@ const expected = owner.presentationStage === 'transcript'
   : owner.presentationStage === 'analysis'
     ? $('Extract Analysis Upload ID').first().json
     : $('Prepare Message Checkpoint').first().json;
-if (row.canonicalRowID !== String(row.id) || row.status !== 'completed' || row.presentationStatus !== 'presenting') throw new Error('Checkpoint canonical state mismatch');
+if (row.canonicalRowID !== String(row.id) || !['completed', 'failed', 'timed_out'].includes(row.status) || row.presentationStatus !== 'presenting') throw new Error('Checkpoint canonical state mismatch');
 for (const field of ['id', 'attemptKey', 'canonicalRowID', 'status', 'presentationStatus', 'presentationLeaseOwner', 'presentationLeaseUntilIso', 'presentationAttempt']) {
   if (row[field] !== expected[field]) throw new Error(`Checkpoint provenance mismatch: ${field}`);
 }

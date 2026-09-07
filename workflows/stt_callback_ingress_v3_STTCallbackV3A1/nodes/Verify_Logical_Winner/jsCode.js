@@ -131,7 +131,7 @@ function result(action, current, expected) {
     requestKey: expected.requestKey,
     logicalJobKey: expected.logicalJobKey,
     resultStatus: current.status,
-    triggerPresentation: accepted && current.status === 'completed' && typeof current.dialogue === 'string' && current.dialogue.trim() !== '',
+    triggerPresentation: accepted && ['completed', 'failed', 'timed_out'].includes(current.status),
     triggerCoordinator: accepted && current.requestType !== 'standalone_stt',
   };
 }
@@ -139,7 +139,13 @@ function result(action, current, expected) {
 function verifyLogicalWinner(rows, currentResult, expected) {
   const canonicalRows = validateLogicalRows(rows, expected);
   const current = verifyCurrentRow(canonicalRows, currentResult, expected);
-  if (current.status !== 'completed') return result('accepted', current, expected);
+  if (current.status !== 'completed') {
+    const completed = canonicalRows.some((row) => row.status === 'completed');
+    const newerActiveAttempt = canonicalRows.some((row) => (
+      row.attempt > current.attempt && !['completed', 'failed', 'timed_out'].includes(row.status)
+    ));
+    return result(completed || newerActiveAttempt ? 'duplicate' : 'accepted', current, expected);
+  }
 
   const completedRows = canonicalRows.filter(({ status }) => status === 'completed');
   for (const row of completedRows) {

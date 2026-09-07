@@ -47,7 +47,7 @@
             {
               "id": "9f76238b-1809-4623-8321-765187219803",
               "name": "channelId",
-              "value": "={{ (() => { const value = $json.channel ?? $node[\"Start\"].json.channel; if (value !== 'C0A4JJJKJMD') throw new Error('Slack channel is not allowed'); return 'C0A4JJJKJMD'; })() }}",
+              "value": "={{ (() => { const value = $json.channel ?? $node[\"Start\"].json.channel; if (!['C0A4JJJKJMD', 'C09F0SYG57D'].includes(value)) throw new Error('Slack channel is not allowed'); return value; })() }}",
               "type": "string"
             },
             {
@@ -107,7 +107,7 @@
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "value": "C0A4JJJKJMD",
+          "value": "={{ $('Normalize Input').item.json.channelId }}",
           "mode": "id"
         },
         "text": "=StreamID: `{{ $('Normalize Input').item.json.streamID }}` not found",
@@ -489,7 +489,7 @@
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "value": "C0A4JJJKJMD",
+          "value": "={{ $('Normalize Input').item.json.channelId }}",
           "mode": "id"
         },
         "text": "={{ $json.summaryText }}",

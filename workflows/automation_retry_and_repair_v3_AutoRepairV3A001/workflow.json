@@ -74,6 +74,43 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Route_Verified_Callback_Deadline_Presentation/jsCode.js"
+      },
+      "id": "d1c086b7-5ffb-4d2d-9c21-8c4d9492db11",
+      "name": "Route Verified Callback Deadline Presentation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1820, -280]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "STTListenerV3A01",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/STTListenerV3A01",
+          "cachedResultName": "STT result listener v3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": { "attemptKey": "={{ $json.attemptKey }}" },
+          "matchingColumns": [],
+          "schema": [{ "id": "attemptKey", "displayName": "attemptKey", "required": true, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string" }],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": { "waitForSubWorkflow": false },
+        "mode": "each"
+      },
+      "id": "b1ac6f62-342a-444c-8d9d-759f7e75a9f9",
+      "name": "Run Callback Deadline Presentation",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [1960, -280]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'bounded:expired_dispatch_lease' } }));"
       },
       "id": "a1f1c001-0001-4001-8001-000000000001",
@@ -547,6 +584,14 @@
         1260,
         -280
       ]
+    },
+    {
+      "parameters": { "mode": "append", "numberInputs": 2 },
+      "id": "f05ea278-d764-496b-9f76-113409da91f4",
+      "name": "Merge Callback Deadline Plans And Readback",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [1740, -220]
     },
     {
       "parameters": {
@@ -1176,14 +1221,12 @@
           "mode": "name",
           "value": "stt_jobs_v3"
         },
-        "matchType": "allConditions",
+        "matchType": "anyCondition",
         "filters": {
           "conditions": [
-            {
-              "keyName": "status",
-              "condition": "eq",
-              "keyValue": "completed"
-            }
+            { "keyName": "status", "condition": "eq", "keyValue": "completed" },
+            { "keyName": "status", "condition": "eq", "keyValue": "failed" },
+            { "keyName": "status", "condition": "eq", "keyValue": "timed_out" }
           ]
         },
         "returnAll": true,
@@ -1819,9 +1862,12 @@
           "mode": "name",
           "value": "stt_jobs_v3"
         },
-        "matchType": "allConditions",
+        "matchType": "anyCondition",
         "filters": {
-          "conditions": []
+          "conditions": [
+            { "keyName": "status", "condition": "eq", "keyValue": "retry_pending" },
+            { "keyName": "status", "condition": "eq", "keyValue": "retry_materializing" }
+          ]
         },
         "returnAll": true,
         "options": {}
@@ -2862,6 +2908,11 @@
             "node": "Patch Callback Deadline",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge Callback Deadline Plans And Readback",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -2892,12 +2943,21 @@
       "main": [
         [
           {
-            "node": "Repair Side Effect Sink",
+            "node": "Merge Callback Deadline Plans And Readback",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
+    },
+    "Route Verified Callback Deadline Presentation": {
+      "main": [[{ "node": "Run Callback Deadline Presentation", "type": "main", "index": 0 }]]
+    },
+    "Merge Callback Deadline Plans And Readback": {
+      "main": [[{ "node": "Route Verified Callback Deadline Presentation", "type": "main", "index": 0 }]]
+    },
+    "Run Callback Deadline Presentation": {
+      "main": [[{ "node": "Repair Side Effect Sink", "type": "main", "index": 0 }]]
     },
     "Read Creation Lease Candidates": {
       "main": [

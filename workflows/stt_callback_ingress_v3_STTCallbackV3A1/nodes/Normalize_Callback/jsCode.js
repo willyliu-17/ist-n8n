@@ -12,6 +12,7 @@ const CONTEXT_KEYS = Object.freeze([
 ]);
 const CONTEXT_KEY_SET = new Set(CONTEXT_KEYS);
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+const ALLOWED_CHANNELS = new Set(['C0A4JJJKJMD', 'C09F0SYG57D']);
 
 function malformed() {
   return {
@@ -72,7 +73,7 @@ function normalizeCallback(item) {
       if (typeof context[key] !== 'string' || !context[key]) throw new Error(`Invalid callback context ${key}`);
     }
     if (!['fromStart', 'fromEnd'].includes(context.mode)) throw new Error('Invalid canonical callback mode');
-    if (context.channel !== 'C0A4JJJKJMD') throw new Error('Invalid callback channel');
+    if (!ALLOWED_CHANNELS.has(context.channel)) throw new Error('Invalid callback channel');
     if (!/^[0-9a-f]{64}$/.test(context.callbackToken)) throw new Error('Invalid callback token format');
     if (body.transcription !== undefined && typeof body.transcription !== 'string') {
       throw new Error('Invalid callback transcription');

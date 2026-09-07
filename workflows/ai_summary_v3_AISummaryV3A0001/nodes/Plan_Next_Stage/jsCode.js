@@ -26,5 +26,5 @@ if (canonical.length !== 1) {
 }
 const row = canonical[0];
 if (row.status !== 'summary_dispatching' || !row.leaseOwner || !row.leaseUntilIso || Date.parse(row.leaseUntilIso) <= Date.now()) throw new Error('stage owner lease is not current');
-const stage = !row.inferenceResultJson || !row.summaryMarkdown ? 'inference' : !row.summaryUploadID ? 'upload' : !row.summaryMessageTS ? 'message' : 'complete';
+const stage = !row.summaryMessageTS ? 'status' : !row.inferenceResultJson || !row.summaryMarkdown ? 'inference' : !row.summaryUploadID ? 'upload' : 'complete';
 return [{ json: { kind: 'carrier', action: stage, input: input.input, requestKey: input.input.requestKey, row, ownerConditions: { id: row.id, requestKey: row.requestKey, status: row.status, reconciliationStatus: 'canonical', canonicalRowID: String(row.id), leaseOwner: row.leaseOwner, leaseUntilIso: row.leaseUntilIso }, nextStage: stage } }];

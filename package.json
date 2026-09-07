@@ -1,0 +1,7 @@
+{
+  "name": "ist-n8n",
+  "private": true,
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

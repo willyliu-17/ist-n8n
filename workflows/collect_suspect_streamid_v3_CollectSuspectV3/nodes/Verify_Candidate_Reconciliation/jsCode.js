@@ -1,4 +1,5 @@
-const CHANNEL = 'C0A4JJJKJMD';
+const DEFAULT_CHANNEL = 'C0A4JJJKJMD';
+const ALLOWED_CHANNELS = new Set([DEFAULT_CHANNEL, 'C09F0SYG57D']);
 const STREAM_ID_PATTERN = /^[0-9]{1,20}$/;
 
 function systemRowID(value) {
@@ -11,10 +12,10 @@ function requiredStreamID(value, fieldName) {
   return normalized;
 }
 
-function deduplicateCandidates(rows, { runID, nowIso } = {}) {
+function deduplicateCandidates(rows, { runID, nowIso, channel = DEFAULT_CHANNEL } = {}) {
   const executionID = String(runID ?? '').trim();
   const timestamp = String(nowIso ?? '').trim();
-  if (!executionID || !timestamp) throw new Error('runID and nowIso are required');
+  if (!executionID || !timestamp || !ALLOWED_CHANNELS.has(channel)) throw new Error('runID, nowIso, and an allowed channel are required');
   const candidates = new Map();
   for (const row of rows || []) {
     if (!row || !row.streamID) continue;
@@ -41,7 +42,7 @@ function deduplicateCandidates(rows, { runID, nowIso } = {}) {
     streamID: candidate.streamID,
     prevStreamID: candidate.prevStreamID,
     sourcesJson: JSON.stringify(candidate.sources.sort()),
-    channel: CHANNEL,
+    channel,
     threadTS: '',
     summaryRequestKey: `suspect-summary:${candidate.candidateKey}`,
     reconciliationStatus: 'pending',
@@ -103,7 +104,7 @@ function planAllCandidateRows(rows) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { CHANNEL, deduplicateCandidates, planCandidateReconciliation };
+  module.exports = { ALLOWED_CHANNELS, DEFAULT_CHANNEL, deduplicateCandidates, planCandidateReconciliation };
 }
 
 if (typeof $input !== 'undefined') {
@@ -112,5 +113,6 @@ if (typeof $input !== 'undefined') {
     return planAllCandidateRows(rows).map((json) => ({ json }));
   }
   const runID = typeof $execution !== 'undefined' ? $execution.id : 'manual';
-  return deduplicateCandidates(rows, { runID, nowIso: new Date().toISOString() }).map((json) => ({ json }));
+  const channel = $('Build Candidate Query Config').first().json.channel;
+  return deduplicateCandidates(rows, { runID, nowIso: new Date().toISOString(), channel }).map((json) => ({ json }));
 }

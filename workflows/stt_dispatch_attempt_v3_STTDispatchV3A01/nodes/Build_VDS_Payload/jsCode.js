@@ -1,6 +1,6 @@
 const CALLBACK_PATH = '/webhook/stt-callback-v3';
 const ALLOWED_MODES = new Set(['fromStart', 'fromEnd']);
-const C0_CHANNEL = 'C0A4JJJKJMD';
+const ALLOWED_CHANNELS = new Set(['C0A4JJJKJMD', 'C09F0SYG57D']);
 
 function addMinutes(iso, minutes) {
   const timestamp = Date.parse(iso);
@@ -58,7 +58,7 @@ function strictFiniteNumber(value, field) {
 function buildVdsPayload(attempt, rawToken, callbackUrl, scheduledAt = Date.now()) {
   if (!attempt || typeof attempt !== 'object') throw new Error('Missing canonical attempt');
   if (!ALLOWED_MODES.has(attempt.mode)) throw new Error('Invalid canonical mode');
-  if (attempt.channel !== C0_CHANNEL) throw new Error('Invalid channel');
+  if (!ALLOWED_CHANNELS.has(attempt.channel)) throw new Error('Invalid channel');
   if (typeof rawToken !== 'string' || !/^[0-9a-f]{64}$/i.test(rawToken)) {
     throw new Error('Invalid 32-byte callback token');
   }

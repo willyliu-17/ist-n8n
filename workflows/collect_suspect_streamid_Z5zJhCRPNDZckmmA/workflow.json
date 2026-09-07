@@ -2,7 +2,7 @@
   "id": "Z5zJhCRPNDZckmmA",
   "name": "Collect suspect streamID",
   "description": null,
-  "active": true,
+  "active": false,
   "isArchived": false,
   "nodes": [
     {

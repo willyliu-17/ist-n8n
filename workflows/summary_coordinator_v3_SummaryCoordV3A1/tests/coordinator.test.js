@@ -18,6 +18,7 @@ const { splitPlanAndRows, verifyPlan, verifyCarrierInput: verifyInitialCarrierIn
 const { verifyCarrierInput: verifyClaimTimeCarrierInput } = require('../nodes/Verify_Claim_Time_Plan/jsCode');
 const { verifyCarrierInput: verifyPreflightCarrierInput } = require('../nodes/Verify_Preflight_Plan/jsCode');
 const { splitPlanAndRows: splitCoverageCarrierAndRows } = require('../nodes/Verify_Request_Write/jsCode');
+const { buildAllFailedStatusUpdate } = require('../nodes/Build_All_Failed_Status_Update/jsCode');
 const { plainObject: preflightPlainObject, preflightAI, runPreflightRuntime } = require('../nodes/Preflight_AI/jsCode');
 
 const NOW = '2026-08-24T00:00:00.000Z';
@@ -245,6 +246,22 @@ test('all-failed plan writes fixed failure and clears lease', () => {
   assert.equal(verifyCoverageWrite([written], plan).errorCode, 'SUMMARY_ALL_STT_LOGICAL_JOBS_FAILED');
   assert.equal(planAllFailedWrite(request({ status: 'ready' })).expected.status, 'ready');
   assert.deepEqual(planAllFailedWrite(request({ status: 'failed', errorCode: 'SUMMARY_ALL_STT_LOGICAL_JOBS_FAILED' })), { action: 'noop', reason: 'all_failed_persisted', id: 101, requestKey: KEY });
+});
+test('all-failed status update only emits a verified terminal payload and skips legacy timestamps', () => {
+  const failed = request({ status: 'failed', errorCode: 'SUMMARY_ALL_STT_LOGICAL_JOBS_FAILED', summaryMessageTS: '1787364000.000002' });
+  assert.deepEqual(buildAllFailedStatusUpdate([failed]), [{
+    requestKey: KEY,
+    channel: 'C0A4JJJKJMD',
+    threadTS: '1787364000.000001',
+    summaryMessageTS: '1787364000.000002',
+    statusText: 'AI summary request failed. All STT logical jobs failed.',
+  }]);
+  assert.deepEqual(buildAllFailedStatusUpdate([{ ...failed, summaryMessageTS: '' }]), []);
+  assert.deepEqual(buildAllFailedStatusUpdate([{ ...failed, status: 'ready' }]), []);
+  assert.deepEqual(buildAllFailedStatusUpdate([{ ...failed, status: 'failed', errorCode: 'OTHER' }]), []);
+  assert.throws(() => buildAllFailedStatusUpdate([failed, failed]), /one verified row/);
+  assert.throws(() => buildAllFailedStatusUpdate([{ ...failed, channel: 'C0BAD' }]), /invalid channel/);
+  assert.throws(() => buildAllFailedStatusUpdate([{ ...failed, summaryMessageTS: 'bad' }]), /invalid summary message timestamp/);
 });
 test('initial claim has exact empty lease snapshot and twenty-four-hour UTC ISO', () => {
   const plan = planClaim(request({ status: 'ready' }), NOW, 'exec-a');
@@ -569,9 +586,21 @@ test('waiting_stt coverage is exact-patched to ready before any claim planning',
   assert.ok(reachable('Verify Request Write', 'Plan Summary Claim'));
 });
 
-test('all-failed writes a fixed failure, verifies it, and cannot reach AI', () => {
+test('all-failed writes a fixed failure, updates only its verified status message, and cannot reach AI', () => {
   assert.equal(byName.get('Fail All Failed Request').parameters.columns.value.errorCode, 'SUMMARY_ALL_STT_LOGICAL_JOBS_FAILED');
-  assert.deepEqual(successors('Verify All Failed Request'), ['Drop Side Effect Output']);
+  const update = byName.get('Update All Failed Summary Status');
+  assert.deepEqual(successors('Verify All Failed Request'), ['Build All Failed Status Update']);
+  assert.deepEqual(successors('Build All Failed Status Update'), ['Update All Failed Summary Status']);
+  assert.deepEqual(successors('Update All Failed Summary Status'), ['Drop Side Effect Output']);
+  assert.equal(update.parameters.resource, 'message');
+  assert.equal(update.parameters.operation, 'update');
+  assert.equal(update.parameters.channelId.value, '={{ $json.channel }}');
+  assert.equal(update.parameters.ts, '={{ Number($json.summaryMessageTS) }}');
+  assert.equal(update.credentials.slackApi.name, 'n8n-streaming-testing');
+  assert.equal(update.onError, undefined);
+  assert.equal(update.retryOnFail, undefined);
+  assert.equal(reachable('Plan Summary Claim', 'Update All Failed Summary Status'), false);
+  assert.equal(reachable('Run AI Summary', 'Update All Failed Summary Status'), false);
   assert.equal(reachable('Verify All Failed Request', 'Run AI Summary'), false);
 });
 

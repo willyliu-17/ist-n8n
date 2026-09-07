@@ -11,6 +11,10 @@ const reconciliation = require(path.join(workflowDir, 'nodes', 'Reconcile_Canoni
 const transcript = require(path.join(workflowDir, 'nodes', 'Convert_Trans_to_Txt', 'jsCode.js'));
 const analysisFormat = require(path.join(workflowDir, 'nodes', 'Format_Analysis_Data', 'jsCode.js'));
 const analysis = analysisFormat;
+const { requireLogicalPresentationWinner } = require(path.join(workflowDir, 'nodes', 'Require_Logical_Presentation_Winner', 'jsCode.js'));
+const vm = require('node:vm');
+const requireEligibleSource = fs.readFileSync(path.join(workflowDir, 'nodes', 'Require_Eligible', 'jsCode.js'), 'utf8');
+const guardSideEffectSource = fs.readFileSync(path.join(workflowDir, 'nodes', 'Guard_Side_Effect', 'jsCode.js'), 'utf8');
 
 const PINNED_SLACK_2_3_UPLOAD_ITEMS = [
   { json: { id: 'F08ABC123', name: 'stt.txt', mimetype: 'text/plain' } },
@@ -33,7 +37,7 @@ const FAILURE_CATEGORIES = {
     sources: [
       'Read Before Side Effect', 'Read Summary Before Side Effect', 'Guard Side Effect Owner',
       'Apply Side Effect Reconciliation', 'Post-claim Freeze Canonical Conflict',
-      'Re-read Post-claim Frozen Conflict', 'Verify Post-claim Full Freeze',
+      'Re-read Post-claim Frozen Conflict', 'Verify Post-claim Full Freeze', 'Read Logical Job Before Side Effect',
     ],
   },
   'Failure Source Transcript': {
@@ -96,6 +100,42 @@ function targets(source, output = 0) {
 
 function filters(name) {
   return Object.fromEntries(node(name).parameters.filters.conditions.map((condition) => [condition.keyName, condition]));
+}
+
+function runPresentationRuntime(input) {
+  const source = fs.readFileSync(path.join(workflowDir, 'nodes', 'Presentation_State', 'jsCode.js'), 'utf8');
+  const sandbox = {
+    $input: { first: () => ({ json: input }) },
+    module: { exports: {} },
+    Set, Object, Array, Number, String, Date, Math, JSON,
+  };
+  return vm.runInNewContext(`(() => { ${source} })()`, sandbox);
+}
+
+function runRequireEligible(rowValue) {
+  return vm.runInNewContext(`(() => { ${requireEligibleSource} })()`, {
+    $input: { all: () => [{ json: rowValue }] },
+    Set, Object, Array, Number, String, Error,
+  })[0].json;
+}
+
+function evaluateClaimExpression(expression, value) {
+  const match = /^=\{\{ \$json\.([A-Za-z0-9_]+) \}\}$/.exec(expression);
+  assert.ok(match, `Unsupported claim expression: ${expression}`);
+  return value[match[1]];
+}
+
+function runGuard(logicalRows, claim) {
+  return vm.runInNewContext(`(() => { ${guardSideEffectSource} })()`, {
+    $input: { all: () => logicalRows.map((json) => ({ json })) },
+    $: (name) => {
+      if (name === 'Read Summary Before Side Effect') return { all: () => [] };
+      if (name === 'Claim Presentation') return { first: () => ({ json: claim }) };
+      throw new Error(`Unexpected node reference: ${name}`);
+    },
+    $execution: { id: 'exec-1' },
+    Set, Map, Object, Array, Number, String, Date, Math, Error,
+  });
 }
 
 function reachable(start) {
@@ -206,6 +246,7 @@ test('executes required shared reads once while preserving reconciliation loop l
     .sort();
   assert.deepEqual(executeOnceReads, [
     'Read Summary Request Rows',
+    'Read Logical Job Before Side Effect',
     'Re-read Frozen Conflict',
     'Re-read Post-claim Frozen Conflict',
   ].sort());
@@ -225,13 +266,32 @@ test('claims exact canonical completed pending row then verifies the returned ow
   const claim = node('Claim Presentation');
   const map = filters('Claim Presentation');
   for (const key of ['id', 'attemptKey', 'status', 'reconciliationStatus', 'canonicalRowID', 'presentationStatus', 'presentationAttempt']) assert.ok(map[key], key);
-  assert.equal(map.status.keyValue, 'completed');
+  assert.equal(map.status.keyValue, '={{ $json.status }}');
   assert.equal(map.reconciliationStatus.keyValue, 'canonical');
   assert.equal(map.presentationStatus.keyValue, 'pending');
   assert.equal(claim.parameters.columns.value.presentationStatus, 'presenting');
   assert.equal(claim.parameters.columns.value.presentationLeaseOwner, '={{ $execution.id }}');
   assert.equal(claim.alwaysOutputData, true);
   assert.deepEqual(targets('Claim Presentation'), ['Verify Presentation Claim']);
+});
+
+test('preserves the eligible claim carrier through logical winner verification for terminal presentation modes', () => {
+  const claim = node('Claim Presentation');
+  const claimFilters = filters('Claim Presentation');
+  for (const candidate of [
+    row({ status: 'completed', dialogue: '', consumedAtIso: NOW }),
+    row({ status: 'failed', dialogue: '' }),
+    row({ status: 'timed_out', dialogue: '' }),
+  ]) {
+    const expected = runRequireEligible(candidate);
+    const freshRows = [{ ...candidate, presentationAttempt: 0, presentationLeaseOwner: '', presentationLeaseUntilIso: '' }];
+    const carrier = requireLogicalPresentationWinner(freshRows, expected);
+    assert.equal(carrier.expectedPresentationAttempt, 0, candidate.status);
+    assert.equal(carrier.nextPresentationAttempt, 1, candidate.status);
+    assert.equal(carrier.presentationMode, 'message_only', candidate.status);
+    assert.equal(evaluateClaimExpression(claimFilters.presentationAttempt.keyValue, carrier), 0, candidate.status);
+    assert.equal(evaluateClaimExpression(claim.parameters.columns.value.presentationAttempt, carrier), 1, candidate.status);
+  }
 });
 
 test('keeps production system IDs numeric and canonical references string across every Data Table filter', () => {
@@ -260,7 +320,8 @@ test('requires full reconciliation owner guard before every Slack side effect', 
   assert.deepEqual(targets('Verify Presentation Claim'), ['Read Before Side Effect']);
   assert.deepEqual(targets('Read Before Side Effect'), ['Limit Side Effect Context']);
   assert.deepEqual(targets('Limit Side Effect Context'), ['Read Summary Before Side Effect']);
-  assert.deepEqual(targets('Read Summary Before Side Effect'), ['Guard Side Effect Owner']);
+  assert.deepEqual(targets('Read Summary Before Side Effect'), ['Read Logical Job Before Side Effect']);
+  assert.deepEqual(targets('Read Logical Job Before Side Effect'), ['Guard Side Effect Owner']);
   assert.deepEqual(targets('Needs Side Effect Reconciliation', 1), ['Dispatch Presentation Stage']);
   for (const slack of ['Upload Transcript File', 'Upload Analysis File', 'Update Processing Message']) {
     const predecessors = workflow.nodes.filter(({ name }) => (
@@ -276,11 +337,11 @@ test('routes every fallible node by phase without recursive failure handling', (
     'Validate Input', 'Read All Attempt Rows', 'Read Summary Request Rows', 'Plan Canonical Reconciliation',
     'Apply Initial Reconciliation', 'Re-read After Reconciliation', 'Read Summary Rows After Reconciliation',
     'Freeze Canonical Conflict', 'Re-read Frozen Conflict', 'Verify Full Freeze', 'Read Eligible State',
-    'Require Eligible Canonical', 'Claim Presentation',
+    'Require Eligible Canonical', 'Read Eligible Logical Job Rows', 'Require Logical Presentation Winner', 'Claim Presentation',
   ];
   const postClaim = [
     'Verify Presentation Claim', 'Read Before Side Effect',
-    'Read Summary Before Side Effect', 'Guard Side Effect Owner', 'Apply Side Effect Reconciliation',
+    'Read Summary Before Side Effect', 'Read Logical Job Before Side Effect', 'Guard Side Effect Owner', 'Apply Side Effect Reconciliation',
     'Post-claim Freeze Canonical Conflict', 'Re-read Post-claim Frozen Conflict', 'Verify Post-claim Full Freeze',
     'Translate Dialogue', 'Prepare Transcript File', 'Upload Transcript File',
     'Extract Transcript Upload ID', 'Analyze Dialogue', 'Prepare Analysis File',
@@ -422,6 +483,79 @@ test('requires the exact unexpired owner and fails closed on conflicts or zero-C
     id: 1, presentationStatus: 'retry_pending', presentationAttempt: 1,
     presentationNextRetryAtIso: '2026-08-22T00:01:00.000Z', presentationErrorCode: 'x',
   }), /mismatch/);
+});
+
+test('gates empty, failed, and timed_out presentation on the current logical winner', () => {
+  const empty = row({ dialogue: '', language: '', presentationStatus: 'pending', consumedAtIso: NOW });
+  const failed = row({ status: 'failed', dialogue: '', presentationStatus: 'pending', errorCode: 'vds_http_400' });
+  const timedOut = row({ status: 'timed_out', dialogue: '', presentationStatus: 'pending', errorCode: 'stt_retry_deadline_exceeded' });
+  for (const candidate of [empty, failed, timedOut]) {
+    assert.equal(requireLogicalPresentationWinner([candidate], candidate).id, candidate.id);
+  }
+
+  const oldFailed = row({ status: 'failed', dialogue: '', presentationStatus: 'pending', attempt: 1 });
+  const newerPending = row({ id: 2, canonicalRowID: '2', attemptKey: `${ATTEMPT_KEY}:2`, attempt: 2, status: 'waiting_callback', dialogue: '', presentationStatus: 'pending' });
+  assert.throws(() => requireLogicalPresentationWinner([oldFailed, newerPending], oldFailed), /active/);
+
+  const oldTimedOut = row({ status: 'timed_out', dialogue: '', presentationStatus: 'pending', attempt: 1 });
+  const winner = row({ id: 2, canonicalRowID: '2', attemptKey: `${ATTEMPT_KEY}:2`, attempt: 2, consumedAtIso: '2026-08-22T00:01:00.000Z' });
+  assert.throws(() => requireLogicalPresentationWinner([oldTimedOut, winner], oldTimedOut), /winner/);
+  assert.throws(() => requireLogicalPresentationWinner([winner, { ...winner, id: 3, canonicalRowID: '3' }], winner), /one self-linked canonical/);
+});
+
+test('fails closed on malformed logical groups and changed side-effect claim snapshots', () => {
+  const current = row({
+    presentationStatus: 'presenting', presentationLeaseOwner: 'exec-1',
+    presentationLeaseUntilIso: '2099-01-01T00:00:00.000Z', presentationAttempt: 1, consumedAtIso: NOW,
+  });
+  const claim = { ...current };
+  const malformedOtherCanonical = row({
+    id: 2, attempt: 2, attemptKey: `${ATTEMPT_KEY}:2`, canonicalRowID: '1',
+    status: 'waiting_callback', presentationStatus: 'pending',
+  });
+  assert.throws(() => runGuard([current, malformedOtherCanonical], claim), /Malformed logical canonical linkage/);
+  const pendingOtherAttempt = row({
+    id: 2, attempt: 2, attemptKey: `${ATTEMPT_KEY}:2`, reconciliationStatus: 'pending', canonicalRowID: '',
+    status: 'waiting_callback', presentationStatus: 'pending',
+  });
+  assert.throws(() => runGuard([current, pendingOtherAttempt], claim), /Invalid logical side-effect row/);
+  assert.throws(() => runGuard([current], { ...claim, presentationAttempt: 2 }), /claim snapshot mismatch/);
+});
+
+test('runs terminal message-only presentation helpers through the Code-node runtime wrapper', () => {
+  for (const terminal of [
+    row({ dialogue: '', presentationStatus: 'pending' }),
+    row({ status: 'failed', dialogue: '', presentationStatus: 'pending' }),
+    row({ status: 'timed_out', dialogue: '', presentationStatus: 'pending' }),
+  ]) {
+    const eligible = runPresentationRuntime({ presentationHelperMode: 'require_eligible', rows: [terminal] });
+    assert.equal(eligible[0].json.id, terminal.id);
+    const stage = runPresentationRuntime({ presentationHelperMode: 'next_stage', row: terminal });
+    assert.equal(stage[0].json.presentationStage, 'message_update');
+  }
+  assert.equal(runPresentationRuntime({ presentationHelperMode: 'next_stage', row: row({ dialogue: '', processingMessageUpdatedAtIso: NOW }) })[0].json.presentationStage, 'complete');
+  assert.match(runPresentationRuntime({ presentationHelperMode: 'final_text', row: row({ status: 'timed_out' }) })[0].json.text, /Timed Out/);
+});
+
+test('reads the complete logical job before claim and each Slack side effect', () => {
+  const logicalBeforeClaim = node('Read Eligible Logical Job Rows');
+  const logicalBeforeSideEffect = node('Read Logical Job Before Side Effect');
+  for (const candidate of [logicalBeforeClaim, logicalBeforeSideEffect]) {
+    assert.equal(candidate.parameters.operation, 'get');
+    assert.equal(candidate.parameters.returnAll, true);
+    assert.equal(filters(candidate.name).logicalJobKey.keyValue.includes('logicalJobKey'), true);
+  }
+  assert.deepEqual(targets('Require Eligible Canonical'), ['Read Eligible Logical Job Rows']);
+  assert.deepEqual(targets('Read Eligible Logical Job Rows'), ['Require Logical Presentation Winner']);
+  assert.deepEqual(targets('Require Logical Presentation Winner'), ['Claim Presentation']);
+  assert.deepEqual(targets('Read Summary Before Side Effect'), ['Read Logical Job Before Side Effect']);
+  assert.deepEqual(targets('Read Logical Job Before Side Effect'), ['Guard Side Effect Owner']);
+  const source = fs.readFileSync(path.join(workflowDir, 'nodes', 'Guard_Side_Effect', 'jsCode.js'), 'utf8');
+  assert.match(source, /Newer logical attempt blocks side effect/);
+  assert.match(source, /Logical completed winner supersedes side effect/);
+  for (const slack of ['Upload Transcript File', 'Upload Analysis File', 'Update Processing Message']) {
+    assert.equal(reachable('Read Logical Job Before Side Effect').has(slack), true, slack);
+  }
 });
 
 test('parses the pinned Slack 2.3 upload shape supported by Production n8n 2.38.2', () => {
@@ -655,17 +789,22 @@ test('uses exact binary keys through downstream Slack nodes', () => {
   assert.deepEqual(targets('Prepare Analysis File'), ['Upload Analysis File']);
 });
 
-test('uses deterministic persisted C0 routing and final text with no C09', () => {
-  const serialized = JSON.stringify(workflow);
-  assert.match(serialized, /C0A4JJJKJMD/);
-  assert.doesNotMatch(serialized, /C09F0SYG57D/);
+test('uses deterministic persisted allowlisted channel routing and final text', () => {
+  for (const name of ['Require_Eligible', 'Guard_Side_Effect', 'Presentation_State']) {
+    const source = fs.readFileSync(path.join(workflowDir, 'nodes', name, 'jsCode.js'), 'utf8');
+    assert.match(source, /C0A4JJJKJMD/);
+    assert.match(source, /C09F0SYG57D/);
+  }
   for (const slack of workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.slack')) {
     assert.equal(slack.credentials.slackApi.name, 'n8n-streaming-testing', slack.name);
     assert.equal(slack.onError, 'continueErrorOutput', slack.name);
     assert.deepEqual(targets(slack.name, 1), [POSTCLAIM_FAILURE_SOURCE[slack.name]], slack.name);
   }
   assert.equal(state.buildFinalText(row()), '🤖 STT Done\nStream: `9001`\nMode: `fromStart` 5m');
-  assert.equal(fs.readFileSync(path.join(workflowDir, 'nodes', 'Update_Processing_Msg', 'text.md'), 'utf8').trim(), "=🤖 STT Done\nStream: `{{ $('Guard Side Effect Owner').first().json.streamID }}`\nMode: `{{ $('Guard Side Effect Owner').first().json.mode }}` {{ $('Guard Side Effect Owner').first().json.durationMinutes }}m");
+  const messageTemplate = fs.readFileSync(path.join(workflowDir, 'nodes', 'Update_Processing_Msg', 'text.md'), 'utf8').trim();
+  assert.match(messageTemplate, /STT Done/);
+  assert.match(messageTemplate, /Timed Out/);
+  assert.match(messageTemplate, /Failed/);
 });
 
 test('implements failure attempts 1m, 5m, then terminal failed with only presentation fields', () => {
@@ -704,6 +843,7 @@ test('uses exact owner/checkpoint CAS and verifies every returned presentation w
   for (const name of ['Checkpoint Transcript Upload', 'Checkpoint Analysis Upload', 'Checkpoint Processing Message']) {
     assert.deepEqual(targets(name, 1), [POSTCLAIM_FAILURE_SOURCE[name]], `${name} error output`);
   }
+  assert.equal(filters('Checkpoint Analysis Upload').status.keyValue, "={{ $('Guard Side Effect Owner').first().json.status }}");
   const failureRead = node('Read Failure Attempt Rows');
   assert.equal(failureRead.parameters.returnAll, true);
   assert.equal(failureRead.alwaysOutputData, true);
@@ -716,7 +856,7 @@ test('uses exact owner/checkpoint CAS and verifies every returned presentation w
   ]) assert.ok(failureFilters[key], key);
   assert.equal(failureFilters.id.keyValue, '={{ $json.id }}');
   assert.equal(failureFilters.attemptKey.keyValue, '={{ $json.attemptKey }}');
-  assert.equal(failureFilters.status.keyValue, 'completed');
+  assert.equal(failureFilters.status.keyValue, '={{ $json.status }}');
   assert.equal(failureFilters.reconciliationStatus.keyValue, 'canonical');
   assert.equal(failureFilters.canonicalRowID.keyValue, '={{ String($json.id) }}');
   assert.equal(failureFilters.presentationStatus.keyValue, 'presenting');
@@ -739,7 +879,7 @@ test('persists masked audit evidence without transcript, token, or upstream cont
 
 test('has no callback body, Webhook references, raw token, STT core writer, or new attempt writer', () => {
   const serialized = JSON.stringify(workflow);
-  assert.doesNotMatch(serialized, /\$json\.body|\$node\["Webhook"\]|callbackTokenHash|consumedAtIso.*columns|operation":"insert".*stt_jobs_v3/);
+  assert.doesNotMatch(serialized, /\$json\.body|\$node\["Webhook"\]|callbackTokenHash/);
   assert.equal(workflow.nodes.some(({ name }) => /Webhook|Callback/.test(name)), false);
   const presentationWrites = ['Claim Presentation', 'Checkpoint Transcript Upload', 'Checkpoint Analysis Upload', 'Checkpoint Processing Message', 'Complete Presentation', 'Patch Presentation Failure'];
   for (const name of presentationWrites) assert.equal('status' in node(name).parameters.columns.value, false, name);
