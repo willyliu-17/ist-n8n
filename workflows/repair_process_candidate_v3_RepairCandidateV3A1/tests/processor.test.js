@@ -11,7 +11,11 @@ const original = JSON.parse(execFileSync('git', ['show', `HEAD:${schedulerPath}`
   cwd: path.resolve(processorDir, '../..'),
   encoding: 'utf8',
 }));
-const { aggregateLogicalJobs } = require('../nodes/Plan_Repairs/jsCode');
+const {
+  aggregateLogicalJobs,
+  classifyAttemptFailure,
+  planCallbackDeadline,
+} = require('../nodes/Plan_Repairs/jsCode');
 const schema = require('../../automation_provision_state_v3_AutomationProvV3A1/nodes/State_Schema/schema.json');
 
 function tableRow(table, overrides) {
@@ -303,4 +307,57 @@ test('processor aggregate preserves unavailable paired stream without expecting 
   assert.equal(result.streams.length, 2);
   assert.equal(result.streams[0].dialogue, 'current transcript');
   assert.equal(result.streams[1].dialogue, '');
+});
+
+test('single-stream summary callback deadline is terminal and never schedules another attempt', () => {
+  const requestKey = 'summary:req-single';
+  const logicalJobKey = `${requestKey}:current:9001:fromStart`;
+  const streamContext = { liveStreamID: '9001', eligible: true, beginTime: 1787360400, endTime: 1787371200 };
+  const request = tableRow('summary_requests_v3', {
+    id: 31,
+    requestKey,
+    requestType: 'single_stream_summary',
+    channel: 'C0A4JJJKJMD',
+    threadTS: '1234567890.123456',
+    status: 'waiting_stt',
+    orderedStreamsJson: JSON.stringify([{ role: 'current', liveStreamID: '9001', mode: 'fromStart', durationMinutes: 180, streamContext }]),
+    expectedLogicalJobKeysJson: JSON.stringify([logicalJobKey]),
+    existingDialoguesJson: '{}',
+    reconciliationStatus: 'canonical',
+    canonicalRowID: '31',
+  });
+  const waiting = tableRow('stt_jobs_v3', {
+    id: 32,
+    attemptKey: `${logicalJobKey}:1`,
+    logicalJobKey,
+    requestKey,
+    requestType: 'single_stream_summary',
+    attempt: 1,
+    role: 'current',
+    streamID: '9001',
+    mode: 'fromStart',
+    durationMinutes: 180,
+    streamContextJson: JSON.stringify(streamContext),
+    status: 'waiting_callback',
+    callbackDeadlineAtIso: '2026-08-24T02:30:00.000Z',
+    channel: 'C0A4JJJKJMD',
+    threadTS: '1234567890.123456',
+    processingMessageTS: '1234567891.123456',
+    presentationStatus: 'pending',
+    reconciliationStatus: 'canonical',
+    canonicalRowID: '32',
+  });
+
+  const serviceFailure = classifyAttemptFailure(
+    { retryableServiceError: true }, 1, '2026-08-24T02:10:00.000Z', request.createdAt, request.requestType,
+  );
+  assert.equal(serviceFailure.status, 'failed');
+  assert.equal(serviceFailure.nextRetryAtIso, '');
+
+  const deadline = planCallbackDeadline(waiting, '2026-08-24T02:30:00.000Z', request);
+  assert.equal(deadline.status, 'timed_out');
+  assert.equal(deadline.errorCode, 'callback_deadline_exceeded');
+  assert.equal(deadline.nextRetryAtIso, '');
+  assert.equal(deadline.desired.status, 'timed_out');
+  assert.equal(Object.hasOwn(deadline.desired, 'nextAttemptKey'), false);
 });

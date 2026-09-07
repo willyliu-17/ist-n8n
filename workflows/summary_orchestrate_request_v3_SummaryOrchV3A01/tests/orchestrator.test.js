@@ -42,6 +42,7 @@ function stream(overrides = {}) {
       liveStreamID: '9001', eligible: true, profile: 'stt', source: 'livestream_v2',
       userID: 'user-1', openID: 'open-1', region: 'TW', beginTime: 1787360400,
       endTime: 1787364000, duration: 3600, vliverModel: 0, appVersion: '1.2.3', deviceType: 'ios',
+      closeBy: 'normalEnd',
     },
     ...overrides,
   };
@@ -161,6 +162,39 @@ test('normalizes aliases only at the boundary and preserves deterministic ordere
   assert.equal(typeof result.orderedStreamsJson, 'string');
   assert.equal(typeof result.existingDialoguesJson, 'string');
   assert.equal(typeof result.expectedLogicalJobKeysJson, 'string');
+});
+
+test('accepts only a complete, ended single-stream summary at its boundary', () => {
+  const single = normalized({
+    requestKey: 'bot-summary:1787364000.000001:9001',
+    requestType: 'single_stream_summary',
+    orderedStreams: [stream({ durationMinutes: 60, mode: 'fromStart' })],
+  });
+  assert.deepEqual(single.orderedStreams.map(({ role, liveStreamID, mode, durationMinutes }) => ({
+    role, liveStreamID, mode, durationMinutes,
+  })), [{ role: 'current', liveStreamID: '9001', mode: 'fromStart', durationMinutes: 60 }]);
+  assert.deepEqual(buildAttempts(single, NOW).map(({ logicalJobKey, requestType, durationMinutes }) => ({
+    logicalJobKey, requestType, durationMinutes,
+  })), [{
+    logicalJobKey: 'bot-summary:1787364000.000001:9001:current:9001:fromStart',
+    requestType: 'single_stream_summary', durationMinutes: 60,
+  }]);
+  for (const overrides of [
+    { requestKey: 'summary:req-001' },
+    { requestKey: 'bot-summary:1787364000.000001:9002' },
+    { orderedStreams: [stream({ role: 'previous', durationMinutes: 60 })] },
+    { orderedStreams: [stream({ mode: 'fromEnd', durationMinutes: 60 })] },
+    { orderedStreams: [stream({ durationMinutes: 5 })] },
+    { orderedStreams: [stream({ durationMinutes: 60, streamContext: { ...stream().streamContext, closeBy: '' } })] },
+    { orderedStreams: [stream({ durationMinutes: 1, streamContext: {
+      ...stream().streamContext,
+      beginTime: Math.floor(Date.now() / 1000) - 60,
+      endTime: Math.floor(Date.now() / 1000) + 60,
+    } })] },
+  ]) assert.throws(() => normalized({
+    requestKey: 'bot-summary:1787364000.000001:9001', requestType: 'single_stream_summary',
+    orderedStreams: [stream({ durationMinutes: 60 })], ...overrides,
+  }));
 });
 
 test('fails closed on candidate ownership, duplicate roles, invalid routing, or incomplete dispatcher context', () => {

@@ -55,6 +55,7 @@ const STT_RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9, 13, 18, 25, 35, 48,
 const STT_RETRY_DEADLINE_MINUTES = 720;
 const SUMMARY_STT_RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9]);
 const SUMMARY_STT_RETRY_DEADLINE_MINUTES = 10;
+const SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES = 150;
 const RECONCILIATION_STATUSES = new Set(['pending', 'canonical', 'duplicate']);
 const REQUEST_STAGES = new Set(['ready', 'summary_dispatching', 'summary_retry_pending', 'completed']);
 const REQUEST_STATUSES = new Set(['creating', 'ready', 'waiting_stt', 'summary_dispatching', 'summary_retry_pending', 'manual_review', 'completed', 'failed', 'creation_failed']);
@@ -100,6 +101,10 @@ function sttRetryPolicy(requestType) {
   return requestType === 'standalone_stt'
     ? { slots: STT_RETRY_SLOT_MINUTES, deadlineMinutes: STT_RETRY_DEADLINE_MINUTES }
     : { slots: SUMMARY_STT_RETRY_SLOT_MINUTES, deadlineMinutes: SUMMARY_STT_RETRY_DEADLINE_MINUTES };
+}
+
+function isSingleStreamSummary(requestType) {
+  return requestType === 'single_stream_summary';
 }
 
 function sttRetryTiming(requestCreatedAtIso, attemptNumber, requestType = 'standalone_stt') {
@@ -251,6 +256,14 @@ function fnv1a(value) {
 }
 
 function callbackFailure(errorCode, attemptNumber, nowIso, deadline, requestCreatedAtIso, requestType) {
+  if (isSingleStreamSummary(requestType)) {
+    return {
+      classification: deadline ? 'callback_deadline_exhausted' : 'callback_terminal_failure',
+      status: deadline ? 'timed_out' : 'failed',
+      errorCode,
+      nextRetryAtIso: '',
+    };
+  }
   const attempt = Number(attemptNumber);
   const timing = sttRetryTiming(requestCreatedAtIso, attempt, requestType);
   const maximumAttempts = sttRetryPolicy(requestType).slots.length + 1;
@@ -303,7 +316,9 @@ function classifyAttemptFailure(outcome, attemptNumber, nowIso = new Date().toIS
       classification: 'accepted',
       status: 'waiting_callback',
       submittedAtIso: nowIso,
-      callbackDeadlineAtIso: attempt <= MAX_AUTOMATIC_ATTEMPTS
+      callbackDeadlineAtIso: isSingleStreamSummary(requestType)
+        ? addMinutes(nowIso, SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES)
+        : attempt <= MAX_AUTOMATIC_ATTEMPTS
         ? (sttRetryTiming(requestCreatedAtIso, attempt, requestType).nextRetryAtIso || sttRetryTiming(requestCreatedAtIso, attempt, requestType).deadlineAtIso)
         : addMinutes(nowIso, 24 * 60),
     };
@@ -1928,6 +1943,7 @@ if (typeof module !== 'undefined' && module.exports) {
     STT_RETRY_SLOT_MINUTES,
     SUMMARY_STT_RETRY_DEADLINE_MINUTES,
     SUMMARY_STT_RETRY_SLOT_MINUTES,
+    SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES,
     addMinutes,
     aggregateLogicalJobs,
     buildNextAttempt,

@@ -28,6 +28,7 @@ const {
   RETRY_SLOT_MINUTES,
   SUMMARY_RETRY_DEADLINE_MINUTES,
   SUMMARY_RETRY_SLOT_MINUTES,
+  SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES,
   classifyAck: classifyAckPolicy,
 } = require(ackCodePath);
 const {
@@ -388,6 +389,23 @@ test('caps summary-triggered STT retries at ten minutes without changing standal
   });
   assert.equal(classifyAck({ statusCode: 202 }, attempt({ attempt: 6 }), NOW, requestRows).callbackDeadlineAtIso, '2026-08-22T00:10:00.000Z');
   assert.equal(classifyAck({ statusCode: 503 }, attempt({ attempt: 6 }), NOW, requestRows).status, 'failed');
+});
+
+test('keeps full-stream callbacks pending for 150 minutes while submission retries stay bounded', () => {
+  assert.equal(SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES, 150);
+  const requestRows = [summaryRequest({ requestType: 'single_stream_summary' })];
+  const accepted = classifyAck({ statusCode: 202 }, attempt({
+    requestType: 'single_stream_summary',
+    durationMinutes: 130,
+  }), NOW, requestRows);
+
+  assert.equal(accepted.status, 'waiting_callback');
+  assert.equal(accepted.callbackDeadlineAtIso, '2026-08-22T02:30:00.000Z');
+  assert.equal(Date.parse(accepted.callbackDeadlineAtIso) > Date.parse('2026-08-22T02:10:00.000Z'), true);
+
+  const retry = classifyAck({ statusCode: 503 }, attempt({ requestType: 'single_stream_summary' }), NOW, requestRows);
+  assert.equal(retry.status, 'retry_pending');
+  assert.equal(retry.nextRetryAtIso, '2026-08-22T00:01:00.000Z');
 });
 
 test('routes every transport error to manual review without automatic retry', () => {

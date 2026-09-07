@@ -8,6 +8,7 @@ const { buildWorkflow } = require('../../../scripts/utils');
 const { parseBotItem } = require('../nodes/Command_parser/jsCode');
 const {
   buildLookupWindow,
+  buildSingleStreamLookupWindow,
   buildPreviousFallbackWindow,
   buildSummaryResolverCalls,
   chunkIDs,
@@ -18,6 +19,7 @@ const {
   planAfterBaseDiscovery,
   planAfterFallbackDiscovery,
   reassembleSummaryContexts,
+  buildOrderedSummaryStreams,
 } = require('../nodes/Reassemble_Summary_Resolver_Output/jsCode');
 
 const CHANNEL = 'C0A4JJJKJMD';
@@ -49,6 +51,7 @@ function context(liveStreamID, inputIndex, overrides = {}) {
     region: 'TW',
     vliverModel: 1,
     eligible: true,
+    closeBy: 'normalEnd',
     ...overrides,
   };
 }
@@ -72,6 +75,7 @@ test('parses summary and STT aliases at the caller boundary', () => {
   ]);
   assert.equal(normalized.channel, CHANNEL);
   assert.equal(normalized.threadTS, THREAD_TS);
+  assert.equal(normalized.requestKey, `bot-summary:${messageTS}:9001:9002`);
   assert.match(normalized.requestKey, new RegExp(messageTS.replace('.', '\\.')));
 
   const stt = parseBotItem({ event: {
@@ -124,6 +128,53 @@ test('builds exact default and explicit lookup windows', () => {
     end: '2025-02-01T09:17:00+08:00',
   });
   assert.deepEqual(buildLookupWindow({ date: '2025-01-02' }), explicitWindow);
+});
+
+test('plans a single stream with a five-business-day date window and full-stream duration', () => {
+  const messageTS = '1787364000.000002';
+  const command = parseBotItem({ event: {
+    channel: CHANNEL, ts: messageTS, event_ts: messageTS, text: '!summary stream 9001 date=2025-01-02',
+  } });
+  const plan = normalizeSummaryCommand(command, '2025-02-01T09:17:00+08:00');
+  assert.equal(plan.requestKey, `bot-summary:${messageTS}:9001`);
+  assert.equal(plan.requestType, 'single_stream_summary');
+  assert.deepEqual(plan.positions, [{ originalIndex: 0, role: 'current', liveStreamID: '9001', mode: 'fromStart' }]);
+  assert.equal(Object.hasOwn(plan, 'previousFallbackWindow'), false);
+  assert.deepEqual(plan.lookupWindow, {
+    start: '2024-12-31T04:00:00+08:00', end: '2025-01-05T04:00:00+08:00',
+  });
+  assert.deepEqual(buildSingleStreamLookupWindow({ date: '2025-01-01' }), {
+    start: '2024-12-30T04:00:00+08:00', end: '2025-01-04T04:00:00+08:00',
+  });
+  assert.deepEqual(buildSingleStreamLookupWindow({ nowIso: '2025-02-01T09:17:00+08:00' }), {
+    start: '2025-01-02T09:17:00+08:00', end: '2025-02-01T09:17:00+08:00',
+  });
+
+  const current = context('9001', 0, { beginTime: 1735689600, endTime: 1735690501 });
+  const calls = planAfterBaseDiscovery(plan, [current]);
+  assert.deepEqual(calls.map(({ phase, streams, lookupWindow }) => ({ phase, streams, lookupWindow })), [{
+    phase: 'final', streams: [{ liveStreamID: '9001' }], lookupWindow: plan.lookupWindow,
+  }]);
+  assert.deepEqual(buildOrderedSummaryStreams(plan, [current]).map(({ role, mode, durationMinutes, liveStreamID }) => ({
+    role, mode, durationMinutes, liveStreamID,
+  })), [{ role: 'current', mode: 'fromStart', durationMinutes: 16, liveStreamID: '9001' }]);
+});
+
+test('rejects invalid single stream commands and non-ended metadata without previous fallback', () => {
+  for (const positionals of [[], ['1', '2', '3'], ['not-an-id']]) {
+    assert.throws(() => normalizeSummaryCommand({
+      routeKey: 'summary:stream', channel: CHANNEL, ts: THREAD_TS, args: {}, positionals,
+    }));
+  }
+  const plan = normalizeSummaryCommand({
+    routeKey: 'summary:stream', channel: CHANNEL, ts: THREAD_TS, args: {}, positionals: ['9001'],
+  });
+  assert.throws(() => planAfterBaseDiscovery(plan, [context('9001', 0, { endTime: 1735759800 })]), /ended time range/);
+  assert.throws(() => planAfterBaseDiscovery(plan, [context('9001', 0, { closeBy: '' })]), /closing marker/);
+  assert.throws(() => planAfterBaseDiscovery(plan, [context('9001', 0, {
+    beginTime: Math.floor(Date.now() / 1000) - 60,
+    endTime: Math.floor(Date.now() / 1000) + 60,
+  })]), /has not ended yet/);
 });
 
 test('extends only outside an explicit base and caps each side at six hours', () => {
