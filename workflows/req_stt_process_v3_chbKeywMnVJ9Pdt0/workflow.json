@@ -1,5 +1,5 @@
 {
-  "id": "ReqSTTProcessV3A",
+  "id": "chbKeywMnVJ9Pdt0",
   "name": "Req STT process v3",
   "description": "Inactive standalone STT adapter. Inputs: streamID:string, mode:string, mins:number, date:string, channel:string, target_thread_ts:string. Resolves profile=stt metadata, creates and reconciles attempt 1, then dispatches only the canonical attempt. Returns only the accepted canonical identity, stream, mode, and channel contract.",
   "active": false,
@@ -131,7 +131,7 @@
       "name": "Resolve Previous Fallback Discovery",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [1440, -160]
+      "position": [1424, -448]
     },
     {
       "parameters": {
@@ -145,7 +145,7 @@
       "name": "Tag Previous Fallback Discovery",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1680, -160]
+      "position": [1664, -448]
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Normalize_Standalone_Input/jsCode.js" },
@@ -153,7 +153,7 @@
       "name": "Plan Fallback Discovery Window",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1920, -160]
+      "position": [1904, -448]
     },
     {
       "parameters": {},
@@ -161,7 +161,7 @@
       "name": "Final Lookup Context",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [2160, 0]
+      "position": [2160, 16]
     },
     {
       "parameters": {
@@ -194,7 +194,7 @@
       "name": "Resolve Final Stream Context",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [2400, 0]
+      "position": [2400, 16]
     },
     {
       "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Normalize_Standalone_Input/jsCode.js" },
@@ -202,7 +202,7 @@
       "name": "Require Eligible Stream Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2640, 0]
+      "position": [2640, 16]
     },
     {
       "parameters": {
@@ -215,7 +215,7 @@
       "name": "Create Processing Message",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
-      "position": [2880, 0],
+      "position": [2880, 16],
       "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } }
     },
     {
@@ -224,7 +224,7 @@
       "name": "Build Standalone Attempt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1200, 0]
+      "position": [1472, -128]
     },
     {
       "parameters": {
@@ -254,7 +254,7 @@
       "name": "Insert Attempt",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
-      "position": [1440, 0],
+      "position": [1616, -128],
       "alwaysOutputData": true
     },
     {
@@ -269,7 +269,7 @@
       "name": "Read All Attempt Rows",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
-      "position": [1680, 0],
+      "position": [1760, -128],
       "alwaysOutputData": true
     },
     {
@@ -278,7 +278,7 @@
       "name": "Plan Canonical Reconciliation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1920, 0]
+      "position": [1904, -128]
     },
     {
       "parameters": {
@@ -290,7 +290,7 @@
       "name": "Is Manual Review Conflict",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [2160, 0]
+      "position": [2160, -128]
     },
     {
       "parameters": {},
@@ -298,7 +298,7 @@
       "name": "Freeze Conflict Plan",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [2400, -240]
+      "position": [2640, -240]
     },
     {
       "parameters": {
@@ -322,7 +322,7 @@
       "name": "Freeze Canonical Conflict",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
-      "position": [2640, -240],
+      "position": [2880, -240],
       "alwaysOutputData": true
     },
     {
@@ -331,7 +331,7 @@
       "name": "Limit Conflict Writes",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
-      "position": [2880, -240]
+      "position": [3120, -240]
     },
     {
       "parameters": {
@@ -345,7 +345,7 @@
       "name": "Re-read Manual Review State",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
-      "position": [3120, -240],
+      "position": [3360, -240],
       "alwaysOutputData": true
     },
     {
@@ -354,7 +354,7 @@
       "name": "Verify Frozen Conflict",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3360, -240]
+      "position": [3600, -240]
     },
     {
       "parameters": {
@@ -366,7 +366,7 @@
       "name": "Needs Reconciliation",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [2400, 80]
+      "position": [2384, 432]
     },
     {
       "parameters": {
@@ -390,7 +390,7 @@
       "name": "Apply Reconciliation",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
-      "position": [2640, 80],
+      "position": [2640, 272],
       "alwaysOutputData": true
     },
     {
@@ -399,7 +399,7 @@
       "name": "Limit Reconciliation Writes",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
-      "position": [2880, 80]
+      "position": [2880, 272]
     },
     {
       "parameters": {
@@ -413,7 +413,7 @@
       "name": "Re-read After Reconciliation",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
-      "position": [3120, 80],
+      "position": [3152, 272],
       "alwaysOutputData": true
     },
     {
@@ -422,7 +422,7 @@
       "name": "Verify Reconciled Canonical",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3360, 80]
+      "position": [3392, 272]
     },
     {
       "parameters": {
@@ -434,7 +434,7 @@
       "name": "Post-Reconciliation Conflict",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [3600, 80]
+      "position": [3632, 272]
     },
     {
       "parameters": {
@@ -446,7 +446,7 @@
       "name": "Reconciliation Complete",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [3840, 160]
+      "position": [3856, 288]
     },
     {
       "parameters": {
@@ -466,7 +466,7 @@
       "name": "Return Accepted Contract",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [4080, 160]
+      "position": [4144, 448]
     },
     {
       "parameters": {
@@ -491,7 +491,7 @@
       "name": "Dispatch Canonical Attempt",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [4320, 80]
+      "position": [4336, 448]
     }
   ],
   "connections": {

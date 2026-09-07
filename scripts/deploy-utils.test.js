@@ -1005,7 +1005,7 @@ test('exports the exact authoritative v3 workflow inventory in deployment order'
         ['STT: dispatch attempt v3', 'workflows/stt_dispatch_attempt_v3_STTDispatchV3A01'],
         ['STT: callback ingress v3', 'workflows/stt_callback_ingress_v3_STTCallbackV3A1'],
         ['STT result listener v3', 'workflows/stt_result_listener_v3_STTListenerV3A01'],
-        ['Req STT process v3', 'workflows/req_stt_process_v3_ReqSTTProcessV3A'],
+        ['Req STT process v3', 'workflows/req_stt_process_v3_chbKeywMnVJ9Pdt0'],
         ['Summary: orchestrate request v3', 'workflows/summary_orchestrate_request_v3_SummaryOrchV3A01'],
         ['AI SUMMARY v3', 'workflows/ai_summary_v3_AISummaryV3A0001'],
         ['Summary: coordinator v3', 'workflows/summary_coordinator_v3_SummaryCoordV3A1'],

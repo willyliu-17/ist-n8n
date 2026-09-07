@@ -566,7 +566,7 @@ test('fire-and-forgets only attemptKey and exposes only the accepted output allo
 
 test('is inactive and contains no legacy nodes, files, or dangling external references', () => {
   const workflow = readWorkflow();
-  assert.equal(workflow.id, 'ReqSTTProcessV3A');
+  assert.equal(workflow.id, 'chbKeywMnVJ9Pdt0');
   assert.equal(workflow.name, 'Req STT process v3');
   assert.equal(workflow.active, false);
   const forbiddenTypes = new Set(['n8n-nodes-base.wait', 'n8n-nodes-base.httpRequest', 'n8n-nodes-base.googleBigQuery', 'n8n-nodes-base.switch']);
