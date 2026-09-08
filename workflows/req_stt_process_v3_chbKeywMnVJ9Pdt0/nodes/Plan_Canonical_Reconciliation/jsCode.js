@@ -42,11 +42,15 @@ function validateRows(rows) {
 }
 
 function mutation(row, winnerRowID, desiredReconciliationStatus) {
+  if (typeof row.updatedAtIso !== 'string' || row.updatedAtIso === '') {
+    throw new Error('Invalid required reconciliation snapshot: updatedAtIso');
+  }
   return {
     id: row.id,
     attemptKey: row.attemptKey,
     expectedReconciliationStatus: row.reconciliationStatus,
     expectedCanonicalRowID: row.canonicalRowID,
+    expectedUpdatedAtIso: row.updatedAtIso,
     desiredReconciliationStatus,
     desiredCanonicalRowID: String(winnerRowID),
   };

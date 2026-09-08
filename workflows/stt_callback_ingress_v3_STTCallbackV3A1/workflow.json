@@ -218,6 +218,10 @@
       "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [7920, 0], "id": "4f8a2b80-9161-4e6a-85af-48e82daea923", "name": "Accepted Result Type"
     },
     {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "1b8f51bb-6faa-48d1-9e30-194f6d5c0e01", "leftValue": "={{ $json.triggerCoordinator }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }], "combinator": "and" }, "options": {} },
+      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [7920, 160], "id": "1b8f51bb-6faa-48d1-9e30-194f6d5c0e01", "name": "Is Coordinator Trigger"
+    },
+    {
       "parameters": { "workflowId": { "__rl": true, "value": "STTListenerV3A01", "mode": "list", "cachedResultUrl": "/workflow/STTListenerV3A01", "cachedResultName": "STT result listener v3" }, "workflowInputs": { "mappingMode": "defineBelow", "value": { "attemptKey": "={{ $json.attemptKey }}" }, "matchingColumns": [], "schema": [{ "id": "attemptKey", "displayName": "attemptKey", "required": true, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string" }], "attemptToConvertTypes": false, "convertFieldsToString": true }, "options": { "waitForSubWorkflow": false } },
       "type": "n8n-nodes-base.executeWorkflow", "typeVersion": 1.2, "position": [8160, -80], "id": "c7eb277d-0557-4910-a8e2-26c873154528", "name": "Run Presentation Owner", "onError": "continueRegularOutput"
     },
@@ -312,9 +316,9 @@
     "Verify Logical Winner": { "main": [[{ "node": "Is Logical Winner Accepted", "type": "main", "index": 0 }], [{ "node": "Respond Internal Error", "type": "main", "index": 0 }]] },
     "Is Logical Winner Accepted": { "main": [[{ "node": "Respond Accepted", "type": "main", "index": 0 }], [{ "node": "Is Logical Winner Duplicate", "type": "main", "index": 0 }]] },
     "Is Logical Winner Duplicate": { "main": [[{ "node": "Respond Duplicate", "type": "main", "index": 0 }], [{ "node": "Respond Internal Error", "type": "main", "index": 0 }]] },
-    "Respond Accepted": { "main": [[{ "node": "Accepted Result Type", "type": "main", "index": 0 }, { "node": "Write Masked Audit", "type": "main", "index": 0 }]] },
-    "Accepted Result Type": { "main": [[{ "node": "Run Presentation Owner", "type": "main", "index": 0 }], [{ "node": "Run Summary Coordinator", "type": "main", "index": 0 }]] },
-    "Run Presentation Owner": { "main": [[{ "node": "Run Summary Coordinator", "type": "main", "index": 0 }]] },
+    "Respond Accepted": { "main": [[{ "node": "Accepted Result Type", "type": "main", "index": 0 }, { "node": "Is Coordinator Trigger", "type": "main", "index": 0 }, { "node": "Write Masked Audit", "type": "main", "index": 0 }]] },
+    "Accepted Result Type": { "main": [[{ "node": "Run Presentation Owner", "type": "main", "index": 0 }], []] },
+    "Is Coordinator Trigger": { "main": [[{ "node": "Run Summary Coordinator", "type": "main", "index": 0 }], []] },
     "Respond Malformed": { "main": [[{ "node": "Write Masked Audit", "type": "main", "index": 0 }]] },
     "Respond Invalid Token": { "main": [[{ "node": "Write Masked Audit", "type": "main", "index": 0 }]] },
     "Respond Rejected": { "main": [[{ "node": "Write Masked Audit", "type": "main", "index": 0 }]] },

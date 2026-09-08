@@ -5,7 +5,7 @@ const test = require('node:test');
 
 const workflowDir = path.resolve(__dirname, '..');
 const { buildWorkflow } = require('../../../scripts/utils');
-const { parseBotItem } = require('../nodes/Command_parser/jsCode');
+const { CHANNEL_COMMANDS, parseBotItem } = require('../nodes/Command_parser/jsCode');
 const {
   buildLookupWindow,
   buildSingleStreamLookupWindow,
@@ -109,17 +109,45 @@ test('parses summary and STT aliases at the caller boundary', () => {
   assert.equal(explicit.sttMins, 3);
 });
 
-test('rejects malformed typed events and bot messages', () => {
+test('routes each enabled configuration once and ignores disabled, bot, subtype, and unknown events', () => {
+  for (const [channel, commands] of Object.entries(CHANNEL_COMMANDS)) {
+    for (const [routeKey, enabled] of Object.entries(commands)) {
+      assert.equal(enabled, true);
+      const [group, action] = routeKey.split(':');
+      const parsed = parseBotItem({ event: { channel, ts: THREAD_TS, event_ts: THREAD_TS, text: `!${group} ${action}` } });
+      assert.equal(parsed.dispatchKey, `v3:${routeKey}`);
+      const disabled = Object.fromEntries(Object.entries(CHANNEL_COMMANDS)
+        .map(([configuredChannel, configuredCommands]) => [configuredChannel, { ...configuredCommands }]));
+      disabled[channel][routeKey] = false;
+      assert.equal(parseBotItem({ event: { channel, ts: THREAD_TS, event_ts: THREAD_TS, text: `!${group} ${action}` } }, disabled), null);
+    }
+  }
   assert.throws(() => parseBotItem({ event: [] }), /event must be an object/);
-  assert.throws(() => parseBotItem({ event: {
+  assert.equal(parseBotItem({ event: {
     channel: 'C09F0SYG57D', ts: THREAD_TS, event_ts: THREAD_TS, text: '!stt ping',
-  } }), /channel is not allowed/);
+  } }).dispatchKey, 'legacy');
+  assert.equal(parseBotItem({ event: {
+    channel: 'C0A4JJJKJMD', ts: THREAD_TS, event_ts: THREAD_TS, text: '!other command',
+  } }), null);
+  assert.equal(parseBotItem({ event: {
+    channel: 'CUNKNOWN', ts: THREAD_TS, event_ts: THREAD_TS, text: '!stt stream 9001',
+  } }), null);
   assert.equal(parseBotItem({ event: {
     channel: CHANNEL, ts: THREAD_TS, event_ts: THREAD_TS, text: '!stt ping', bot_id: 'B01',
   } }), null);
   assert.equal(parseBotItem({ event: {
     channel: CHANNEL, ts: THREAD_TS, event_ts: THREAD_TS, text: '!stt ping', subtype: 'message_changed',
   } }), null);
+});
+
+test('preserves rich-text commands and the complete original event for Legacy', () => {
+  const rich = parseBotItem({ event: {
+    channel: CHANNEL, ts: THREAD_TS, event_ts: THREAD_TS,
+    blocks: [{ elements: [{ elements: [{ text: '!STT STREAM 9001 FIRST 3' }] }] }],
+  } });
+  assert.equal(rich.dispatchKey, 'v3:stt:stream');
+  assert.equal(rich.sttMode, 'FIRST');
+  assert.equal(nodeByName(readWorkflow(), 'Call Legacy Entry').parameters.workflowInputs.value.event, "={{ $('Start').item.json.event }}");
 });
 
 test('builds exact default and explicit lookup windows', () => {
@@ -281,7 +309,7 @@ test('extends a default 30-day final window within resolver limits', () => {
 
 test('routes summary through STT resolver and orchestrator while STT remains resolver-free', () => {
   const workflow = readWorkflow();
-  assert.equal(workflow.active, false);
+  assert.equal(workflow.active, true);
   assert.deepEqual(Object.fromEntries(['saveDataSuccessExecution', 'saveDataErrorExecution', 'saveManualExecutions', 'saveExecutionProgress'].map((key) => [key, workflow.settings[key]])), {
     saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false,
   });
@@ -292,10 +320,10 @@ test('routes summary through STT resolver and orchestrator while STT remains res
   assert.equal(workflow.nodes.some(({ type }) => type === 'n8n-nodes-base.slackTrigger'), false);
   assert.deepEqual(workflow.connections.Start.main, [[{ node: 'Command Parser', type: 'main', index: 0 }]]);
   assert.equal(nodeByName(workflow, 'Command Parser').parameters.mode, 'runOnceForAllItems');
-  assert.equal(nodeByName(workflow, 'Resolve Summary Discovery').parameters.workflowId.value, 'StreamMetaV3A001');
-  assert.equal(nodeByName(workflow, 'Resolve Summary Previous Fallback').parameters.workflowId.value, 'StreamMetaV3A001');
-  assert.equal(nodeByName(workflow, 'Resolve Summary Streams').parameters.workflowId.value, 'StreamMetaV3A001');
-  assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.workflowId.value, 'SummaryOrchV3A01');
+  assert.equal(nodeByName(workflow, 'Resolve Summary Discovery').parameters.workflowId.value, 'qAjDH2w1BNvom95c');
+  assert.equal(nodeByName(workflow, 'Resolve Summary Previous Fallback').parameters.workflowId.value, 'qAjDH2w1BNvom95c');
+  assert.equal(nodeByName(workflow, 'Resolve Summary Streams').parameters.workflowId.value, 'qAjDH2w1BNvom95c');
+  assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.workflowId.value, 'yQ10uPa6RPuEyCR4');
 
   const stt = nodeByName(workflow, 'Call Req. STT process');
   assert.deepEqual(Object.keys(stt.parameters.workflowInputs.value).sort(), [
@@ -307,12 +335,23 @@ test('routes summary through STT resolver and orchestrator while STT remains res
   assert.equal(stt.parameters.workflowInputs.value.mins, '={{ $json.sttMins }}');
   assert.equal(stt.parameters.workflowInputs.value.command_ts, '={{ $json.ts }}');
   assert.equal(stt.parameters.workflowInputs.value.target_thread_ts, '={{ $json.thread_ts }}');
+  assert.equal(stt.parameters.workflowInputs.value.channel, '={{ $json.channel }}');
   assert.equal(stt.parameters.workflowInputs.schema.find(({ id }) => id === 'command_ts').type, 'string');
   assert.equal(stt.parameters.workflowInputs.schema.find(({ id }) => id === 'command_ts').required, true);
+  assert.equal(nodeByName(workflow, 'Call Query Stream Logs').parameters.workflowInputs.value.channel, '={{ $json.channel }}');
   assert.equal(nodeByName(workflow, 'Call Query Stream Logs').parameters.workflowInputs.value.target_thread_ts, '={{ $json.thread_ts }}');
+  assert.equal(nodeByName(workflow, 'Call Tencent Realtime VDS').parameters.workflowInputs.value.channel, '={{ $json.channel }}');
   assert.equal(nodeByName(workflow, 'Call Tencent Realtime VDS').parameters.workflowInputs.value.target_thread_ts, '={{ $json.thread_ts }}');
+  assert.equal(nodeByName(workflow, 'Send Summary Processing Message').parameters.channelId.value, '={{ $json.plan.channel }}');
+  const vdsWorkflow = JSON.parse(fs.readFileSync(path.resolve(workflowDir, '..', 'tencent_realtime_vds_v3_TencentVDSV3A001', 'workflow.json'), 'utf8'));
+  const normalizeInput = nodeByName(vdsWorkflow, 'Normalize Input');
+  assert.match(normalizeInput.parameters.assignments.assignments.find(({ name }) => name === 'channelId').value, /C0A4JJJKJMD.*C09F0SYG57D/);
+  for (const node of vdsWorkflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.slack')) {
+    const channelId = node.parameters.channelId?.value ?? node.parameters.options?.channelId;
+    assert.equal(channelId, "={{ $('Normalize Input').first().json.channelId }}", `${node.name} channel`);
+  }
 
   const serialized = JSON.stringify(workflow);
-  assert.doesNotMatch(serialized, /AISummaryV3A0001|sOSbXSfXFcMLeIfr|channelID|C09F0SYG57D/);
+  assert.doesNotMatch(serialized, /AISummaryV3A0001|sOSbXSfXFcMLeIfr|channelID/);
   assert.doesNotThrow(() => buildWorkflow(workflowDir));
 });

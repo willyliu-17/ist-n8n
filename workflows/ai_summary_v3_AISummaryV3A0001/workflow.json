@@ -1,7 +1,7 @@
 {
   "id": "AISummaryV3A0001",
   "name": "AI SUMMARY v3",
-  "description": null,
+  "description": "A completed Slack upload may be duplicated during repair if its checkpoint write fails.",
   "active": true,
   "isArchived": false,
   "sourceWorkflowId": null,
@@ -103,8 +103,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -308,8 +308,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -385,8 +385,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -431,8 +431,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -512,8 +512,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -811,8 +811,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1081,8 +1081,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1223,8 +1223,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1314,8 +1314,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1360,8 +1360,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1406,8 +1406,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1452,8 +1452,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1695,8 +1695,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1727,8 +1727,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1813,8 +1813,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1845,8 +1845,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1931,8 +1931,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1963,8 +1963,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -2023,8 +2023,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -2055,8 +2055,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -2101,8 +2101,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -2147,8 +2147,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -2193,8 +2193,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -2313,8 +2313,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {

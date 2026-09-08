@@ -3,9 +3,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { collectDataTableReferences, remapDataTableReferences } = require('../../../scripts/deploy-utils');
+const { buildWorkflow } = require('../../../scripts/utils');
 
 const workflowDir = path.resolve(__dirname, '..');
 const workflow = JSON.parse(fs.readFileSync(path.join(workflowDir, 'workflow.json'), 'utf8'));
+const assembledWorkflow = buildWorkflow(workflowDir);
 const state = require(path.join(workflowDir, 'nodes', 'Presentation_State', 'jsCode.js'));
 const reconciliation = require(path.join(workflowDir, 'nodes', 'Reconcile_Canonical', 'jsCode.js'));
 const transcript = require(path.join(workflowDir, 'nodes', 'Convert_Trans_to_Txt', 'jsCode.js'));
@@ -94,6 +96,23 @@ function node(name) {
   return found;
 }
 
+function assembledNode(name) {
+  const found = assembledWorkflow.nodes.find((candidate) => candidate.name === name);
+  assert.ok(found, `Missing assembled node: ${name}`);
+  return found;
+}
+
+function renderProcessingMessage(rowValue) {
+  const template = assembledNode('Update Processing Message').parameters.text;
+  return template.replace(/{{([\s\S]*?)}}/g, (_, expression) => vm.runInNewContext(`(${expression})`, {
+    $: (name) => {
+      assert.equal(name, 'Guard Side Effect Owner');
+      return { first: () => ({ json: rowValue }) };
+    },
+    String,
+  })).replace(/^=/, '');
+}
+
 function targets(source, output = 0) {
   return (workflow.connections[source]?.main?.[output] || []).map(({ node: target }) => target);
 }
@@ -155,8 +174,8 @@ function reachable(start) {
   return seen;
 }
 
-test('is inactive with one typed Define Below attemptKey trigger and documented contract', () => {
-  assert.equal(workflow.active, false);
+test('keeps live active metadata with one typed Define Below attemptKey trigger and documented contract', () => {
+  assert.equal(workflow.active, true);
   const triggers = workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.executeWorkflowTrigger');
   assert.equal(triggers.length, 1);
   assert.deepEqual(triggers[0].parameters.workflowInputs.values, [{ name: 'attemptKey', type: 'string' }]);
@@ -164,7 +183,7 @@ test('is inactive with one typed Define Below attemptKey trigger and documented 
   assert.match(workflow.description, /Input: required attemptKey string/);
   assert.match(workflow.description, /Side effects:/);
   assert.match(workflow.description, /Output:/);
-  assert.match(workflow.description, /require Automation: error handler v3 assignment before activation/);
+  assert.match(workflow.description, /Require Automation: error handler v3 assignment before activation/);
   assert.equal(workflow.nodes.some(({ type }) => type === 'n8n-nodes-base.webhook'), false);
 });
 
@@ -534,6 +553,13 @@ test('runs terminal message-only presentation helpers through the Code-node runt
     assert.equal(stage[0].json.presentationStage, 'message_update');
   }
   assert.equal(runPresentationRuntime({ presentationHelperMode: 'next_stage', row: row({ dialogue: '', processingMessageUpdatedAtIso: NOW }) })[0].json.presentationStage, 'complete');
+  assert.equal(
+    runPresentationRuntime({
+      presentationHelperMode: 'final_text',
+      row: row({ dialogue: '', errorCode: 'callback_empty_transcription', presentationMode: 'message_only' }),
+    })[0].json.text,
+    '🤖 STT 完成，但此時間窗未辨識到語音\nStream: `9001`\nMode: `fromStart` 5m',
+  );
   assert.match(runPresentationRuntime({ presentationHelperMode: 'final_text', row: row({ status: 'timed_out' }) })[0].json.text, /Timed Out/);
 });
 
@@ -801,10 +827,30 @@ test('uses deterministic persisted allowlisted channel routing and final text', 
     assert.deepEqual(targets(slack.name, 1), [POSTCLAIM_FAILURE_SOURCE[slack.name]], slack.name);
   }
   assert.equal(state.buildFinalText(row()), '🤖 STT Done\nStream: `9001`\nMode: `fromStart` 5m');
-  const messageTemplate = fs.readFileSync(path.join(workflowDir, 'nodes', 'Update_Processing_Msg', 'text.md'), 'utf8').trim();
-  assert.match(messageTemplate, /STT Done/);
-  assert.match(messageTemplate, /Timed Out/);
-  assert.match(messageTemplate, /Failed/);
+  assert.equal(
+    state.buildFinalText(row({ dialogue: '', errorCode: 'callback_empty_transcription', presentationMode: 'message_only' })),
+    '🤖 STT 完成，但此時間窗未辨識到語音\nStream: `9001`\nMode: `fromStart` 5m',
+  );
+});
+
+test('renders the assembled Slack message for only completed empty callbacks', () => {
+  const emptyCallback = row({ dialogue: '', errorCode: 'callback_empty_transcription', presentationMode: 'message_only' });
+  assert.equal(
+    renderProcessingMessage(emptyCallback),
+    '🤖 STT 完成，但此時間窗未辨識到語音\nStream: `9001`\nMode: `fromStart` 5m\n',
+  );
+  assert.equal(
+    renderProcessingMessage(row({ errorCode: '', presentationMode: 'full' })),
+    '🤖 STT Done\nStream: `9001`\nMode: `fromStart` 5m\n',
+  );
+  assert.equal(
+    renderProcessingMessage(row({ status: 'failed', dialogue: '', errorCode: 'callback_empty_transcription', presentationMode: 'message_only' })),
+    '🤖 STT Failed\nStream: `9001`\nMode: `fromStart` 5m\n',
+  );
+  assert.equal(
+    renderProcessingMessage(row({ status: 'timed_out', dialogue: '', errorCode: 'callback_empty_transcription', presentationMode: 'message_only' })),
+    '🤖 STT Timed Out\nStream: `9001`\nMode: `fromStart` 5m\n',
+  );
 });
 
 test('implements failure attempts 1m, 5m, then terminal failed with only presentation fields', () => {
@@ -885,11 +931,9 @@ test('has no callback body, Webhook references, raw token, STT core writer, or n
   for (const name of presentationWrites) assert.equal('status' in node(name).parameters.columns.value, false, name);
 });
 
-test('uses approved execution retention and unique UUIDv4 node IDs', () => {
-  assert.deepEqual(workflow.settings, {
-    executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all',
-    saveManualExecutions: true, saveExecutionProgress: false,
-  });
+test('retains its error handler with approved execution retention and unique UUIDv4 node IDs', () => {
+  assert.equal(workflow.settings.errorWorkflow, 'run4KT7goJGVeOOk');
+  for (const [key, value] of Object.entries({ executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false })) assert.equal(workflow.settings[key], value);
   const ids = workflow.nodes.map(({ id }) => id);
   assert.equal(new Set(ids).size, ids.length);
   for (const id of ids) assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);

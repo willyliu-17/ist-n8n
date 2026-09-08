@@ -1,7 +1,7 @@
 {
   "id": "chbKeywMnVJ9Pdt0",
   "name": "Req STT process v3",
-  "description": null,
+  "description": "Input: typed standalone STT command. Output: accepted attempt allowlist. Side effects: posts a processing status and dispatches the canonical attempt.",
   "active": true,
   "isArchived": false,
   "sourceWorkflowId": null,
@@ -381,7 +381,7 @@
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "value": "C0A4JJJKJMD",
+          "value": "={{ $('Normalize Standalone Input').first().json.channel }}",
           "mode": "id"
         },
         "text": "=STT request accepted for processing\nStream: `{{ $json.liveStreamID }}`\nMode: `{{ $('Normalize Standalone Input').first().json.mode }}` {{ $('Normalize Standalone Input').first().json.mins }}m",
@@ -426,8 +426,8 @@
       "parameters": {
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "columns": {
           "mappingMode": "defineBelow",
@@ -499,8 +499,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -585,13 +585,14 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
           "conditions": [
             {
+              "keyName": "id",
               "keyValue": "={{ $json.id }}"
             },
             {
@@ -609,6 +610,10 @@
             {
               "keyName": "canonicalRowID",
               "keyValue": "={{ String($json.id) }}"
+            },
+            {
+              "keyName": "updatedAtIso",
+              "keyValue": "={{ $json.expectedUpdatedAtIso }}"
             }
           ]
         },
@@ -653,8 +658,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -728,13 +733,14 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
           "conditions": [
             {
+              "keyName": "id",
               "keyValue": "={{ $json.id }}"
             },
             {
@@ -748,6 +754,10 @@
             {
               "keyName": "canonicalRowID",
               "keyValue": "={{ $json.expectedCanonicalRowID }}"
+            },
+            {
+              "keyName": "updatedAtIso",
+              "keyValue": "={{ $json.expectedUpdatedAtIso }}"
             }
           ]
         },
@@ -791,8 +801,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {

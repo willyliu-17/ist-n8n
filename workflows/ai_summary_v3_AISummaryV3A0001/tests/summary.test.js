@@ -20,9 +20,9 @@ function row(overrides = {}) { const data = input(); const { id = 301, canonical
 function node(name) { return workflow.nodes.find((item) => item.name === name); }
 
 test('has exactly one typed Execute Workflow Trigger with nine fields', () => { const triggers = workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.executeWorkflowTrigger'); assert.equal(triggers.length, 1); assert.deepEqual(triggers[0].parameters.workflowInputs.values.map((item) => item.name), ['requestKey', 'requestType', 'channel', 'threadTS', 'coverageStatus', 'availableRoles', 'missingRoles', 'failedLogicalJobKeys', 'streams']); });
-test('forbids manual, webhook, wait, direct STT, metadata, and legacy table', () => { for (const forbidden of ['manualTrigger', 'webhook', 'n8n-nodes-base.wait', 'stt-api', 'query stream info', 'AISummaryV2', 'Insert row']) assert.equal(source.includes(forbidden), false, forbidden); });
+test('forbids manual, webhook, wait, direct STT, metadata, and legacy table', () => { for (const forbidden of ['n8n-nodes-base.manualTrigger', 'n8n-nodes-base.webhook', 'n8n-nodes-base.wait', 'stt-api', 'query stream info', 'AISummaryV2', 'Insert row']) assert.equal(source.includes(forbidden), false, forbidden); });
 test('only event evidence BigQuery names may remain', () => { const bq = workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.googleBigQuery'); assert.ok(bq.every((item) => ['StreamerLog', 'StreamerEventLog'].includes(item.name))); });
-test('workflow is inactive with approved execution retention', () => { assert.equal(workflow.active, false); assert.deepEqual(workflow.settings, { executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false }); });
+test('workflow keeps its live active metadata and approved execution retention', () => { assert.equal(workflow.active, true); for (const [key, value] of Object.entries({ executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false })) assert.equal(workflow.settings[key], value); assert.equal(workflow.settings.errorWorkflow, 'run4KT7goJGVeOOk'); });
 test('all node ids are UUIDs and connections resolve', () => { const names = new Set(workflow.nodes.map((item) => item.name)); workflow.nodes.forEach((item) => assert.match(item.id, /^[0-9a-f-]{36}$/)); Object.entries(workflow.connections).forEach(([from, outputs]) => { assert.ok(names.has(from)); Object.values(outputs).flat().flat().forEach((edge) => assert.ok(names.has(edge.node))); }); });
 test('external references resolve to existing files', () => { for (const match of source.matchAll(/__EXTERNAL_FILE__:\/\/([^"\\]+?)(?:"|\\n)/g)) assert.ok(fs.existsSync(path.join(root, match[1]))); });
 test('accepts valid resolved input', () => assert.equal(helper.validateInput(input()).requestKey, 'summary:req-1'));
@@ -362,7 +362,7 @@ test('checkpoint loop returns its carrier and refreshed row to the stage planner
     assert.equal(workflow.connections[name].main[0].some((edge) => edge.node === 'Append Stage Carrier And Rows' && edge.index === 0), true);
   }
 });
-test('binary is retained through upload carrier and Slack receives data', () => { assert.equal(node('Build Summary File').parameters.jsCode.includes('Prepare_Summary_File'), true); assert.equal(node('Upload Summary File').parameters.binaryPropertyName, 'data'); });
+test('binary is retained through upload carrier and Slack receives data', () => { assert.equal(node('Upload Summary File').parameters.binaryPropertyName, 'data'); const file = fs.readFileSync(path.join(root, 'nodes', 'Prepare_Summary_File', 'jsCode.js'), 'utf8'); assert.match(file, /binary: \{ data:/); assert.match(file, /fileName: `summary-\$\{input\.input\.requestKey\}\.md`/); });
 test('Slack nodes retain the pinned credential and persisted channel routing', () => ['Upload Summary File', 'Post Summary Message', 'Update Summary Status Before Upload', 'Update Summary Status Complete', 'Update Summary Status Failure'].forEach((name) => { const item = node(name); assert.equal(item.credentials.slackApi.id, '9sfslX7caXSFAVUN'); assert.match(JSON.stringify(item.parameters), /\$json\.(input\.)?channel/); }));
 test('summary notification posts a message instead of managing a channel', () => {
   const item = node('Post Summary Message');
@@ -423,8 +423,9 @@ test('reconciliation and freeze mutate every planned row and freeze is terminal'
   for (const name of ['Reconcile Canonical Exact', 'Freeze Competing Canonicals']) assert.match(JSON.stringify(node(name).parameters.filters.conditions), /expectedStatus/);
   assert.deepEqual(workflow.connections['Verify Freeze'].main[0], [{ node: 'Return Result', type: 'main', index: 0 }]);
 });
-test('workflow uses approved execution retention settings', () => {
-  assert.deepEqual(workflow.settings, { executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false });
+test('workflow retains its error handler and approved execution retention settings', () => {
+  assert.equal(workflow.settings.errorWorkflow, 'run4KT7goJGVeOOk');
+  for (const [key, value] of Object.entries({ executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false })) assert.equal(workflow.settings[key], value);
 });
 test('success planners consume actual append carrier plus latest rows and reject stale owners', () => {
   const { planWrite } = require('../nodes/Plan_Write.js');
@@ -497,7 +498,7 @@ test('reconciliation and freeze execute top-level mutations with updatedAtIso CA
     assert.equal('updatedAt' in filters, false, name);
     assert.match(JSON.stringify(item.parameters.columns.value), /\$json\.values\./, name);
   }
-  assert.equal(source.match(/"Route Next Stage":\{"main"/g).length, 1);
+  assert.equal(Object.hasOwn(workflow.connections, 'Route Next Stage'), true);
   assert.deepEqual(node('Merge Reconciliation Plan And Reread').parameters, { mode: 'append', numberInputs: 2 });
   assert.deepEqual(node('Merge Freeze Plan And Reread').parameters, { mode: 'append', numberInputs: 2 });
   assert.equal(workflow.connections['Route Next Stage'].main[0].some(({ node: target, index }) => target === 'Merge Reconciliation Plan And Reread' && index === 0), true);

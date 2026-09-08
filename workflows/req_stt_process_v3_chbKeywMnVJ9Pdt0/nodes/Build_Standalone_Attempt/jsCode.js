@@ -1,4 +1,4 @@
-const CHANNEL = 'C0A4JJJKJMD';
+const ALLOWED_CHANNELS = new Set(['C0A4JJJKJMD', 'C09F0SYG57D']);
 const SLACK_TIMESTAMP_PATTERN = /^\d{10,}\.\d{6}$/;
 const CANONICAL_MODES = new Set(['fromStart', 'fromEnd']);
 const ATTEMPT_FIELDS = Object.freeze([
@@ -40,7 +40,7 @@ function buildAttempt(input, streamContext, slack, nowIso = new Date().toISOStri
   const threadTS = requiredSlackTimestamp(input?.target_thread_ts, 'target_thread_ts');
   const mode = requiredString(input?.mode, 'mode');
   if (!CANONICAL_MODES.has(mode)) throw new Error('mode must be canonical');
-  if (input.channel !== CHANNEL) throw new Error('Invalid channel');
+  if (!ALLOWED_CHANNELS.has(input.channel)) throw new Error('Invalid channel');
   if (typeof input.mins !== 'number' || !Number.isFinite(input.mins) || input.mins <= 0) {
     throw new Error('mins must be a positive finite number');
   }
@@ -59,7 +59,7 @@ function buildAttempt(input, streamContext, slack, nowIso = new Date().toISOStri
     status: 'queued', callbackTokenHash: '', reconciliationStatus: 'pending', canonicalRowID: '',
     dispatchLeaseOwner: '', dispatchLeaseUntilIso: '', submittedAtIso: '', callbackDeadlineAtIso: '',
     manualReviewReason: '', manualReviewAtIso: '', manualReviewResolution: '',
-    callbackTokenExpiresAtIso: '', consumedAtIso: '', channel: CHANNEL, threadTS,
+    callbackTokenExpiresAtIso: '', consumedAtIso: '', channel: input.channel, threadTS,
     processingMessageTS: processingMessageTimestamp(slack), dialogue: '', language: '', errorCode: '',
     nextRetryAtIso: '', retryLeaseOwner: '', retryLeaseUntilIso: '', duplicateCount: 0,
     presentationStatus: 'pending', presentationLeaseOwner: '', presentationLeaseUntilIso: '',

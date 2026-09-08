@@ -1,7 +1,7 @@
 {
   "id": "STTListenerV3A01",
   "name": "STT result listener v3",
-  "description": null,
+  "description": "Input: required attemptKey string. Side effects: presentation uploads and status updates. Output: persisted presentation state. A checkpoint write after an upload can leave potential_duplicate_upload risk. Require Automation: error handler v3 assignment before activation.",
   "active": true,
   "isArchived": false,
   "sourceWorkflowId": null,
@@ -58,8 +58,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -92,8 +92,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -184,8 +184,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -252,8 +252,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -333,8 +333,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -410,8 +410,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -456,8 +456,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -489,8 +489,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -537,8 +537,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -747,8 +747,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -793,8 +793,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "zteior3j5tfcX4hg"
+          "mode": "name",
+          "value": "summary_requests_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -907,8 +907,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -997,8 +997,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1065,8 +1065,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1391,8 +1391,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1479,8 +1479,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1572,8 +1572,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1715,8 +1715,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -2142,8 +2142,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -2190,8 +2190,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -2307,8 +2307,8 @@
         "operation": "insert",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "igPmXRy7rFFwNtPW"
+          "mode": "name",
+          "value": "automation_errors_v3"
         },
         "columns": {
           "mappingMode": "defineBelow",
@@ -2351,8 +2351,8 @@
         "operation": "insert",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "igPmXRy7rFFwNtPW"
+          "mode": "name",
+          "value": "automation_errors_v3"
         },
         "columns": {
           "mappingMode": "defineBelow",
@@ -2396,8 +2396,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -2445,8 +2445,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "XcwbQCMt3kFKlT9m"
+          "mode": "name",
+          "value": "stt_jobs_v3"
         },
         "matchType": "allConditions",
         "filters": {
