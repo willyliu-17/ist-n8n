@@ -1,0 +1,3322 @@
+{
+  "id": "PpRI0FBfUkxrHysu",
+  "name": "Summary: coordinator v3",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
+  "nodes": [
+    {
+      "id": "9e871e57-9cf7-4f56-b896-7d9edc7ca10d",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "requestKey",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b4d58ed7-c73d-426a-8839-39fe2ae95035",
+      "name": "Read All Request Rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "b0a6cccd-ea22-4f43-9930-5ed6b259f52c",
+      "name": "Read All Request Attempts",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "XcwbQCMt3kFKlT9m"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "8771b24e-5ceb-42fa-899e-f09efc77b7ae",
+      "name": "Reconcile And Aggregate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_And_Aggregate/jsCode.js"
+      }
+    },
+    {
+      "id": "8b2c6431-7de5-4a78-b77d-4d5f03ad6629",
+      "name": "Route Initial Reconciliation",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "manual_review",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "reconcile",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "ready",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "all_failed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "185e9271-fb42-4e79-b198-cd022667c4c9",
+      "name": "Freeze Competing Canonicals",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        1200,
+        -160
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.id) }}"
+            },
+            {
+              "keyName": "updatedAt",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedUpdatedAt }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "manual_review",
+            "manualReviewReason": "multiple_canonical_checkpoint_conflict",
+            "manualReviewAtIso": "={{ $now.toUTC().toISO() }}",
+            "manualReviewOriginalStage": "={{ $json.manualReviewOriginalStage }}",
+            "leaseOwner": "",
+            "leaseUntilIso": "",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "d1cc5230-3e3d-4b32-8507-1835c103da9f",
+      "name": "Limit Conflict Patch",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        -160
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "674353e8-6e70-47f4-a57a-f5d461a9d57a",
+      "name": "Re-read Frozen Request",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        1680,
+        -160
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "7bb0f84b-55a8-4afc-b944-195b45e5e341",
+      "name": "Apply Request Reconciliation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.expectedCanonicalRowID) }}"
+            },
+            {
+              "keyName": "updatedAt",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedUpdatedAt }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}",
+            "canonicalRowID": "={{ $json.desiredCanonicalRowID }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ef6ba1c6-83e1-4afb-b02c-a4ec36bc021f",
+      "name": "Limit Reconciliation Patch",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "e8a15d95-e29b-4714-9d57-7df080eb6f08",
+      "name": "Re-read Reconciled Request",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        1680,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "73931501-67a4-49fc-aa3e-b2d6f6c72bf9",
+      "name": "Verify Request Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Request_Reconciliation/jsCode.js"
+      }
+    },
+    {
+      "id": "54073cd9-96b2-4186-a8eb-3614b7b0ca75",
+      "name": "Plan Coverage Write",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Coverage_Write/jsCode.js"
+      }
+    },
+    {
+      "id": "1ffac55b-420c-4c34-a871-d0030ec06aa4",
+      "name": "Route Coverage Write",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1440,
+        160
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "write_ready",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "all_failed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "replay",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "17fe3dcc-9a6c-4051-a080-3660843574cc",
+      "name": "Write Terminal Coverage Ready",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        1680,
+        80
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.expected.status }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.id) }}"
+            },
+            {
+              "keyName": "coverageStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.expected.coverageStatus }}"
+            },
+            {
+              "keyName": "availableRolesJson",
+              "condition": "eq",
+              "keyValue": "={{ $json.expected.availableRolesJson }}"
+            },
+            {
+              "keyName": "missingRolesJson",
+              "condition": "eq",
+              "keyValue": "={{ $json.expected.missingRolesJson }}"
+            },
+            {
+              "keyName": "failedLogicalJobKeysJson",
+              "condition": "eq",
+              "keyValue": "={{ $json.expected.failedLogicalJobKeysJson }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "ready",
+            "coverageStatus": "={{ $json.desired.coverageStatus }}",
+            "availableRolesJson": "={{ $json.desired.availableRolesJson }}",
+            "missingRolesJson": "={{ $json.desired.missingRolesJson }}",
+            "failedLogicalJobKeysJson": "={{ $json.desired.failedLogicalJobKeysJson }}",
+            "leaseOwner": "",
+            "leaseUntilIso": "",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "01756b7d-d710-4863-a317-b7a644eb2f7f",
+      "name": "Fail All Failed Request",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        1680,
+        160
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.expected.status }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.id) }}"
+            },
+            {
+              "keyName": "leaseOwner",
+              "condition": "eq",
+              "keyValue": "={{ $json.expected.leaseOwner }}"
+            },
+            {
+              "keyName": "leaseUntilIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.expected.leaseUntilIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "failed",
+            "errorCode": "SUMMARY_ALL_STT_LOGICAL_JOBS_FAILED",
+            "leaseOwner": "",
+            "leaseUntilIso": "",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "eaa40910-4a83-4727-962a-99b225f16636",
+      "name": "Limit Coverage Patch",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        80
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "01d270df-2c5c-4e89-bbdf-172301051b63",
+      "name": "Limit Failure Patch",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        160
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "ca7f4623-7e4a-47d2-90de-8f18bcbcb444",
+      "name": "Re-read Coverage Request",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        2160,
+        120
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "9ebc2b9c-61ba-4f0d-93c0-ee1b7e4c2c2e",
+      "name": "Verify Request Write",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Request_Write/jsCode.js"
+      }
+    },
+    {
+      "id": "e6b129ef-6120-43e4-93d6-4f11919ef12a",
+      "name": "Re-read Failed Request",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        2160,
+        180
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "8afcf064-98b1-4b6d-9f65-7df80c04c9a8",
+      "name": "Verify All Failed Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_All_Failed_Request/jsCode.js"
+      }
+    },
+    {
+      "id": "5bd093d9-f0f5-48c1-8c2c-73bbeb12f1c5",
+      "name": "Build All Failed Status Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_All_Failed_Status_Update/jsCode.js"
+      }
+    },
+    {
+      "id": "2e938cb0-8d0f-43ce-a20f-5ec4b8c497f9",
+      "name": "Update All Failed Summary Status",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        2880,
+        180
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "update",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel }}",
+          "mode": "id"
+        },
+        "ts": "={{ Number($json.summaryMessageTS) }}",
+        "messageType": "text",
+        "text": "={{ $json.statusText }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      },
+      "webhookId": "939f9fa0-9bd8-477d-bd21-4b27eef3450a"
+    },
+    {
+      "id": "9609dcf9-eebd-4b80-a423-95e45858bc77",
+      "name": "Read Request For Claim",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        2160,
+        260
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "d30dfa47-57b4-43ec-9912-eac476978365",
+      "name": "Plan Claim Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Claim_Reconciliation/jsCode.js"
+      }
+    },
+    {
+      "id": "b27844e0-1fd3-4f31-b547-08996f49c0cc",
+      "name": "Route Claim Reconciliation",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2640,
+        260
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "manual_review",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "reconcile",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "ready",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "6e1adf1b-4d43-4de0-ad6a-24bd6e0e64e8",
+      "name": "Freeze Claim-Time Canonicals",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        2880,
+        180
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.id) }}"
+            },
+            {
+              "keyName": "updatedAt",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedUpdatedAt }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "manual_review",
+            "manualReviewReason": "multiple_canonical_checkpoint_conflict",
+            "manualReviewAtIso": "={{ $now.toUTC().toISO() }}",
+            "manualReviewOriginalStage": "={{ $json.manualReviewOriginalStage }}",
+            "leaseOwner": "",
+            "leaseUntilIso": "",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6d2c8aa3-7dcf-4a25-bb7a-749917a425e1",
+      "name": "Limit Claim-Time Conflict",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        180
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "88956343-2693-44bd-ac47-91b9fab0f22a",
+      "name": "Re-read Claim-Time Frozen Request",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        3360,
+        180
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "7af7cd1f-bff9-4f50-bdb7-e9b8615c05c5",
+      "name": "Apply Claim-Time Reconciliation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        2880,
+        340
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.expectedCanonicalRowID) }}"
+            },
+            {
+              "keyName": "updatedAt",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedUpdatedAt }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}",
+            "canonicalRowID": "={{ $json.desiredCanonicalRowID }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8e96b405-8e5e-449a-9a8e-5a551f116af2",
+      "name": "Limit Claim-Time Reconciliation",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        340
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "5822bd78-714c-46e5-8b97-2a2d817a7490",
+      "name": "Re-read Claim-Time Reconciliation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        3360,
+        340
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "e945fd90-2764-4450-8d12-d8e8020eb023",
+      "name": "Verify Claim-Time Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        340
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Claim_Time_Reconciliation/jsCode.js"
+      }
+    },
+    {
+      "id": "117d42b9-ece8-42ef-bd6f-814ad302c670",
+      "name": "Plan Summary Claim",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Summary_Claim/jsCode.js"
+      }
+    },
+    {
+      "id": "e84ebdb3-2e5e-4fea-96d8-13b9c09e3312",
+      "name": "Select Exact Claim Branch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2640,
+        260
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "initial",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "retry_due",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "expired",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "9b1f7b41-435e-4946-a21e-487eaed8bd67",
+      "name": "Claim Initial Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        2880,
+        180
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "ready"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.id) }}"
+            },
+            {
+              "keyName": "leaseOwner",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedLeaseOwner }}"
+            },
+            {
+              "keyName": "leaseUntilIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedLeaseUntilIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "summary_dispatching",
+            "leaseOwner": "={{ $json.owner }}",
+            "leaseUntilIso": "={{ $json.leaseUntilIso }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a704253c-284a-480b-af84-f06dfe5efac3",
+      "name": "Claim Retry Due Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        2880,
+        260
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "summary_retry_pending"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.id) }}"
+            },
+            {
+              "keyName": "nextRetryAtIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedNextRetryAtIso }}"
+            },
+            {
+              "keyName": "leaseOwner",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedLeaseOwner }}"
+            },
+            {
+              "keyName": "leaseUntilIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedLeaseUntilIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "summary_dispatching",
+            "leaseOwner": "={{ $json.owner }}",
+            "leaseUntilIso": "={{ $json.leaseUntilIso }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c5b98c15-bb52-4c5a-a4bd-9710960ee77f",
+      "name": "Claim Expired Exact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        2880,
+        340
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "summary_dispatching"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.id) }}"
+            },
+            {
+              "keyName": "leaseOwner",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedLeaseOwner }}"
+            },
+            {
+              "keyName": "leaseUntilIso",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedLeaseUntilIso }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "summary_dispatching",
+            "leaseOwner": "={{ $json.owner }}",
+            "leaseUntilIso": "={{ $json.leaseUntilIso }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2c6ac975-2dd6-4b5b-8ecd-5f9a5a2f5bb0",
+      "name": "Limit Claim",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        260
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "f1c60bb2-b91f-4ecf-bf7e-86673b395b1f",
+      "name": "Re-read Claimed Request",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        3360,
+        260
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "bfeec1ea-a3fa-424d-8ec9-f46c1cdc366d",
+      "name": "Verify Claimed Owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Claimed_Owner/jsCode.js"
+      }
+    },
+    {
+      "id": "dcd40a7d-f6cd-422b-95e7-2a7a0a4e743d",
+      "name": "Re-read Request Before AI",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        3840,
+        260
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "4ae3ec60-1e36-48f4-8df8-5586d7639f85",
+      "name": "Re-read Attempts Before AI",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        4080,
+        260
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "XcwbQCMt3kFKlT9m"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "5ea1cc0a-4ac6-48d0-a056-caaef756eed8",
+      "name": "Preflight AI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4320,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Preflight_AI/jsCode.js"
+      }
+    },
+    {
+      "id": "561cfd7e-73f6-4fc3-b97b-357fa7c6c1d9",
+      "name": "Route Preflight AI",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        4560,
+        260
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "reconcile",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "manual_review",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "ai",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "d07eb16f-a4fd-467d-ba85-51f9f8eb30e7",
+      "name": "Apply Pre-AI Reconciliation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        4800,
+        180
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.expectedCanonicalRowID) }}"
+            },
+            {
+              "keyName": "updatedAt",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedUpdatedAt }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}",
+            "canonicalRowID": "={{ $json.desiredCanonicalRowID }}",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3e29a99e-309c-44dc-a71d-9657b32addd0",
+      "name": "Limit Pre-AI Reconciliation",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        5040,
+        180
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "cc2d2aa4-5806-45ed-a2bf-7ed2f0d6baf7",
+      "name": "Re-read Pre-AI Reconciliation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        5280,
+        180
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "06674c6e-e079-417b-8c28-813ac3a488d0",
+      "name": "Verify Pre-AI Reconciliation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5520,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Pre_AI_Reconciliation/jsCode.js"
+      }
+    },
+    {
+      "id": "4d752b91-693b-47e6-831a-7a90b69d58bc",
+      "name": "Freeze Pre-AI Canonicals",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        4800,
+        260
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.requestKey }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedStatus }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "canonical"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.id) }}"
+            },
+            {
+              "keyName": "updatedAt",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedUpdatedAt }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "manual_review",
+            "manualReviewReason": "multiple_canonical_checkpoint_conflict",
+            "manualReviewAtIso": "={{ $now.toUTC().toISO() }}",
+            "manualReviewOriginalStage": "={{ $json.manualReviewOriginalStage }}",
+            "leaseOwner": "",
+            "leaseUntilIso": "",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "91663ae2-c30e-4b1b-a928-47e9497e1383",
+      "name": "Limit Pre-AI Conflict",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        5040,
+        260
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "e4cc049e-45f8-4e7e-ae80-935054a614da",
+      "name": "Re-read Pre-AI Frozen Request",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        5280,
+        260
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zteior3j5tfcX4hg"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Start').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "eae4d0e0-47a8-4fd1-aedc-d93471a7b43c",
+      "name": "Build Summary Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4800,
+        340
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Summary_Input/jsCode.js"
+      }
+    },
+    {
+      "id": "d9f88711-576a-4c71-aea0-8c969a7289c7",
+      "name": "Run AI Summary",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        5040,
+        340
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "EqL7KwiaJmu65DQu",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/EqL7KwiaJmu65DQu",
+          "cachedResultName": "AI SUMMARY v3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "requestKey": "={{ $json.requestKey }}",
+            "requestType": "={{ $json.requestType }}",
+            "channel": "={{ $json.channel }}",
+            "threadTS": "={{ $json.threadTS }}",
+            "coverageStatus": "={{ $json.coverageStatus }}",
+            "availableRoles": "={{ $json.availableRoles }}",
+            "missingRoles": "={{ $json.missingRoles }}",
+            "failedLogicalJobKeys": "={{ $json.failedLogicalJobKeys }}",
+            "streams": "={{ $json.streams }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "c8347d64-c043-49f3-8b73-9000c4e45e2a",
+      "name": "Drop Side Effect Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5760,
+        340
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Drop_Side_Effect_Output/jsCode.js"
+      }
+    },
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "Carry Initial Conflict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        -160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Initial_Conflict/jsCode.js"
+      }
+    },
+    {
+      "id": "11111111-1111-4111-8111-111111111113",
+      "name": "Carry Initial Reconcile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Initial_Reconcile/jsCode.js"
+      }
+    },
+    {
+      "id": "11111111-1111-4111-8111-111111111112",
+      "name": "Merge Initial Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1800,
+        -80
+      ],
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      }
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222221",
+      "name": "Carry Coverage Ready",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        80
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Coverage_Ready/jsCode.js"
+      }
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222223",
+      "name": "Carry Coverage Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Coverage_Failure/jsCode.js"
+      }
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "name": "Merge Coverage Ready Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2280,
+        80
+      ],
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      }
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222224",
+      "name": "Merge Coverage Failure Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2280,
+        180
+      ],
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      }
+    },
+    {
+      "id": "33333333-3333-4333-8333-333333333331",
+      "name": "Carry Claim-Time Conflict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2760,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Claim_Time_Conflict/jsCode.js"
+      }
+    },
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "name": "Carry Claim-Time Reconcile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2760,
+        340
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Claim_Time_Reconcile/jsCode.js"
+      }
+    },
+    {
+      "id": "33333333-3333-4333-8333-333333333332",
+      "name": "Merge Claim-Time Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3480,
+        260
+      ],
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      }
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444441",
+      "name": "Carry Initial Claim Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2760,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Initial_Claim_Plan/jsCode.js"
+      }
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444443",
+      "name": "Carry Retry Claim Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2760,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Retry_Claim_Plan/jsCode.js"
+      }
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444444",
+      "name": "Carry Expired Claim Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2760,
+        340
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Expired_Claim_Plan/jsCode.js"
+      }
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444442",
+      "name": "Merge Claim Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3480,
+        260
+      ],
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555551",
+      "name": "Carry Pre-AI Reconcile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4680,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Pre_AI_Reconcile/jsCode.js"
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555553",
+      "name": "Carry Pre-AI Conflict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4680,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Pre_AI_Conflict/jsCode.js"
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555552",
+      "name": "Merge Pre-AI Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        5400,
+        220
+      ],
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Read All Request Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read All Request Rows": {
+      "main": [
+        [
+          {
+            "node": "Read All Request Attempts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read All Request Attempts": {
+      "main": [
+        [
+          {
+            "node": "Reconcile And Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reconcile And Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Route Initial Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Initial Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Carry Initial Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Carry Initial Reconcile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Plan Coverage Write",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Plan Coverage Write",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Drop Side Effect Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Initial Conflict": {
+      "main": [
+        [
+          {
+            "node": "Freeze Competing Canonicals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Initial Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Initial Reconcile": {
+      "main": [
+        [
+          {
+            "node": "Apply Request Reconciliation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Initial Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freeze Competing Canonicals": {
+      "main": [
+        [
+          {
+            "node": "Limit Conflict Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Conflict Patch": {
+      "main": [
+        [
+          {
+            "node": "Re-read Frozen Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Frozen Request": {
+      "main": [
+        [
+          {
+            "node": "Merge Initial Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Apply Request Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Limit Reconciliation Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Reconciliation Patch": {
+      "main": [
+        [
+          {
+            "node": "Re-read Reconciled Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Reconciled Request": {
+      "main": [
+        [
+          {
+            "node": "Merge Initial Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Initial Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Verify Request Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Request Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Read All Request Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Coverage Write": {
+      "main": [
+        [
+          {
+            "node": "Route Coverage Write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Coverage Write": {
+      "main": [
+        [
+          {
+            "node": "Carry Coverage Ready",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Carry Coverage Failure",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Request For Claim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Drop Side Effect Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Coverage Ready": {
+      "main": [
+        [
+          {
+            "node": "Write Terminal Coverage Ready",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Coverage Ready Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Coverage Failure": {
+      "main": [
+        [
+          {
+            "node": "Fail All Failed Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Coverage Failure Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Terminal Coverage Ready": {
+      "main": [
+        [
+          {
+            "node": "Limit Coverage Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fail All Failed Request": {
+      "main": [
+        [
+          {
+            "node": "Limit Failure Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Coverage Patch": {
+      "main": [
+        [
+          {
+            "node": "Re-read Coverage Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Failure Patch": {
+      "main": [
+        [
+          {
+            "node": "Re-read Failed Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Coverage Request": {
+      "main": [
+        [
+          {
+            "node": "Merge Coverage Ready Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Verify Request Write": {
+      "main": [
+        [
+          {
+            "node": "Read All Request Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Failed Request": {
+      "main": [
+        [
+          {
+            "node": "Merge Coverage Failure Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Coverage Ready Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Verify Request Write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Coverage Failure Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Verify All Failed Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify All Failed Request": {
+      "main": [
+        [
+          {
+            "node": "Build All Failed Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build All Failed Status Update": {
+      "main": [
+        [
+          {
+            "node": "Update All Failed Summary Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update All Failed Summary Status": {
+      "main": [
+        [
+          {
+            "node": "Drop Side Effect Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Request For Claim": {
+      "main": [
+        [
+          {
+            "node": "Plan Claim Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Claim Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Route Claim Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Claim Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Carry Claim-Time Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Carry Claim-Time Reconcile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Plan Summary Claim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Drop Side Effect Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Claim-Time Conflict": {
+      "main": [
+        [
+          {
+            "node": "Freeze Claim-Time Canonicals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Claim-Time Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Claim-Time Reconcile": {
+      "main": [
+        [
+          {
+            "node": "Apply Claim-Time Reconciliation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Claim-Time Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freeze Claim-Time Canonicals": {
+      "main": [
+        [
+          {
+            "node": "Limit Claim-Time Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Claim-Time Conflict": {
+      "main": [
+        [
+          {
+            "node": "Re-read Claim-Time Frozen Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Claim-Time Frozen Request": {
+      "main": [
+        [
+          {
+            "node": "Merge Claim-Time Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Apply Claim-Time Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Limit Claim-Time Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Claim-Time Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Re-read Claim-Time Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Claim-Time Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Merge Claim-Time Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Claim-Time Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Verify Claim-Time Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Claim-Time Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Read Request For Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Summary Claim": {
+      "main": [
+        [
+          {
+            "node": "Select Exact Claim Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Exact Claim Branch": {
+      "main": [
+        [
+          {
+            "node": "Carry Initial Claim Plan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Carry Retry Claim Plan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Carry Expired Claim Plan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Drop Side Effect Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Initial Claim Plan": {
+      "main": [
+        [
+          {
+            "node": "Claim Initial Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Claim Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Retry Claim Plan": {
+      "main": [
+        [
+          {
+            "node": "Claim Retry Due Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Claim Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Expired Claim Plan": {
+      "main": [
+        [
+          {
+            "node": "Claim Expired Exact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Claim Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Initial Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Retry Due Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Expired Exact": {
+      "main": [
+        [
+          {
+            "node": "Limit Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Claim": {
+      "main": [
+        [
+          {
+            "node": "Re-read Claimed Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Claimed Request": {
+      "main": [
+        [
+          {
+            "node": "Merge Claim Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Claim Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Verify Claimed Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Claimed Owner": {
+      "main": [
+        [
+          {
+            "node": "Re-read Request Before AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Request Before AI": {
+      "main": [
+        [
+          {
+            "node": "Re-read Attempts Before AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Attempts Before AI": {
+      "main": [
+        [
+          {
+            "node": "Preflight AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preflight AI": {
+      "main": [
+        [
+          {
+            "node": "Route Preflight AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Preflight AI": {
+      "main": [
+        [
+          {
+            "node": "Carry Pre-AI Reconcile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Carry Pre-AI Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Summary Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Drop Side Effect Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Pre-AI Reconcile": {
+      "main": [
+        [
+          {
+            "node": "Apply Pre-AI Reconciliation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Pre-AI Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carry Pre-AI Conflict": {
+      "main": [
+        [
+          {
+            "node": "Freeze Pre-AI Canonicals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Pre-AI Plan And Reread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Pre-AI Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Limit Pre-AI Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Pre-AI Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Re-read Pre-AI Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Pre-AI Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Merge Pre-AI Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Verify Pre-AI Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Re-read Request Before AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freeze Pre-AI Canonicals": {
+      "main": [
+        [
+          {
+            "node": "Limit Pre-AI Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Pre-AI Conflict": {
+      "main": [
+        [
+          {
+            "node": "Re-read Pre-AI Frozen Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Pre-AI Frozen Request": {
+      "main": [
+        [
+          {
+            "node": "Merge Pre-AI Plan And Reread",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Pre-AI Plan And Reread": {
+      "main": [
+        [
+          {
+            "node": "Verify Pre-AI Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Summary Input": {
+      "main": [
+        [
+          {
+            "node": "Run AI Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run AI Summary": {
+      "main": [
+        [
+          {
+            "node": "Drop Side Effect Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [],
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false,
+    "errorWorkflow": "run4KT7goJGVeOOk"
+  },
+  "meta": null,
+  "tags": [
+    {
+      "id": "NLo3n5BNlRhVr71N",
+      "name": "ist-bot-v3",
+      "createdAt": "2026-09-03T06:50:34.301Z",
+      "updatedAt": "2026-09-03T06:50:34.301Z"
+    }
+  ]
+}

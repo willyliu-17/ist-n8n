@@ -2,8 +2,10 @@
   "id": "mAiqMm5b7d4E5Fms",
   "name": "AI SUMMARY POC (deprecated)",
   "description": null,
-  "active": false,
+  "active": true,
   "isArchived": false,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
   "nodes": [
     {
       "parameters": {
@@ -1042,83 +1044,19 @@
       ]
     }
   },
+  "nodeGroups": [],
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
   "meta": {
     "templateCredsSetupCompleted": true
   },
-  "pinData": {
-    "Start": [
-      {
-        "json": {
-          "liveStreamID": "213908602"
-        }
-      }
-    ],
-    "STT listener": [
-      {
-        "json": {
-          "liveStreamID": "213908602",
-          "dialogue": "[21:33:40] [streamer]: お供え物でした\n[21:33:44] [streamer]: 私を届けたたくちゃん\n[21:33:46] [streamer]: バチ当たるで\n[21:33:46] [streamer]: こんなお供え物置いてって\n[21:33:50] [streamer]: つって\n[21:33:50] [streamer]: なんて読むと\n[21:33:55] [streamer]: のし\n[21:33:56] [streamer]: 何つけて返す\n[21:34:00] [streamer]: あよかった\n[21:34:03] [streamer]: あってたのね\n[21:34:04] [streamer]: いつもなんか漢字さ\n[21:34:08] [streamer]: 読んだ後にさ\n[21:34:09] [streamer]: 昔ぽんちゃんにさ\n[21:34:11] [streamer]: 言い直されよったよ\n[21:34:13] [streamer]: だけど漢字読むのが怖くてね\n[21:34:16] [streamer]: 正解やった\n[21:34:18] [streamer]: 当たった\n[21:34:19] [streamer]: でもやっぱ楽しいよやっぱ\n[21:34:23] [streamer]: なんか\n[21:34:24] [streamer]: 久しぶり\n[21:34:27] [streamer]: ありがとう内装\n[21:34:34] [streamer]: ありがとう\n[21:34:36] [streamer]: たくちゃんかわいいありがとう\n[21:34:40] [streamer]: ありがとう\n[21:34:43] [streamer]: 疲れたねなんか\n[21:34:54] [streamer]: 仕事もさなんか\n[21:34:56] [streamer]: 私土日月まで仕事やる\n[21:35:01] [streamer]: 今日から\n[21:35:02] [streamer]: 今日内予備\n[21:35:05] [streamer]: 金金か\n[21:35:06] [streamer]: 金土日月仕事\n[21:35:09] [streamer]: みんながさ休みの時にさ\n[21:35:13] [viewer] <❤️🐝あーちん👼🏻💋>: ( ˙꒳​˙  )oh......\n[21:35:16] [streamer]: 仕事行くのよ\n[21:35:18] [streamer]: きついよな\n[21:35:19] [streamer]: みんながお休みの時に行くの疲れるわ\n[21:35:24] [streamer]: でも病院はね\n[21:35:28] [streamer]: 休みの日が忙しいからさ\n[21:35:31] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: あい💜AI🐼ai💋 さんのアーミーのスコアが 2500 上がりました！\n[21:35:35] [streamer]: おじい\n[21:35:36] [streamer]: てってれー\n[21:35:37] [streamer]: なんした\n[21:35:37] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: テッテレー👶\n[21:35:40] [streamer]: なんした\n[21:35:41] [streamer]: 今なんか\n[21:35:44] [streamer]: 今なんか降りてきた\n[21:35:46] [streamer]: あの昔見たやつ\n[21:35:46] [viewer] <❤️🐝あーちん👼🏻💋>: 様々っす(๑•̀ㅂ•́)و✧\n[21:35:47] [streamer]: ててててててててー\n[21:35:50] [streamer]: 昔テレビで見てめっちゃハマっとったんこれ\n[21:35:57] [streamer]: サマサマッスーやけん\n[21:36:00] [streamer]: 腹にしよ\n[21:36:00] [streamer]: そうそうそう腹にし\n[21:36:01] [viewer] <❤️🐝あーちん👼🏻💋>: 原西かw\n[21:36:03] [streamer]: 今のてってれーでなんか前降りてきた\n[21:36:06] [streamer]: それが\n[21:36:07] [streamer]: ててててててててー\n[21:36:10] [streamer]: おじい進撃ありがとう\n[21:36:16] [streamer]: ナイス\n[21:36:17] [streamer]: ちんげきー\n[21:36:19] [streamer]: 押してくー\n[21:36:20] [streamer]: あのもっと押してくれない?\n[21:36:23] [streamer]: もっと押してくれない?\n[21:36:27] [streamer]: 目標に向けて\n[21:36:28] [streamer]: もっと押してくれない?\n[21:36:30] [streamer]: 押す\n[21:36:38] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: 👊( ¨̮💪)\n[21:36:39] [viewer] <❤️🐝あーちん👼🏻💋>: 押す？推す？\n[21:36:41] [streamer]: 押す\n[21:36:42] [streamer]: えっと2番目かな\n[21:36:43] [streamer]: 後者\n[21:36:43] [streamer]: 押す\n[21:36:48] [streamer]: 押す\n[21:36:48] [streamer]: 押す\n[21:36:48] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: ｵｯｽ(ง  ᐛ  )วｵｯｽ\n[21:36:49] [streamer]: いや一番最初の押すって嫌じゃない\n[21:36:51] [streamer]: なんか\n[21:36:52] [streamer]: トーンと押されるちゃろ\n[21:36:54] [streamer]: トーンって\n[21:36:56] [streamer]: なんやってなるやん\n[21:36:58] [streamer]: 喧嘩が始まるかもしれん\n[21:37:00] [streamer]: 喧嘩が\n[21:37:01] [streamer]: おじいと私の喧嘩が\n[21:37:04] [streamer]: プッシュ\n[21:37:05] [streamer]: プッシュは押してくれ\n[21:37:05] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: push\n[21:37:07] [streamer]: プッシュはどんどん\n[21:37:17] [streamer]: 帰\n[21:37:18] [streamer]: 歯揚げ\n[21:37:23] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: は？\n[21:37:24] [streamer]: おじい\n[21:37:31] [streamer]: よく聞いてくれる?\n[21:37:35] [streamer]: ギフトに\n[21:37:35] [streamer]: ハズレはございません\n[21:37:37] [streamer]: 気持ちは\n[21:37:38] [streamer]: 大当たり\n[21:37:39] [viewer] <t.home>: 推します🙇‍♂️\n[21:37:40] [streamer]: サンキュー\n[21:37:42] [streamer]: 押しますってほら\n[21:37:45] [streamer]: たくちゃんを押してくれてるよ\n[21:37:47] [streamer]: ありがとう\n[21:37:48] [streamer]: いや\n[21:37:48] [streamer]: なかなか押してるって言われるから\n[21:37:50] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: あ？\n[21:37:51] [streamer]: えーーー\n[21:37:52] [streamer]: 押してください\n[21:37:57] [streamer]: ボタン\n[21:37:59] [streamer]: たくちゃん\n[21:38:05] [streamer]: あの\n[21:38:05] [streamer]: 行くときは湯気\n[21:38:06] [viewer] <❤️🐝あーちん👼🏻💋>: - ̗̀👏🏻👏🏻 ̖́-\n[21:38:08] [streamer]: 行くときは行くって言ってください\n[21:38:10] [streamer]: 気持ちは大当たりやで\n[21:38:17] [streamer]: 白毛出たから\n[21:38:17] [viewer] <♐🐯🄺🄾🅃🄾🅁🄰👑✨>: (👏 ◜ᴗ◝)ﾊﾟﾁﾊﾟﾁ\n[21:38:18] [streamer]: ちょ待って\n[21:38:18] [viewer] <❤️🐝あーちん👼🏻💋>: びっくり((((；ﾟДﾟ))))\n[21:38:19] [streamer]: 宇宙戦艦\n[21:38:22] [streamer]: やーまーと\n[21:38:24] [streamer]: 待って\n[21:38:26] [streamer]: ちょっとたくちゃん\n[21:38:27] [streamer]: たくちゃんなんて言ったか\n[21:38:29] [streamer]: ちょっと思い出して\n[21:38:32] [streamer]: なんて言うた\n[21:38:34] [streamer]: あいちゃんなんて言うた\n[21:38:36] [streamer]: なんて言うた\n[21:38:37] [streamer]: なんて言うた\n[21:38:39] [streamer]: うわぁ\n[21:38:41] [streamer]: いつも\n[21:38:41] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: 我が生涯に一片の悔い無し\n[21:38:42] [streamer]: 嬉しかったら\n[21:38:43] [streamer]: 何の\n[21:38:44] [streamer]: なんて言うた\n[21:38:45] [streamer]: なんて言うた\n[21:38:45] [streamer]: なんて言うな\n[21:38:45] [viewer] <t.home>: 推しますって言ったよ🤔\n[21:38:46] [streamer]: なんて言うた\n[21:38:46] [streamer]: なんて言うた\n[21:39:07] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: 🤣🤣🤣\n[21:39:11] [viewer] <♐🐯🄺🄾🅃🄾🅁🄰👑✨>: 🤣🤣🤣🤣\n[21:39:18] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: かたまた\n[21:39:27] [viewer] <❤️🐝あーちん👼🏻💋>: 🤣🤣🤣\n[21:39:29] [viewer] <❤️🐝あーちん👼🏻💋>: フル- ̗̀👏🏻👏🏻 ̖́-\n[21:39:30] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: おい\n[21:39:39] [viewer] <♐🐯🄺🄾🅃🄾🅁🄰👑✨>: フル(''∇^d)エール(*>▽<ﾉﾉ\"ﾊﾟﾁﾊﾟﾁﾊﾟﾁﾊﾟﾁ\n[21:40:02] [viewer] <か໊い҇ろ̆̈っຼ↺↻®>: へ？\n[21:40:06] [viewer] <♐🐯🄺🄾🅃🄾🅁🄰👑✨>: (≧∇≦)ﾌﾞﾋｬﾋｬﾋｬ\n"
-        }
-      }
-    ]
-  },
-  "activeVersionId": null,
-  "triggerCount": 0,
-  "shared": [
-    {
-      "role": "workflow:owner",
-      "workflowId": "mAiqMm5b7d4E5Fms",
-      "projectId": "T2eF9Qj9h6MeNqHW",
-      "project": {
-        "id": "T2eF9Qj9h6MeNqHW",
-        "name": "<ist@17.media>",
-        "type": "personal",
-        "icon": null,
-        "description": null,
-        "projectRelations": [
-          {
-            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
-            "projectId": "T2eF9Qj9h6MeNqHW",
-            "user": {
-              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
-              "email": "ist@17.media",
-              "firstName": null,
-              "lastName": null,
-              "personalizationAnswers": {
-                "version": "v4",
-                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
-                "personalization_survey_n8n_version": "1.109.2"
-              },
-              "settings": {
-                "easyAIWorkflowOnboarded": true,
-                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
-                "userActivated": true,
-                "userActivatedAt": 1757907025897,
-                "npsSurvey": {
-                  "responded": true,
-                  "lastShownAt": 1777450741616
-                }
-              },
-              "disabled": false,
-              "mfaEnabled": false,
-              "isPending": false
-            }
-          }
-        ]
-      }
-    }
-  ],
   "tags": [
     {
-      "updatedAt": "2026-02-10T03:47:07.984Z",
-      "createdAt": "2026-02-10T03:47:07.984Z",
       "id": "kDSF11f2c0HxWEW6",
-      "name": "experiment"
+      "name": "experiment",
+      "createdAt": "2026-02-10T03:47:07.984Z",
+      "updatedAt": "2026-02-10T03:47:07.984Z"
     }
-  ],
-  "activeVersion": null
+  ]
 }

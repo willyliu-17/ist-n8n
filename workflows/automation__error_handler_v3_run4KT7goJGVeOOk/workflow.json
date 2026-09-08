@@ -1,0 +1,873 @@
+{
+  "id": "run4KT7goJGVeOOk",
+  "name": "Automation: error handler v3",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "83525394-9a89-4c65-8f1d-6e670cbd4b14",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Mask_Error/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "5b5163cc-fbe1-46fe-9388-5ba5f17f70f5",
+      "name": "Mask Error"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "igPmXRy7rFFwNtPW"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        480,
+        -60
+      ],
+      "id": "7259a905-02f4-4756-a910-31219f50ac54",
+      "name": "Read All Error Rows",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        720,
+        0
+      ],
+      "id": "e6a715f4-2f3b-4c4e-9a1d-7a912b345c67",
+      "name": "Merge Error Candidate And Rows"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Error_Rows/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "id": "4b684cb3-00e1-4c12-bfa1-e633d1c1cfeb",
+      "name": "Plan Error Rows"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "78902bf0-ff99-414b-b54a-fb54caf74ccd",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "insert_pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "b42cd493-6a15-4f54-b5a9-55cf9f621cb4",
+      "name": "Is Absent Error"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "igPmXRy7rFFwNtPW"
+        },
+        "matchType": "allConditions",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "errorKey": "={{ $json.errorKey }}",
+            "component": "={{ $json.component }}",
+            "reconciliationStatus": "pending",
+            "canonicalRowID": "",
+            "requestKey": "={{ $json.requestKey }}",
+            "logicalJobKey": "={{ $json.logicalJobKey }}",
+            "attemptKey": "={{ $json.attemptKey }}",
+            "executionID": "={{ $json.executionID }}",
+            "workflowName": "={{ $json.workflowName }}",
+            "nodeName": "={{ $json.nodeName }}",
+            "errorCode": "={{ $json.errorCode }}",
+            "messageMasked": "={{ $json.messageMasked }}",
+            "retryable": "={{ $json.retryable }}",
+            "createdAtIso": "={{ $json.createdAtIso }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        -120
+      ],
+      "id": "f5bc1c87-3b6d-42af-8867-dfc8b728b25d",
+      "name": "Insert Pending Error",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        -120
+      ],
+      "id": "e5f97f89-a133-4499-b7a8-90bfbbd70cf7",
+      "name": "Limit Pending Insert"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "igPmXRy7rFFwNtPW"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        -120
+      ],
+      "id": "7e172079-6c7a-485b-bf9e-0f9e252ef2d8",
+      "name": "Re-read After Pending Insert",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Pending_Canonical/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        -120
+      ],
+      "id": "8b1e01ca-6b8e-4cf8-94bc-14f883eebba1",
+      "name": "Plan Pending Canonical"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "igPmXRy7rFFwNtPW"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ Number($json.id) }}"
+            },
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.expectedCanonicalRowID) }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}",
+            "canonicalRowID": "={{ String($json.desiredCanonicalRowID) }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        2400,
+        -120
+      ],
+      "id": "742f6726-cae1-4a5e-bfd3-59a1d22b5db7",
+      "name": "Canonicalize Pending Error",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        -120
+      ],
+      "id": "5cf411e3-8351-4b66-9cd0-5b8440646e60",
+      "name": "Limit Pending Canonical"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "igPmXRy7rFFwNtPW"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        -120
+      ],
+      "id": "8c5d9c75-19c2-4a3f-942c-664c62469f8e",
+      "name": "Re-read Pending Canonical",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Pending_Error_Canonical/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        -120
+      ],
+      "id": "8c5d9c75-19c2-4a3f-942c-664c62469f8f",
+      "name": "Verify Pending Error Canonical"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5074cfe0-a061-4298-8867-2a11b2d8356a",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "reconcile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1440,
+        160
+      ],
+      "id": "492c58bb-6b6e-4a99-b97b-fd0336a92188",
+      "name": "Needs Error Reconciliation"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "igPmXRy7rFFwNtPW"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ Number($json.id) }}"
+            },
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "eq",
+              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "eq",
+              "keyValue": "={{ String($json.expectedCanonicalRowID) }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reconciliationStatus": "={{ $json.desiredReconciliationStatus }}",
+            "canonicalRowID": "={{ String($json.desiredCanonicalRowID) }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        80
+      ],
+      "id": "e7fd5de0-7035-46ca-8dc4-0e1e4e64d401",
+      "name": "Reconcile Error Rows",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        80
+      ],
+      "id": "09e07560-1c20-4ba1-8a79-2973dfc24e66",
+      "name": "Limit Error Reconciliation"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "igPmXRy7rFFwNtPW"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        80
+      ],
+      "id": "7bc9092b-b35a-40a1-b873-ea2051644223",
+      "name": "Re-read After Error Reconciliation",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Error_Reconciliation/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        80
+      ],
+      "id": "f7c26668-21a6-47b8-8541-3baa7d78d95c",
+      "name": "Verify Error Reconciliation"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "igPmXRy7rFFwNtPW"
+        },
+        "matchType": "allConditions",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "errorKey": "={{ $json.errorKey }}",
+            "component": "={{ $json.component }}",
+            "reconciliationStatus": "duplicate",
+            "canonicalRowID": "={{ String($json.canonicalRowID) }}",
+            "requestKey": "={{ $json.requestKey }}",
+            "logicalJobKey": "={{ $json.logicalJobKey }}",
+            "attemptKey": "={{ $json.attemptKey }}",
+            "executionID": "={{ $json.executionID }}",
+            "workflowName": "={{ $json.workflowName }}",
+            "nodeName": "={{ $json.nodeName }}",
+            "errorCode": "={{ $json.errorCode }}",
+            "messageMasked": "={{ $json.messageMasked }}",
+            "retryable": "={{ $json.retryable }}",
+            "createdAtIso": "={{ $json.createdAtIso }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        120
+      ],
+      "id": "2083bac5-0d26-463e-85a1-8c51d6c780c3",
+      "name": "Insert Duplicate Error",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        120
+      ],
+      "id": "34ae32c9-a577-4bd4-befe-404f2f6bc9d0",
+      "name": "Limit Duplicate Insert"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "igPmXRy7rFFwNtPW"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "errorKey",
+              "condition": "eq",
+              "keyValue": "={{ $json.errorKey }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        120
+      ],
+      "id": "ffb512ae-4f29-42cf-b5dd-c43ee005e6ef",
+      "name": "Re-read Duplicate Error",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Duplicate_Error/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3360,
+        120
+      ],
+      "id": "3e719da0-0ce0-444f-a710-fc69cfb04d98",
+      "name": "Verify Duplicate Error"
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Mask Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mask Error": {
+      "main": [
+        [
+          {
+            "node": "Merge Error Candidate And Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read All Error Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read All Error Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Error Candidate And Rows",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Error Candidate And Rows": {
+      "main": [
+        [
+          {
+            "node": "Plan Error Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Error Rows": {
+      "main": [
+        [
+          {
+            "node": "Is Absent Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Absent Error": {
+      "main": [
+        [
+          {
+            "node": "Insert Pending Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs Error Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Pending Error": {
+      "main": [
+        [
+          {
+            "node": "Limit Pending Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Pending Insert": {
+      "main": [
+        [
+          {
+            "node": "Re-read After Pending Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read After Pending Insert": {
+      "main": [
+        [
+          {
+            "node": "Plan Pending Canonical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Pending Canonical": {
+      "main": [
+        [
+          {
+            "node": "Canonicalize Pending Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canonicalize Pending Error": {
+      "main": [
+        [
+          {
+            "node": "Limit Pending Canonical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Pending Canonical": {
+      "main": [
+        [
+          {
+            "node": "Re-read Pending Canonical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Pending Canonical": {
+      "main": [
+        [
+          {
+            "node": "Verify Pending Error Canonical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Error Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Reconcile Error Rows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Duplicate Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reconcile Error Rows": {
+      "main": [
+        [
+          {
+            "node": "Limit Error Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Error Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Re-read After Error Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read After Error Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Verify Error Reconciliation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Error Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Insert Duplicate Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Duplicate Error": {
+      "main": [
+        [
+          {
+            "node": "Limit Duplicate Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Duplicate Insert": {
+      "main": [
+        [
+          {
+            "node": "Re-read Duplicate Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Duplicate Error": {
+      "main": [
+        [
+          {
+            "node": "Verify Duplicate Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [],
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  },
+  "meta": null,
+  "tags": [
+    {
+      "id": "NLo3n5BNlRhVr71N",
+      "name": "ist-bot-v3",
+      "createdAt": "2026-09-03T06:50:34.301Z",
+      "updatedAt": "2026-09-03T06:50:34.301Z"
+    }
+  ]
+}

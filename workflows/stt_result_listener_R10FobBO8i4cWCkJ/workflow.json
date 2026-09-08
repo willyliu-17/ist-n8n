@@ -2,8 +2,10 @@
   "id": "R10FobBO8i4cWCkJ",
   "name": "STT result listener",
   "description": null,
-  "active": false,
+  "active": true,
   "isArchived": false,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
   "nodes": [
     {
       "parameters": {
@@ -668,141 +670,19 @@
       ]
     }
   },
+  "nodeGroups": [],
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
   "meta": {
     "templateCredsSetupCompleted": true
   },
-  "pinData": {
-    "Webhook(dep)": [
-      {
-        "json": {
-          "headers": {
-            "host": "34.170.122.177",
-            "user-agent": "Go-http-client/1.1",
-            "content-length": "4797",
-            "authorization": "Basic MTdMSVZFOlZ6Mjk4UlhmTEFFZTRvbXUzakZE",
-            "content-type": "application/json",
-            "accept-encoding": "gzip"
-          },
-          "params": {},
-          "query": {},
-          "body": {
-            "statusCode": 200,
-            "language": "zh",
-            "transcription": "[02:42:05] [streamer]: 我們要兩包紅包搶一下\n[02:42:07] [streamer]: 我們等一下重開啦\n[02:42:13] [streamer]: 重開啦\n[02:42:24] [viewer] <禹浠尚水>: 好 是妳說的哦\n[02:42:30] [streamer]: 你是不是想想對不對\n[02:42:55] [viewer] <禹浠尚水>: 我沒有說不是阿 我求妳\n[02:42:57] [streamer]: 我沒有說\n[02:42:59] [streamer]: 不是啦 我求你\n[02:43:01] [streamer]: 求我什麼 人家求我什麼\n[02:43:11] [viewer] <LeLe樂樂🐾>: ❤️\n[02:43:13] [streamer]: 紅包\n[02:43:15] [streamer]: 恭喜我們樂樂\n[02:43:17] [streamer]: 你各位把我們樂樂追蹤起來\n[02:43:19] [viewer] <Eleanora🌼朵>: @LeLe樂樂🐾 \n[02:43:20] [viewer] <禹浠尚水>: 求妳讓我好好睡覺\n[02:43:21] [streamer]: 求你讓我好睡起來\n[02:43:23] [streamer]: 在直播間啊\n[02:43:29] [streamer]: 我今天就是來唱歌的啊\n[02:43:31] [streamer]: 聽得到我嗎\n[02:43:56] [viewer] <禹浠尚水>: 我離開就無法嘴砲妳\n[02:43:58] [viewer] <🚀♒️群軒Hsuan「👊」>: 你是負責效果\n[02:44:20] [viewer] <✨🌙💫小宥𝔜𝔬𝔜𝔬💫🌙✨>: 你唱歌都唱到畫面卡掉了\n[02:44:21] [viewer] <🚀♒️群軒Hsuan「👊」>: 斷斷續續\n[02:44:22] [streamer]: 斷斷續續喔\n[02:44:24] [streamer]: 上來才有卡後面卡\n[02:44:28] [viewer] <禹浠尚水>: 我阿公阿嬤都聽得到妳唱歌\n[02:44:31] [streamer]: 阿公阿嬤都聽得到我唱得很好啊\n[02:44:33] [viewer] <美娜💋黑粉💔小蘇💔>: 連聲音都沒有了\n[02:44:38] [streamer]: 這樣阿公阿嬤都會很有活力\n[02:44:40] [streamer]: 連生意都沒有了\n[02:44:42] [streamer]: 現在都沒了嗎\n[02:44:44] [streamer]: 翔翔還聽得到啊\n[02:44:45] [viewer] <禹浠尚水>: 一點都不好\n[02:44:50] [viewer] <LeLe樂樂🐾>: 我還聽得到\n[02:44:56] [streamer]: 40秒\n[02:45:18] [viewer] <禹浠尚水>: 聽得非常清楚\n[02:45:19] [streamer]: 最後40秒\n[02:45:29] [streamer]: 6小時那一開3次\n[02:45:32] [viewer] <LeLe樂樂🐾>: 6小時內開三次😀\n[02:45:34] [streamer]: 好好笑\n[02:45:36] [streamer]: 哈哈哈哈哈哈\n[02:45:36] [viewer] <✨🌙💫小宥𝔜𝔬𝔜𝔬💫🌙✨>: 一直甩了甩了\n[02:45:40] [streamer]: 一直甩了甩了\n[02:45:42] [streamer]: 10秒\n[02:45:51] [streamer]: 可是剛剛重開是因為\n[02:45:56] [streamer]: 過12點\n[02:46:00] [streamer]: 因為過12點才重開\n[02:46:02] [streamer]: 喔呦\n[02:46:06] [streamer]: 等一下潘雅又要來罵我了啦\n[02:46:08] [streamer]: 哈哈哈哈\n[02:46:09] [viewer] <✨🌙💫小宥𝔜𝔬𝔜𝔬💫🌙✨>: 🤭🤭\n[02:46:15] [streamer]: 再接\n[02:46:25] [streamer]: 做朋友\n[02:46:27] [streamer]: 朋友不能牽手\n[02:46:31] [streamer]: 想愛你的衝突\n[02:46:33] [streamer]: 喔呦\n[02:46:33] [viewer] <LeLe樂樂🐾>: 重開啊 還唱？？\n[02:46:35] [streamer]: 先卸幫一下啦\n[02:46:37] [streamer]: 迅速卸\n[02:46:39] [streamer]: 謝謝HK\n[02:46:40] [streamer]: 謝謝阿長\n[02:46:41] [streamer]: 謝謝瑞比\n[02:46:43] [streamer]: 謝謝我們樂樂\n[02:46:44] [streamer]: 謝謝麥麥\n[02:46:45] [streamer]: 謝謝葉子\n[02:46:46] [streamer]: 謝謝小蘇\n[02:46:47] [streamer]: 謝謝無哉\n[02:46:48] [streamer]: 謝謝林雨\n[02:46:49] [streamer]: 謝謝最漂亮\n[02:46:50] [streamer]: 謝謝樂樂\n[02:46:51] [streamer]: 真的謝謝小優\n[02:46:52] [streamer]: 謝謝\n[02:46:52] [viewer] <🚀♒️群軒Hsuan「👊」>: 哈哈哈哈\n[02:46:53] [streamer]: 食必一下的各位\n[02:46:55] [streamer]: 我們\n[02:46:57] [streamer]: 重開\n[02:46:59] [streamer]: 重開\n[02:47:00] [streamer]: 5\n[02:47:01] [streamer]: 4\n[02:47:02] [streamer]: 3\n[02:47:03] [streamer]: 2\n[02:47:04] [streamer]: 1\n[02:47:05] [streamer]: 5\n[02:47:06] [streamer]: 5\n[02:47:07] [streamer]: 5\n[02:47:08] [streamer]: 5\n[02:47:09] [streamer]: 5\n[02:47:10] [streamer]: 5\n[02:47:11] [streamer]: 5\n[02:47:12] [streamer]: 5\n[02:47:13] [streamer]: 5\n[02:47:14] [streamer]: 5\n[02:47:15] [streamer]: 5\n[02:47:16] [streamer]: 5\n[02:47:17] [streamer]: 5\n[02:47:18] [streamer]: 5\n[02:47:19] [streamer]: 5\n[02:47:20] [streamer]: 5\n[02:47:21] [streamer]: 5\n[02:47:22] [streamer]: 5\n[02:47:23] [streamer]: 5\n",
-            "webhook": {
-              "context": {
-                "channel": "C09F0SYG57D",
-                "client_msg_id": null,
-                "event_ts": "1764293932.021759",
-                "last_msg_ts": "1764293945.160759",
-                "mins_input": 5,
-                "mode_input": "last",
-                "routeKey": "daily:auto",
-                "streamid_input": "213567556",
-                "ts": "1764293932.021759"
-              }
-            }
-          },
-          "webhookUrl": "https://34.170.122.177/webhook/stt-result-listener",
-          "executionMode": "production"
-        }
-      }
-    ],
-    "Webhook": [
-      {
-        "json": {
-          "headers": {
-            "host": "n8n-ist.17app.co",
-            "content-type": "application/json",
-            "x-cloud-trace-context": "5b41e7def62c46d0b66ebf0a7af749d9/8121445845060645375",
-            "content-length": "1816",
-            "accept-encoding": "gzip",
-            "user-agent": "Go-http-client/2.0",
-            "x-forwarded-proto": "https",
-            "via": "1.1 google",
-            "x-forwarded-for": "35.247.103.242,34.144.237.1"
-          },
-          "params": {},
-          "query": {},
-          "body": {
-            "statusCode": 200,
-            "languages": [
-              "zh"
-            ],
-            "transcription": "[11:44:10] [streamer]: 嗯 嗯\n[11:44:11] [streamer]: 好開心喔\n[11:44:52] [viewer] <lkw995436>: 亂跑\n[11:44:58] [viewer] <chiao的信徒>: 戰隊成員們來支持 喬喬chiao💕 了，目前成就值戰隊加成為 500！\n[11:45:20] [streamer]: 謝謝啾啾\n[11:45:41] [streamer]: 加油\n[11:45:41] [viewer] <lkw995436>: 你亂跑去哪裡\n[11:45:43] [streamer]: 欸真的一萬開走了咩啊\n[11:45:46] [streamer]: 真的一萬冒要開走了咩\n[11:45:47] [streamer]: 十個小時前\n[11:45:58] [viewer] <lkw995436>: 10個小時前開了\n[11:46:09] [streamer]: 是不是我下播不久\n[11:46:16] [streamer]: 我下播不久它就開了\n[11:46:17] [streamer]: 十個小時就差不多一點啦\n[11:46:27] [viewer] <lkw995436>: 我不知道😨😨\n[11:46:33] [viewer] <lkw995436>: 我昨天不在\n[11:46:44] [streamer]: 這就是我下播不久\n[11:46:46] [streamer]: 謝謝點心\n[11:47:19] [streamer]: 嗯 剛剛我嘴巴瘀青\n[11:47:21] [streamer]: 家午安\n[11:47:34] [streamer]: 大家就相信我\n[11:47:39] [viewer] <lkw995436>: 被誰親了😡😡\n[11:47:42] [streamer]: 這裡也瘀青\n[11:47:47] [streamer]: 這裡也都瘀青\n[11:48:09] [streamer]: 大家午安\n[11:48:27] [viewer] <lkw995436>: 我來平衡一下，我來親😚😚😚\n[11:49:00] [viewer] <lkw995436>: 算了😐，沒想理我\n",
-            "webhook": {
-              "context": {
-                "channel": "C0A4JJJKJMD",
-                "ts": "1772615896.701909",
-                "mode_input": "fromStart",
-                "mins_input": "5",
-                "streamid_input": "214182956",
-                "last_msg_ts": "1774925112.276869",
-                "event_ts": "1772615896.701909"
-              }
-            }
-          }
-        }
-      }
-    ]
-  },
-  "activeVersionId": null,
-  "triggerCount": 1,
-  "shared": [
-    {
-      "role": "workflow:owner",
-      "workflowId": "R10FobBO8i4cWCkJ",
-      "projectId": "T2eF9Qj9h6MeNqHW",
-      "project": {
-        "id": "T2eF9Qj9h6MeNqHW",
-        "name": "<ist@17.media>",
-        "type": "personal",
-        "icon": null,
-        "description": null,
-        "projectRelations": [
-          {
-            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
-            "projectId": "T2eF9Qj9h6MeNqHW",
-            "user": {
-              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
-              "email": "ist@17.media",
-              "firstName": null,
-              "lastName": null,
-              "personalizationAnswers": {
-                "version": "v4",
-                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
-                "personalization_survey_n8n_version": "1.109.2"
-              },
-              "settings": {
-                "easyAIWorkflowOnboarded": true,
-                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
-                "userActivated": true,
-                "userActivatedAt": 1757907025897,
-                "npsSurvey": {
-                  "responded": true,
-                  "lastShownAt": 1777450741616
-                }
-              },
-              "disabled": false,
-              "mfaEnabled": false,
-              "isPending": false
-            }
-          }
-        ]
-      }
-    }
-  ],
   "tags": [
     {
-      "updatedAt": "2025-10-31T00:33:05.881Z",
-      "createdAt": "2025-10-31T00:33:05.881Z",
       "id": "boreCiHZYpl3eDGl",
-      "name": "ist-bot"
+      "name": "ist-bot",
+      "createdAt": "2025-10-31T00:33:05.881Z",
+      "updatedAt": "2025-10-31T00:33:05.881Z"
     }
-  ],
-  "activeVersion": null
+  ]
 }

@@ -2,8 +2,10 @@
   "id": "TencentVDSV3A001",
   "name": "Tencent realtime VDS v3",
   "description": null,
-  "active": false,
+  "active": true,
   "isArchived": false,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
   "nodes": [
     {
       "parameters": {
@@ -987,22 +989,24 @@
       ]
     }
   },
+  "nodeGroups": [],
   "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
     "executionOrder": "v1",
+    "errorWorkflow": "run4KT7goJGVeOOk",
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
     "saveExecutionProgress": false
   },
-  "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": true
-  },
+  "meta": null,
   "tags": [
     {
-      "updatedAt": "2026-09-03T06:50:34.301Z",
-      "createdAt": "2026-09-03T06:50:34.301Z",
       "id": "NLo3n5BNlRhVr71N",
-      "name": "ist-bot-v3"
+      "name": "ist-bot-v3",
+      "createdAt": "2026-09-03T06:50:34.301Z",
+      "updatedAt": "2026-09-03T06:50:34.301Z"
     }
-  ]}
+  ]
+}

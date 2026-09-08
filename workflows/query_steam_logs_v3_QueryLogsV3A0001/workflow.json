@@ -1,11 +1,21 @@
 {
   "id": "QueryLogsV3A0001",
   "name": "Query Steam Logs v3",
-  "description": "Queries and delivers stream logs for one stream ID. Inputs: streamID, channel, target_thread_ts, and optional lookbackDays (integer 1..60, default 60).",
-  "active": false,
+  "description": null,
+  "active": true,
   "isArchived": false,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
   "nodes": [
     {
+      "id": "e8d56779-5139-47c4-9e11-b12a8d28ccd1",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -3232,
+        -608
+      ],
       "parameters": {
         "workflowInputs": {
           "values": [
@@ -24,17 +34,17 @@
             }
           ]
         }
-      },
-      "id": "e8d56779-5139-47c4-9e11-b12a8d28ccd1",
-      "typeVersion": 1.1,
-      "name": "Start",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "position": [
-        -3232,
-        -608
-      ]
+      }
     },
     {
+      "id": "5bfc75e0-3a6b-4859-8b2a-04a12a6e6e8d",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3040,
+        -608
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -65,17 +75,17 @@
           ]
         },
         "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        -3040,
-        -608
-      ],
-      "id": "5bfc75e0-3a6b-4859-8b2a-04a12a6e6e8d",
-      "name": "Normalize Input"
+      }
     },
     {
+      "id": "a8a390b5-b5c8-4b2d-ba34-0cea05987ccc",
+      "name": "Complete Slack Multi File Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        528,
+        -384
+      ],
       "parameters": {
         "method": "POST",
         "url": "https://slack.com/api/files.completeUploadExternal",
@@ -87,14 +97,6 @@
         "jsonBody": "={{ $json.completeBody }}",
         "options": {}
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        528,
-        -384
-      ],
-      "id": "a8a390b5-b5c8-4b2d-ba34-0cea05987ccc",
-      "name": "Complete Slack Multi File Message",
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
@@ -103,6 +105,15 @@
       }
     },
     {
+      "id": "0259040e-7556-4ffd-96a6-077d07d9b969",
+      "name": "Send streamID not found1",
+      "webhookId": "75ee254e-256d-4ca3-872b-13aba5981e5e",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -2272,
+        336
+      ],
       "parameters": {
         "select": "channel",
         "channelId": {
@@ -119,15 +130,6 @@
           }
         }
       },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        -2272,
-        336
-      ],
-      "id": "0259040e-7556-4ffd-96a6-077d07d9b969",
-      "name": "Send streamID not found1",
-      "webhookId": "75ee254e-256d-4ca3-872b-13aba5981e5e",
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
@@ -136,6 +138,15 @@
       }
     },
     {
+      "id": "07867657-0ea8-491a-8b27-3398438de10e",
+      "name": "Stream comments1",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        -2272,
+        -192
+      ],
       "parameters": {
         "authentication": "serviceAccount",
         "projectId": {
@@ -148,15 +159,6 @@
         "sqlQuery": "__EXTERNAL_FILE__://nodes/Stream_comments1/sqlQuery.sql",
         "options": {}
       },
-      "type": "n8n-nodes-base.googleBigQuery",
-      "typeVersion": 2.1,
-      "position": [
-        -2272,
-        -192
-      ],
-      "id": "07867657-0ea8-491a-8b27-3398438de10e",
-      "name": "Stream comments1",
-      "alwaysOutputData": true,
       "credentials": {
         "googleApi": {
           "id": "Dd7x1TQhh9YKbD8v",
@@ -165,22 +167,31 @@
       }
     },
     {
-      "parameters": {
-        "operation": "xlsx",
-        "options": {
-          "fileName": "=StreamCommentLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
-        }
-      },
+      "id": "3556cc54-35eb-4d03-96b1-4499cbd7d9d2",
+      "name": "Convert to StreamCommentLog1",
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
         -1872,
         -272
       ],
-      "id": "3556cc54-35eb-4d03-96b1-4499cbd7d9d2",
-      "name": "Convert to StreamCommentLog1"
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=StreamCommentLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
+        }
+      }
     },
     {
+      "id": "08d9629f-87f7-4172-a5b2-70e2efceab22",
+      "name": "StreamerEventLog1",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        -2272,
+        -416
+      ],
       "parameters": {
         "authentication": "serviceAccount",
         "projectId": {
@@ -193,15 +204,6 @@
         "sqlQuery": "__EXTERNAL_FILE__://nodes/StreamerEventLog1/sqlQuery.sql",
         "options": {}
       },
-      "type": "n8n-nodes-base.googleBigQuery",
-      "typeVersion": 2.1,
-      "position": [
-        -2272,
-        -416
-      ],
-      "id": "08d9629f-87f7-4172-a5b2-70e2efceab22",
-      "name": "StreamerEventLog1",
-      "alwaysOutputData": true,
       "credentials": {
         "googleApi": {
           "id": "Dd7x1TQhh9YKbD8v",
@@ -210,22 +212,31 @@
       }
     },
     {
-      "parameters": {
-        "operation": "xlsx",
-        "options": {
-          "fileName": "=StreamerEventLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
-        }
-      },
+      "id": "4fbe33ee-5656-451a-ba4a-25b30c9d8fc1",
+      "name": "Convert to StreamerEventLog1",
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
         -1872,
         -544
       ],
-      "id": "4fbe33ee-5656-451a-ba4a-25b30c9d8fc1",
-      "name": "Convert to StreamerEventLog1"
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=StreamerEventLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
+        }
+      }
     },
     {
+      "id": "53fc43ea-cbaf-42d8-86ed-09b1c6ebb911",
+      "name": "steamID beginTime and endTime1",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        -2864,
+        -608
+      ],
       "parameters": {
         "authentication": "serviceAccount",
         "projectId": {
@@ -247,15 +258,6 @@
           }
         }
       },
-      "type": "n8n-nodes-base.googleBigQuery",
-      "typeVersion": 2.1,
-      "position": [
-        -2864,
-        -608
-      ],
-      "id": "53fc43ea-cbaf-42d8-86ed-09b1c6ebb911",
-      "name": "steamID beginTime and endTime1",
-      "alwaysOutputData": true,
       "credentials": {
         "googleApi": {
           "id": "Dd7x1TQhh9YKbD8v",
@@ -264,6 +266,16 @@
       }
     },
     {
+      "id": "0fb793bd-351c-47ed-bef1-64b8594c6afd",
+      "name": "StreamerLog1",
+      "notesInFlow": false,
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        -2272,
+        -720
+      ],
       "parameters": {
         "authentication": "serviceAccount",
         "projectId": {
@@ -276,16 +288,6 @@
         "sqlQuery": "__EXTERNAL_FILE__://nodes/StreamerLog1/sqlQuery.sql",
         "options": {}
       },
-      "type": "n8n-nodes-base.googleBigQuery",
-      "typeVersion": 2.1,
-      "position": [
-        -2272,
-        -720
-      ],
-      "id": "0fb793bd-351c-47ed-bef1-64b8594c6afd",
-      "name": "StreamerLog1",
-      "notesInFlow": false,
-      "alwaysOutputData": true,
       "credentials": {
         "googleApi": {
           "id": "Dd7x1TQhh9YKbD8v",
@@ -294,61 +296,69 @@
       }
     },
     {
-      "parameters": {
-        "operation": "xlsx",
-        "options": {
-          "fileName": "=StreamerLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
-        }
-      },
+      "id": "4364683f-e416-4f1f-a8de-79185b699dbf",
+      "name": "Convert to StreamerLog1",
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
         -1872,
         -832
       ],
-      "id": "4364683f-e416-4f1f-a8de-79185b699dbf",
-      "name": "Convert to StreamerLog1"
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=StreamerLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
+        }
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_StreamLog_Upload/jsCode.js"
-      },
+      "id": "85a9d52a-4c8e-40f8-855d-6be7f763cc42",
+      "name": "Prepare StreamLog Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -1568,
         -832
       ],
-      "id": "85a9d52a-4c8e-40f8-855d-6be7f763cc42",
-      "name": "Prepare StreamLog Upload"
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_StreamLog_Upload/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_StreamerEventLog_Upload/jsCode.js"
-      },
+      "id": "a0366880-d8ea-42b9-8fa3-2cc82872cd3c",
+      "name": "Prepare StreamerEventLog Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -1568,
         -544
       ],
-      "id": "a0366880-d8ea-42b9-8fa3-2cc82872cd3c",
-      "name": "Prepare StreamerEventLog Upload"
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_StreamerEventLog_Upload/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_StreamCommentLog_Upload/jsCode.js"
-      },
+      "id": "ecf4563a-e82c-48f4-8024-33962fb4157c",
+      "name": "Prepare StreamCommentLog Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -1568,
         -272
       ],
-      "id": "ecf4563a-e82c-48f4-8024-33962fb4157c",
-      "name": "Prepare StreamCommentLog Upload"
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_StreamCommentLog_Upload/jsCode.js"
+      }
     },
     {
+      "id": "9a6f83f6-ab0e-44ce-b461-bdb49ade722d",
+      "name": "If LiveStreamID exist1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2064,
+        -720
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -372,17 +382,17 @@
           "combinator": "and"
         },
         "options": {}
-      },
+      }
+    },
+    {
+      "id": "bddd46cd-32e7-4a4a-9cce-853fb2bb2244",
+      "name": "if triggerUserID exist1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
         -2064,
-        -720
+        -416
       ],
-      "id": "9a6f83f6-ab0e-44ce-b461-bdb49ade722d",
-      "name": "If LiveStreamID exist1"
-    },
-    {
       "parameters": {
         "conditions": {
           "options": {
@@ -406,17 +416,17 @@
           "combinator": "and"
         },
         "options": {}
-      },
+      }
+    },
+    {
+      "id": "e7a40c19-faef-4534-b10e-06b3fcb423d9",
+      "name": "if streamID exist1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
         -2064,
-        -416
+        -192
       ],
-      "id": "bddd46cd-32e7-4a4a-9cce-853fb2bb2244",
-      "name": "if triggerUserID exist1"
-    },
-    {
       "parameters": {
         "conditions": {
           "options": {
@@ -440,17 +450,17 @@
           "combinator": "and"
         },
         "options": {}
-      },
+      }
+    },
+    {
+      "id": "748ec3cb-57e5-4847-93b2-0e6202f351b8",
+      "name": "If streamID exist1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -2064,
-        -192
+        -2672,
+        -608
       ],
-      "id": "e7a40c19-faef-4534-b10e-06b3fcb423d9",
-      "name": "if streamID exist1"
-    },
-    {
       "parameters": {
         "conditions": {
           "options": {
@@ -474,17 +484,18 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        -2672,
-        -608
-      ],
-      "id": "748ec3cb-57e5-4847-93b2-0e6202f351b8",
-      "name": "If streamID exist1"
+      }
     },
     {
+      "id": "2b8afcb7-9895-4939-828b-a6365749c6f7",
+      "name": "Send a message",
+      "webhookId": "c5793150-5813-44af-ad73-b697e0e67db8",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -960,
+        -1312
+      ],
       "parameters": {
         "select": "channel",
         "channelId": {
@@ -501,15 +512,6 @@
           }
         }
       },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        -960,
-        -1312
-      ],
-      "id": "2b8afcb7-9895-4939-828b-a6365749c6f7",
-      "name": "Send a message",
-      "webhookId": "c5793150-5813-44af-ad73-b697e0e67db8",
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
@@ -518,121 +520,129 @@
       }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/checker/jsCode.js"
-      },
+      "id": "8ee1392e-42be-42f0-af16-b4e313b92b78",
+      "name": "checker",
+      "notesInFlow": false,
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "retryOnFail": false,
       "position": [
         -1440,
         -1312
       ],
-      "id": "8ee1392e-42be-42f0-af16-b4e313b92b78",
-      "name": "checker",
-      "alwaysOutputData": true,
-      "notesInFlow": false,
-      "executeOnce": true,
-      "retryOnFail": false
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/checker/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Append_Condition_SEL/jsCode.js"
-      },
+      "id": "e8b7e66a-a925-4e81-ba98-72e1ec89891e",
+      "name": "Append Condition-SEL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -2064,
         -1312
       ],
-      "id": "e8b7e66a-a925-4e81-ba98-72e1ec89891e",
-      "name": "Append Condition-SEL"
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Append_Condition_SEL/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Append_Condition_SE/jsCode.js"
-      },
+      "id": "ff4ff4fc-10ca-4f21-b7c5-76ae3f2c8796",
+      "name": "Append Condition-SE",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -2064,
         -1488
       ],
-      "id": "ff4ff4fc-10ca-4f21-b7c5-76ae3f2c8796",
-      "name": "Append Condition-SE"
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Append_Condition_SE/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 5
-      },
+      "id": "ff5467ec-2bec-4665-8e28-00ab676eadb0",
+      "name": "Merge1",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
         -1088,
         -416
       ],
-      "id": "ff5467ec-2bec-4665-8e28-00ab676eadb0",
-      "name": "Merge1"
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 5
+      }
     },
     {
-      "parameters": {
-        "mode": "raw",
-        "jsonOutput": "={\n  \"kind\": \"streamerLog\",\n  \"label\": \"StreamerLog\",\n  \"available\": false\n}\n",
-        "options": {}
-      },
+      "id": "ebe44f7b-8f73-47a7-b721-bf915bf39627",
+      "name": "streamerLog",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
         -1344,
         -704
       ],
-      "id": "ebe44f7b-8f73-47a7-b721-bf915bf39627",
-      "name": "streamerLog"
-    },
-    {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={\n  \"kind\": \"streamerEventLog\",\n  \"label\": \"StreamerEventLog\",\n  \"available\": false\n}\n",
+        "jsonOutput": "={\n  \"kind\": \"streamerLog\",\n  \"label\": \"StreamerLog\",\n  \"available\": false\n}\n",
         "options": {}
-      },
+      }
+    },
+    {
+      "id": "b0a865b2-98ee-4578-98bc-50b4699e180c",
+      "name": "streamerEventLog",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
         -1344,
         -400
       ],
-      "id": "b0a865b2-98ee-4578-98bc-50b4699e180c",
-      "name": "streamerEventLog"
-    },
-    {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={\n  \"kind\": \"streamCommentLog\",\n  \"label\": \"StreamCommentLog\",\n  \"available\": false\n}\n",
+        "jsonOutput": "={\n  \"kind\": \"streamerEventLog\",\n  \"label\": \"StreamerEventLog\",\n  \"available\": false\n}\n",
         "options": {}
-      },
+      }
+    },
+    {
+      "id": "e8f1db15-a109-4898-af99-10aa59383361",
+      "name": "streamCommentLog",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
         -1344,
         -176
       ],
-      "id": "e8f1db15-a109-4898-af99-10aa59383361",
-      "name": "streamCommentLog"
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"kind\": \"streamCommentLog\",\n  \"label\": \"StreamCommentLog\",\n  \"available\": false\n}\n",
+        "options": {}
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Code/jsCode.js"
-      },
+      "id": "e5802aa0-9694-438c-889e-b78b3de287ed",
+      "name": "Code",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -896,
         -384
       ],
-      "id": "e5802aa0-9694-438c-889e-b78b3de287ed",
-      "name": "Code"
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Code/jsCode.js"
+      }
     },
     {
+      "id": "1733a518-e3fd-440c-bf00-6ab7b11d7d8c",
+      "name": "MatomoLog",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2272,
+        48
+      ],
       "parameters": {
         "authentication": "serviceAccount",
         "projectId": {
@@ -645,14 +655,6 @@
         "sqlQuery": "__EXTERNAL_FILE__://nodes/MatomoLog/sqlQuery.sql",
         "options": {}
       },
-      "type": "n8n-nodes-base.googleBigQuery",
-      "typeVersion": 2.1,
-      "position": [
-        -2272,
-        48
-      ],
-      "id": "1733a518-e3fd-440c-bf00-6ab7b11d7d8c",
-      "name": "MatomoLog",
       "credentials": {
         "googleApi": {
           "id": "Dd7x1TQhh9YKbD8v",
@@ -661,6 +663,14 @@
       }
     },
     {
+      "id": "fdb59ec2-0430-4685-8e6f-d3fb9e1dc27d",
+      "name": "if session_id exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2064,
+        48
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -684,74 +694,76 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        -2064,
-        48
-      ],
-      "id": "fdb59ec2-0430-4685-8e6f-d3fb9e1dc27d",
-      "name": "if session_id exist"
+      }
     },
     {
-      "parameters": {
-        "operation": "xlsx",
-        "options": {
-          "fileName": "=MatomoLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
-        }
-      },
+      "id": "153a411c-3ba6-4424-857f-4884def8d653",
+      "name": "Convert to MatomoLog",
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
         -1872,
         -48
       ],
-      "id": "153a411c-3ba6-4424-857f-4884def8d653",
-      "name": "Convert to MatomoLog"
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=MatomoLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
+        }
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_MatomoLog_Upload/jsCode.js"
-      },
+      "id": "9f528676-880c-47e5-bc03-e33f228e68a5",
+      "name": "Prepare MatomoLog Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -1568,
         -48
       ],
-      "id": "9f528676-880c-47e5-bc03-e33f228e68a5",
-      "name": "Prepare MatomoLog Upload"
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_MatomoLog_Upload/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "mode": "raw",
-        "jsonOutput": "={\n  \"kind\": \"matomoLog\",\n  \"label\": \"MatomoLog\",\n  \"available\": false\n}\n",
-        "options": {}
-      },
+      "id": "66ae653e-c045-4474-98d4-81ca2ffe688f",
+      "name": "MatomoLog1",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
         -1344,
         64
       ],
-      "id": "66ae653e-c045-4474-98d4-81ca2ffe688f",
-      "name": "MatomoLog1"
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"kind\": \"matomoLog\",\n  \"label\": \"MatomoLog\",\n  \"available\": false\n}\n",
+        "options": {}
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Append_Condition_KEEPALIVE/jsCode.js"
-      },
+      "id": "169d1b30-4c87-4042-871b-906573aad61e",
+      "name": "Append Condition-KEEPALIVE",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -2064,
         -1120
       ],
-      "id": "169d1b30-4c87-4042-871b-906573aad61e",
-      "name": "Append Condition-KEEPALIVE"
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Append_Condition_KEEPALIVE/jsCode.js"
+      }
     },
     {
+      "id": "68c3c7f8-b146-4c24-a4e3-7e680508d2eb",
+      "name": "BACKEND LOG - KEEPALIVE",
+      "notesInFlow": false,
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        -2272,
+        -960
+      ],
       "parameters": {
         "authentication": "serviceAccount",
         "projectId": {
@@ -764,16 +776,6 @@
         "sqlQuery": "__EXTERNAL_FILE__://nodes/BACKEND_LOG___KEEPALIVE/sqlQuery.sql",
         "options": {}
       },
-      "type": "n8n-nodes-base.googleBigQuery",
-      "typeVersion": 2.1,
-      "position": [
-        -2272,
-        -960
-      ],
-      "id": "68c3c7f8-b146-4c24-a4e3-7e680508d2eb",
-      "name": "BACKEND LOG - KEEPALIVE",
-      "notesInFlow": false,
-      "alwaysOutputData": true,
       "credentials": {
         "googleApi": {
           "id": "Dd7x1TQhh9YKbD8v",
@@ -782,45 +784,53 @@
       }
     },
     {
-      "parameters": {
-        "numberInputs": 3
-      },
+      "id": "510cf84a-26f4-4e4d-a1c2-30cd078e3001",
+      "name": "Merge",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
         -1648,
         -1328
       ],
-      "id": "510cf84a-26f4-4e4d-a1c2-30cd078e3001",
-      "name": "Merge"
+      "parameters": {
+        "numberInputs": 3
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/compose_slack_message/jsCode.js"
-      },
+      "id": "f41e717d-9fa9-4cbb-be7b-8a6aa3fb8a41",
+      "name": "compose slack message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -1216,
         -1312
       ],
-      "id": "f41e717d-9fa9-4cbb-be7b-8a6aa3fb8a41",
-      "name": "compose slack message"
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/compose_slack_message/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/output/jsCode.js"
-      },
+      "id": "2edbc874-b20f-4729-8124-034a5d858cf1",
+      "name": "output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         752,
         -384
       ],
-      "id": "2edbc874-b20f-4729-8124-034a5d858cf1",
-      "name": "output"
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/output/jsCode.js"
+      }
     },
     {
+      "id": "f708192a-8dbe-4fc4-9035-4b6c7d8e9105",
+      "name": "If Logs Exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -704,
+        -384
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -844,17 +854,20 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        -704,
-        -384
-      ],
-      "id": "f708192a-8dbe-4fc4-9035-4b6c7d8e9105",
-      "name": "If Logs Exist"
+      }
     },
     {
+      "id": "8f678514-3735-431d-ba51-db516e85c839",
+      "name": "Get Slack Upload URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        -480,
+        -496
+      ],
       "parameters": {
         "method": "POST",
         "url": "https://slack.com/api/files.getUploadURLExternal",
@@ -879,17 +892,6 @@
           "timeout": 30000
         }
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        -480,
-        -496
-      ],
-      "id": "8f678514-3735-431d-ba51-db516e85c839",
-      "name": "Get Slack Upload URL",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000,
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
@@ -898,22 +900,30 @@
       }
     },
     {
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
-        "numberInputs": 2,
-        "options": {}
-      },
+      "id": "e62d2f7b-8f09-47bf-96b3-fbe195c959e4",
+      "name": "Merge Slack Upload Ticket",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
         -256,
         -496
       ],
-      "id": "e62d2f7b-8f09-47bf-96b3-fbe195c959e4",
-      "name": "Merge Slack Upload Ticket"
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 2,
+        "options": {}
+      }
     },
     {
+      "id": "2847446d-6cc2-480c-888f-5938a56395dc",
+      "name": "Upload Slack File Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -32,
+        -496
+      ],
       "parameters": {
         "method": "POST",
         "url": "={{ $json.upload_url }}",
@@ -927,60 +937,52 @@
             }
           }
         }
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        -32,
-        -496
-      ],
-      "id": "2847446d-6cc2-480c-888f-5938a56395dc",
-      "name": "Upload Slack File Content"
+      }
     },
     {
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
-        "numberInputs": 2,
-        "options": {}
-      },
+      "id": "e3f75aed-5d4b-4e79-80f5-a82239501b97",
+      "name": "Merge Slack Uploaded File",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
         192,
         -496
       ],
-      "id": "e3f75aed-5d4b-4e79-80f5-a82239501b97",
-      "name": "Merge Slack Uploaded File"
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 2,
+        "options": {}
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Aggregate_Slack_Uploaded_Files/jsCode.js"
-      },
+      "id": "8f3b881a-15b8-4a95-8617-33f88847484e",
+      "name": "Aggregate Slack Uploaded Files",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         416,
         -496
       ],
-      "id": "8f3b881a-15b8-4a95-8617-33f88847484e",
-      "name": "Aggregate Slack Uploaded Files"
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Aggregate_Slack_Uploaded_Files/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
-        "numberInputs": 2,
-        "options": {}
-      },
+      "id": "18cf06b2-9daa-47f9-a428-51565de8f725",
+      "name": "Merge Slack Completion",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
         864,
         -496
       ],
-      "id": "18cf06b2-9daa-47f9-a428-51565de8f725",
-      "name": "Merge Slack Completion"
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 2,
+        "options": {}
+      }
     }
   ],
   "connections": {
@@ -1534,28 +1536,24 @@
       ]
     }
   },
+  "nodeGroups": [],
   "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
     "executionOrder": "v1",
+    "errorWorkflow": "run4KT7goJGVeOOk",
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
     "saveExecutionProgress": false
   },
-  "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": true
-  },
+  "meta": null,
   "tags": [
     {
-      "updatedAt": "2025-10-31T00:33:05.881Z",
-      "createdAt": "2025-10-31T00:33:05.881Z",
-      "id": "boreCiHZYpl3eDGl",
-      "name": "ist-bot"
-    },
-    {
-      "updatedAt": "2026-09-03T06:50:34.301Z",
-      "createdAt": "2026-09-03T06:50:34.301Z",
       "id": "NLo3n5BNlRhVr71N",
-      "name": "ist-bot-v3"
+      "name": "ist-bot-v3",
+      "createdAt": "2026-09-03T06:50:34.301Z",
+      "updatedAt": "2026-09-03T06:50:34.301Z"
     }
-  ]}
+  ]
+}

@@ -1,15 +1,13 @@
 {
   "id": "CollectSuspectV3",
   "name": "Collect suspect streamID v3",
-  "description": "Active suspect candidate collector. Manual runs default to the test channel and permit an allowlisted channel override; the daily 10:00 Asia/Taipei schedule always uses the production channel. An empty target-date override queries the prior Taipei business day; a YYYY-MM-DD override pins one business-day range. Persists provenance, reconciles canonical rows, resolves STT metadata in bounded chunks, posts STT then log-collecting statuses before asynchronously calling the Summary orchestrator, and dispatches Query Logs children serially as best-effort attachments without automatic Slack retries.",
+  "description": null,
   "active": true,
-  "activeVersionId": null,
   "isArchived": false,
   "sourceWorkflowId": null,
-  "triggerCount": 0,
+  "triggerCount": 1,
   "nodes": [
     {
-      "parameters": {},
       "id": "12000001-0000-4000-8000-000000000001",
       "name": "Manually Trigger",
       "type": "n8n-nodes-base.manualTrigger",
@@ -17,9 +15,18 @@
       "position": [
         -1200,
         0
-      ]
+      ],
+      "parameters": {}
     },
     {
+      "id": "12000001-0000-4000-8000-000000000043",
+      "name": "Configure Manual Run",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1088,
+        0
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -38,17 +45,17 @@
           ]
         },
         "options": {}
-      },
-      "id": "12000001-0000-4000-8000-000000000043",
-      "name": "Configure Manual Run",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        -1088,
-        0
-      ]
+      }
     },
     {
+      "id": "12000001-0000-4000-8000-000000000045",
+      "name": "Daily 10:00 Taipei Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -1200,
+        160
+      ],
       "parameters": {
         "rule": {
           "interval": [
@@ -59,17 +66,17 @@
           ]
         },
         "misfirePolicy": "skip"
-      },
-      "id": "12000001-0000-4000-8000-000000000045",
-      "name": "Daily 10:00 Taipei Trigger",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.4,
-      "position": [
-        -1200,
-        160
-      ]
+      }
     },
     {
+      "id": "12000001-0000-4000-8000-000000000048",
+      "name": "Configure Scheduled Run",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1088,
+        160
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -88,17 +95,17 @@
           ]
         },
         "options": {}
-      },
-      "id": "12000001-0000-4000-8000-000000000048",
-      "name": "Configure Scheduled Run",
+      }
+    },
+    {
+      "id": "12000002-0000-4000-8000-000000000002",
+      "name": "Build Candidate Query Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1088,
-        160
-      ]
-    },
-    {
+        -960,
+        0
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -118,17 +125,18 @@
         },
         "includeOtherFields": true,
         "options": {}
-      },
-      "id": "12000002-0000-4000-8000-000000000002",
-      "name": "Build Candidate Query Config",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        -960,
-        0
-      ]
+      }
     },
     {
+      "id": "12000003-0000-4000-8000-000000000003",
+      "name": "Query Comment And Caption Candidates",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        -720,
+        -240
+      ],
       "parameters": {
         "authentication": "serviceAccount",
         "projectId": {
@@ -153,15 +161,6 @@
           }
         }
       },
-      "id": "12000003-0000-4000-8000-000000000003",
-      "name": "Query Comment And Caption Candidates",
-      "type": "n8n-nodes-base.googleBigQuery",
-      "typeVersion": 2.1,
-      "alwaysOutputData": true,
-      "position": [
-        -720,
-        -240
-      ],
       "credentials": {
         "googleApi": {
           "id": "Dd7x1TQhh9YKbD8v",
@@ -170,6 +169,14 @@
       }
     },
     {
+      "id": "12000004-0000-4000-8000-000000000004",
+      "name": "Label Comment And Caption",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -480,
+        -240
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -200,17 +207,18 @@
           ]
         },
         "options": {}
-      },
-      "id": "12000004-0000-4000-8000-000000000004",
-      "name": "Label Comment And Caption",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        -480,
-        -240
-      ]
+      }
     },
     {
+      "id": "12000005-0000-4000-8000-000000000005",
+      "name": "Query Caption Candidates",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        -720,
+        0
+      ],
       "parameters": {
         "authentication": "serviceAccount",
         "projectId": {
@@ -235,15 +243,6 @@
           }
         }
       },
-      "id": "12000005-0000-4000-8000-000000000005",
-      "name": "Query Caption Candidates",
-      "type": "n8n-nodes-base.googleBigQuery",
-      "typeVersion": 2.1,
-      "alwaysOutputData": true,
-      "position": [
-        -720,
-        0
-      ],
       "credentials": {
         "googleApi": {
           "id": "Dd7x1TQhh9YKbD8v",
@@ -252,6 +251,14 @@
       }
     },
     {
+      "id": "12000006-0000-4000-8000-000000000006",
+      "name": "Label Caption",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -480,
+        0
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -282,17 +289,18 @@
           ]
         },
         "options": {}
-      },
-      "id": "12000006-0000-4000-8000-000000000006",
-      "name": "Label Caption",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        -480,
-        0
-      ]
+      }
     },
     {
+      "id": "12000007-0000-4000-8000-000000000007",
+      "name": "Query End By New Stream Candidates",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        -720,
+        240
+      ],
       "parameters": {
         "authentication": "serviceAccount",
         "projectId": {
@@ -313,15 +321,6 @@
           }
         }
       },
-      "id": "12000007-0000-4000-8000-000000000007",
-      "name": "Query End By New Stream Candidates",
-      "type": "n8n-nodes-base.googleBigQuery",
-      "typeVersion": 2.1,
-      "alwaysOutputData": true,
-      "position": [
-        -720,
-        240
-      ],
       "credentials": {
         "googleApi": {
           "id": "Dd7x1TQhh9YKbD8v",
@@ -330,6 +329,14 @@
       }
     },
     {
+      "id": "12000008-0000-4000-8000-000000000008",
+      "name": "Label End By New Stream",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -480,
+        240
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -360,20 +367,9 @@
           ]
         },
         "options": {}
-      },
-      "id": "12000008-0000-4000-8000-000000000008",
-      "name": "Label End By New Stream",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        -480,
-        240
-      ]
+      }
     },
     {
-      "parameters": {
-        "numberInputs": 3
-      },
       "id": "12000009-0000-4000-8000-000000000009",
       "name": "Merge Candidate Sources",
       "type": "n8n-nodes-base.merge",
@@ -381,12 +377,12 @@
       "position": [
         -240,
         0
-      ]
+      ],
+      "parameters": {
+        "numberInputs": 3
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Deduplicate_Candidate_Provenance/jsCode.js"
-      },
       "id": "1200000a-0000-4000-8000-00000000000a",
       "name": "Deduplicate Candidate Provenance",
       "type": "n8n-nodes-base.code",
@@ -394,12 +390,12 @@
       "position": [
         0,
         0
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Deduplicate_Candidate_Provenance/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Monitoring_Report/jsCode.js"
-      },
       "id": "1200001e-0000-4000-8000-00000000001e",
       "name": "Build Monitoring Report",
       "type": "n8n-nodes-base.code",
@@ -407,9 +403,21 @@
       "position": [
         240,
         -320
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Monitoring_Report/jsCode.js"
+      }
     },
     {
+      "id": "1200001f-0000-4000-8000-00000000001f",
+      "name": "Send Monitoring Report",
+      "webhookId": "f53561bd-1e9d-45d4-8751-d3ab0962a8fd",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        480,
+        -320
+      ],
       "parameters": {
         "select": "channel",
         "channelId": {
@@ -420,15 +428,6 @@
         "text": "__EXTERNAL_FILE__://nodes/Send_Monitoring_Report/text.md",
         "otherOptions": {}
       },
-      "id": "1200001f-0000-4000-8000-00000000001f",
-      "name": "Send Monitoring Report",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        480,
-        -320
-      ],
-      "webhookId": "f53561bd-1e9d-45d4-8751-d3ab0962a8fd",
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
@@ -437,9 +436,6 @@
       }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Restore_Candidate_Items/jsCode.js"
-      },
       "id": "12000020-0000-4000-8000-000000000020",
       "name": "Restore Candidate Items",
       "type": "n8n-nodes-base.code",
@@ -447,14 +443,26 @@
       "position": [
         720,
         -320
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Restore_Candidate_Items/jsCode.js"
+      }
     },
     {
+      "id": "1200000b-0000-4000-8000-00000000000b",
+      "name": "Insert Pending Candidate",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        240,
+        0
+      ],
       "parameters": {
         "dataTableId": {
           "__rl": true,
-          "mode": "name",
-          "value": "suspect_stt_candidates_v3"
+          "mode": "id",
+          "value": "m2hfjroOqrQHhro0"
         },
         "columns": {
           "mappingMode": "defineBelow",
@@ -478,24 +486,24 @@
           "convertFieldsToString": false
         },
         "options": {}
-      },
-      "id": "1200000b-0000-4000-8000-00000000000b",
-      "name": "Insert Pending Candidate",
+      }
+    },
+    {
+      "id": "1200000c-0000-4000-8000-00000000000c",
+      "name": "Read Candidate Rows",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        240,
+        480,
         0
-      ]
-    },
-    {
+      ],
       "parameters": {
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "name",
-          "value": "suspect_stt_candidates_v3"
+          "mode": "id",
+          "value": "m2hfjroOqrQHhro0"
         },
         "matchType": "allConditions",
         "filters": {
@@ -507,21 +515,9 @@
           ]
         },
         "returnAll": true
-      },
-      "id": "1200000c-0000-4000-8000-00000000000c",
-      "name": "Read Candidate Rows",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1,
-      "alwaysOutputData": true,
-      "position": [
-        480,
-        0
-      ]
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Candidate_Reconciliation/jsCode.js"
-      },
       "id": "1200000d-0000-4000-8000-00000000000d",
       "name": "Plan Candidate Reconciliation",
       "type": "n8n-nodes-base.code",
@@ -529,9 +525,20 @@
       "position": [
         720,
         0
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Candidate_Reconciliation/jsCode.js"
+      }
     },
     {
+      "id": "1200000e-0000-4000-8000-00000000000e",
+      "name": "Candidate Reconciliation Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        0
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -554,23 +561,24 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "1200000e-0000-4000-8000-00000000000e",
-      "name": "Candidate Reconciliation Needed",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        960,
-        0
-      ]
+      }
     },
     {
+      "id": "1200000f-0000-4000-8000-00000000000f",
+      "name": "Apply Candidate Reconciliation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        1200,
+        -160
+      ],
       "parameters": {
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "name",
-          "value": "suspect_stt_candidates_v3"
+          "mode": "id",
+          "value": "m2hfjroOqrQHhro0"
         },
         "matchType": "allConditions",
         "filters": {
@@ -605,24 +613,24 @@
           "convertFieldsToString": false
         },
         "options": {}
-      },
-      "id": "1200000f-0000-4000-8000-00000000000f",
-      "name": "Apply Candidate Reconciliation",
+      }
+    },
+    {
+      "id": "12000010-0000-4000-8000-000000000010",
+      "name": "Re-read Candidate Rows",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        1200,
+        1440,
         -160
-      ]
-    },
-    {
+      ],
       "parameters": {
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "name",
-          "value": "suspect_stt_candidates_v3"
+          "mode": "id",
+          "value": "m2hfjroOqrQHhro0"
         },
         "matchType": "allConditions",
         "filters": {
@@ -634,21 +642,9 @@
           ]
         },
         "returnAll": true
-      },
-      "id": "12000010-0000-4000-8000-000000000010",
-      "name": "Re-read Candidate Rows",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1,
-      "alwaysOutputData": true,
-      "position": [
-        1440,
-        -160
-      ]
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Candidate_Reconciliation/jsCode.js"
-      },
       "id": "12000011-0000-4000-8000-000000000011",
       "name": "Verify Candidate Reconciliation",
       "type": "n8n-nodes-base.code",
@@ -656,9 +652,20 @@
       "position": [
         1680,
         -160
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Candidate_Reconciliation/jsCode.js"
+      }
     },
     {
+      "id": "12000012-0000-4000-8000-000000000012",
+      "name": "Candidate Canonical Verified",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1920,
+        -80
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -681,20 +688,9 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "12000012-0000-4000-8000-000000000012",
-      "name": "Candidate Canonical Verified",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        1920,
-        -80
-      ]
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Candidate_Root_Ownership/jsCode.js"
-      },
       "id": "12100001-0000-4000-8000-000000000001",
       "name": "Plan Candidate Root Ownership",
       "type": "n8n-nodes-base.code",
@@ -702,9 +698,20 @@
       "position": [
         2160,
         0
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Candidate_Root_Ownership/jsCode.js"
+      }
     },
     {
+      "id": "12100002-0000-4000-8000-000000000002",
+      "name": "Route Candidate Root Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2400,
+        0
+      ],
       "parameters": {
         "rules": {
           "values": [
@@ -757,23 +764,24 @@
         "options": {
           "fallbackOutput": "none"
         }
-      },
-      "id": "12100002-0000-4000-8000-000000000002",
-      "name": "Route Candidate Root Action",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.4,
-      "position": [
-        2400,
-        0
-      ]
+      }
     },
     {
+      "id": "12100003-0000-4000-8000-000000000003",
+      "name": "Claim Candidate Root",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        2640,
+        160
+      ],
       "parameters": {
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "name",
-          "value": "suspect_stt_candidates_v3"
+          "mode": "id",
+          "value": "m2hfjroOqrQHhro0"
         },
         "matchType": "allConditions",
         "filters": {
@@ -811,24 +819,24 @@
           "convertFieldsToString": false
         },
         "options": {}
-      },
-      "id": "12100003-0000-4000-8000-000000000003",
-      "name": "Claim Candidate Root",
+      }
+    },
+    {
+      "id": "12100004-0000-4000-8000-000000000004",
+      "name": "Read Claimed Candidate Root",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        2640,
+        2880,
         160
-      ]
-    },
-    {
+      ],
       "parameters": {
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "name",
-          "value": "suspect_stt_candidates_v3"
+          "mode": "id",
+          "value": "m2hfjroOqrQHhro0"
         },
         "matchType": "allConditions",
         "filters": {
@@ -840,19 +848,9 @@
           ]
         },
         "returnAll": true
-      },
-      "id": "12100004-0000-4000-8000-000000000004",
-      "name": "Read Claimed Candidate Root",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1,
-      "alwaysOutputData": true,
-      "position": [
-        2880,
-        160
-      ]
+      }
     },
     {
-      "parameters": {},
       "id": "12100005-0000-4000-8000-000000000005",
       "name": "Merge Root Claim Carrier And Rows",
       "type": "n8n-nodes-base.merge",
@@ -860,12 +858,10 @@
       "position": [
         3120,
         160
-      ]
+      ],
+      "parameters": {}
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Candidate_Root_Claim/jsCode.js"
-      },
       "id": "12100006-0000-4000-8000-000000000006",
       "name": "Verify Candidate Root Claim",
       "type": "n8n-nodes-base.code",
@@ -873,9 +869,21 @@
       "position": [
         3360,
         160
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Candidate_Root_Claim/jsCode.js"
+      }
     },
     {
+      "id": "12100007-0000-4000-8000-000000000007",
+      "name": "Send Candidate Detail",
+      "webhookId": "fa5a5baa-c0fb-4333-b58a-f46f7b4a4737",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        3600,
+        160
+      ],
       "parameters": {
         "select": "channel",
         "channelId": {
@@ -886,15 +894,6 @@
         "text": "__EXTERNAL_FILE__://nodes/Send_Candidate_Detail/text.md",
         "otherOptions": {}
       },
-      "id": "12100007-0000-4000-8000-000000000007",
-      "name": "Send Candidate Detail",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        3600,
-        160
-      ],
-      "webhookId": "fa5a5baa-c0fb-4333-b58a-f46f7b4a4737",
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
@@ -903,7 +902,6 @@
       }
     },
     {
-      "parameters": {},
       "id": "12100008-0000-4000-8000-000000000008",
       "name": "Merge Root Owner And Slack",
       "type": "n8n-nodes-base.merge",
@@ -911,12 +909,10 @@
       "position": [
         3840,
         160
-      ]
+      ],
+      "parameters": {}
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Candidate_Root_Checkpoint/jsCode.js"
-      },
       "id": "12100009-0000-4000-8000-000000000009",
       "name": "Plan Candidate Root Checkpoint",
       "type": "n8n-nodes-base.code",
@@ -924,15 +920,27 @@
       "position": [
         4080,
         160
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Candidate_Root_Checkpoint/jsCode.js"
+      }
     },
     {
+      "id": "1210000a-0000-4000-8000-00000000000a",
+      "name": "Checkpoint Candidate Root",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "position": [
+        4320,
+        160
+      ],
       "parameters": {
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "name",
-          "value": "suspect_stt_candidates_v3"
+          "mode": "id",
+          "value": "m2hfjroOqrQHhro0"
         },
         "matchType": "allConditions",
         "filters": {
@@ -970,24 +978,24 @@
           "convertFieldsToString": false
         },
         "options": {}
-      },
-      "id": "1210000a-0000-4000-8000-00000000000a",
-      "name": "Checkpoint Candidate Root",
+      }
+    },
+    {
+      "id": "1210000b-0000-4000-8000-00000000000b",
+      "name": "Re-read Candidate Root",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        4320,
+        4560,
         160
-      ]
-    },
-    {
+      ],
       "parameters": {
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "name",
-          "value": "suspect_stt_candidates_v3"
+          "mode": "id",
+          "value": "m2hfjroOqrQHhro0"
         },
         "matchType": "allConditions",
         "filters": {
@@ -999,19 +1007,9 @@
           ]
         },
         "returnAll": true
-      },
-      "id": "1210000b-0000-4000-8000-00000000000b",
-      "name": "Re-read Candidate Root",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1,
-      "alwaysOutputData": true,
-      "position": [
-        4560,
-        160
-      ]
+      }
     },
     {
-      "parameters": {},
       "id": "1210000c-0000-4000-8000-00000000000c",
       "name": "Merge Root Checkpoint Carrier And Rows",
       "type": "n8n-nodes-base.merge",
@@ -1019,12 +1017,10 @@
       "position": [
         4800,
         160
-      ]
+      ],
+      "parameters": {}
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Candidate_Root_Checkpoint/jsCode.js"
-      },
       "id": "1210000d-0000-4000-8000-00000000000d",
       "name": "Verify Candidate Root Checkpoint",
       "type": "n8n-nodes-base.code",
@@ -1032,12 +1028,12 @@
       "position": [
         5040,
         160
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Candidate_Root_Checkpoint/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_Resolver_Chunks/jsCode.js"
-      },
       "id": "12000018-0000-4000-8000-000000000018",
       "name": "Prepare Resolver Chunks",
       "type": "n8n-nodes-base.code",
@@ -1045,12 +1041,12 @@
       "position": [
         5280,
         0
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_Resolver_Chunks/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Candidate_Log_Requests/jsCode.js"
-      },
       "id": "b5ad7b68-394f-4b29-9c2a-a7d9596fe5ae",
       "name": "Build Candidate Log Requests",
       "type": "n8n-nodes-base.code",
@@ -1058,13 +1054,12 @@
       "position": [
         5280,
         320
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Candidate_Log_Requests/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "batchSize": 1,
-        "options": {}
-      },
       "id": "78fcb9c7-70f7-4ef0-9fea-2fa4f76fe5ac",
       "name": "Query Logs Loop",
       "type": "n8n-nodes-base.splitInBatches",
@@ -1072,16 +1067,29 @@
       "position": [
         5552,
         576
-      ]
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
     },
     {
+      "id": "dc374e7b-4641-4ff6-8c6f-18eabf01e65b",
+      "name": "Call Query Steam Logs",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "onError": "continueErrorOutput",
+      "position": [
+        5792,
+        592
+      ],
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "QueryLogsV3A0001",
+          "value": "gHuJuaXZTdZXAUlV",
           "mode": "list",
           "cachedResultName": "Query Steam Logs v3",
-          "cachedResultUrl": "/workflow/QueryLogsV3A0001"
+          "cachedResultUrl": "/workflow/gHuJuaXZTdZXAUlV"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -1133,23 +1141,9 @@
           "waitForSubWorkflow": true
         },
         "mode": "once"
-      },
-      "id": "dc374e7b-4641-4ff6-8c6f-18eabf01e65b",
-      "name": "Call Query Steam Logs",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        5792,
-        592
-      ],
-      "onError": "continueErrorOutput"
+      }
     },
     {
-      "parameters": {
-        "mode": "raw",
-        "jsonOutput": "__EXTERNAL_FILE__://nodes/Mark_Query_Logs_Success/jsonOutput.jsonc",
-        "options": {}
-      },
       "id": "1f2a6b3c-8d41-4f07-9a52-0c8e7d6b5a14",
       "name": "Mark Query Logs Success",
       "type": "n8n-nodes-base.set",
@@ -1157,14 +1151,14 @@
       "position": [
         6032,
         592
-      ]
-    },
-    {
+      ],
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "__EXTERNAL_FILE__://nodes/Mark_Query_Logs_Failure/jsonOutput.jsonc",
+        "jsonOutput": "__EXTERNAL_FILE__://nodes/Mark_Query_Logs_Success/jsonOutput.jsonc",
         "options": {}
-      },
+      }
+    },
+    {
       "id": "2a3b7c4d-9e52-4018-ab63-1d9f8e7c6b25",
       "name": "Mark Query Logs Failure",
       "type": "n8n-nodes-base.set",
@@ -1172,12 +1166,14 @@
       "position": [
         6032,
         752
-      ]
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "__EXTERNAL_FILE__://nodes/Mark_Query_Logs_Failure/jsonOutput.jsonc",
+        "options": {}
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Summarize_Query_Log_Results/jsCode.js"
-      },
       "id": "3b4c8d5e-af63-4129-bc74-2ea09f8d7c36",
       "name": "Summarize Query Log Results",
       "type": "n8n-nodes-base.code",
@@ -1185,9 +1181,20 @@
       "position": [
         5792,
         384
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Summarize_Query_Log_Results/jsCode.js"
+      }
     },
     {
+      "id": "4c5d9e6f-b074-423a-8d85-3fb1a09e8d47",
+      "name": "All Query Logs Succeeded",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        6032,
+        384
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -1211,20 +1218,9 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "4c5d9e6f-b074-423a-8d85-3fb1a09e8d47",
-      "name": "All Query Logs Succeeded",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        6032,
-        384
-      ]
+      }
     },
     {
-      "parameters": {
-        "maxItems": 1
-      },
       "id": "a9a20342-5a5c-4fdd-8cc7-67933a73d0ca",
       "name": "Limit Query Logs Loop Done",
       "type": "n8n-nodes-base.limit",
@@ -1232,16 +1228,27 @@
       "position": [
         6336,
         368
-      ]
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
     },
     {
+      "id": "12000019-0000-4000-8000-000000000019",
+      "name": "Resolve Stream Metadata",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        5520,
+        0
+      ],
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "StreamMetaV3A001",
+          "value": "qAjDH2w1BNvom95c",
           "mode": "list",
           "cachedResultName": "Stream Metadata: resolve by IDs v3",
-          "cachedResultUrl": "/workflow/StreamMetaV3A001"
+          "cachedResultUrl": "/workflow/qAjDH2w1BNvom95c"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -1284,20 +1291,9 @@
         "options": {
           "waitForSubWorkflow": true
         }
-      },
-      "id": "12000019-0000-4000-8000-000000000019",
-      "name": "Resolve Stream Metadata",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        5520,
-        0
-      ]
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Resolver_Output/jsCode.js"
-      },
       "id": "1200001a-0000-4000-8000-00000000001a",
       "name": "Reassemble Resolver Output",
       "type": "n8n-nodes-base.code",
@@ -1305,9 +1301,20 @@
       "position": [
         5760,
         0
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Resolver_Output/jsCode.js"
+      }
     },
     {
+      "id": "12000021-0000-4000-8000-000000000021",
+      "name": "Candidate Is Eligible",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        6000,
+        0
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -1331,17 +1338,18 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "12000021-0000-4000-8000-000000000021",
-      "name": "Candidate Is Eligible",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        6000,
-        0
-      ]
+      }
     },
     {
+      "id": "12000022-0000-4000-8000-000000000022",
+      "name": "Send Candidate Eligibility Warning",
+      "webhookId": "4e2ab626-e006-494e-bb00-a651e450f37d",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        6336,
+        144
+      ],
       "parameters": {
         "select": "channel",
         "channelId": {
@@ -1358,15 +1366,6 @@
           }
         }
       },
-      "id": "12000022-0000-4000-8000-000000000022",
-      "name": "Send Candidate Eligibility Warning",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        6336,
-        144
-      ],
-      "webhookId": "4e2ab626-e006-494e-bb00-a651e450f37d",
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
@@ -1375,6 +1374,15 @@
       }
     },
     {
+      "id": "1200001b-0000-4000-8000-00000000001b",
+      "name": "Send Processing Message",
+      "webhookId": "7cd49323-2bb6-4d29-a9d5-babbac681cb1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        6336,
+        -80
+      ],
       "parameters": {
         "select": "channel",
         "channelId": {
@@ -1391,15 +1399,6 @@
           }
         }
       },
-      "id": "1200001b-0000-4000-8000-00000000001b",
-      "name": "Send Processing Message",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        6336,
-        -80
-      ],
-      "webhookId": "7cd49323-2bb6-4d29-a9d5-babbac681cb1",
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
@@ -1408,9 +1407,6 @@
       }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Orchestrator_Requests/jsCode.js"
-      },
       "id": "1200001c-0000-4000-8000-00000000001c",
       "name": "Build Orchestrator Requests",
       "type": "n8n-nodes-base.code",
@@ -1418,12 +1414,12 @@
       "position": [
         7200,
         -80
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Orchestrator_Requests/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Log_Collecting_Statuses/jsCode.js"
-      },
       "id": "9f39f6e8-75b9-4f77-b9d4-b70527995678",
       "name": "Build Log Collecting Status",
       "type": "n8n-nodes-base.code",
@@ -1431,9 +1427,20 @@
       "position": [
         6688,
         -80
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Log_Collecting_Status/jsCode.js"
+      }
     },
     {
+      "id": "fe06e470-89bd-4467-9046-7fc29bddcad0",
+      "name": "Send Log Collecting Status",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        6944,
+        -80
+      ],
       "parameters": {
         "resource": "message",
         "operation": "post",
@@ -1453,29 +1460,30 @@
           }
         }
       },
-      "id": "fe06e470-89bd-4467-9046-7fc29bddcad0",
-      "name": "Send Log Collecting Status",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        6944,
-        -80
-      ],
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      }
+      },
+      "webhookId": "a9a117d2-ba84-4fb4-ac7e-98ec02c039e5"
     },
     {
+      "id": "1200001d-0000-4000-8000-00000000001d",
+      "name": "Call Summary Orchestrator",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        7456,
+        -80
+      ],
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "SummaryOrchV3A01",
+          "value": "yQ10uPa6RPuEyCR4",
           "mode": "list",
           "cachedResultName": "Summary: orchestrate request v3",
-          "cachedResultUrl": "/workflow/SummaryOrchV3A01"
+          "cachedResultUrl": "/workflow/yQ10uPa6RPuEyCR4"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -1545,20 +1553,9 @@
         "options": {
           "waitForSubWorkflow": false
         }
-      },
-      "id": "1200001d-0000-4000-8000-00000000001d",
-      "name": "Call Summary Orchestrator",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        7456,
-        -80
-      ]
+      }
     },
     {
-      "parameters": {
-        "mode": "append"
-      },
       "id": "1d599078-4125-474a-b93d-11b3f136909c",
       "name": "Merge Log Status Update Inputs",
       "type": "n8n-nodes-base.merge",
@@ -1566,12 +1563,12 @@
       "position": [
         5792,
         528
-      ]
+      ],
+      "parameters": {
+        "mode": "append"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Log_Status_Updates/jsCode.js"
-      },
       "id": "0802b5c7-b23c-4181-8d0f-f2c8d79e40cd",
       "name": "Build Log Status Updates",
       "type": "n8n-nodes-base.code",
@@ -1579,9 +1576,20 @@
       "position": [
         6032,
         528
-      ]
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Log_Status_Updates/jsCode.js"
+      }
     },
     {
+      "id": "f26a4f91-e6b4-4aec-b1d2-ab1523581d4c",
+      "name": "Update Log Collecting Status",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        6288,
+        528
+      ],
       "parameters": {
         "resource": "message",
         "operation": "update",
@@ -1595,20 +1603,13 @@
         "text": "={{ $json.text }}",
         "otherOptions": {}
       },
-      "id": "f26a4f91-e6b4-4aec-b1d2-ab1523581d4c",
-      "name": "Update Log Collecting Status",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        6288,
-        528
-      ],
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      }
+      },
+      "webhookId": "b37f0eb3-45a3-42c4-ba9a-435f36719114"
     }
   ],
   "connections": {
@@ -2303,8 +2304,6 @@
     "binaryMode": "separate",
     "timezone": "Asia/Taipei"
   },
-  "staticData": null,
-  "pinData": {},
   "meta": null,
   "tags": [
     {
@@ -2313,22 +2312,5 @@
       "createdAt": "2026-09-03T06:50:34.301Z",
       "updatedAt": "2026-09-03T06:50:34.301Z"
     }
-  ],
-  "shared": [
-    {
-      "role": "workflow:owner",
-      "workflowId": "ZLUbVUTBSSNrX3gb",
-      "projectId": "T2eF9Qj9h6MeNqHW",
-      "project": {
-        "id": "T2eF9Qj9h6MeNqHW",
-        "name": "<ist@17.media>",
-        "type": "personal",
-        "icon": null,
-        "description": null,
-        "customTelemetryTags": [],
-        "creatorId": "5b0ed566-68a9-452b-b612-07ae3e3864f1"
-      }
-    }
-  ],
-  "activeVersion": null
+  ]
 }

@@ -1,0 +1,1 @@
+return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'verify_cap_reconciliation' } }));

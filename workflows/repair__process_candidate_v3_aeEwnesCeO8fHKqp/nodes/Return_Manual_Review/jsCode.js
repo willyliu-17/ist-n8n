@@ -1,0 +1,1 @@
+return [{ json: { repairClass: 'retry_materialization', candidateKey: $('Validate Retry Candidate Input').first().json.attemptKey, result: 'manual_review', nextAttemptKey: $json.nextAttemptKey || '' } }];

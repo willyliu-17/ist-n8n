@@ -12,7 +12,8 @@ region: {{ $json.body.region }}
 Content: {{ $json.body.content }}
 Analysis Directives
 【鐵律】多國語言動態輸出規範：請務必根據 region 欄位的值，將 JSON 內所有分析文本、Slogan、形容詞、分析內容切換為對應的語言：
-- 當 region 為 TW 或 HK 或是 JP：請一律使用繁體中文（Traditional Chinese）輸出，並使用當地的社群網路與直播圈流行語。
+- 當 region 為 TW 或 HK ：請使用繁體中文（Traditional Chinese）輸出，並使用當地的社群網路與直播圈流行語。
+- 當 region 為JP：日本語で出力してください。その際、日本のSNSや配信界隈（VTuber・YouTube・Twitch等）で使われている最新のネットスラングやトレンド用語を積極的に使用してください。
 
 1. 「金錢與情感博弈」指標：請深度交叉比對文本中的「主播 STT」與「用戶投點/送禮事件」。優先尋找展現主播與觀眾之間「用錢砸人、嘴硬心軟、情商稅、情緒勒索、贖罪券」等深層投點動機的關鍵時刻。
 2. 「你怎麼可以…」指標：優先尋找展現主播與觀眾之間「孽緣、口嫌體正直」的雙向互動。

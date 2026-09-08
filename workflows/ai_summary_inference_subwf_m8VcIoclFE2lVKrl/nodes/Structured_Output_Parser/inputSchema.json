@@ -1,0 +1,141 @@
+={
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI Summary Report",
+  "type": "object",
+  "properties": {
+    "report": {
+      "type": "object",
+      "description": "{{ $('Start').first().json.analysisMode === 'single_stream_full' ? '單場直播完整技術分析報告；不預設異常、前場或重開' : '直播異常歸因報告' }}",
+      "properties": {
+        "subjective_motivation": {
+          "type": "object",
+          "description": "主觀動機與時間軸",
+          "properties": {
+            "timeline_overview": {
+              "type": "string",
+              "description": "在此敘述直播 ID、開關播時間、時長、裝置、關播原因等概況"
+            },
+            "subjective_description": {
+              "type": "string",
+              "description": "在此描述主播的主觀感受與異常發生的時間點，幫助釐清問題，如果主播沒有詳細敘述也可以說明，不需要臆測"
+            },
+            "recovery_status": {
+              "type": "string",
+              "description": "{{ $('Start').first().json.analysisMode === 'single_stream_full' ? '描述本場內有證據的恢復情況，無證據則無法判定；跨場重開後恢復不適用' : '描述重開後的恢復情況與殘留問題' }}"
+            }
+          },
+          "required": [
+            "timeline_overview",
+            "subjective_description",
+            "recovery_status"
+          ]
+        },
+        "sl_analysis": {
+          "type": "string",
+          "description": "在此填入對網路數據（Ping/Bitrate等）的專業分析"
+        },
+        "sel_analysis": {
+          "type": "string",
+          "description": "在此列舉 CPU 壓力、編碼器狀態、錯誤代碼等硬體/系統指標"
+        },
+        "summary": {
+          "type": "object",
+          "description": "綜合摘要與責任歸因",
+          "properties": {
+            "fact_check": {
+              "type": "object",
+              "description": "對主播主張的事實檢核",
+              "properties": {
+                "claimed_issue": {
+                  "type": "string",
+                  "description": "主播抱怨的具體現象 (e.g., 沒留言/沒聲音/畫面卡)"
+                },
+                "data_evidence": {
+                  "type": "string",
+                  "description": "對應數據指標的實際表現 (e.g., Log顯示該時段無留言發送)"
+                },
+                "is_valid_issue": {
+                  "type": "string",
+                  "description": "判定該抱怨是否有客觀數據支持 (True/False/Partial)"
+                }
+              },
+              "required": [
+                "claimed_issue",
+                "data_evidence",
+                "is_valid_issue"
+              ]
+            },
+            "responsibility_category": {
+              "type": "string",
+              "description": "[Level X - 類別（）], eg. [Level 1 - App & System Issues (過熱當機（手機系統過舊）) ] ，若有多個原因且有因果關係，請列出root cause"
+            },
+            "responsibility_category_list": {
+              "type": "array",
+              "description": "{{ $('Start').first().json.analysisMode === 'single_stream_full' ? '本場有證據的問題標籤；沒有問題時可為空陣列，不能為填滿標籤而虛構異常' : 'responsibility_category欄位的enum list [array of string )[<level enum>] ,eg [1-a] enum請參考[Issue 定義]，只關注直播間異關播的root cause' }}",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "[1-a] High CPU/Overheating",
+                  "[1-b] Encoder Issue",
+                  "[1-c] Low Memory",
+                  "[1-d] App Crash",
+                  "[1-e] OP Killed",
+                  "[1-f] Network Lag",
+                  "[1-g] User Interaction Issue",
+                  "[2-a] Battery issue",
+                  "[2-b] Event Gift Specific",
+                  "[2-c] Streaming Env",
+                  "[2-d] Policy Violation",
+                  "[2-e] Unknown"
+                ]
+              }
+            },
+            "causal_summary": {
+              "type": "string",
+              "description": "{{ $('Start').first().json.analysisMode === 'single_stream_full' ? '只依本場對話與技術證據說明因果、正常結果或資料不足，不引用未提供的前場或後場；區分主播主張與已驗證事實' : '針對主播抱怨綜合分析事故發生 以及前一場關播原因的核心因果關係，若有多個原因且有因果關係，請著重在root cause，若主播有提及曾經有做過什麼操作可以列在這邊補充（ ex. 主播自己懷疑是禮物太多，主播自己懷疑開啟了某個功能導致這個現象）' }}"
+            },
+            "other_issue": {
+              "type": "string",
+              "description": "{{ $('Start').first().json.analysisMode === 'single_stream_full' ? '列出本場其他獨立問題、指標矛盾或時間無法對齊的警訊；沒有則明示，不預設重新開播' : '(1)跟核心主播抱怨、重新開播無關的問題可以在此列出，(2) log的指標互斥而無法解釋 eg. （Stream Event Log）Video Encoder Resume但是（Streamer Log）bitrate沒有恢復  (3) log有警訊但是時間跟開關播時間對不上' }}"
+            },
+            "exclusion_reason": {
+              "type": "object",
+              "description": "排除歸因的原因",
+              "properties": {
+                "level_1": {
+                  "type": "string",
+                  "description": "為何歸類或是不歸類為網路問題的具體理由"
+                },
+                "level_2": {
+                  "type": "string",
+                  "description": "為何判定或是不判定為系統/App問題的關鍵指標"
+                }
+              },
+              "required": [
+                "level_1",
+                "level_2"
+              ]
+            }
+          },
+          "required": [
+            "fact_check",
+            "responsibility_category",
+            "responsibility_category_list",
+            "causal_summary",
+            "other_issue",
+            "exclusion_reason"
+          ]
+        }
+      },
+      "required": [
+        "subjective_motivation",
+        "sl_analysis",
+        "sel_analysis",
+        "summary"
+      ]
+    }
+  },
+  "required": [
+    "report"
+  ]
+}

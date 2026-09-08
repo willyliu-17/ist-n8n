@@ -1,0 +1,384 @@
+{
+  "id": "qAjDH2w1BNvom95c",
+  "name": "Stream Metadata: resolve by IDs v3",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
+  "nodes": [
+    {
+      "id": "a77c57b3-f567-4f5f-931f-1cd05cc84ada",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -640,
+        0
+      ],
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "streams",
+              "type": "array"
+            },
+            {
+              "name": "lookupWindow",
+              "type": "object"
+            },
+            {
+              "name": "profile",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "0f55e756-e0cd-4bb1-961f-2c94bd92fbd3",
+      "name": "Validate and Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -416,
+        0
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Validate_and_Normalize/jsCode.js"
+      }
+    },
+    {
+      "id": "a187f89b-e3de-4eef-8d4f-41fc11519a3c",
+      "name": "Switch Profile",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -192,
+        0
+      ],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a5ee769d-f161-44e6-b890-7787e317420f",
+                    "leftValue": "={{ $json.profile }}",
+                    "rightValue": "core",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "core"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "747863e8-2bfb-49f2-8549-55bbfdcd6713",
+                    "leftValue": "={{ $json.profile }}",
+                    "rightValue": "stt",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "stt"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f9b585ff-e9c0-49d5-9b8a-e6ba9a6fbb97",
+                    "leftValue": "={{ $json.profile }}",
+                    "rightValue": "vds",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "vds"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c55ccba8-978d-4975-8986-80c716bb1334",
+      "name": "Query Core",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        64,
+        -192
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/Query_Core/sqlQuery.sql",
+        "options": {
+          "queryParameters": {
+            "namedParameters": [
+              {
+                "name": "window_start",
+                "value": "={{ $('Validate and Normalize').first().json.windowStart }}"
+              },
+              {
+                "name": "window_end",
+                "value": "={{ $('Validate and Normalize').first().json.windowEnd }}"
+              }
+            ]
+          }
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "id": "5c27d437-3702-4dff-b73e-bb8f128207e9",
+      "name": "Query STT",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        64,
+        0
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/Query_STT/sqlQuery.sql",
+        "options": {
+          "queryParameters": {
+            "namedParameters": [
+              {
+                "name": "window_start",
+                "value": "={{ $('Validate and Normalize').first().json.windowStart }}"
+              },
+              {
+                "name": "window_end",
+                "value": "={{ $('Validate and Normalize').first().json.windowEnd }}"
+              }
+            ]
+          }
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "id": "aec68915-1c30-4cbf-b60c-e3d4832fc2c9",
+      "name": "Query VDS",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        64,
+        192
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/Query_VDS/sqlQuery.sql",
+        "options": {
+          "queryParameters": {
+            "namedParameters": [
+              {
+                "name": "window_start",
+                "value": "={{ $('Validate and Normalize').first().json.windowStart }}"
+              },
+              {
+                "name": "window_end",
+                "value": "={{ $('Validate and Normalize').first().json.windowEnd }}"
+              }
+            ]
+          }
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "id": "f70232a4-3dd8-466b-b96b-a9513e5b318b",
+      "name": "Finalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        0
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Finalize/jsCode.js"
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Validate and Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate and Normalize": {
+      "main": [
+        [
+          {
+            "node": "Switch Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Profile": {
+      "main": [
+        [
+          {
+            "node": "Query Core",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query STT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query VDS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Core": {
+      "main": [
+        [
+          {
+            "node": "Finalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query STT": {
+      "main": [
+        [
+          {
+            "node": "Finalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query VDS": {
+      "main": [
+        [
+          {
+            "node": "Finalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [],
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "executionOrder": "v1",
+    "errorWorkflow": "run4KT7goJGVeOOk",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  },
+  "meta": null,
+  "tags": [
+    {
+      "id": "NLo3n5BNlRhVr71N",
+      "name": "ist-bot-v3",
+      "createdAt": "2026-09-03T06:50:34.301Z",
+      "updatedAt": "2026-09-03T06:50:34.301Z"
+    }
+  ]
+}

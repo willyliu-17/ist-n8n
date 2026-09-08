@@ -1,0 +1,2 @@
+const input = $('Validate Retry Candidate Input').first().json;
+return [{ json: { repairClass: input.repairClass, candidateKey: input.attemptKey, result: 'repaired', nextAttemptKey: input.repairClass === 'retry_materialization' ? $('Preflight Canonical Next Retry Dispatch').first().json.attemptKey : '' } }];

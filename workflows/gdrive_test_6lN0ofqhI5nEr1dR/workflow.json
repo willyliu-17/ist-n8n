@@ -4,6 +4,8 @@
   "description": null,
   "active": false,
   "isArchived": false,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
   "nodes": [
     {
       "parameters": {},
@@ -122,71 +124,23 @@
       ]
     }
   },
+  "nodeGroups": [],
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
   "meta": null,
-  "pinData": {},
-  "activeVersionId": null,
-  "triggerCount": 0,
-  "shared": [
-    {
-      "role": "workflow:owner",
-      "workflowId": "6lN0ofqhI5nEr1dR",
-      "projectId": "T2eF9Qj9h6MeNqHW",
-      "project": {
-        "id": "T2eF9Qj9h6MeNqHW",
-        "name": "<ist@17.media>",
-        "type": "personal",
-        "icon": null,
-        "description": null,
-        "projectRelations": [
-          {
-            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
-            "projectId": "T2eF9Qj9h6MeNqHW",
-            "user": {
-              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
-              "email": "ist@17.media",
-              "firstName": null,
-              "lastName": null,
-              "personalizationAnswers": {
-                "version": "v4",
-                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
-                "personalization_survey_n8n_version": "1.109.2"
-              },
-              "settings": {
-                "easyAIWorkflowOnboarded": true,
-                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
-                "userActivated": true,
-                "userActivatedAt": 1757907025897,
-                "npsSurvey": {
-                  "responded": true,
-                  "lastShownAt": 1777450741616
-                }
-              },
-              "disabled": false,
-              "mfaEnabled": false,
-              "isPending": false
-            }
-          }
-        ]
-      }
-    }
-  ],
   "tags": [
     {
-      "updatedAt": "2026-02-10T03:47:07.984Z",
-      "createdAt": "2026-02-10T03:47:07.984Z",
       "id": "kDSF11f2c0HxWEW6",
-      "name": "experiment"
+      "name": "experiment",
+      "createdAt": "2026-02-10T03:47:07.984Z",
+      "updatedAt": "2026-02-10T03:47:07.984Z"
     },
     {
-      "updatedAt": "2026-02-10T03:49:05.243Z",
-      "createdAt": "2026-02-10T03:49:05.243Z",
       "id": "u4djiusFDb0CW7Tw",
-      "name": "willy"
+      "name": "willy",
+      "createdAt": "2026-02-10T03:49:05.243Z",
+      "updatedAt": "2026-02-10T03:49:05.243Z"
     }
-  ],
-  "activeVersion": null
+  ]
 }

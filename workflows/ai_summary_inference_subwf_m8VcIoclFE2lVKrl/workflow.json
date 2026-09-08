@@ -1,11 +1,21 @@
 {
   "id": "m8VcIoclFE2lVKrl",
   "name": "AI SUMMARY Inference SubWF",
-  "description": "Stateless inference with typed aggregateData, evalConfig and analysisMode inputs. Returns one validated output.report object. Model/parser failures are sanitized; Summary owns bounded whole-request retries. Never converts empty model responses into successful reports.",
-  "active": false,
+  "description": null,
+  "active": true,
   "isArchived": false,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
   "nodes": [
     {
+      "id": "7dc5500f-a031-4e20-8fd0-9c53c9524f2c",
+      "name": "Vertex Gemini-2.5-flash Chunk Map",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        -640
+      ],
       "parameters": {
         "projectId": {
           "__rl": true,
@@ -19,14 +29,6 @@
           "maxOutputTokens": 2048
         }
       },
-      "id": "7dc5500f-a031-4e20-8fd0-9c53c9524f2c",
-      "name": "Vertex Gemini-2.5-flash Chunk Map",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
-      "typeVersion": 1,
-      "position": [
-        -480,
-        -640
-      ],
       "credentials": {
         "googleApi": {
           "id": "xCxzQVNUYMaL9Cea",
@@ -35,6 +37,14 @@
       }
     },
     {
+      "id": "0e84e141-ca42-4385-9376-3119d10812bb",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1152,
+        -320
+      ],
       "parameters": {
         "workflowInputs": {
           "values": [
@@ -52,21 +62,9 @@
             }
           ]
         }
-      },
-      "id": "0e84e141-ca42-4385-9376-3119d10812bb",
-      "name": "Start",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.1,
-      "position": [
-        -1152,
-        -320
-      ]
+      }
     },
     {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "__EXTERNAL_FILE__://nodes/Long_Dialogue_Preflight/jsCode.js"
-      },
       "id": "36f21a1b-2a55-4881-9327-742ae4f45a03",
       "name": "Long Dialogue Preflight",
       "type": "n8n-nodes-base.code",
@@ -74,9 +72,21 @@
       "position": [
         -960,
         -480
-      ]
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Long_Dialogue_Preflight/jsCode.js"
+      }
     },
     {
+      "id": "2d4aeef5-fd68-4e76-a58f-ca305694e28b",
+      "name": "Use Dialogue Chunks",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -704,
+        -480
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -99,20 +109,20 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "2d4aeef5-fd68-4e76-a58f-ca305694e28b",
-      "name": "Use Dialogue Chunks",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        -704,
-        -480
-      ]
+      }
     },
     {
+      "id": "25f285b5-9606-447a-8f46-49841c45c577",
+      "name": "Map Dialogue Chunk Evidence",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -448,
+        -480
+      ],
       "parameters": {
         "promptType": "define",
-        "text": "__EXTERNAL_FILE__://nodes/Dialogue_Chunk_Map/text.md",
+        "text": "__EXTERNAL_FILE__://nodes/Map_Dialogue_Chunk_Evidence/text.md",
         "messages": {
           "messageValues": [
             {
@@ -124,21 +134,9 @@
         "batching": {
           "batchSize": 1
         }
-      },
-      "id": "25f285b5-9606-447a-8f46-49841c45c577",
-      "name": "Map Dialogue Chunk Evidence",
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.9,
-      "position": [
-        -448,
-        -480
-      ]
+      }
     },
     {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "__EXTERNAL_FILE__://nodes/Collect_Dialogue_Chunk_Evidence/jsCode.js"
-      },
       "id": "169198ba-31b7-4ad9-9f37-f93b3e4ac129",
       "name": "Collect Dialogue Chunk Evidence",
       "type": "n8n-nodes-base.code",
@@ -146,9 +144,21 @@
       "position": [
         -192,
         -480
-      ]
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Collect_Dialogue_Chunk_Evidence/jsCode.js"
+      }
     },
     {
+      "id": "d7f879d1-116c-411f-9fc8-a8b77282df55",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -928,
+        -320
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -161,17 +171,19 @@
           ]
         },
         "options": {}
-      },
-      "id": "d7f879d1-116c-411f-9fc8-a8b77282df55",
-      "name": "Aggregate",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        -928,
-        -320
-      ]
+      }
     },
     {
+      "id": "efbc4e46-cb65-4949-afa9-e9727a2ddee2",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "position": [
+        -656,
+        -320
+      ],
       "parameters": {
         "promptType": "define",
         "text": "__EXTERNAL_FILE__://nodes/AI_Agent/text.md",
@@ -180,50 +192,60 @@
           "systemMessage": "__EXTERNAL_FILE__://nodes/AI_Agent/options_systemMessage.md",
           "maxIterations": 20
         }
-      },
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 3,
-      "position": [
-        -656,
-        -320
-      ],
-      "id": "efbc4e46-cb65-4949-afa9-e9727a2ddee2",
-      "name": "AI Agent",
-      "alwaysOutputData": true,
-      "onError": "continueErrorOutput"
+      }
     },
     {
-      "parameters": { "errorType": "errorMessage", "errorMessage": "__EXTERNAL_FILE__://nodes/Raise_Inference_Error/errorMessage.md" },
       "id": "0eed6318-225d-48b2-86ee-39086bdedee5",
       "name": "Raise Inference Error",
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
-      "position": [-160, -160]
+      "position": [
+        -160,
+        -160
+      ],
+      "parameters": {
+        "errorType": "errorMessage",
+        "errorMessage": "={{ (() => {\n  const error = $json.error;\n  const message = typeof error === 'string' ? error : error?.message || $json.message || '';\n  if (/^Cannot read properties of undefined \\(reading ['\"]message['\"]\\)/.test(message)) {\n    return 'summary_model_empty_response';\n  }\n  if (/Model output (?:does not|doesn't) fit required format|Failed to parse/i.test(message)) {\n    return 'summary_model_output_invalid';\n  }\n  return 'summary_inference_failed';\n})() }}\n"
+      }
     },
     {
-      "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Validate_Inference_Report/jsCode.js" },
       "id": "05109e06-97eb-4759-a0fa-ccae2f640e90",
       "name": "Validate Inference Report",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-160, -320]
+      "position": [
+        -160,
+        -320
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Validate_Inference_Report/jsCode.js"
+      }
     },
     {
-      "parameters": {
-        "schemaType": "manual",
-        "inputSchema": "__EXTERNAL_FILE__://nodes/Structured_Output_Parser/inputSchema.md",
-        "autoFix": true
-      },
+      "id": "bd173b79-368f-4164-a64a-cf70e3c1cd75",
+      "name": "Structured Output Parser",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
         -560,
         -96
       ],
-      "id": "bd173b79-368f-4164-a64a-cf70e3c1cd75",
-      "name": "Structured Output Parser"
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "__EXTERNAL_FILE__://nodes/Structured_Output_Parser/inputSchema.json",
+        "autoFix": true
+      }
     },
     {
+      "id": "26e14f7a-3511-4ded-bcb4-1dc7b7e8f16d",
+      "name": "Vertex Gemini-2.5-flash",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        224
+      ],
       "parameters": {
         "projectId": {
           "__rl": true,
@@ -235,14 +257,6 @@
           "temperature": 0.1
         }
       },
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
-      "typeVersion": 1,
-      "position": [
-        -384,
-        224
-      ],
-      "id": "26e14f7a-3511-4ded-bcb4-1dc7b7e8f16d",
-      "name": "Vertex Gemini-2.5-flash",
       "credentials": {
         "googleApi": {
           "id": "xCxzQVNUYMaL9Cea",
@@ -251,77 +265,85 @@
       }
     },
     {
+      "id": "ba443023-2333-489c-bcca-c06d55e3858c",
+      "name": "Streamer_Log_Analyzer",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "position": [
+        -256,
+        -48
+      ],
       "parameters": {
         "toolDescription": "Streamer_Log_Analyzer",
         "text": "__EXTERNAL_FILE__://nodes/Streamer_Log_Analyzer/text.md",
         "options": {
           "systemMessage": "__EXTERNAL_FILE__://nodes/Streamer_Log_Analyzer/options_systemMessage.md"
         }
-      },
-      "type": "@n8n/n8n-nodes-langchain.agentTool",
-      "typeVersion": 2.2,
-      "position": [
-        -256,
-        -48
-      ],
-      "id": "ba443023-2333-489c-bcca-c06d55e3858c",
-      "name": "Streamer_Log_Analyzer",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000
+      }
     },
     {
-      "parameters": {
-        "toolDescription": "Event_Log_Analyzer",
-        "text": "__EXTERNAL_FILE__://nodes/Event_Log_Analyzer/text.md",
-        "options": {
-          "systemMessage": "__EXTERNAL_FILE__://nodes/Event_Log_Analyzer/options_systemMessage.md"
-        }
-      },
+      "id": "56a5ff4b-f87e-4a81-a837-9d40cd0998f7",
+      "name": "Event_Log_Analyzer",
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "typeVersion": 2.2,
       "position": [
         64,
         -48
       ],
-      "id": "56a5ff4b-f87e-4a81-a837-9d40cd0998f7",
-      "name": "Event_Log_Analyzer"
+      "parameters": {
+        "toolDescription": "Event_Log_Analyzer",
+        "text": "__EXTERNAL_FILE__://nodes/Event_Log_Analyzer/text.md",
+        "options": {
+          "systemMessage": "__EXTERNAL_FILE__://nodes/Event_Log_Analyzer/options_systemMessage.md"
+        }
+      }
     },
     {
-      "parameters": {
-        "toolDescription": "Dialogue_Analyzer",
-        "text": "__EXTERNAL_FILE__://nodes/Dialogue_Analyzer/text.md",
-        "options": {
-          "systemMessage": "__EXTERNAL_FILE__://nodes/Dialogue_Analyzer/options_systemMessage.md"
-        }
-      },
+      "id": "4a413c41-62ff-42d2-a4b8-b5039f2f64bc",
+      "name": "Dialogue_Analyzer",
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "typeVersion": 2.2,
       "position": [
         352,
         -48
       ],
-      "id": "4a413c41-62ff-42d2-a4b8-b5039f2f64bc",
-      "name": "Dialogue_Analyzer"
+      "parameters": {
+        "toolDescription": "Dialogue_Analyzer",
+        "text": "__EXTERNAL_FILE__://nodes/Dialogue_Analyzer/text.md",
+        "options": {
+          "systemMessage": "__EXTERNAL_FILE__://nodes/Dialogue_Analyzer/options_systemMessage.md"
+        }
+      }
     },
     {
-      "parameters": {
-        "toolDescription": "StreamInfo_Analyzer",
-        "text": "__EXTERNAL_FILE__://nodes/StreamInfo_Analyzer/text.md",
-        "options": {
-          "systemMessage": "__EXTERNAL_FILE__://nodes/StreamInfo_Analyzer/options_systemMessage.md"
-        }
-      },
+      "id": "5f07f17d-cb28-4a0e-ad6a-96057373c099",
+      "name": "StreamInfo_Analyzer",
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "typeVersion": 2.2,
       "position": [
         656,
         -48
       ],
-      "id": "5f07f17d-cb28-4a0e-ad6a-96057373c099",
-      "name": "StreamInfo_Analyzer"
+      "parameters": {
+        "toolDescription": "StreamInfo_Analyzer",
+        "text": "__EXTERNAL_FILE__://nodes/StreamInfo_Analyzer/text.md",
+        "options": {
+          "systemMessage": "__EXTERNAL_FILE__://nodes/StreamInfo_Analyzer/options_systemMessage.md"
+        }
+      }
     },
     {
+      "id": "3ce1b82b-8e60-4a6b-8ba8-feafc255d8e9",
+      "name": "Vertex gemini pro",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        -112
+      ],
       "parameters": {
         "projectId": {
           "__rl": true,
@@ -334,14 +356,6 @@
           "temperature": "={{ ($('Start').item.json.evalConfig && $('Start').item.json.evalConfig.temperature!==undefined) ? Number($('Start').item.json.evalConfig.temperature) : 0.1 }}"
         }
       },
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
-      "typeVersion": 1,
-      "position": [
-        -656,
-        -112
-      ],
-      "id": "3ce1b82b-8e60-4a6b-8ba8-feafc255d8e9",
-      "name": "Vertex gemini pro",
       "credentials": {
         "googleApi": {
           "id": "xCxzQVNUYMaL9Cea",
@@ -353,8 +367,20 @@
   "connections": {
     "AI Agent": {
       "main": [
-        [{ "node": "Validate Inference Report", "type": "main", "index": 0 }],
-        [{ "node": "Raise Inference Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Validate Inference Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Raise Inference Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Start": {
@@ -539,87 +565,27 @@
       ]
     }
   },
+  "nodeGroups": [],
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "staticData": null,
   "meta": {
     "templateCredsSetupCompleted": true
   },
-  "pinData": {
-    "Start": [
-      {
-        "json": {
-          "aggregateData": [],
-          "evalConfig": {
-            "modelName": "gemini-3.1-pro-preview",
-            "temperature": 0.1
-          }
-        }
-      }
-    ]
-  },
-  "activeVersionId": null,
-  "triggerCount": 0,
-  "shared": [
-    {
-      "role": "workflow:owner",
-      "workflowId": "m8VcIoclFE2lVKrl",
-      "projectId": "T2eF9Qj9h6MeNqHW",
-      "project": {
-        "id": "T2eF9Qj9h6MeNqHW",
-        "name": "<ist@17.media>",
-        "type": "personal",
-        "icon": null,
-        "description": null,
-        "projectRelations": [
-          {
-            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
-            "projectId": "T2eF9Qj9h6MeNqHW",
-            "user": {
-              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
-              "email": "ist@17.media",
-              "firstName": null,
-              "lastName": null,
-              "personalizationAnswers": {
-                "version": "v4",
-                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
-                "personalization_survey_n8n_version": "1.109.2"
-              },
-              "settings": {
-                "easyAIWorkflowOnboarded": true,
-                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
-                "userActivated": true,
-                "userActivatedAt": 1757907025897,
-                "npsSurvey": {
-                  "responded": true,
-                  "lastShownAt": 1777450741616
-                }
-              },
-              "disabled": false,
-              "mfaEnabled": false,
-              "isPending": false
-            }
-          }
-        ]
-      }
-    }
-  ],
   "tags": [
     {
-      "updatedAt": "2026-03-04T01:30:26.596Z",
-      "createdAt": "2026-03-04T01:30:26.596Z",
       "id": "IaRbAdtdfnpU2izS",
-      "name": "v2"
+      "name": "v2",
+      "createdAt": "2026-03-04T01:30:26.596Z",
+      "updatedAt": "2026-03-04T01:30:26.596Z"
     },
     {
-      "updatedAt": "2025-10-31T00:33:05.881Z",
-      "createdAt": "2025-10-31T00:33:05.881Z",
       "id": "boreCiHZYpl3eDGl",
-      "name": "ist-bot"
+      "name": "ist-bot",
+      "createdAt": "2025-10-31T00:33:05.881Z",
+      "updatedAt": "2025-10-31T00:33:05.881Z"
     }
-  ],
-  "activeVersion": null
+  ]
 }

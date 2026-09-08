@@ -1,0 +1,1 @@
+return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'bounded:duplicate_deterministic_keys' } }));

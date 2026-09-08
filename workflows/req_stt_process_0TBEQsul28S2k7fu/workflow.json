@@ -2,8 +2,10 @@
   "id": "0TBEQsul28S2k7fu",
   "name": "Req STT process",
   "description": null,
-  "active": false,
+  "active": true,
   "isArchived": false,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
   "nodes": [
     {
       "parameters": {
@@ -154,7 +156,7 @@
         "resume": "webhook",
         "httpMethod": "POST",
         "limitWaitTime": true,
-        "resumeAmount": 30,
+        "resumeAmount": 5,
         "resumeUnit": "minutes",
         "options": {}
       },
@@ -718,86 +720,25 @@
       ]
     }
   },
+  "nodeGroups": [],
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
   "meta": {
     "templateCredsSetupCompleted": true
   },
-  "pinData": {
-    "Start": [
-      {
-        "json": {
-          "streamID": "214182956",
-          "channel": "C0A4JJJKJMD",
-          "target_thread_ts": "1772615896.701909",
-          "mode": "fromStart",
-          "mins": 5,
-          "ts": "1772615896.701909"
-        }
-      }
-    ]
-  },
-  "activeVersionId": null,
-  "triggerCount": 0,
-  "shared": [
-    {
-      "role": "workflow:owner",
-      "workflowId": "0TBEQsul28S2k7fu",
-      "projectId": "T2eF9Qj9h6MeNqHW",
-      "project": {
-        "id": "T2eF9Qj9h6MeNqHW",
-        "name": "<ist@17.media>",
-        "type": "personal",
-        "icon": null,
-        "description": null,
-        "projectRelations": [
-          {
-            "userId": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
-            "projectId": "T2eF9Qj9h6MeNqHW",
-            "user": {
-              "id": "5b0ed566-68a9-452b-b612-07ae3e3864f1",
-              "email": "ist@17.media",
-              "firstName": null,
-              "lastName": null,
-              "personalizationAnswers": {
-                "version": "v4",
-                "personalization_survey_submitted_at": "2025-09-12T13:50:29.367Z",
-                "personalization_survey_n8n_version": "1.109.2"
-              },
-              "settings": {
-                "easyAIWorkflowOnboarded": true,
-                "firstSuccessfulWorkflowId": "d1Wg25BLsuGR6mAB",
-                "userActivated": true,
-                "userActivatedAt": 1757907025897,
-                "npsSurvey": {
-                  "responded": true,
-                  "lastShownAt": 1777450741616
-                }
-              },
-              "disabled": false,
-              "mfaEnabled": false,
-              "isPending": false
-            }
-          }
-        ]
-      }
-    }
-  ],
   "tags": [
     {
-      "updatedAt": "2025-10-31T00:26:54.980Z",
-      "createdAt": "2025-10-31T00:26:54.980Z",
       "id": "NeWKGUiW4rGfhYL9",
-      "name": "stt"
+      "name": "stt",
+      "createdAt": "2025-10-31T00:26:54.980Z",
+      "updatedAt": "2025-10-31T00:26:54.980Z"
     },
     {
-      "updatedAt": "2025-10-31T00:33:05.881Z",
-      "createdAt": "2025-10-31T00:33:05.881Z",
       "id": "boreCiHZYpl3eDGl",
-      "name": "ist-bot"
+      "name": "ist-bot",
+      "createdAt": "2025-10-31T00:33:05.881Z",
+      "updatedAt": "2025-10-31T00:33:05.881Z"
     }
-  ],
-  "activeVersion": null
+  ]
 }
