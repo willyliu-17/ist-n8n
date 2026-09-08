@@ -35,30 +35,35 @@ function summarizeByThread(results, expectedRequests) {
   });
 }
 
-function buildLogStatusUpdates(results, expectedRequests, carriers, responses) {
-  const responseByCarrier = new Map();
-  for (const response of responses) {
-    const channel = response?.channel;
-    const threadTS = response?.message?.thread_ts;
-    const ts = response?.message_timestamp;
-    if (response?.ok !== true || typeof channel !== 'string' || typeof threadTS !== 'string'
-      || typeof ts !== 'string' || !SLACK_TIMESTAMP_PATTERN.test(ts)) {
-      throw new Error('Log collecting status response is invalid');
+function buildLogStatusUpdates(results, expectedRequests, carriers, checkpoints) {
+  const checkpointByCarrier = new Map();
+  for (const envelope of checkpoints) {
+    const carrier = envelope?.carrier;
+    const checkpoint = envelope?.checkpoint;
+    const candidateKey = carrier?.candidateKey;
+    const channel = carrier?.channel;
+    const threadTS = carrier?.threadTS;
+    const ts = checkpoint?.messageTimestamp;
+    if (typeof candidateKey !== 'string' || !candidateKey
+      || typeof channel !== 'string' || typeof threadTS !== 'string'
+      || checkpoint?.channel !== channel || typeof ts !== 'string' || !SLACK_TIMESTAMP_PATTERN.test(ts)
+      || (checkpoint.responseThreadTS !== undefined && checkpoint.responseThreadTS !== threadTS)) {
+      throw new Error('Log collecting status checkpoint is invalid');
     }
     const key = carrierKey(channel, threadTS);
-    if (responseByCarrier.has(key)) throw new Error('Duplicate log collecting status response');
-    responseByCarrier.set(key, ts);
+    if (checkpointByCarrier.has(key)) throw new Error('Duplicate log collecting status checkpoint');
+    checkpointByCarrier.set(key, ts);
   }
 
   const carrierByThread = new Map();
   for (const carrier of carriers) {
     const key = carrierKey(carrier.channel, carrier.threadTS);
-    const ts = responseByCarrier.get(key);
-    if (!ts) throw new Error('Log collecting status response does not match its carrier');
+    const ts = checkpointByCarrier.get(key);
+    if (!ts) throw new Error('Log collecting status checkpoint does not match its carrier');
     if (carrierByThread.has(carrier.threadTS)) throw new Error('Duplicate log collecting status carrier');
     carrierByThread.set(carrier.threadTS, { ...carrier, ts });
   }
-  if (responseByCarrier.size !== carriers.length) throw new Error('Unexpected log collecting status response');
+  if (checkpointByCarrier.size !== carriers.length) throw new Error('Unexpected log collecting status checkpoint');
 
   return summarizeByThread(results, expectedRequests).flatMap((summary) => {
     const carrier = carrierByThread.get(summary.target_thread_ts);
@@ -75,11 +80,11 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 if (typeof $input !== 'undefined') {
-  if (!$('Send Log Collecting Status').isExecuted) return [];
+  if (!$('Capture Log Collecting Status Checkpoint').isExecuted) return [];
   const carriers = $('Build Log Collecting Status').all().map(({ json }) => json);
-  const responses = $('Send Log Collecting Status').all().map(({ json }) => json);
+  const checkpoints = $('Capture Log Collecting Status Checkpoint').all().map(({ json }) => json);
   const rows = $input.all().map(({ json }) => json);
-  const results = rows.filter(({ message_timestamp }) => message_timestamp === undefined);
+  const results = rows.filter(({ carrier, checkpoint }) => !carrier && !checkpoint);
   const expectedRequests = $('Build Candidate Log Requests').all().map(({ json }) => json);
-  return buildLogStatusUpdates(results, expectedRequests, carriers, responses).map((json) => ({ json }));
+  return buildLogStatusUpdates(results, expectedRequests, carriers, checkpoints).map((json) => ({ json }));
 }
