@@ -1,3 +1,3 @@
-={{ $('Guard Side Effect Owner').first().json.status === 'completed' ? '🤖 STT Done' : `🤖 STT ${$('Guard Side Effect Owner').first().json.status === 'timed_out' ? 'Timed Out' : 'Failed'}` }}
+={{ $('Guard Side Effect Owner').first().json.status === 'completed' ? ($('Guard Side Effect Owner').first().json.errorCode === 'callback_empty_transcription' && !String($('Guard Side Effect Owner').first().json.dialogue || '').trim() && $('Guard Side Effect Owner').first().json.presentationMode === 'message_only' ? '🤖 STT 完成，但此時間窗未辨識到語音' : '🤖 STT Done') : `🤖 STT ${$('Guard Side Effect Owner').first().json.status === 'timed_out' ? 'Timed Out' : 'Failed'}` }}
 Stream: `{{ $('Guard Side Effect Owner').first().json.streamID }}`
 Mode: `{{ $('Guard Side Effect Owner').first().json.mode }}` {{ $('Guard Side Effect Owner').first().json.durationMinutes }}m

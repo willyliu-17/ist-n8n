@@ -145,6 +145,27 @@ function reachableNodes(workflow, start) {
   return seen;
 }
 
+function simulateAcceptedSideEffects(workflow, result) {
+  const calls = new Map([
+    ['Run Presentation Owner', 0],
+    ['Run Summary Coordinator', 0],
+  ]);
+  const pending = ['Respond Accepted'];
+  while (pending.length > 0) {
+    const name = pending.pop();
+    if (calls.has(name)) calls.set(name, calls.get(name) + 1);
+    const node = nodeByName(workflow, name);
+    const outputs = workflow.connections[name]?.main || [];
+    const condition = node.parameters?.conditions?.conditions?.[0];
+    const field = condition?.leftValue?.match(/^=\{\{ \$json\.(triggerPresentation|triggerCoordinator) \}\}$/)?.[1];
+    const branches = field ? [outputs[result[field] ? 0 : 1] || []] : outputs;
+    for (const branch of branches) {
+      for (const { node: target } of branch || []) pending.push(target);
+    }
+  }
+  return Object.fromEntries(calls);
+}
+
 test('normalizes only body.webhook.context in object or key/value-array form', () => {
   const objectResult = normalizeCallback({ body: callbackBody() });
   assert.equal(objectResult.valid, true);
@@ -1011,7 +1032,7 @@ test('freezes checkpoint conflicts completely and clean reconciliation reaches e
   assert.deepEqual(targets(workflow, 'Read Summary Rows After Reconciliation'), ['Verify Reconciled Canonical']);
 });
 
-test('triggers presentation and coordinator only after verified accepted state', () => {
+test('routes accepted callbacks through independent presentation and coordinator topology', () => {
   const workflow = readWorkflow();
   const presentation = nodeByName(workflow, 'Run Presentation Owner');
   const coordinator = nodeByName(workflow, 'Run Summary Coordinator');
@@ -1039,6 +1060,7 @@ test('triggers presentation and coordinator only after verified accepted state',
   assert.equal(reachableNodes(workflow, 'Read Post-Callback Logical Job Rows').has('Respond Duplicate'), true);
   assert.equal(reachableNodes(workflow, 'Read Post-Callback Logical Job Rows').has('Respond Internal Error'), true);
   assert.ok(targets(workflow, 'Respond Accepted').includes('Accepted Result Type'));
+  assert.ok(targets(workflow, 'Respond Accepted').includes('Is Coordinator Trigger'));
   const acceptedResultCondition = nodeByName(workflow, 'Accepted Result Type').parameters.conditions.conditions[0];
   assert.equal(acceptedResultCondition.leftValue, '={{ $json.triggerPresentation }}');
   assert.deepEqual(acceptedResultCondition.operator, {
@@ -1046,12 +1068,39 @@ test('triggers presentation and coordinator only after verified accepted state',
     operation: 'true',
     singleValue: true,
   });
+  const coordinatorCondition = nodeByName(workflow, 'Is Coordinator Trigger').parameters.conditions.conditions[0];
+  assert.equal(coordinatorCondition.leftValue, '={{ $json.triggerCoordinator }}');
+  assert.deepEqual(coordinatorCondition.operator, {
+    type: 'boolean',
+    operation: 'true',
+    singleValue: true,
+  });
   assert.deepEqual(targets(workflow, 'Accepted Result Type', 0), ['Run Presentation Owner']);
-  assert.deepEqual(targets(workflow, 'Accepted Result Type', 1), ['Run Summary Coordinator']);
-  assert.ok(targets(workflow, 'Run Presentation Owner').includes('Run Summary Coordinator'));
+  assert.deepEqual(targets(workflow, 'Accepted Result Type', 1), []);
+  assert.deepEqual(targets(workflow, 'Is Coordinator Trigger', 0), ['Run Summary Coordinator']);
+  assert.deepEqual(targets(workflow, 'Is Coordinator Trigger', 1), []);
+  assert.deepEqual(targets(workflow, 'Run Presentation Owner'), []);
   assert.equal(reachableNodes(workflow, 'Respond Duplicate').has('Run Presentation Owner'), false);
   assert.equal(reachableNodes(workflow, 'Respond Duplicate').has('Run Summary Coordinator'), false);
   assert.equal(reachableNodes(workflow, 'Respond Conflict').has('Run Summary Coordinator'), false);
+});
+
+test('simulates one presentation and coordinator call for summaries and presentation only for standalone STT', () => {
+  const workflow = readWorkflow();
+  assert.deepEqual(simulateAcceptedSideEffects(workflow, {
+    triggerPresentation: true,
+    triggerCoordinator: true,
+  }), {
+    'Run Presentation Owner': 1,
+    'Run Summary Coordinator': 1,
+  });
+  assert.deepEqual(simulateAcceptedSideEffects(workflow, {
+    triggerPresentation: true,
+    triggerCoordinator: false,
+  }), {
+    'Run Presentation Owner': 1,
+    'Run Summary Coordinator': 0,
+  });
 });
 
 test('keeps exact source Data Table names and proves P4 remaps each node to its P3 ID', () => {

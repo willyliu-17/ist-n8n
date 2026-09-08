@@ -222,7 +222,11 @@ function extractSlackUploadID(items) {
 }
 
 function buildFinalText(row) {
-  const title = row.status === 'completed' ? 'STT Done' : row.status === 'timed_out' ? 'STT Timed Out' : 'STT Failed';
+  const title = row.status === 'completed'
+    ? (row.errorCode === 'callback_empty_transcription' && !String(row.dialogue || '').trim() && row.presentationMode === 'message_only'
+      ? 'STT 完成，但此時間窗未辨識到語音'
+      : 'STT Done')
+    : row.status === 'timed_out' ? 'STT Timed Out' : 'STT Failed';
   return `🤖 ${title}\nStream: \`${row.streamID}\`\nMode: \`${row.mode}\` ${row.durationMinutes}m`;
 }
 
