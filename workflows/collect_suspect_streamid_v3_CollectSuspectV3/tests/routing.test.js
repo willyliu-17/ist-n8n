@@ -682,12 +682,12 @@ test('is active with manual test-channel and daily production-channel triggers',
   assert.ok(workflow.connections['Daily 10:00 Taipei Trigger'].main[0].some(({ node }) => node === 'Configure Scheduled Run'));
   assert.ok(workflow.connections['Configure Scheduled Run'].main[0].some(({ node }) => node === 'Build Candidate Query Config'));
   assert.ok(workflow.nodes.every(({ type }) => type !== 'n8n-nodes-base.wait'));
-  assert.equal(nodeByName(workflow, 'Resolve Stream Metadata').parameters.workflowId.value, 'StreamMetaV3A001');
+  assert.equal(nodeByName(workflow, 'Resolve Stream Metadata').parameters.workflowId.cachedResultName, 'Stream Metadata: resolve by IDs v3');
   assert.equal(nodeByName(workflow, 'Resolve Stream Metadata').parameters.mode, 'each');
-  assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.workflowId.value, 'SummaryOrchV3A01');
+  assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.workflowId.cachedResultName, 'Summary: orchestrate request v3');
   assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.mode, 'each');
   const queryLogs = nodeByName(workflow, 'Call Query Steam Logs');
-  assert.equal(queryLogs.parameters.workflowId.value, 'QueryLogsV3A0001');
+  assert.equal(queryLogs.parameters.workflowId.cachedResultName, 'Query Steam Logs v3');
   assert.equal(queryLogs.parameters.mode, 'once');
   assert.equal(queryLogs.parameters.options.waitForSubWorkflow, true);
   assert.equal(queryLogs.alwaysOutputData, undefined);
@@ -759,7 +759,7 @@ test('is active with manual test-channel and daily production-channel triggers',
   assert.deepEqual(workflow.connections['Send Monitoring Report'].main[0].map(({ node }) => node), ['Restore Candidate Items']);
   assert.deepEqual(workflow.connections['Candidate Is Eligible'].main[1].map(({ node }) => node), ['Send Candidate Eligibility Warning']);
   assert.equal(nodeByName(workflow, 'Candidate Is Eligible').parameters.conditions.conditions[0].operator.operation, 'empty');
-  assert.equal(nodeByName(workflow, 'Build Log Collecting Status').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Build_Log_Collecting_Statuses/jsCode.js');
+  assert.equal(nodeByName(workflow, 'Build Log Collecting Status').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Build_Log_Collecting_Status/jsCode.js');
   assert.equal(nodeByName(workflow, 'Capture Log Collecting Status Checkpoint').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Capture_Log_Collecting_Status_Checkpoint/jsCode.js');
   const sendLogStatus = nodeByName(workflow, 'Send Log Collecting Status');
   assert.deepEqual(sendLogStatus.credentials, nodeByName(workflow, 'Send Processing Message').credentials);

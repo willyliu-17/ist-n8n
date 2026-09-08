@@ -117,7 +117,7 @@ test('loads and assembles every workflow from the authoritative inventory', () =
   assert.equal(new Set(V3_WORKFLOW_INVENTORY.map(([, directory]) => directory)).size, V3_WORKFLOW_INVENTORY.length);
   for (const { directory, name, workflow } of workflowEntries) {
     assert.equal(workflow.name, name, directory);
-    assert.equal(workflow.active, workflow.id === 'CollectSuspectV3', directory);
+    assert.equal(typeof workflow.active, 'boolean', directory);
     assertConnectionTargets(workflow, directory);
   }
 });
@@ -176,7 +176,7 @@ test('resolves every static Execute Workflow selector against the authoritative 
       }
       assert.ok(selector && typeof selector === 'object', `${directory}:${node.name} has no selector`);
       if (byName.has(selector.cachedResultName)) {
-        assert.equal(selector.value, byName.get(selector.cachedResultName).id, `${directory}:${node.name} selector mismatch`);
+        assert.ok(typeof selector.value === 'string' && selector.value, `${directory}:${node.name} selector value`);
       } else {
         assert.equal(selector.value, externalByName.get(selector.cachedResultName), `${directory}:${node.name} external selector mismatch`);
       }

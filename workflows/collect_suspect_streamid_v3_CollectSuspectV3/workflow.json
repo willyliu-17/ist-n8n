@@ -1,7 +1,7 @@
 {
   "id": "CollectSuspectV3",
   "name": "Collect suspect streamID v3",
-  "description": null,
+  "description": "Collector posts STT then log-collecting statuses before asynchronously calling the Summary orchestrator; best-effort attachments follow verified candidate status checkpoints.",
   "active": true,
   "isArchived": false,
   "sourceWorkflowId": null,
