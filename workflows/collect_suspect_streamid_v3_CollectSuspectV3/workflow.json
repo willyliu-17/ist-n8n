@@ -39,7 +39,7 @@
             {
               "id": "12000001-0000-4000-8000-000000000044",
               "name": "channel",
-              "value": "C0A4JJJKJMD",
+              "value": "C09F0SYG57D",
               "type": "string"
             }
           ]
@@ -422,7 +422,7 @@
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "value": "C0A4JJJKJMD",
+          "value": "={{ $('Build Candidate Query Config').first().json.channel }}",
           "mode": "id"
         },
         "text": "__EXTERNAL_FILE__://nodes/Send_Monitoring_Report/text.md",
@@ -461,8 +461,8 @@
       "parameters": {
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "m2hfjroOqrQHhro0"
+          "mode": "name",
+          "value": "suspect_stt_candidates_v3"
         },
         "columns": {
           "mappingMode": "defineBelow",
@@ -502,8 +502,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "m2hfjroOqrQHhro0"
+          "mode": "name",
+          "value": "suspect_stt_candidates_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -577,8 +577,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "m2hfjroOqrQHhro0"
+          "mode": "name",
+          "value": "suspect_stt_candidates_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -629,8 +629,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "m2hfjroOqrQHhro0"
+          "mode": "name",
+          "value": "suspect_stt_candidates_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -780,8 +780,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "m2hfjroOqrQHhro0"
+          "mode": "name",
+          "value": "suspect_stt_candidates_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -835,8 +835,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "m2hfjroOqrQHhro0"
+          "mode": "name",
+          "value": "suspect_stt_candidates_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -888,7 +888,7 @@
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "value": "C0A4JJJKJMD",
+          "value": "={{ $('Build Candidate Query Config').first().json.channel }}",
           "mode": "id"
         },
         "text": "__EXTERNAL_FILE__://nodes/Send_Candidate_Detail/text.md",
@@ -939,8 +939,8 @@
         "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "m2hfjroOqrQHhro0"
+          "mode": "name",
+          "value": "suspect_stt_candidates_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -994,8 +994,8 @@
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "mode": "id",
-          "value": "m2hfjroOqrQHhro0"
+          "mode": "name",
+          "value": "suspect_stt_candidates_v3"
         },
         "matchType": "allConditions",
         "filters": {
@@ -1354,7 +1354,7 @@
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "value": "C0A4JJJKJMD",
+          "value": "={{ $('Build Candidate Query Config').first().json.channel }}",
           "mode": "id"
         },
         "text": "=⚠️ 無法建立 Summary STT：{{ $json.eligibilityError }}",
@@ -1387,7 +1387,7 @@
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "value": "C0A4JJJKJMD",
+          "value": "={{ $('Build Candidate Query Config').first().json.channel }}",
           "mode": "id"
         },
         "text": "=Preparing `{{ $json.stream.role }}` stream `{{ $json.stream.liveStreamID }}` for STT",
@@ -1467,6 +1467,19 @@
         }
       },
       "webhookId": "a9a117d2-ba84-4fb4-ac7e-98ec02c039e5"
+    },
+    {
+      "id": "2d9f7a4b-4e3c-4f02-a661-c2e9b64c3d19",
+      "name": "Capture Log Collecting Status Checkpoint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7200,
+        -240
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Capture_Log_Collecting_Status_Checkpoint/jsCode.js"
+      }
     },
     {
       "id": "1200001d-0000-4000-8000-00000000001d",
@@ -2242,6 +2255,17 @@
       ]
     },
     "Send Log Collecting Status": {
+      "main": [
+        [
+          {
+            "node": "Capture Log Collecting Status Checkpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Log Collecting Status Checkpoint": {
       "main": [
         [
           {

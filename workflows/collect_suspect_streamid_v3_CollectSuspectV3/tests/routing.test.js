@@ -2,12 +2,18 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 
 const workflowDir = path.resolve(__dirname, '..');
 const queryLogsWorkflowDir = path.resolve(
   workflowDir,
   '..',
   'query_steam_logs_v3_QueryLogsV3A0001',
+);
+const summaryOrchestratorWorkflowDir = path.resolve(
+  workflowDir,
+  '..',
+  'summary_orchestrate_request_v3_SummaryOrchV3A01',
 );
 const { buildWorkflow } = require('../../../scripts/utils');
 const {
@@ -32,6 +38,7 @@ const {
 } = require('../nodes/Plan_Candidate_Root/jsCode');
 const { buildCandidateLogRequests } = require('../nodes/Build_Candidate_Log_Requests/jsCode');
 const { buildLogCollectingStatuses } = require('../nodes/Build_Log_Collecting_Statuses/jsCode');
+const { captureLogCollectingStatusCheckpoint } = require('../nodes/Capture_Log_Collecting_Status_Checkpoint/jsCode');
 const { buildLogStatusUpdates } = require('../nodes/Build_Log_Status_Updates/jsCode');
 const { summarizeQueryLogResults } = require('../nodes/Summarize_Query_Log_Results/jsCode');
 
@@ -61,6 +68,82 @@ function externalValue(value) {
   return typeof value === 'string' && value.startsWith(prefix)
     ? fs.readFileSync(path.join(workflowDir, value.slice(prefix.length)), 'utf8')
     : value;
+}
+
+function runCheckpointRuntime(inputs, carriersByInputIndex) {
+  const matchedIndexes = [];
+  const source = fs.readFileSync(
+    path.join(workflowDir, 'nodes', 'Capture_Log_Collecting_Status_Checkpoint', 'jsCode.js'),
+    'utf8',
+  );
+  const context = {
+    module: { exports: {} },
+    $input: { all: () => inputs },
+    $: (nodeName) => {
+      assert.equal(nodeName, 'Build Log Collecting Status');
+      return {
+        itemMatching: (index) => {
+          matchedIndexes.push(index);
+          return { json: carriersByInputIndex[index] };
+        },
+      };
+    },
+  };
+  const output = vm.runInNewContext(`(function () {\n${source}\n})()`, context, { filename: 'Capture_Log_Collecting_Status_Checkpoint/jsCode.js' });
+  return { output, matchedIndexes };
+}
+
+function runAssembledCodeNode(workflowDir, name, inputs, namedNodes = {}) {
+  const workflow = buildWorkflow(workflowDir);
+  const source = nodeByName(workflow, name).parameters.jsCode;
+  const context = {
+    module: { exports: {} },
+    $input: { all: () => inputs, first: () => inputs[0] },
+    $: (nodeName) => {
+      const items = namedNodes[nodeName];
+      if (!items) throw new Error(`Unexpected node lookup: ${nodeName}`);
+      return { all: () => items };
+    },
+  };
+  return vm.runInNewContext(`(function () {\n${source}\n})()`, context, { filename: `${name}/jsCode.js` });
+}
+
+function collectorRequest(candidateIndex, streamIndex, eligible = true) {
+  const candidateKey = `candidate-${candidateIndex}`;
+  const summaryRequestKey = `summary-${candidateIndex}`;
+  const threadTS = `178883310${candidateIndex}.000001`;
+  const liveStreamID = String(9000 + candidateIndex * 10 + streamIndex);
+  const streamContext = context(liveStreamID, streamIndex, { eligible });
+  return {
+    candidate: {
+      candidateKey,
+      summaryRequestKey,
+      channel: 'C09F0SYG57D',
+      threadTS,
+    },
+    stream: {
+      role: streamIndex === 0 ? 'previous' : 'current',
+      liveStreamID,
+      mode: streamIndex === 0 ? 'fromEnd' : 'fromStart',
+      durationMinutes: 5,
+      streamContext,
+      ...(eligible ? {} : { sttEligible: false }),
+    },
+  };
+}
+
+function logStatusCheckpoint(request) {
+  return {
+    carrier: {
+      candidateKey: request.candidate.candidateKey,
+      channel: request.candidate.channel,
+      threadTS: request.candidate.threadTS,
+    },
+    checkpoint: {
+      channel: request.candidate.channel,
+      messageTimestamp: `${request.candidate.threadTS.slice(0, -6)}000099`,
+    },
+  };
 }
 
 function context(liveStreamID, inputIndex, overrides = {}) {
@@ -157,7 +240,12 @@ test('marks only the ineligible stream and preserves other candidate streams', (
 });
 
 test('builds partial paired requests when previous or current STT is unavailable', () => {
-  const candidate = { candidateKey: 'candidate-pair', summaryRequestKey: 'summary-pair', threadTS: '1787364000.000001' };
+  const candidate = {
+    candidateKey: 'candidate-pair',
+    summaryRequestKey: 'summary-pair',
+    channel: 'C0A4JJJKJMD',
+    threadTS: '1787364000.000001',
+  };
   const calls = [{
     candidate,
     positions: [
@@ -178,7 +266,7 @@ test('builds partial paired requests when previous or current STT is unavailable
     assert.equal(unavailable[0].stream.liveStreamID, unavailableID);
     assert.match(unavailable[0].eligibilityError, /missingFields=/);
 
-    const requests = buildOrchestratorRequests(reassembled, [{ message_timestamp: '1787364001.000002' }], [{ message_timestamp: '1787364001.000003' }]);
+    const requests = buildOrchestratorRequests(reassembled, [{ message_timestamp: '1787364001.000002' }], [logStatusCheckpoint(reassembled[0])]);
     assert.equal(requests.length, 1);
     assert.equal(requests[0].orderedStreams.length, 2);
     assert.deepEqual(requests[0].orderedStreams.map(({ liveStreamID }) => liveStreamID), ['7', '8']);
@@ -209,6 +297,68 @@ test('emits per-stream warnings and no orchestrator request when both streams ar
   assert.deepEqual(buildOrchestratorRequests(reassembled, []), []);
 });
 
+test('builds checkpointed orchestrator requests in the assembled runtime and normalizes them downstream', () => {
+  const requests = Array.from({ length: 10 }, (_, candidateIndex) => [
+    collectorRequest(candidateIndex, 0),
+    collectorRequest(candidateIndex, 1),
+  ]).flat();
+  const processingRows = requests.map((_, index) => ({
+    message_timestamp: `178883320${String(index).padStart(2, '0')}.000001`,
+  }));
+  const checkpoints = requests.filter((_, index) => index % 2 === 0).map(logStatusCheckpoint).reverse();
+  const output = runAssembledCodeNode(workflowDir, 'Build Orchestrator Requests', checkpoints.map((json) => ({ json })), {
+    'Reassemble Resolver Output': requests.map((json) => ({ json })),
+    'Send Processing Message': processingRows.map((json) => ({ json })),
+  });
+
+  const collectorWorkflow = buildWorkflow(workflowDir);
+  const summaryWorkflow = buildWorkflow(summaryOrchestratorWorkflowDir);
+  assert.deepEqual(collectorWorkflow.connections['Capture Log Collecting Status Checkpoint'].main[0][0], {
+    node: 'Build Orchestrator Requests', type: 'main', index: 0,
+  });
+  assert.deepEqual(collectorWorkflow.connections['Build Orchestrator Requests'].main[0], [{
+    node: 'Call Summary Orchestrator', type: 'main', index: 0,
+  }]);
+  assert.deepEqual(summaryWorkflow.connections.Start.main[0], [{
+    node: 'Normalize Request', type: 'main', index: 0,
+  }]);
+  assert.equal(output.length, 10);
+  for (const [index, item] of output.entries()) {
+    assert.equal(item.json.requestKey, `summary-${index}`);
+    assert.equal(runAssembledCodeNode(summaryOrchestratorWorkflowDir, 'Normalize Request', [item]).length, 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(item.json.orderedStreams.map(({ processingMessageTS }) => processingMessageTS))), [
+      processingRows[index * 2].message_timestamp,
+      processingRows[index * 2 + 1].message_timestamp,
+    ]);
+    assert.notEqual(item.json.orderedStreams[0].processingMessageTS, checkpoints[0].checkpoint.messageTimestamp);
+  }
+
+  const partial = requests.map((request) => ({ ...request, stream: { ...request.stream } }));
+  for (const [index, request] of partial.entries()) {
+    if (index % 2 === 1) {
+      request.stream.sttEligible = false;
+      request.stream.streamContext.eligible = false;
+    }
+  }
+  const partialCheckpoints = partial.filter((_, index) => index % 2 === 0).map(logStatusCheckpoint);
+  assert.equal(buildOrchestratorRequests(partial, processingRows.filter((_, index) => index % 2 === 0), partialCheckpoints).length, 10);
+
+  const noneEligible = partial.map((request) => ({ ...request, stream: { ...request.stream, sttEligible: false, streamContext: { ...request.stream.streamContext, eligible: false } } }));
+  assert.deepEqual(buildOrchestratorRequests(noneEligible, [], []), []);
+  assert.throws(() => buildOrchestratorRequests(requests, processingRows, checkpoints.slice(1)), /does not match/);
+  assert.throws(() => buildOrchestratorRequests(requests, processingRows, [checkpoints[0], checkpoints[0], ...checkpoints.slice(1)]), /Duplicate/);
+  assert.throws(() => buildOrchestratorRequests(requests, processingRows, [{
+    ...checkpoints[0], carrier: { ...checkpoints[0].carrier, channel: 'C0A4JJJKJMD' },
+  }, ...checkpoints.slice(1)]), /invalid/);
+  assert.throws(() => buildOrchestratorRequests(requests, processingRows, [{
+    ...checkpoints[0], carrier: { ...checkpoints[0].carrier, threadTS: '1788833999.000001' },
+  }, ...checkpoints.slice(1)]), /does not match/);
+  assert.throws(() => buildOrchestratorRequests(requests, processingRows, [{
+    ...checkpoints[0], carrier: { ...checkpoints[0].carrier, candidateKey: 'wrong-candidate' },
+  }, ...checkpoints.slice(1)]), /does not match/);
+  assert.throws(() => runAssembledCodeNode(workflowDir, 'Build Orchestrator Requests', [{ json: { message_timestamp: '1788833999.000001' } }]), /requires log collecting status checkpoints/);
+});
+
 test('deduplicates provenance and preserves an existing candidate canonical', () => {
   const candidates = deduplicateCandidates([
     { streamID: '9002', prevStreamID: '9001', userID: 'u1', metricSource: 'captionKeyword' },
@@ -233,20 +383,47 @@ test('deduplicates provenance and preserves an existing candidate canonical', ()
 });
 
 test('routes candidates to either allowlisted channel', () => {
-  const candidates = deduplicateCandidates([
-    { streamID: '9002', metricSource: 'captionKeyword' },
-  ], {
-    runID: 'run-production',
-    nowIso: '2026-08-22T00:00:00.000Z',
-    channel: 'C09F0SYG57D',
-  });
-
-  assert.equal(candidates[0].channel, 'C09F0SYG57D');
+  for (const channel of ['C0A4JJJKJMD', 'C09F0SYG57D']) {
+    const candidates = deduplicateCandidates([
+      { streamID: '9002', metricSource: 'captionKeyword' },
+    ], {
+      runID: 'run-production',
+      nowIso: '2026-08-22T00:00:00.000Z',
+      channel,
+    });
+    assert.equal(candidates[0].channel, channel);
+  }
   assert.throws(() => deduplicateCandidates([], {
     runID: 'run-invalid',
     nowIso: '2026-08-22T00:00:00.000Z',
     channel: 'C0OTHER',
   }), /allowed channel/);
+});
+
+test('routes every collector Slack send through the shared run channel', () => {
+  const workflow = readWorkflow();
+  const sharedChannel = "={{ $('Build Candidate Query Config').first().json.channel }}";
+  const runChannels = Object.fromEntries([
+    'Configure Manual Run',
+    'Configure Scheduled Run',
+  ].map((name) => [
+    name,
+    nodeByName(workflow, name).parameters.assignments.assignments.find(({ name: field }) => field === 'channel').value,
+  ]));
+
+  assert.deepEqual(runChannels, {
+    'Configure Manual Run': 'C09F0SYG57D',
+    'Configure Scheduled Run': 'C09F0SYG57D',
+  });
+  assert.equal(nodeByName(workflow, 'Build Candidate Query Config').parameters.includeOtherFields, true);
+  for (const name of [
+    'Send Monitoring Report',
+    'Send Candidate Detail',
+    'Send Candidate Eligibility Warning',
+    'Send Processing Message',
+  ]) {
+    assert.equal(nodeByName(workflow, name).parameters.channelId.value, sharedChannel, name);
+  }
 });
 
 test('creates fresh candidate and request identities for every collector execution', () => {
@@ -413,7 +590,39 @@ test('posts one collecting status per eligible candidate after all of its STT st
   assert.throws(() => buildLogCollectingStatuses([{ candidate: candidateA, stream: { liveStreamID: '9001' } }], [{ message_timestamp: 1787364001.000001 }]), /timestamp is invalid/);
 });
 
-test('updates only the matching candidate log status without exposing child errors', () => {
+test('checkpoints actual Slack status responses without inferred thread metadata', () => {
+  const carrierA = { candidateKey: 'candidate-a', channel: 'C0A4JJJKJMD', threadTS: '1788833100.000001' };
+  const carrierB = { candidateKey: 'candidate-b', channel: 'C09F0SYG57D', threadTS: '1788833100.000002' };
+  const actualResponse = { ok: true, channel: 'C09F0SYG57D', message: { ts: '1788833179.331339' }, message_timestamp: '1788833179.331339' };
+  const checkpoint = captureLogCollectingStatusCheckpoint(actualResponse, carrierB);
+
+  assert.deepEqual(checkpoint, {
+    carrier: carrierB,
+    checkpoint: { channel: 'C09F0SYG57D', messageTimestamp: '1788833179.331339' },
+  });
+  assert.throws(() => captureLogCollectingStatusCheckpoint({ ...actualResponse, channel: 'C0A4JJJKJMD' }, carrierB), /response is invalid/);
+  assert.throws(() => captureLogCollectingStatusCheckpoint({ ...actualResponse, message_timestamp: 'invalid' }, carrierB), /response is invalid/);
+  assert.throws(() => captureLogCollectingStatusCheckpoint({ ...actualResponse, message: { thread_ts: carrierA.threadTS } }, carrierB), /thread does not match/);
+});
+
+test('uses itemMatching linkage for reordered Slack responses and emits input linkage', () => {
+  const responseA = { ok: true, channel: 'C0A4JJJKJMD', message: { ts: '1788833179.331340' }, message_timestamp: '1788833179.331340' };
+  const responseB = { ok: true, channel: 'C09F0SYG57D', message: { ts: '1788833179.331339' }, message_timestamp: '1788833179.331339' };
+  const carrierA = { candidateKey: 'candidate-a', channel: 'C0A4JJJKJMD', threadTS: '1788833100.000001' };
+  const carrierB = { candidateKey: 'candidate-b', channel: 'C09F0SYG57D', threadTS: '1788833100.000002' };
+  const { output, matchedIndexes } = runCheckpointRuntime([
+    { json: responseB, pairedItem: [{ item: 99 }] },
+    { json: responseA, pairedItem: { item: 42 } },
+  ], [carrierB, carrierA]);
+
+  assert.deepEqual(matchedIndexes, [0, 1]);
+  assert.deepEqual(JSON.parse(JSON.stringify(output)), [
+    { json: captureLogCollectingStatusCheckpoint(responseB, carrierB), pairedItem: { item: 0 } },
+    { json: captureLogCollectingStatusCheckpoint(responseA, carrierA), pairedItem: { item: 1 } },
+  ]);
+});
+
+test('updates only matching checkpointed log statuses without exposing child errors', () => {
   const results = [
     { streamID: '9001', target_thread_ts: '1787364000.000001', ok: true },
     { streamID: '9002', target_thread_ts: '1787364000.000002', ok: false, errorMessage: 'secret transport failure' },
@@ -423,13 +632,15 @@ test('updates only the matching candidate log status without exposing child erro
     { streamID: '9001', target_thread_ts: '1787364000.000001' },
     { streamID: '9002', target_thread_ts: '1787364000.000002' },
   ];
-  const updates = buildLogStatusUpdates(results, expected, [
-    { channel: 'C0A4JJJKJMD', threadTS: '1787364000.000001' },
-    { channel: 'C09F0SYG57D', threadTS: '1787364000.000002' },
-  ], [
-    { ok: true, channel: 'C09F0SYG57D', message: { thread_ts: '1787364000.000002' }, message_timestamp: '1787364001.000002' },
-    { ok: true, channel: 'C0A4JJJKJMD', message: { thread_ts: '1787364000.000001' }, message_timestamp: '1787364001.000001' },
-  ]);
+  const carriers = [
+    { candidateKey: 'candidate-a', channel: 'C0A4JJJKJMD', threadTS: '1787364000.000001' },
+    { candidateKey: 'candidate-b', channel: 'C09F0SYG57D', threadTS: '1787364000.000002' },
+  ];
+  const checkpoints = [
+    captureLogCollectingStatusCheckpoint({ ok: true, channel: 'C09F0SYG57D', message: { ts: '1787364001.000002' }, message_timestamp: '1787364001.000002' }, carriers[1]),
+    captureLogCollectingStatusCheckpoint({ ok: true, channel: 'C0A4JJJKJMD', message: { ts: '1787364001.000001' }, message_timestamp: '1787364001.000001' }, carriers[0]),
+  ];
+  const updates = buildLogStatusUpdates(results, expected, carriers, checkpoints);
   assert.deepEqual(updates.map(({ channel, ts }) => ({ channel, ts })), [
     { channel: 'C0A4JJJKJMD', ts: '1787364001.000001' },
     { channel: 'C09F0SYG57D', ts: '1787364001.000002' },
@@ -437,7 +648,11 @@ test('updates only the matching candidate log status without exposing child erro
   assert.match(updates[0].text, /completed \(1\/1\)/);
   assert.match(updates[1].text, /with issues/);
   assert.doesNotMatch(updates[1].text, /secret transport failure/);
-  assert.throws(() => buildLogStatusUpdates(results, expected, [{ channel: 'C0A4JJJKJMD', threadTS: '1787364000.000001' }], [{ ok: true, channel: 'C0A4JJJKJMD', message: { thread_ts: 'wrong-thread' }, message_timestamp: '1787364001.000001' }]), /does not match/);
+  assert.throws(() => buildLogStatusUpdates(results, expected, carriers, [checkpoints[0]]), /does not match/);
+  assert.throws(() => buildLogStatusUpdates(results, expected, carriers, [checkpoints[0], checkpoints[0]]), /Duplicate/);
+  assert.throws(() => buildLogStatusUpdates(results, expected, [carriers[0], carriers[0]], [checkpoints[1]]), /Duplicate log collecting status carrier/);
+  const missingResultUpdates = buildLogStatusUpdates([results[0]], expected, carriers, checkpoints);
+  assert.match(missingResultUpdates.find(({ channel }) => channel === 'C09F0SYG57D').text, /with issues \(0\/1 delivered\)/);
 });
 
 test('is active with manual test-channel and daily production-channel triggers', () => {
@@ -451,7 +666,7 @@ test('is active with manual test-channel and daily production-channel triggers',
   assert.match(queryEndExpression, /DateTime\.fromISO\(`\$\{targetDate\}T04:00:00`, \{ zone: 'Asia\/Taipei' \}\)\.plus\(\{ days: 1 \}\)/);
   assert.deepEqual(nodeByName(workflow, 'Configure Manual Run').parameters.assignments.assignments.map(({ name, value, type }) => ({ name, value, type })), [
     { name: 'targetDate', value: '', type: 'string' },
-    { name: 'channel', value: 'C0A4JJJKJMD', type: 'string' },
+    { name: 'channel', value: 'C09F0SYG57D', type: 'string' },
   ]);
   assert.deepEqual(nodeByName(workflow, 'Configure Scheduled Run').parameters.assignments.assignments.map(({ name, value, type }) => ({ name, value, type })), [
     { name: 'targetDate', value: '', type: 'string' },
@@ -545,6 +760,7 @@ test('is active with manual test-channel and daily production-channel triggers',
   assert.deepEqual(workflow.connections['Candidate Is Eligible'].main[1].map(({ node }) => node), ['Send Candidate Eligibility Warning']);
   assert.equal(nodeByName(workflow, 'Candidate Is Eligible').parameters.conditions.conditions[0].operator.operation, 'empty');
   assert.equal(nodeByName(workflow, 'Build Log Collecting Status').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Build_Log_Collecting_Statuses/jsCode.js');
+  assert.equal(nodeByName(workflow, 'Capture Log Collecting Status Checkpoint').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Capture_Log_Collecting_Status_Checkpoint/jsCode.js');
   const sendLogStatus = nodeByName(workflow, 'Send Log Collecting Status');
   assert.deepEqual(sendLogStatus.credentials, nodeByName(workflow, 'Send Processing Message').credentials);
   assert.equal(sendLogStatus.retryOnFail, undefined);
@@ -556,7 +772,8 @@ test('is active with manual test-channel and daily production-channel triggers',
   assert.equal(nodeByName(workflow, 'Update Log Collecting Status').retryOnFail, undefined);
   assert.deepEqual(workflow.connections['Send Processing Message'].main[0], [{ node: 'Build Log Collecting Status', type: 'main', index: 0 }]);
   assert.deepEqual(workflow.connections['Build Log Collecting Status'].main[0], [{ node: 'Send Log Collecting Status', type: 'main', index: 0 }]);
-  assert.deepEqual(workflow.connections['Send Log Collecting Status'].main[0], [
+  assert.deepEqual(workflow.connections['Send Log Collecting Status'].main[0], [{ node: 'Capture Log Collecting Status Checkpoint', type: 'main', index: 0 }]);
+  assert.deepEqual(workflow.connections['Capture Log Collecting Status Checkpoint'].main[0], [
     { node: 'Build Orchestrator Requests', type: 'main', index: 0 },
     { node: 'Merge Log Status Update Inputs', type: 'main', index: 1 },
   ]);
