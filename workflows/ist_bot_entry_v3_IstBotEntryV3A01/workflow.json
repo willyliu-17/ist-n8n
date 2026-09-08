@@ -39,7 +39,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "__EXTERNAL_FILE__://nodes/Command_Parser/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Command_parser/jsCode.js"
       }
     },
     {
@@ -65,8 +65,8 @@
                 "conditions": [
                   {
                     "id": "13000003-0000-4000-8000-000000000001",
-                    "leftValue": "={{ $json.routeKey }}",
-                    "rightValue": "stt:ping",
+                    "leftValue": "={{ $json.dispatchKey }}",
+                    "rightValue": "v3:stt:ping",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
@@ -87,8 +87,8 @@
                 "conditions": [
                   {
                     "id": "13000003-0000-4000-8000-000000000002",
-                    "leftValue": "={{ $json.routeKey }}",
-                    "rightValue": "stt:stream",
+                    "leftValue": "={{ $json.dispatchKey }}",
+                    "rightValue": "v3:stt:stream",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
@@ -109,8 +109,8 @@
                 "conditions": [
                   {
                     "id": "13000003-0000-4000-8000-000000000003",
-                    "leftValue": "={{ $json.routeKey }}",
-                    "rightValue": "log:stream",
+                    "leftValue": "={{ $json.dispatchKey }}",
+                    "rightValue": "v3:log:stream",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
@@ -131,8 +131,8 @@
                 "conditions": [
                   {
                     "id": "13000003-0000-4000-8000-000000000004",
-                    "leftValue": "={{ $json.routeKey }}",
-                    "rightValue": "summary:stream",
+                    "leftValue": "={{ $json.dispatchKey }}",
+                    "rightValue": "v3:summary:stream",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
@@ -153,8 +153,30 @@
                 "conditions": [
                   {
                     "id": "13000003-0000-4000-8000-000000000005",
-                    "leftValue": "={{ $json.routeKey }}",
-                    "rightValue": "vds:stream",
+                    "leftValue": "={{ $json.dispatchKey }}",
+                    "rightValue": "v3:vds:stream",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "13000003-0000-4000-8000-000000000006",
+                    "leftValue": "={{ $json.dispatchKey }}",
+                    "rightValue": "legacy",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
@@ -223,7 +245,7 @@
             "mode": "={{ $json.sttMode }}",
             "mins": "={{ $json.sttMins }}",
             "date": "={{ String($json.args.date || '') }}",
-            "channel": "C0A4JJJKJMD",
+            "channel": "={{ $json.channel }}",
             "command_ts": "={{ $json.ts }}",
             "target_thread_ts": "={{ $json.thread_ts }}"
           },
@@ -315,7 +337,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "streamID": "={{ String($json.positionals[0] || '') }}",
-            "channel": "C0A4JJJKJMD",
+            "channel": "={{ $json.channel }}",
             "target_thread_ts": "={{ $json.thread_ts }}"
           },
           "matchingColumns": [],
@@ -437,7 +459,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Summary_Resolution_Plan/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Summary_Resolver_Output/jsCode.js"
       }
     },
     {
@@ -573,7 +595,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Final_After_Fallback/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Summary_Resolver_Output/jsCode.js"
       }
     },
     {
@@ -646,7 +668,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Summary_Streams/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Summary_Resolver_Output/jsCode.js"
       }
     },
     {
@@ -662,7 +684,7 @@
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "value": "C0A4JJJKJMD",
+          "value": "={{ $json.plan.channel }}",
           "mode": "id"
         },
         "text": "=Preparing `{{ $json.stream.role }}` stream `{{ $json.stream.liveStreamID }}` for STT",
@@ -693,7 +715,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Summary_Orchestrator_Request/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Summary_Resolver_Output/jsCode.js"
       }
     },
     {
@@ -803,7 +825,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "streamID": "={{ String($json.positionals[0] || '') }}",
-            "channel": "C0A4JJJKJMD",
+            "channel": "={{ $json.channel }}",
             "target_thread_ts": "={{ $json.thread_ts }}",
             "playbacks": "={{ String($json.positionals[1] || '').split('|')[0].replace(/[<>]/g, '').split(',').map(url => url.trim()).filter(Boolean) }}",
             "startSec": "={{ Number($json.positionals[2] || 0) }}",
@@ -811,6 +833,47 @@
           },
           "matchingColumns": [],
           "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "13000010-0000-4000-8000-000000000010",
+      "name": "Call Legacy Entry",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        480
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "d1Wg25BLsuGR6mAB",
+          "mode": "list",
+          "cachedResultName": "IST bot entry",
+          "cachedResultUrl": "/workflow/d1Wg25BLsuGR6mAB"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $('Start').item.json.event }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "type": "object",
+              "required": true,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
@@ -876,6 +939,13 @@
         [
           {
             "node": "Call Tencent Realtime VDS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call Legacy Entry",
             "type": "main",
             "index": 0
           }

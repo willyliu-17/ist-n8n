@@ -1,4 +1,18 @@
-const CHANNEL = 'C0A4JJJKJMD';
+const CHANNEL_COMMANDS = Object.freeze({
+  C0A4JJJKJMD: Object.freeze({
+    'stt:ping': true,
+    'stt:stream': true,
+    'log:stream': true,
+    'summary:stream': true,
+    'vds:stream': true,
+  }),
+  C09F0SYG57D: Object.freeze({
+    'stt:stream': true,
+    'log:stream': true,
+    'summary:stream': true,
+  }),
+});
+const LEGACY_CHANNEL = 'C09F0SYG57D';
 const SLACK_TIMESTAMP_PATTERN = /^\d{10,}\.\d{6}$/;
 
 function collectTextsFromSlackRich(root) {
@@ -36,14 +50,14 @@ function parseCommand(line) {
   };
 }
 
-function parseBotItem(input) {
+function parseBotItem(input, channelCommands = CHANNEL_COMMANDS) {
   const hasWrappedEvent = input && typeof input === 'object' && Object.hasOwn(input, 'event');
   if (hasWrappedEvent && (!input.event || typeof input.event !== 'object' || Array.isArray(input.event))) {
     throw new Error('Slack event must be an object');
   }
   const event = hasWrappedEvent ? input.event : input;
   if (!event || typeof event !== 'object' || event.bot_id || event.subtype) return null;
-  if (event.channel !== CHANNEL) throw new Error('Slack event channel is not allowed');
+  if (!Object.hasOwn(channelCommands, event.channel)) return null;
   if (!SLACK_TIMESTAMP_PATTERN.test(event.ts || '')) throw new Error('Invalid Slack event timestamp');
   if (!SLACK_TIMESTAMP_PATTERN.test(event.event_ts || '')) throw new Error('Invalid Slack event timestamp');
   if (event.thread_ts != null && !SLACK_TIMESTAMP_PATTERN.test(event.thread_ts)) throw new Error('Invalid Slack thread timestamp');
@@ -54,6 +68,11 @@ function parseBotItem(input) {
   const parsed = parseCommand(line);
   if (!parsed?.group || !parsed.action) return null;
   const routeKey = `${parsed.group}:${parsed.action}`;
+  const configured = Object.hasOwn(channelCommands[event.channel], routeKey);
+  const enabled = channelCommands[event.channel][routeKey] === true;
+  if (configured && !enabled) return null;
+  const delivery = enabled ? 'v3' : event.channel === LEGACY_CHANNEL ? 'legacy' : null;
+  if (!delivery) return null;
   const sttMode = parsed.positionals[1] === 'first'
     ? 'fromStart'
     : parsed.positionals[1] === 'last' || !parsed.positionals[1]
@@ -70,13 +89,14 @@ function parseBotItem(input) {
       sttMode,
       sttMins: Number(parsed.positionals[2] ?? 5),
     } : {}),
-    channel: CHANNEL,
+    channel: event.channel,
     channel_type: event.channel_type,
+    dispatchKey: delivery === 'legacy' ? 'legacy' : `${delivery}:${routeKey}`,
   };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { CHANNEL, collectTextsFromSlackRich, parseBotItem, parseCommand };
+  module.exports = { CHANNEL_COMMANDS, LEGACY_CHANNEL, collectTextsFromSlackRich, parseBotItem, parseCommand };
 }
 
 if (typeof $input !== 'undefined') {

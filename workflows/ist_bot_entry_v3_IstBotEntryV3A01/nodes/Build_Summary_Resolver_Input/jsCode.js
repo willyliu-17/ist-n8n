@@ -1,4 +1,4 @@
-const CHANNEL = 'C0A4JJJKJMD';
+const ALLOWED_CHANNELS = new Set(['C0A4JJJKJMD', 'C09F0SYG57D']);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const STREAM_ID_PATTERN = /^[0-9]{1,20}$/;
@@ -39,6 +39,21 @@ function buildLookupWindow({ date, nowIso } = {}) {
   return {
     start: formatAtOffset(current.timestamp - 30 * DAY_MS, current.offsetMinutes, current.offset),
     end: formatAtOffset(current.timestamp, current.offsetMinutes, current.offset),
+  };
+}
+
+function buildSingleStreamLookupWindow({ date, nowIso } = {}) {
+  if (!date) return buildLookupWindow({ nowIso });
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) throw new Error('date must match YYYY-MM-DD');
+  const [year, month, day] = match.slice(1).map(Number);
+  const calendar = new Date(Date.UTC(year, month - 1, day));
+  if (calendar.getUTCFullYear() !== year || calendar.getUTCMonth() !== month - 1 || calendar.getUTCDate() !== day) throw new Error('date is invalid');
+  const start = new Date(Date.UTC(year, month - 1, day - 2, 4));
+  const end = new Date(Date.UTC(year, month - 1, day + 3, 4));
+  return {
+    start: `${start.getUTCFullYear()}-${pad(start.getUTCMonth() + 1)}-${pad(start.getUTCDate())}T04:00:00+08:00`,
+    end: `${end.getUTCFullYear()}-${pad(end.getUTCMonth() + 1)}-${pad(end.getUTCDate())}T04:00:00+08:00`,
   };
 }
 
@@ -88,17 +103,31 @@ function buildSummaryResolverCalls({ ids, lookupWindow, phase = 'final' }) {
 
 function normalizeSummaryCommand(input, nowIso) {
   if (input?.routeKey !== 'summary:stream') throw new Error('Expected summary:stream command');
-  if (input.channel !== CHANNEL) throw new Error('Summary channel is not allowed');
+  if (!ALLOWED_CHANNELS.has(input.channel)) throw new Error('Summary channel is not allowed');
   const threadTS = input.thread_ts ?? input.ts;
   if (!/^\d{10,}\.\d{6}$/.test(threadTS || '')) throw new Error('Summary thread timestamp is invalid');
-  if (!Array.isArray(input.positionals) || input.positionals.length !== 2) throw new Error('Summary requires previous and current stream IDs');
+  if (!Array.isArray(input.positionals) || ![1, 2].includes(input.positionals.length)) throw new Error('Summary requires one or two stream IDs');
   const ids = input.positionals.map((value) => String(value).trim());
   if (ids.some((value) => !STREAM_ID_PATTERN.test(value))) throw new Error('Summary stream IDs must be numeric strings');
-  const lookupWindow = buildLookupWindow({ date: input.args?.date || '', nowIso });
+  const singleStream = ids.length === 1;
+  const lookupWindow = singleStream
+    ? buildSingleStreamLookupWindow({ date: input.args?.date || '', nowIso })
+    : buildLookupWindow({ date: input.args?.date || '', nowIso });
+  if (singleStream) {
+    return {
+      requestKey: `bot-summary:${input.ts}:${ids[0]}`,
+      requestType: 'single_stream_summary',
+      channel: input.channel,
+      threadTS,
+      date: input.args?.date || '',
+      lookupWindow,
+      positions: [{ originalIndex: 0, role: 'current', liveStreamID: ids[0], mode: 'fromStart' }],
+    };
+  }
   return {
     requestKey: `bot-summary:${input.ts}:${ids.join(':')}`,
     requestType: 'standalone_summary',
-    channel: CHANNEL,
+    channel: input.channel,
     threadTS,
     date: input.args?.date || '',
     lookupWindow,
@@ -113,6 +142,7 @@ function normalizeSummaryCommand(input, nowIso) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     buildLookupWindow,
+    buildSingleStreamLookupWindow,
     buildPreviousFallbackWindow,
     buildSummaryResolverCalls,
     chunkIDs,

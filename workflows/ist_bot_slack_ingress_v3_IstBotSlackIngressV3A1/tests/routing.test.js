@@ -16,10 +16,10 @@ function nodeByName(workflow, name) {
   return node;
 }
 
-test('owns the only workspace Slack trigger and routes exactly two channels', () => {
+test('owns the only workspace Slack trigger and routes exactly two channels into V3', () => {
   const workflow = readWorkflow();
   assert.equal(workflow.name, 'IST bot Slack ingress v3');
-  assert.equal(workflow.active, false);
+  assert.equal(workflow.active, true);
   assert.deepEqual(Object.fromEntries(['saveDataSuccessExecution', 'saveDataErrorExecution', 'saveManualExecutions', 'saveExecutionProgress'].map((key) => [key, workflow.settings[key]])), {
     saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false,
   });
@@ -51,8 +51,8 @@ test('owns the only workspace Slack trigger and routes exactly two channels', ()
   }
 
   assert.deepEqual(workflow.connections['Route Supported Channel'].main, [
-    [{ node: 'Call Legacy Entry', type: 'main', index: 0 }],
-    [{ node: 'Call V3 Entry', type: 'main', index: 0 }],
+    [{ node: 'Call V3 Entry (Production)', type: 'main', index: 0 }],
+    [{ node: 'Call V3 Entry (STA)', type: 'main', index: 0 }],
   ]);
   assert.doesNotThrow(() => buildWorkflow(workflowDir));
 });
@@ -60,8 +60,8 @@ test('owns the only workspace Slack trigger and routes exactly two channels', ()
 test('passes the complete Slack event through typed object inputs', () => {
   const workflow = readWorkflow();
   const targets = [
-    ['Call Legacy Entry', 'd1Wg25BLsuGR6mAB', 'IST bot entry'],
-    ['Call V3 Entry', 'IstBotEntryV3A01', 'IST bot entry v3'],
+    ['Call V3 Entry (Production)', 'IstBotEntryV3A01', 'IST bot entry v3'],
+    ['Call V3 Entry (STA)', 'IstBotEntryV3A01', 'IST bot entry v3'],
   ];
 
   for (const [name, id, cachedResultName] of targets) {
@@ -73,6 +73,7 @@ test('passes the complete Slack event through typed object inputs', () => {
       value: id,
       mode: 'list',
       cachedResultName,
+      cachedResultUrl: '/workflow/IstBotEntryV3A01',
     });
     assert.deepEqual(node.parameters.workflowInputs.value, { event: '={{ $json }}' });
     assert.deepEqual(node.parameters.workflowInputs.schema.map(({ id: inputId, type }) => ({ id: inputId, type })), [

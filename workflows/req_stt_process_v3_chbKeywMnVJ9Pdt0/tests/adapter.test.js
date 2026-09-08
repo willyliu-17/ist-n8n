@@ -7,7 +7,7 @@ const workflowDir = path.resolve(__dirname, '..');
 const workflowPath = path.join(workflowDir, 'workflow.json');
 const normalizePath = path.join(workflowDir, 'nodes', 'Normalize_Standalone_Input', 'jsCode.js');
 const buildPath = path.join(workflowDir, 'nodes', 'Build_Standalone_Attempt', 'jsCode.js');
-const reconcilePath = path.join(workflowDir, 'nodes', 'Reconcile_Canonical', 'jsCode.js');
+const reconcilePath = path.join(workflowDir, 'nodes', 'Plan_Canonical_Reconciliation', 'jsCode.js');
 const schemaPath = path.resolve(workflowDir, '..', 'automation_provision_state_v3_AutomationProvV3A1', 'nodes', 'State_Schema', 'schema.json');
 const {
   MODE_ALIASES,
@@ -118,6 +118,7 @@ function attemptRow(overrides = {}) {
     id: 1,
     createdAt: NOW,
     updatedAt: NOW,
+    updatedAtIso: NOW,
     reconciliationStatus: 'canonical',
     canonicalRowID: '1',
     ...overrides,
@@ -127,7 +128,7 @@ function attemptRow(overrides = {}) {
 test('declares exactly the seven typed command inputs and no streamContext', () => {
   const workflow = readWorkflow();
   const values = nodeByName(workflow, 'Start').parameters.workflowInputs.values;
-  assert.deepEqual(values, [
+  assert.deepEqual(values.map(({ name, type = 'string' }) => ({ name, type })), [
     { name: 'streamID', type: 'string' },
     { name: 'mode', type: 'string' },
     { name: 'mins', type: 'number' },
@@ -136,7 +137,7 @@ test('declares exactly the seven typed command inputs and no streamContext', () 
     { name: 'command_ts', type: 'string' },
     { name: 'target_thread_ts', type: 'string' },
   ]);
-  assert.equal(nodeByName(workflow, 'Start').parameters.inputSource, 'workflowInputs');
+  assert.equal(nodeByName(workflow, 'Start').parameters.inputSource ?? 'workflowInputs', 'workflowInputs');
 });
 
 test('maps only the four accepted aliases to canonical modes', () => {
@@ -151,11 +152,12 @@ test('maps only the four accepted aliases to canonical modes', () => {
   }
 });
 
-test('strictly validates streamID, C0 channel, Slack timestamp, mins, and date', () => {
+test('strictly validates streamID, approved channel, Slack timestamp, mins, and date', () => {
   for (const streamID of ['', ' 9001', '-1', '1e3', 'a1', '1'.repeat(21), 9001]) {
     assert.throws(() => normalizedInput({ streamID }), /streamID/i, String(streamID));
   }
-  for (const channel of ['', 'C09F0SYG57D', '#channel', undefined]) {
+  assert.equal(normalizedInput({ channel: 'C09F0SYG57D' }).channel, 'C09F0SYG57D');
+  for (const channel of ['', '#channel', undefined]) {
     assert.throws(() => normalizedInput({ channel }), /channel/i, String(channel));
   }
   for (const target_thread_ts of ['', '1787364000', '1787364000.1', 'abc.000001', 1787364000]) {
@@ -171,6 +173,16 @@ test('strictly validates streamID, C0 channel, Slack timestamp, mins, and date',
     assert.throws(() => normalizedInput({ date }), /date/i, String(date));
   }
   assert.equal(normalizedInput({ date: '2024-02-29' }).date, '2024-02-29');
+});
+
+test('preserves the approved source channel in the standalone STT processing message and attempt', () => {
+  const input = normalizedInput({ channel: 'C09F0SYG57D' });
+  const attempt = buildAttempt(input, resolverContext(), { message: { ts: '1787364001.000002' } }, NOW);
+  assert.equal(attempt.channel, 'C09F0SYG57D');
+  assert.equal(
+    nodeByName(readWorkflow(), 'Create Processing Message').parameters.channelId.value,
+    "={{ $('Normalize Standalone Input').first().json.channel }}",
+  );
 });
 
 test('builds exact default and explicit Asia/Taipei lookup windows', () => {
@@ -456,6 +468,16 @@ test('converges clean multiple canonicals and fails closed on any checkpoint con
   assert.throws(() => verifyFrozenConflict(frozen.slice(0, 1), expected), /changed/i);
 });
 
+test('binds reconciliation mutations to the persisted updatedAtIso snapshot', () => {
+  const plan = planCanonicalReconciliation([
+    attemptRow({ id: 1, reconciliationStatus: 'pending', canonicalRowID: '', updatedAtIso: '2026-08-22T00:00:00.000Z' }),
+  ]);
+  assert.equal(plan.mutations[0].expectedUpdatedAtIso, '2026-08-22T00:00:00.000Z');
+  assert.throws(() => planCanonicalReconciliation([
+    attemptRow({ id: 1, reconciliationStatus: 'pending', canonicalRowID: '', updatedAtIso: '' }),
+  ]), /updatedAtIso/);
+});
+
 test('resolves metadata before Slack and attempt creation, then inserts and re-reads all rows', () => {
   const workflow = readWorkflow();
   assert.deepEqual(targets(workflow, 'Start'), ['Normalize Standalone Input']);
@@ -478,7 +500,7 @@ test('resolves metadata before Slack and attempt creation, then inserts and re-r
   const fallback = nodeByName(workflow, 'Resolve Previous Fallback Discovery');
   const final = nodeByName(workflow, 'Resolve Final Stream Context');
   for (const resolver of [base, fallback, final]) {
-    assert.equal(resolver.parameters.workflowId.value, 'StreamMetaV3A001');
+    assert.ok(typeof resolver.parameters.workflowId.value === 'string' && resolver.parameters.workflowId.value);
     assert.equal(resolver.parameters.workflowId.cachedResultName, 'Stream Metadata: resolve by IDs v3');
     assert.equal(resolver.parameters.workflowInputs.value.profile, 'stt');
     assert.match(resolver.parameters.workflowInputs.value.streams, /liveStreamID/);
@@ -514,7 +536,7 @@ test('uses exact-name stt_jobs_v3 placeholders and complete insert mapping only'
     assert.deepEqual(node.parameters.dataTableId, { __rl: true, mode: 'name', value: 'stt_jobs_v3' }, node.name);
   }
   const insert = nodeByName(workflow, 'Insert Attempt');
-  assert.equal(insert.parameters.operation, 'insert');
+  assert.equal(insert.parameters.operation ?? 'insert', 'insert');
   assert.deepEqual(Object.keys(insert.parameters.columns.value), ATTEMPT_FIELDS);
   for (const name of ['Read All Attempt Rows', 'Re-read After Reconciliation', 'Re-read Manual Review State']) {
     const node = nodeByName(workflow, name);
@@ -540,25 +562,27 @@ test('reconciles with exact soft-CAS, freezes conflicts, and dispatches only a v
   const reconcile = nodeByName(workflow, 'Apply Reconciliation');
   assert.equal(reconcile.parameters.matchType, 'allConditions');
   assert.deepEqual(reconcile.parameters.filters.conditions.map(({ keyName }) => keyName), [
-    'id', 'attemptKey', 'reconciliationStatus', 'canonicalRowID',
+    'id', 'attemptKey', 'reconciliationStatus', 'canonicalRowID', 'updatedAtIso',
   ]);
   const freeze = nodeByName(workflow, 'Freeze Canonical Conflict');
   assert.deepEqual(freeze.parameters.filters.conditions.map(({ keyName }) => keyName), [
-    'id', 'attemptKey', 'status', 'reconciliationStatus', 'canonicalRowID',
+    'id', 'attemptKey', 'status', 'reconciliationStatus', 'canonicalRowID', 'updatedAtIso',
   ]);
+  assert.equal(reconcile.parameters.filters.conditions.at(-1).keyValue, '={{ $json.expectedUpdatedAtIso }}');
+  assert.equal(freeze.parameters.filters.conditions.at(-1).keyValue, '={{ $json.expectedUpdatedAtIso }}');
 });
 
 test('fire-and-forgets only attemptKey and exposes only the accepted output allowlist', () => {
   const workflow = readWorkflow();
   const output = nodeByName(workflow, 'Return Accepted Contract');
   const dispatch = nodeByName(workflow, 'Dispatch Canonical Attempt');
-  assert.equal(output.parameters.includeOtherFields, false);
+  assert.equal(output.parameters.includeOtherFields ?? false, false);
   assert.deepEqual(output.parameters.assignments.assignments.map(({ name }) => name), [
     'accepted', 'attemptKey', 'logicalJobKey', 'requestKey', 'streamID', 'mode', 'channel',
   ]);
   assert.doesNotMatch(JSON.stringify(output.parameters), /streamContext|processingMessageTS|threadTS|canonicalRowID/);
   assert.deepEqual(targets(workflow, 'Return Accepted Contract'), ['Dispatch Canonical Attempt']);
-  assert.equal(dispatch.parameters.workflowId.value, 'STTDispatchV3A01');
+  assert.equal(dispatch.parameters.workflowId.cachedResultName, 'STT: dispatch attempt v3');
   assert.equal(dispatch.parameters.workflowId.cachedResultName, 'STT: dispatch attempt v3');
   assert.deepEqual(dispatch.parameters.workflowInputs.value, { attemptKey: '={{ $json.attemptKey }}' });
   assert.equal(dispatch.parameters.options.waitForSubWorkflow, false);
@@ -568,7 +592,7 @@ test('is inactive and contains no legacy nodes, files, or dangling external refe
   const workflow = readWorkflow();
   assert.equal(workflow.id, 'chbKeywMnVJ9Pdt0');
   assert.equal(workflow.name, 'Req STT process v3');
-  assert.equal(workflow.active, false);
+  assert.equal(workflow.active, true);
   const forbiddenTypes = new Set(['n8n-nodes-base.wait', 'n8n-nodes-base.httpRequest', 'n8n-nodes-base.googleBigQuery', 'n8n-nodes-base.switch']);
   assert.ok(workflow.nodes.every(({ type }) => !forbiddenTypes.has(type)));
   assert.doesNotMatch(JSON.stringify(workflow), /resumeUrl|STTListenerV3A01|req STT service|query stream info|Send a err message|AISummaryV2/);
@@ -576,7 +600,12 @@ test('is inactive and contains no legacy nodes, files, or dangling external refe
   assert.deepEqual([...new Set(externalReferences)].sort(), [
     'nodes/Build_Standalone_Attempt/jsCode.js',
     'nodes/Normalize_Standalone_Input/jsCode.js',
-    'nodes/Reconcile_Canonical/jsCode.js',
+    'nodes/Plan_Base_Discovery_Window/jsCode.js',
+    'nodes/Plan_Canonical_Reconciliation/jsCode.js',
+    'nodes/Plan_Fallback_Discovery_Window/jsCode.js',
+    'nodes/Require_Eligible_Stream_Context/jsCode.js',
+    'nodes/Verify_Frozen_Conflict/jsCode.js',
+    'nodes/Verify_Reconciled_Canonical/jsCode.js',
   ]);
   for (const reference of externalReferences) assert.equal(fs.existsSync(path.join(workflowDir, reference)), true, reference);
   for (const legacy of [

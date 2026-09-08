@@ -132,7 +132,7 @@
     },
     {
       "id": "14000003-0000-4000-8000-000000000003",
-      "name": "Call Legacy Entry",
+      "name": "Call V3 Entry (Production)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
@@ -142,10 +142,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "d1Wg25BLsuGR6mAB",
+          "value": "IstBotEntryV3A01",
           "mode": "list",
-          "cachedResultName": "IST bot entry",
-          "cachedResultUrl": "/workflow/d1Wg25BLsuGR6mAB"
+          "cachedResultName": "IST bot entry v3",
+          "cachedResultUrl": "/workflow/IstBotEntryV3A01"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -173,7 +173,7 @@
     },
     {
       "id": "14000004-0000-4000-8000-000000000004",
-      "name": "Call V3 Entry",
+      "name": "Call V3 Entry (STA)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
@@ -183,10 +183,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "BkWimH02lxQxh04Z",
+          "value": "IstBotEntryV3A01",
           "mode": "list",
           "cachedResultName": "IST bot entry v3",
-          "cachedResultUrl": "/workflow/BkWimH02lxQxh04Z"
+          "cachedResultUrl": "/workflow/IstBotEntryV3A01"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -229,14 +229,14 @@
       "main": [
         [
           {
-            "node": "Call Legacy Entry",
+            "node": "Call V3 Entry (Production)",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Call V3 Entry",
+            "node": "Call V3 Entry (STA)",
             "type": "main",
             "index": 0
           }

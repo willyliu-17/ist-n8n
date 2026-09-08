@@ -1,4 +1,4 @@
-const CHANNEL = 'C0A4JJJKJMD';
+const ALLOWED_CHANNELS = new Set(['C0A4JJJKJMD', 'C09F0SYG57D']);
 const STREAM_ID_PATTERN = /^[0-9]{1,20}$/;
 const SLACK_TIMESTAMP_PATTERN = /^\d{10,}\.\d{6}$/;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -195,7 +195,7 @@ function normalizeStandaloneInput(input, nowIso) {
   if (typeof input.streamID !== 'string' || !STREAM_ID_PATTERN.test(input.streamID)) {
     throw new Error('streamID must match ^[0-9]{1,20}$');
   }
-  if (input.channel !== CHANNEL) throw new Error('Slack channel is not allowed');
+  if (!ALLOWED_CHANNELS.has(input.channel)) throw new Error('Slack channel is not allowed');
   if (typeof input.command_ts !== 'string' || !SLACK_TIMESTAMP_PATTERN.test(input.command_ts)) {
     throw new Error('command_ts must be a Slack timestamp');
   }
@@ -215,7 +215,7 @@ function normalizeStandaloneInput(input, nowIso) {
     mode,
     mins: input.mins,
     date,
-    channel: CHANNEL,
+    channel: input.channel,
     command_ts: input.command_ts,
     target_thread_ts: input.target_thread_ts,
     lookupWindow,
@@ -262,7 +262,7 @@ function requireEligibleResolverContext(rows, expectedStreamID) {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    CHANNEL,
+    ALLOWED_CHANNELS,
     MODE_ALIASES,
     RESOLVER_CONTEXT_FIELDS,
     buildLookupWindow,
