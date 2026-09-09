@@ -1,1 +1,0 @@
-return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'bounded:summary_lease' } }));

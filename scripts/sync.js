@@ -6,6 +6,9 @@ const apiUrl = process.env.REMOTE_N8N_API_URL;
 const apiKey = process.env.REMOTE_N8N_API_KEY;
 const includeArchived = process.argv.includes('--include-archived');
 const noUnpack = process.argv.includes('--no-unpack');
+const autoOverwrite = process.argv.includes('--overwrite') || process.env.SYNC_OVERWRITE === 'true';
+const autoNew = process.argv.includes('--new');
+const autoSkip = process.argv.includes('--skip');
 
 // 取得除了 flag 以外的參數
 const args = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
@@ -59,7 +62,7 @@ function sanitizeWorkflow(wf) {
 }
 
 function getSafeName(name) {
-    return name.replace(/[^a-z0-9_]/gi, '_').toLowerCase();
+    return name.replace(/[^a-z0-9_]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').toLowerCase();
 }
 
 async function getTargetWorkflows() {
@@ -164,27 +167,61 @@ async function syncWorkflows() {
             let targetDirName = newBaseFilename;
             let targetId = wf.id;
             
-            // 尋找本地是否已經有同名的 workflow 資料夾
-            const existingDirs = fs.readdirSync(workflowsDir, { withFileTypes: true })
-                .filter(dirent => dirent.isDirectory() && dirent.name.startsWith(`${safeName}_`))
+            // 尋找本地是否已經有同名的 workflow 資料夾或 workflow.json
+            const allLocalDirs = fs.readdirSync(workflowsDir, { withFileTypes: true })
+                .filter(dirent => dirent.isDirectory())
                 .map(dirent => dirent.name);
-            
-            const exactMatch = existingDirs.find(d => d === newBaseFilename);
-            const conflictDirs = existingDirs.filter(d => d !== newBaseFilename);
+
+            // 1. 優先精確比對 ID 後綴
+            const exactMatch = allLocalDirs.find(d => d === newBaseFilename || d.endsWith(`_${wf.id}`));
+
+            // 2. 其次比對 workflow.json 中的 name 或 safeName 前綴
+            const conflictDirs = allLocalDirs.filter(d => {
+                if (d === exactMatch) return false;
+                const jsonPath = path.join(workflowsDir, d, 'workflow.json');
+                if (fs.existsSync(jsonPath)) {
+                    try {
+                        const localWf = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+                        if (localWf.name === wf.name) return true;
+                    } catch (e) {}
+                }
+                return d.startsWith(`${safeName}_`);
+            });
 
             if (!exactMatch && conflictDirs.length > 0) {
                 const existingDir = conflictDirs[0]; // 取第一個找到的
-                const existingIdMatch = existingDir.match(/_([a-zA-Z0-9A-Za-z]+)$/);
-                const existingId = existingIdMatch ? existingIdMatch[1] : 'unknown';
+                const existingJsonPath = path.join(workflowsDir, existingDir, 'workflow.json');
+                let existingId = 'unknown';
+                if (fs.existsSync(existingJsonPath)) {
+                    try {
+                        const localWf = JSON.parse(fs.readFileSync(existingJsonPath, 'utf8'));
+                        existingId = localWf.id || existingId;
+                    } catch (e) {}
+                }
+                if (existingId === 'unknown') {
+                    const existingIdMatch = existingDir.match(/_([a-zA-Z0-9A-Za-z]+)$/);
+                    existingId = existingIdMatch ? existingIdMatch[1] : 'unknown';
+                }
 
                 console.log(`\n⚠️  發現本地已存在同名的工作流程資料夾，但 ID 不同：`);
                 console.log(`遠端來源: "${wf.name}" (ID: ${wf.id})`);
                 console.log(`本地現存: workflows/${existingDir} (ID: ${existingId})`);
                 
                 let decision = '';
-                while (!['O', 'N', 'S'].includes(decision)) {
-                    const answer = await askQuestion(`\n請選擇處理方式：\n[O] 覆蓋現有 (Overwrite)：直接更新本地 ${existingDir} 的內容，並強制保留原有的 ID (${existingId})\n[N] 建立全新 (New)      ：保留原有資料夾，額外建立一個 ${newBaseFilename} 資料夾\n[S] 跳過 (Skip)         ：不要同步這個工作流程\n\n請選擇 [O/N/S]: `);
-                    decision = answer.trim().toUpperCase();
+                if (autoOverwrite) {
+                    decision = 'O';
+                    console.log(`使用 --overwrite 模式，自動選擇覆蓋現有`);
+                } else if (autoNew) {
+                    decision = 'N';
+                    console.log(`使用 --new 模式，自動選擇建立全新`);
+                } else if (autoSkip) {
+                    decision = 'S';
+                    console.log(`使用 --skip 模式，自動選擇跳過`);
+                } else {
+                    while (!['O', 'N', 'S'].includes(decision)) {
+                        const answer = await askQuestion(`\n請選擇處理方式：\n[O] 覆蓋現有 (Overwrite)：直接更新本地 ${existingDir} 的內容，並強制保留原有的 ID (${existingId})\n[N] 建立全新 (New)      ：保留原有資料夾，額外建立一個 ${newBaseFilename} 資料夾\n[S] 跳過 (Skip)         ：不要同步這個工作流程\n\n請選擇 [O/N/S]: `);
+                        decision = answer.trim().toUpperCase();
+                    }
                 }
 
                 if (decision === 'S') {
@@ -199,6 +236,9 @@ async function syncWorkflows() {
                     targetId = wf.id;
                     console.log(`將建立全新資料夾 ${targetDirName}`);
                 }
+            } else if (exactMatch) {
+                targetDirName = exactMatch;
+                targetId = wf.id;
             }
             
             // 抓取完整 Workflow

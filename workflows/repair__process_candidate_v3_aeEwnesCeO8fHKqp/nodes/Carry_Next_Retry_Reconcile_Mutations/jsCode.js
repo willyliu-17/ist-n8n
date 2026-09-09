@@ -1,1 +1,0 @@
-return $input.all().flatMap(({ json }) => (json.nextPlan.mutations || []).map((mutation) => ({ json: { ...json, mutation, __planCarrier: true, __planPhase: 'retry-next-reconcile', repairMode: 'retry_verify_next' } })));

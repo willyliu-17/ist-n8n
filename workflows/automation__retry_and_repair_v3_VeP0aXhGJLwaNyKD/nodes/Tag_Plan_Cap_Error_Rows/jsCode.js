@@ -1,1 +1,0 @@
-return $input.all().map(({ json }) => ({ json: { ...json, repairMode: 'cap_error_rows' } }));
