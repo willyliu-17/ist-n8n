@@ -25,6 +25,11 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
 1. **Sync (Remote to Git)**:
    Run `node --env-file=.env scripts/sync.js [workflow_name_or_path]` (for Production) or `node --env-file=.env.stag scripts/sync.js [workflow_name_or_path]` (for Staging) to download workflows into the `workflows/` directory. By default, it ignores archived workflows. To include them, append `--include-archived`.
    - **Selective Syncing**: You can sync a specific workflow by passing its name in quotes (e.g., `"My Workflow"`) or its local path (e.g., `workflows/my_workflow_123`). If omitted, it syncs all workflows.
+     - *Best Practice*: For daily development and routine maintenance, always prefer selective syncing (`node --env-file=.env scripts/sync.js "<Workflow Name>"`) to target only the workflow being modified.
+   - **V3 Inventory Directory Mapping**:
+     - `sync.js` automatically maps V3 workflows listed in `scripts/stt-summary-v3-inventory.js` to their canonical local directories (e.g., `workflows/automation_provision_state_v3_AutomationProvV3A1`), preventing false conflict prompts.
+   - **Metadata Sanitization**:
+     - The script automatically strips runtime and ephemeral fields (`activeVersion`, `activeVersionId`, `pinData`, `staticData`, `shared`) to keep Git diffs clean and relevant to logic changes.
    - **Conflict Resolution**: The script provides interactive CLI prompts for conflicts:
      - If multiple remote workflows share the exact same name, you will be prompted to select the correct target ID.
      - If a local directory exists with the same name but a different ID (e.g., pulling from Staging but the local folder has a Prod ID), you can choose to:

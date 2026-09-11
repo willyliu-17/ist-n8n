@@ -10,6 +10,17 @@ const autoOverwrite = process.argv.includes('--overwrite') || process.env.SYNC_O
 const autoNew = process.argv.includes('--new');
 const autoSkip = process.argv.includes('--skip');
 
+// V3 庫存資訊
+let v3InventoryMap = new Map();
+try {
+    const { V3_WORKFLOW_INVENTORY } = require('./stt-summary-v3-inventory');
+    if (Array.isArray(V3_WORKFLOW_INVENTORY)) {
+        for (const [name, relPath] of V3_WORKFLOW_INVENTORY) {
+            v3InventoryMap.set(name, path.basename(relPath));
+        }
+    }
+} catch (e) {}
+
 // 取得除了 flag 以外的參數
 const args = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
 
@@ -36,29 +47,11 @@ function sanitizeWorkflow(wf) {
     delete wf.createdAt;
     delete wf.versionId;
     delete wf.versionCounter;
-
-    // 清理共用權限設定中，各種會頻繁變動的 metadata
-    if (Array.isArray(wf.shared)) {
-        for (const share of wf.shared) {
-            delete share.createdAt;
-            delete share.updatedAt;
-            if (share.project) {
-                delete share.project.createdAt;
-                delete share.project.updatedAt;
-                if (Array.isArray(share.project.projectRelations)) {
-                    for (const relation of share.project.projectRelations) {
-                        delete relation.createdAt;
-                        delete relation.updatedAt;
-                        if (relation.user) {
-                            delete relation.user.createdAt;
-                            delete relation.user.updatedAt;
-                            delete relation.user.lastActiveAt;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    delete wf.activeVersionId;
+    delete wf.activeVersion;
+    delete wf.pinData;
+    delete wf.staticData;
+    delete wf.shared;
 }
 
 function getSafeName(name) {
@@ -172,10 +165,26 @@ async function syncWorkflows() {
                 .filter(dirent => dirent.isDirectory())
                 .map(dirent => dirent.name);
 
-            // 1. 優先精確比對 ID 後綴
-            const exactMatch = allLocalDirs.find(d => d === newBaseFilename || d.endsWith(`_${wf.id}`));
+            // 1. 第一優先：若為 V3 庫存流程，自動精確映射至本地對應之資料夾
+            let exactMatch = null;
+            if (v3InventoryMap.has(wf.name)) {
+                const mappedDir = v3InventoryMap.get(wf.name);
+                if (allLocalDirs.includes(mappedDir)) {
+                    exactMatch = mappedDir;
+                }
+            }
 
-            // 2. 其次比對 workflow.json 中的 name 或 safeName 前綴
+            // 2. 第二優先：資料夾名稱完全吻合 (safeName + id)
+            if (!exactMatch) {
+                exactMatch = allLocalDirs.find(d => d === newBaseFilename);
+            }
+
+            // 3. 次要 fallback：若沒有完全吻合的資料夾，才比對相同 ID 後綴
+            if (!exactMatch) {
+                exactMatch = allLocalDirs.find(d => d.endsWith(`_${wf.id}`));
+            }
+
+            // 4. 其次比對 workflow.json 中的 name 或 safeName 前綴
             const conflictDirs = allLocalDirs.filter(d => {
                 if (d === exactMatch) return false;
                 const jsonPath = path.join(workflowsDir, d, 'workflow.json');
