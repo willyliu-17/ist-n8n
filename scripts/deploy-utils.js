@@ -542,6 +542,8 @@ function parseCreatedWorkflowId(workflow) {
 }
 
 module.exports = {
+    STT_CALLBACK_URL_PLACEHOLDER,
+    validateSttCallbackUrl,
     buildWorkflowIdMap,
     assertUniqueRequestedWorkflowNames,
     buildRequestedSourceIdNameMap,

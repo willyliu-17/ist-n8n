@@ -30,6 +30,12 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
      - `sync.js` automatically maps V3 workflows listed in `scripts/stt-summary-v3-inventory.js` to their canonical local directories (e.g., `workflows/automation_provision_state_v3_AutomationProvV3A1`), preventing false conflict prompts.
    - **Metadata Sanitization**:
      - The script automatically strips runtime and ephemeral fields (`activeVersion`, `activeVersionId`, `pinData`, `staticData`, `shared`) to keep Git diffs clean and relevant to logic changes.
+   - **Cross-Environment Consistency**:
+     - See `docs/sync-deploy-consistency.md` for the normalization contract and migration notes.
+     - V3 sync restores canonical workflow IDs, sub-workflow/error-handler references, Data Table names, credential reference IDs, and verified callback placeholders. Data Table metadata read permission and the source `STT_CALLBACK_URL` are required when relevant.
+     - `active` and `description` are shared desired-state fields. Sync imports them; do not automatically retain old Git values to hide real changes.
+     - Use `--dry-run` to inspect semantic differences before writing. Dirty directories are rejected when writes are needed; identical content is a no-op.
+     - Preserve existing external-file sharing and inline wrappers. Split a shared file only when one consumer actually changes.
    - **Conflict Resolution**: The script provides interactive CLI prompts for conflicts:
      - If multiple remote workflows share the exact same name, you will be prompted to select the correct target ID.
      - If a local directory exists with the same name but a different ID (e.g., pulling from Staging but the local folder has a Prod ID), you can choose to:
@@ -58,6 +64,9 @@ This repository manages n8n workflows using a Git-centric, local-sandboxed archi
    - Run `node --env-file=.env scripts/deploy.js workflows/<folder>` (for Production) or `node --env-file=.env.stag scripts/deploy.js workflows/<folder>` (for Staging) to push the changes.
    - Commit the changes to Git.
    **Important**: Always explicitly confirm the target environment before running this command.
+   - The CLI supports `--dry-run` and uses `scripts/deploy-consistency.js`. Its preview includes description, tag, content, and activation/publication changes.
+   - All requested definitions are saved before publication. Verify both shared content and the exact published version (`activeVersionId`) after deployment; an active flag alone is insufficient.
+   - Existing P2/P4 bootstrap functions retain their independent approval and inactive-skeleton gates. Do not equate bootstrap completion with final desired-state activation.
 
 ## Remote Incident Investigation SOP
 

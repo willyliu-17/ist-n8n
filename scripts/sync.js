@@ -1,349 +1,167 @@
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
+const fs = require('node:fs');
+const path = require('node:path');
+const readline = require('node:readline/promises');
+const { isDeepStrictEqual } = require('node:util');
+const { createApi } = require('./n8n-api');
+const { V3_WORKFLOW_INVENTORY } = require('./stt-summary-v3-inventory');
+const {
+    sanitizeWorkflow, comparableWorkflow, createSyncContext, normalizeWorkflow,
+    resolveReferences, safeExternalPath, unpackWorkflow, diffPaths
+} = require('./sync-utils');
+const { assertCleanDirectory, renderWorkflow, applyFilePlan } = require('./sync-files');
 
-const apiUrl = process.env.REMOTE_N8N_API_URL;
-const apiKey = process.env.REMOTE_N8N_API_KEY;
-const includeArchived = process.argv.includes('--include-archived');
-const noUnpack = process.argv.includes('--no-unpack');
-const autoOverwrite = process.argv.includes('--overwrite') || process.env.SYNC_OVERWRITE === 'true';
-const autoNew = process.argv.includes('--new');
-const autoSkip = process.argv.includes('--skip');
+const safeName = name => name.replace(/[^a-z0-9_]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').toLowerCase();
 
-// V3 庫存資訊
-let v3InventoryMap = new Map();
-try {
-    const { V3_WORKFLOW_INVENTORY } = require('./stt-summary-v3-inventory');
-    if (Array.isArray(V3_WORKFLOW_INVENTORY)) {
-        for (const [name, relPath] of V3_WORKFLOW_INVENTORY) {
-            v3InventoryMap.set(name, path.basename(relPath));
-        }
-    }
-} catch (e) {}
-
-// 取得除了 flag 以外的參數
-const args = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
-
-if (!apiUrl || !apiKey) {
-    console.error("Missing REMOTE_N8N_API_URL or REMOTE_N8N_API_KEY in .env");
-    process.exit(1);
-}
-
-const workflowsDir = path.join(__dirname, '..', 'workflows');
-if (!fs.existsSync(workflowsDir)) {
-    fs.mkdirSync(workflowsDir, { recursive: true });
-}
-
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
-const askQuestion = (query) => new Promise(resolve => rl.question(query, resolve));
-
-function sanitizeWorkflow(wf) {
-    // 移除會頻繁變動但與流程邏輯無關的 metadata
-    delete wf.updatedAt;
-    delete wf.createdAt;
-    delete wf.versionId;
-    delete wf.versionCounter;
-    delete wf.activeVersionId;
-    delete wf.activeVersion;
-    delete wf.pinData;
-    delete wf.staticData;
-    delete wf.shared;
-}
-
-function getSafeName(name) {
-    return name.replace(/[^a-z0-9_]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').toLowerCase();
-}
-
-async function getTargetWorkflows() {
-    console.log(`Connecting to ${apiUrl} to sync workflows...`);
-    const response = await fetch(`${apiUrl}/api/v1/workflows`, {
-        headers: { 'X-N8N-API-KEY': apiKey }
+function loadLocalWorkflows(rootDir) {
+    const workflowsDir = path.join(rootDir, 'workflows');
+    if (!fs.existsSync(workflowsDir)) return [];
+    if (fs.lstatSync(workflowsDir).isSymbolicLink()) throw new Error('Workflows root is a symlink');
+    return fs.readdirSync(workflowsDir, { withFileTypes: true }).filter(entry => entry.isDirectory()).flatMap(entry => {
+        const directory = path.join(workflowsDir, entry.name);
+        const filename = path.join(directory, 'workflow.json');
+        if (!fs.existsSync(filename)) return [];
+        safeExternalPath(directory, 'workflow.json');
+        const text = fs.readFileSync(filename, 'utf8');
+        const raw = JSON.parse(text);
+        const read = relative => fs.readFileSync(safeExternalPath(directory, relative), 'utf8');
+        return [{ directory, text, raw, read, workflow: resolveReferences(raw, read) }];
     });
-
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-    const data = await response.json();
-    let workflows = data.data;
-
-    if (!includeArchived) {
-        workflows = workflows.filter(wf => !wf.isArchived);
-    }
-    
-    return workflows;
 }
 
-async function resolveWorkflowTargets(allWorkflows) {
-    if (args.length === 0) {
-        return allWorkflows;
-    }
-
-    const targets = [];
-    
-    for (const arg of args) {
-        let targetName = arg;
-        
-        // 檢查是否為路徑
-        const potentialPath = path.resolve(arg);
-        if (fs.existsSync(potentialPath)) {
-            let jsonPath = potentialPath;
-            if (fs.statSync(potentialPath).isDirectory()) {
-                jsonPath = path.join(potentialPath, 'workflow.json');
-            }
-            if (fs.existsSync(jsonPath)) {
-                try {
-                    const localWf = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-                    targetName = localWf.name;
-                    console.log(`Resolved path ${arg} to workflow name: "${targetName}"`);
-                } catch (e) {
-                    console.error(`Failed to parse ${jsonPath}`);
-                    continue;
-                }
-            }
-        }
-
-        // 在遠端找符合名稱的 workflow
-        const matchingWorkflows = allWorkflows.filter(wf => wf.name === targetName);
-        
-        if (matchingWorkflows.length === 0) {
-            console.log(`⚠️  Workflow "${targetName}" not found on the remote server.`);
-        } else if (matchingWorkflows.length === 1) {
-            targets.push(matchingWorkflows[0]);
-        } else {
-            console.log(`\n⚠️  在遠端找到多個名為 "${targetName}" 的工作流程：`);
-            matchingWorkflows.forEach((wf, index) => {
-                console.log(`[${index + 1}] ID: ${wf.id} (Name: ${wf.name})`);
-            });
-            console.log(`[0] 取消同步此工作流程`);
-            
-            while (true) {
-                const answer = await askQuestion(`\n請選擇要同步哪一個 ID (輸入數字): `);
-                const choice = parseInt(answer.trim(), 10);
-                if (choice === 0) {
-                    console.log(`已跳過 "${targetName}"`);
-                    break;
-                } else if (choice > 0 && choice <= matchingWorkflows.length) {
-                    targets.push(matchingWorkflows[choice - 1]);
-                    break;
-                } else {
-                    console.log("❌ 無效的選擇，請重新輸入。");
-                }
-            }
-        }
-    }
-    
-    // 移除重複的 target
-    const uniqueTargets = [];
-    const seenIds = new Set();
-    for (const t of targets) {
-        if (!seenIds.has(t.id)) {
-            seenIds.add(t.id);
-            uniqueTargets.push(t);
-        }
-    }
-    return uniqueTargets;
+function planSync(source, local, context, { normalize = true } = {}) {
+    const workflow = normalize ? normalizeWorkflow(source, local.workflow, context) : sanitizeWorkflow(source);
+    // Explicitly retain the chosen local identity even for non-V3 workflows.
+    workflow.id = local.raw.id;
+    const before = comparableWorkflow(local.workflow);
+    const after = comparableWorkflow(workflow);
+    const differences = diffPaths(before, after);
+    if (isDeepStrictEqual(before, after)) return { differences, files: new Map() };
+    const unpacked = unpackWorkflow(workflow, local.raw, local.read);
+    unpacked.files.set('workflow.json', renderWorkflow(unpacked.workflow, local.text));
+    return { differences, files: unpacked.files };
 }
 
-async function syncWorkflows() {
+async function syncWorkflows({
+    rootDir = path.resolve(__dirname, '..'), targets = [], apiUrl, apiKey, callbackUrl,
+    includeArchived = false, dryRun = false, noUnpack = false, conflict = '', choose, fetchImpl = globalThis.fetch
+}) {
+    const api = createApi({ apiUrl, apiKey, fetchImpl });
+    const inventory = new Map(V3_WORKFLOW_INVENTORY);
+    const locals = loadLocalWorkflows(rootDir);
+    const sourceList = await api.list('workflows');
+    const eligible = sourceList.filter(workflow => includeArchived || !workflow.isArchived);
+    let selected = eligible;
+    if (targets.length) {
+        selected = [];
+        for (const target of targets) {
+            const localPath = path.resolve(rootDir, target);
+            const match = locals.find(local => local.directory === localPath || path.join(local.directory, 'workflow.json') === localPath);
+            const name = match?.raw.name || target;
+            const candidates = eligible.filter(workflow => workflow.name === name);
+            if (!candidates.length) throw new Error(`Workflow not found: ${name}`);
+            if (candidates.length > 1) throw new Error(`Ambiguous remote workflow name: ${name}`);
+            if (!selected.some(workflow => workflow.id === candidates[0].id)) selected.push(candidates[0]);
+        }
+    }
+    const prepared = [];
+    for (const remote of selected) {
+        const candidates = locals.filter(local => local.raw.id === remote.id || local.raw.name === remote.name);
+        const canonicalDir = inventory.get(remote.name);
+        let local = canonicalDir ? locals.find(item => item.directory === path.resolve(rootDir, canonicalDir)) : undefined;
+        if (candidates.length > 1) throw new Error(`Ambiguous local workflow: ${remote.name}`);
+        local ??= candidates[0];
+        const canonicalId = canonicalDir ? path.basename(canonicalDir).split('_').at(-1) : undefined;
+        if (local && canonicalId && local.raw.id !== canonicalId) {
+            throw new Error(`Local V3 identity needs reconciliation before sync: ${remote.name}`);
+        }
+        if (local && local.raw.id !== remote.id && !canonicalDir) {
+            const decision = conflict || await choose?.(remote.name) || 'S';
+            if (decision === 'S') continue;
+            if (decision === 'N') local = undefined;
+        }
+        if (!local) {
+            const directory = canonicalDir ? path.resolve(rootDir, canonicalDir) : path.join(rootDir, 'workflows', `${safeName(remote.name)}_${remote.id}`);
+            if (fs.existsSync(directory)) throw new Error(`Unmanaged directory already exists: ${directory}`);
+            const identity = { id: canonicalId || remote.id, name: remote.name, nodes: [] };
+            local = { directory, text: '', raw: identity, workflow: identity, read: () => { throw new Error('Unexpected new-workflow reference'); } };
+        }
+        prepared.push({ remote, local });
+    }
+    const sources = [];
+    const selectedIds = new Set(prepared.map(({ remote }) => remote.id));
+    // List identities resolve dependencies; only selected definitions need full downloads.
+    for (const item of sourceList) {
+        if (!selectedIds.has(item.id)) { sources.push(item); continue; }
+        const detail = await api.request(`workflows/${encodeURIComponent(item.id)}`);
+        if (detail?.id !== item.id || detail.name !== item.name || !Array.isArray(detail.nodes) || !detail.connections) {
+            throw new Error('Workflow identity or response shape changed during sync');
+        }
+        sources.push(detail);
+    }
+    const needsNormalization = prepared.some(({ remote }) => inventory.has(remote.name));
+    const tables = needsNormalization && prepared.some(({ remote }) => sources.find(w => w.id === remote.id).nodes.some(n => n.type === 'n8n-nodes-base.dataTable'))
+        ? await api.list('data-tables') : [];
+    const contextLocals = [...locals.map(l => l.workflow)];
+    for (const { local } of prepared) if (!contextLocals.some(w => w.name === local.workflow.name)) contextLocals.push(local.workflow);
+    const context = needsNormalization ? createSyncContext({ localWorkflows: contextLocals, sourceWorkflows: sources, tables, callbackUrl }) : undefined;
+    const plans = prepared.map(({ remote, local }) => {
+        const source = sources.find(w => w.id === remote.id);
+        if (!noUnpack) return { local, ...planSync(source, local, context, { normalize: inventory.has(remote.name) }) };
+        const workflow = inventory.has(remote.name) ? normalizeWorkflow(source, local.workflow, context) : sanitizeWorkflow(source);
+        workflow.id = local.raw.id;
+        const directory = path.dirname(local.directory);
+        const relative = path.basename(local.directory) + '.json';
+        const filename = safeExternalPath(directory, relative);
+        const existing = fs.existsSync(filename) ? fs.readFileSync(filename, 'utf8') : '';
+        const differences = existing ? diffPaths(comparableWorkflow(JSON.parse(existing)), comparableWorkflow(workflow)) : ['create'];
+        return { local: { ...local, directory }, checkPath: filename, differences, files: differences.length ? new Map([[relative, renderWorkflow(workflow, existing)]]) : new Map() };
+    });
+    for (const plan of plans) for (const [relative, content] of plan.files) {
+        const filename = safeExternalPath(plan.local.directory, relative);
+        if (fs.existsSync(filename) && fs.readFileSync(filename, 'utf8') === content) plan.files.delete(relative);
+    }
+    if (!dryRun) for (const plan of plans) {
+        if (plan.files.size) assertCleanDirectory(plan.checkPath || plan.local.directory, rootDir);
+    }
+    const results = [];
+    for (const plan of plans) {
+        if (!dryRun && plan.files.size) assertCleanDirectory(plan.checkPath || plan.local.directory, rootDir);
+        const result = dryRun ? { changed: plan.files.size } : applyFilePlan(plan.local.directory, plan.files);
+        results.push({ name: plan.local.raw.name, differences: plan.differences, ...result });
+    }
+    return results;
+}
+
+async function runCli() {
+    const flags = new Set(['--include-archived', '--dry-run', '--no-unpack', '--skip', '--overwrite', '--new']);
+    const argv = process.argv.slice(2);
+    for (const flag of argv.filter(arg => arg.startsWith('--'))) {
+        if (!flags.has(flag)) throw new Error(`Unsupported flag: ${flag}`);
+    }
+    const decisions = argv.filter(arg => ['--skip', '--overwrite', '--new'].includes(arg));
+    if (decisions.length > 1) throw new Error('Choose only one conflict flag');
+    let rl;
     try {
-        const allWorkflows = await getTargetWorkflows();
-        const workflowsToSync = await resolveWorkflowTargets(allWorkflows);
-
-        console.log(`\nFound ${workflowsToSync.length} workflows to sync.`);
-
-        for (const wf of workflowsToSync) {
-            const safeName = getSafeName(wf.name);
-            const newBaseFilename = `${safeName}_${wf.id}`;
-            let targetDirName = newBaseFilename;
-            let targetId = wf.id;
-            
-            // 尋找本地是否已經有同名的 workflow 資料夾或 workflow.json
-            const allLocalDirs = fs.readdirSync(workflowsDir, { withFileTypes: true })
-                .filter(dirent => dirent.isDirectory())
-                .map(dirent => dirent.name);
-
-            // 1. 第一優先：若為 V3 庫存流程，自動精確映射至本地對應之資料夾
-            let exactMatch = null;
-            if (v3InventoryMap.has(wf.name)) {
-                const mappedDir = v3InventoryMap.get(wf.name);
-                if (allLocalDirs.includes(mappedDir)) {
-                    exactMatch = mappedDir;
-                }
+        const results = await syncWorkflows({
+            targets: argv.filter(arg => !arg.startsWith('--')),
+            apiUrl: process.env.REMOTE_N8N_API_URL,
+            apiKey: process.env.REMOTE_N8N_API_KEY,
+            callbackUrl: process.env.STT_CALLBACK_URL,
+            includeArchived: argv.includes('--include-archived'),
+            dryRun: argv.includes('--dry-run'),
+            noUnpack: argv.includes('--no-unpack'),
+            conflict: argv.includes('--skip') ? 'S' : argv.includes('--new') ? 'N' : argv.includes('--overwrite') || process.env.SYNC_OVERWRITE === 'true' ? 'O' : '',
+            choose: async name => {
+                if (!process.stdin.isTTY) throw new Error(`Explicit conflict choice required: ${name}`);
+                rl ??= readline.createInterface({ input: process.stdin, output: process.stdout });
+                const answer = (await rl.question(`${name}: different local ID. [O] overwrite, [N] new, [S] skip: `)).trim().toUpperCase();
+                if (!['O', 'N', 'S'].includes(answer)) throw new Error('Invalid conflict choice');
+                return answer;
             }
-
-            // 2. 第二優先：資料夾名稱完全吻合 (safeName + id)
-            if (!exactMatch) {
-                exactMatch = allLocalDirs.find(d => d === newBaseFilename);
-            }
-
-            // 3. 次要 fallback：若沒有完全吻合的資料夾，才比對相同 ID 後綴
-            if (!exactMatch) {
-                exactMatch = allLocalDirs.find(d => d.endsWith(`_${wf.id}`));
-            }
-
-            // 4. 其次比對 workflow.json 中的 name 或 safeName 前綴
-            const conflictDirs = allLocalDirs.filter(d => {
-                if (d === exactMatch) return false;
-                const jsonPath = path.join(workflowsDir, d, 'workflow.json');
-                if (fs.existsSync(jsonPath)) {
-                    try {
-                        const localWf = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-                        if (localWf.name === wf.name) return true;
-                    } catch (e) {}
-                }
-                return d.startsWith(`${safeName}_`);
-            });
-
-            if (!exactMatch && conflictDirs.length > 0) {
-                const existingDir = conflictDirs[0]; // 取第一個找到的
-                const existingJsonPath = path.join(workflowsDir, existingDir, 'workflow.json');
-                let existingId = 'unknown';
-                if (fs.existsSync(existingJsonPath)) {
-                    try {
-                        const localWf = JSON.parse(fs.readFileSync(existingJsonPath, 'utf8'));
-                        existingId = localWf.id || existingId;
-                    } catch (e) {}
-                }
-                if (existingId === 'unknown') {
-                    const existingIdMatch = existingDir.match(/_([a-zA-Z0-9A-Za-z]+)$/);
-                    existingId = existingIdMatch ? existingIdMatch[1] : 'unknown';
-                }
-
-                console.log(`\n⚠️  發現本地已存在同名的工作流程資料夾，但 ID 不同：`);
-                console.log(`遠端來源: "${wf.name}" (ID: ${wf.id})`);
-                console.log(`本地現存: workflows/${existingDir} (ID: ${existingId})`);
-                
-                let decision = '';
-                if (autoOverwrite) {
-                    decision = 'O';
-                    console.log(`使用 --overwrite 模式，自動選擇覆蓋現有`);
-                } else if (autoNew) {
-                    decision = 'N';
-                    console.log(`使用 --new 模式，自動選擇建立全新`);
-                } else if (autoSkip) {
-                    decision = 'S';
-                    console.log(`使用 --skip 模式，自動選擇跳過`);
-                } else {
-                    while (!['O', 'N', 'S'].includes(decision)) {
-                        const answer = await askQuestion(`\n請選擇處理方式：\n[O] 覆蓋現有 (Overwrite)：直接更新本地 ${existingDir} 的內容，並強制保留原有的 ID (${existingId})\n[N] 建立全新 (New)      ：保留原有資料夾，額外建立一個 ${newBaseFilename} 資料夾\n[S] 跳過 (Skip)         ：不要同步這個工作流程\n\n請選擇 [O/N/S]: `);
-                        decision = answer.trim().toUpperCase();
-                    }
-                }
-
-                if (decision === 'S') {
-                    console.log(`已跳過 ${wf.name}`);
-                    continue;
-                } else if (decision === 'O') {
-                    targetDirName = existingDir;
-                    targetId = existingId;
-                    console.log(`將覆寫本地 ${targetDirName}，並強制保留 ID: ${targetId}`);
-                } else if (decision === 'N') {
-                    targetDirName = newBaseFilename;
-                    targetId = wf.id;
-                    console.log(`將建立全新資料夾 ${targetDirName}`);
-                }
-            } else if (exactMatch) {
-                targetDirName = exactMatch;
-                targetId = wf.id;
-            }
-            
-            // 抓取完整 Workflow
-            const wfResponse = await fetch(`${apiUrl}/api/v1/workflows/${wf.id}`, {
-                headers: { 'X-N8N-API-KEY': apiKey }
-            });
-            const fullWf = await wfResponse.json();
-            
-            // 強制設定 ID (如果選擇 Overwrite 會改寫為原有的 Prod ID)
-            fullWf.id = targetId;
-
-            // 在存檔前進行過濾
-            sanitizeWorkflow(fullWf);
-            
-            if (noUnpack) {
-                const workflowJsonPath = path.join(workflowsDir, `${targetDirName}.json`);
-                fs.writeFileSync(workflowJsonPath, JSON.stringify(fullWf, null, 2));
-                console.log(`Synced: ${targetDirName}.json`);
-            } else {
-                const wfDir = path.join(workflowsDir, targetDirName);
-                if (!fs.existsSync(wfDir)) {
-                    fs.mkdirSync(wfDir, { recursive: true });
-                }
-
-                // Extract code from nodes
-                if (fullWf.nodes && Array.isArray(fullWf.nodes)) {
-                    for (const node of fullWf.nodes) {
-                        if (!node.parameters) continue;
-                        
-                        const extractionMappings = [
-                            // 舊有程式碼邏輯 (無條件抽出)
-                            { typeRegex: /^n8n-nodes-base\.code$/, fieldPath: ['parameters', 'jsCode'], ext: 'js', alwaysExtract: true },
-                            { typeRegex: /^n8n-nodes-base\.code$/, fieldPath: ['parameters', 'pythonCode'], ext: 'py', alwaysExtract: true },
-                            // 新增的文字欄位抽取 (具備長度門檻)
-                            { typeRegex: /^n8n-nodes-base\.slack$/, fieldPath: ['parameters', 'text'], ext: 'md' },
-                            { typeRegex: /^@n8n\/n8n-nodes-langchain\..*$/, fieldPath: ['parameters', 'text'], ext: 'md' },
-                            { typeRegex: /^@n8n\/n8n-nodes-langchain\..*$/, fieldPath: ['parameters', 'options', 'systemMessage'], ext: 'md' },
-                            { typeRegex: /^n8n-nodes-base\.(googleBigQuery|postgres)$/, fieldPath: ['parameters', 'sqlQuery'], ext: 'sql' },
-                            { typeRegex: /^n8n-nodes-base\.(googleBigQuery|postgres)$/, fieldPath: ['parameters', 'query'], ext: 'sql' },
-                            { typeRegex: /^@n8n\/n8n-nodes-langchain\.outputParserStructured$/, fieldPath: ['parameters', 'inputSchema'], ext: 'json' },
-                            { typeRegex: /^n8n-nodes-base\.httpRequest$/, fieldPath: ['parameters', 'jsonBody'], ext: 'jsonc' },
-                            { typeRegex: /^n8n-nodes-base\.set$/, fieldPath: ['parameters', 'jsonOutput'], ext: 'jsonc' }
-                        ];
-
-                        for (const mapping of extractionMappings) {
-                            if (mapping.typeRegex.test(node.type)) {
-                                let parent = node;
-                                const keyName = mapping.fieldPath[mapping.fieldPath.length - 1];
-                                
-                                // 導航至目標屬性的父物件
-                                for (let i = 0; i < mapping.fieldPath.length - 1; i++) {
-                                    if (parent && parent[mapping.fieldPath[i]] !== undefined) {
-                                        parent = parent[mapping.fieldPath[i]];
-                                    } else {
-                                        parent = undefined;
-                                        break;
-                                    }
-                                }
-                                
-                                if (parent && typeof parent[keyName] === 'string') {
-                                    const val = parent[keyName];
-                                    const lines = val.split('\n').length;
-                                    const chars = val.length;
-                                    
-                                    // 長度門檻：大於10行或大於200字元，或是被強制標記為 alwaysExtract (針對 jsCode/pythonCode)
-                                    if (mapping.alwaysExtract || lines > 10 || chars > 200) {
-                                        const safeNodeName = node.name.replace(/[^a-z0-9_]/gi, '_');
-                                        const nodeDir = path.join(wfDir, 'nodes', safeNodeName);
-                                        if (!fs.existsSync(nodeDir)) {
-                                            fs.mkdirSync(nodeDir, { recursive: true });
-                                        }
-                                        
-                                        const fieldSuffix = mapping.fieldPath.slice(1).join('_'); // e.g. options_systemMessage 或 jsCode
-                                        const codeFilePath = path.join(nodeDir, `${fieldSuffix}.${mapping.ext}`);
-                                        fs.writeFileSync(codeFilePath, val);
-                                        
-                                        // Replace with pointer
-                                        parent[keyName] = `__EXTERNAL_FILE__://nodes/${safeNodeName}/${fieldSuffix}.${mapping.ext}`;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                const workflowJsonPath = path.join(wfDir, 'workflow.json');
-                fs.writeFileSync(workflowJsonPath, JSON.stringify(fullWf, null, 2));
-                console.log(`Synced and extracted: ${targetDirName}/workflow.json`);
-            }
-        }
-        console.log("\nSync complete!");
-    } catch (err) {
-        console.error("Error syncing workflows:", err);
-    } finally {
-        rl.close();
-    }
+        });
+        for (const result of results) console.log(JSON.stringify(result));
+    } finally { rl?.close(); }
 }
 
-syncWorkflows();
+if (require.main === module) runCli().catch(error => { console.error(error.message); process.exitCode = 1; });
+module.exports = { syncWorkflows, planSync, loadLocalWorkflows };

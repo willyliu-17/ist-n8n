@@ -1023,7 +1023,10 @@ async function deployWorkflows(files, {
 }
 
 function runCli() {
-    const files = process.argv.slice(2);
+    const argv = process.argv.slice(2);
+    const unknown = argv.find(arg => arg.startsWith('--') && arg !== '--dry-run');
+    if (unknown) throw new Error(`Unsupported flag: ${unknown}`);
+    const files = argv.filter(arg => arg !== '--dry-run');
     if (files.length === 0) {
         console.error("Usage: node --env-file=.env scripts/deploy.js <path-to-workflow.json | directory> [more files...]");
         process.exitCode = 1;
@@ -1038,12 +1041,17 @@ function runCli() {
         return;
     }
 
-    deployWorkflows(files, {
+    const { deployConsistentWorkflows } = require('./deploy-consistency');
+    const { loadLocalWorkflows } = require('./sync');
+    deployConsistentWorkflows(buildRequestedWorkflows(files), {
         apiUrl,
         apiKey,
-        sttCallbackUrl: process.env.STT_CALLBACK_URL
-    }).catch(err => {
-        console.error('Deployment failed:', err);
+        sttCallbackUrl: process.env.STT_CALLBACK_URL,
+        localInventory: loadLocalWorkflows(path.resolve(__dirname, '..')).map(local => local.workflow),
+        dryRun: argv.includes('--dry-run')
+    }).then(result => console.log(JSON.stringify(result, null, 2))).catch(err => {
+        console.error('Deployment failed:', err.message);
+        console.error(JSON.stringify({ completed: err.completed || [], createdWorkflowIds: err.createdWorkflowIds || [] }));
         process.exitCode = 1;
     });
 }
