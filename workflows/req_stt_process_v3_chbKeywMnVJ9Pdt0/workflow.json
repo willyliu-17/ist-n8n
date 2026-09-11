@@ -1,11 +1,9 @@
 {
   "id": "chbKeywMnVJ9Pdt0",
   "name": "Req STT process v3",
-  "description": "Input: typed standalone STT command. Output: accepted attempt allowlist. Side effects: posts a processing status and dispatches the canonical attempt.",
+  "description": "",
   "active": true,
   "isArchived": false,
-  "sourceWorkflowId": null,
-  "triggerCount": 0,
   "nodes": [
     {
       "parameters": {
@@ -62,9 +60,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "qAjDH2w1BNvom95c",
+          "value": "StreamMetaV3A001",
           "mode": "list",
-          "cachedResultUrl": "/workflow/qAjDH2w1BNvom95c",
+          "cachedResultUrl": "/workflow/StreamMetaV3A001",
           "cachedResultName": "Stream Metadata: resolve by IDs v3"
         },
         "workflowInputs": {
@@ -195,9 +193,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "qAjDH2w1BNvom95c",
+          "value": "StreamMetaV3A001",
           "mode": "list",
-          "cachedResultUrl": "/workflow/qAjDH2w1BNvom95c",
+          "cachedResultUrl": "/workflow/StreamMetaV3A001",
           "cachedResultName": "Stream Metadata: resolve by IDs v3"
         },
         "workflowInputs": {
@@ -305,9 +303,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "qAjDH2w1BNvom95c",
+          "value": "StreamMetaV3A001",
           "mode": "list",
-          "cachedResultUrl": "/workflow/qAjDH2w1BNvom95c",
+          "cachedResultUrl": "/workflow/StreamMetaV3A001",
           "cachedResultName": "Stream Metadata: resolve by IDs v3"
         },
         "workflowInputs": {
@@ -967,9 +965,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "mPvu0QeiC8t6b2MS",
+          "value": "STTDispatchV3A01",
           "mode": "list",
-          "cachedResultUrl": "/workflow/mPvu0QeiC8t6b2MS",
+          "cachedResultUrl": "/workflow/STTDispatchV3A01",
           "cachedResultName": "STT: dispatch attempt v3"
         },
         "workflowInputs": {
@@ -1372,7 +1370,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false,
     "executionOrder": "v1",
-    "errorWorkflow": "run4KT7goJGVeOOk",
+    "errorWorkflow": "AutomationErrorV3A1",
     "timeSavedMode": "fixed",
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
@@ -1380,13 +1378,9 @@
     "saveExecutionProgress": false,
     "binaryMode": "separate"
   },
-  "meta": null,
   "tags": [
     {
-      "id": "NLo3n5BNlRhVr71N",
-      "name": "ist-bot-v3",
-      "createdAt": "2026-09-03T06:50:34.301Z",
-      "updatedAt": "2026-09-03T06:50:34.301Z"
+      "name": "ist-bot-v3"
     }
   ]
 }

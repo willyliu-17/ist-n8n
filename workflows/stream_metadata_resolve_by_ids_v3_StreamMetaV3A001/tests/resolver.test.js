@@ -270,7 +270,7 @@ test('preserves original output order and duplicates', () => {
 test('builds external files and enforces workflow topology', () => {
   const workflow = buildWorkflow(resolverDir);
   assert.equal(workflow.id, 'StreamMetaV3A001');
-  assert.equal(workflow.active, false);
+  assert.equal(workflow.active, true);
   assert.equal(workflow.isArchived, false);
   assert.equal(workflow.nodes.length, 7);
   assert.ok(workflow.nodes.every((node) => !JSON.stringify(node.parameters).includes('__EXTERNAL_FILE__://')));

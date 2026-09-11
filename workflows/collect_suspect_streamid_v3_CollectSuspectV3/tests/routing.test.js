@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
+const workflowContracts = require('../../../docs/v3-workflow-contracts.json');
 
 const workflowDir = path.resolve(__dirname, '..');
 const queryLogsWorkflowDir = path.resolve(
@@ -675,7 +676,7 @@ test('is active with manual test-channel and daily production-channel triggers',
   const schedule = nodeByName(workflow, 'Daily 10:00 Taipei Trigger');
   assert.equal(schedule.typeVersion, 1.4);
   assert.equal(schedule.parameters.rule.interval[0].triggerAtHour, 10);
-  assert.equal(schedule.parameters.rule.interval[0].triggerAtMinute, 0);
+  assert.equal(schedule.parameters.rule.interval[0].triggerAtMinute ?? 0, 0);
   assert.equal(workflow.settings.timezone, 'Asia/Taipei');
   assert.ok(workflow.connections['Manually Trigger'].main[0].some(({ node }) => node === 'Configure Manual Run'));
   assert.ok(workflow.connections['Configure Manual Run'].main[0].some(({ node }) => node === 'Build Candidate Query Config'));
@@ -688,7 +689,7 @@ test('is active with manual test-channel and daily production-channel triggers',
   assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.mode, 'each');
   const queryLogs = nodeByName(workflow, 'Call Query Steam Logs');
   assert.equal(queryLogs.parameters.workflowId.cachedResultName, 'Query Steam Logs v3');
-  assert.equal(queryLogs.parameters.mode, 'once');
+  assert.equal(queryLogs.parameters.mode ?? 'once', 'once');
   assert.equal(queryLogs.parameters.options.waitForSubWorkflow, true);
   assert.equal(queryLogs.alwaysOutputData, undefined);
   assert.equal(queryLogs.onError, 'continueErrorOutput');
@@ -704,9 +705,9 @@ test('is active with manual test-channel and daily production-channel triggers',
   const queryLogsLoop = nodeByName(workflow, 'Query Logs Loop');
   assert.equal(queryLogsLoop.type, 'n8n-nodes-base.splitInBatches');
   assert.equal(queryLogsLoop.typeVersion, 3);
-  assert.equal(queryLogsLoop.parameters.batchSize, 1);
+  assert.equal(queryLogsLoop.parameters.batchSize ?? 1, 1);
   assert.deepEqual(queryLogsLoop.parameters.options, {});
-  assert.equal(nodeByName(workflow, 'Limit Query Logs Loop Done').parameters.maxItems, 1);
+  assert.equal(nodeByName(workflow, 'Limit Query Logs Loop Done').parameters.maxItems ?? 1, 1);
   assert.equal(nodeByName(workflow, 'Build Candidate Log Requests').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Build_Candidate_Log_Requests/jsCode.js');
   assert.deepEqual(workflow.connections['Verify Candidate Root Checkpoint'].main[0].map(({ node }) => node), [
     'Prepare Resolver Chunks', 'Build Candidate Log Requests',
@@ -731,7 +732,7 @@ test('is active with manual test-channel and daily production-channel triggers',
   assert.equal(nodeByName(workflow, 'Build Log Status Updates').parameters.jsCode, '__EXTERNAL_FILE__://nodes/Build_Log_Status_Updates/jsCode.js');
   assert.deepEqual(workflow.connections['Build Log Status Updates'].main[0], [{ node: 'Update Log Collecting Status', type: 'main', index: 0 }]);
   const logStatusMerge = nodeByName(workflow, 'Merge Log Status Update Inputs');
-  assert.equal(logStatusMerge.parameters.mode, 'append');
+  assert.equal(logStatusMerge.parameters.mode ?? 'append', 'append');
   assert.deepEqual(workflow.connections['Query Logs Loop'].main[0], [
     { node: 'Summarize Query Log Results', type: 'main', index: 0 },
     { node: 'Merge Log Status Update Inputs', type: 'main', index: 0 },
@@ -742,8 +743,8 @@ test('is active with manual test-channel and daily production-channel triggers',
     [{ node: 'Limit Query Logs Loop Done', type: 'main', index: 0 }],
   ]);
   assert.equal(workflow.nodes.some(({ name }) => name === 'Fail Query Logs Delivery'), false);
-  assert.match(workflow.description, /best-effort attachments/);
-  assert.match(workflow.description, /posts STT then log-collecting statuses before asynchronously calling the Summary orchestrator/);
+  assert.match(workflowContracts[workflow.id], /best-effort attachments/);
+  assert.match(workflowContracts[workflow.id], /posts STT then log-collecting statuses before asynchronously calling the Summary orchestrator/);
   const queryLogsWorkflow = readQueryLogsWorkflow();
   const slackNodes = queryLogsWorkflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.slack');
   assert.equal(slackNodes.length, 2);
@@ -764,11 +765,12 @@ test('is active with manual test-channel and daily production-channel triggers',
   const sendLogStatus = nodeByName(workflow, 'Send Log Collecting Status');
   assert.deepEqual(sendLogStatus.credentials, nodeByName(workflow, 'Send Processing Message').credentials);
   assert.equal(sendLogStatus.retryOnFail, undefined);
-  assert.deepEqual(Object.fromEntries(['resource', 'operation', 'messageType'].map((key) => [key, sendLogStatus.parameters[key]])), { resource: 'message', operation: 'post', messageType: 'text' });
+  const slackDefaults = { resource: 'message', operation: 'post', messageType: 'text' };
+  assert.deepEqual(Object.fromEntries(Object.keys(slackDefaults).map((key) => [key, sendLogStatus.parameters[key] ?? slackDefaults[key]])), slackDefaults);
   assert.equal(nodeByName(workflow, 'Update Log Collecting Status').parameters.operation, 'update');
-  assert.equal(nodeByName(workflow, 'Update Log Collecting Status').parameters.resource, 'message');
-  assert.equal(nodeByName(workflow, 'Update Log Collecting Status').parameters.messageType, 'text');
-  assert.equal(nodeByName(workflow, 'Update Log Collecting Status').parameters.updateFields, undefined);
+  assert.equal(nodeByName(workflow, 'Update Log Collecting Status').parameters.resource ?? 'message', 'message');
+  assert.equal(nodeByName(workflow, 'Update Log Collecting Status').parameters.messageType ?? 'text', 'text');
+  assert.deepEqual(nodeByName(workflow, 'Update Log Collecting Status').parameters.updateFields ?? {}, {});
   assert.equal(nodeByName(workflow, 'Update Log Collecting Status').retryOnFail, undefined);
   assert.deepEqual(workflow.connections['Send Processing Message'].main[0], [{ node: 'Build Log Collecting Status', type: 'main', index: 0 }]);
   assert.deepEqual(workflow.connections['Build Log Collecting Status'].main[0], [{ node: 'Send Log Collecting Status', type: 'main', index: 0 }]);

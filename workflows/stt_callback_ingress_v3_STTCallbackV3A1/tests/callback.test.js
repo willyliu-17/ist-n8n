@@ -870,7 +870,7 @@ test('fails closed when re-read Data Tables emit empty placeholders', () => {
   );
 });
 
-test('defines an inactive stable POST webhook and explicit response for every logical branch', () => {
+test('defines an active stable POST webhook and explicit response for every logical branch', () => {
   const workflow = readWorkflow();
   const webhook = nodeByName(workflow, 'Stable Callback Webhook');
   const responders = workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.respondToWebhook');
@@ -886,7 +886,7 @@ test('defines an inactive stable POST webhook and explicit response for every lo
 
   assert.equal(workflow.id, 'STTCallbackV3A1');
   assert.equal(workflow.name, 'STT: callback ingress v3');
-  assert.equal(workflow.active, false);
+  assert.equal(workflow.active, true);
   assert.equal(workflow.isArchived, false);
   assert.equal(webhook.parameters.httpMethod, 'POST');
   assert.equal(webhook.parameters.path, 'stt-callback-v3');
@@ -1151,6 +1151,7 @@ test('writes only masked primitive audit fields after responses and does not ret
   assert.deepEqual(workflow.settings, {
     executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all',
     saveManualExecutions: true, saveExecutionProgress: false,
+    callerPolicy: 'workflowsFromSameOwner', availableInMCP: false, errorWorkflow: 'AutomationErrorV3A1',
   });
 });
 

@@ -1,11 +1,9 @@
 {
   "id": "AISummaryV3A0001",
   "name": "AI SUMMARY v3",
-  "description": "A completed Slack upload may be duplicated during repair if its checkpoint write fails.",
+  "description": "",
   "active": true,
   "isArchived": false,
-  "sourceWorkflowId": null,
-  "triggerCount": 0,
   "nodes": [
     {
       "id": "00000000-0000-4000-8000-000000000001",
@@ -3735,15 +3733,11 @@
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
     "saveExecutionProgress": false,
-    "errorWorkflow": "run4KT7goJGVeOOk"
+    "errorWorkflow": "AutomationErrorV3A1"
   },
-  "meta": null,
   "tags": [
     {
-      "id": "NLo3n5BNlRhVr71N",
-      "name": "ist-bot-v3",
-      "createdAt": "2026-09-03T06:50:34.301Z",
-      "updatedAt": "2026-09-03T06:50:34.301Z"
+      "name": "ist-bot-v3"
     }
   ]
 }

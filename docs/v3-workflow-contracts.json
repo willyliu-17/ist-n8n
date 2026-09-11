@@ -1,0 +1,15 @@
+{
+  "AutomationProvV3A1": "Read-only by-name existence probes for the expected v3 Data Table schema. Table creation and schema validation remain separately approved Production gates.",
+  "StreamMetaV3A001": "Resolve 1..100 numeric liveStreamID values in one fixed BigQuery batch query. Inputs: streams (array), lookupWindow (optional object with offset RFC3339 start/end), profile (core|stt|vds). Returns one StreamContext item per original input, preserving order and duplicates.",
+  "STTDispatchV3A01": "Soft-CAS STT dispatcher. Deployment must inject STT_CALLBACK_URL as HTTPS with the fixed /webhook/stt-callback-v3 path before any activation.",
+  "STTCallbackV3A1": "Stable STT callback ingress. Execution payload retention follows the workflow settings. P5 must verify HTTPS registration, proxy/body logging, access control, retention, and redaction before activation; reverse proxy and upstream logs remain a raw-token residual risk.",
+  "STTListenerV3A01": "Input: required attemptKey string. Side effects: presentation uploads and status updates. Output: persisted presentation state. A checkpoint write after an upload can leave potential_duplicate_upload risk. Require Automation: error handler v3 assignment before activation.",
+  "chbKeywMnVJ9Pdt0": "Input: typed standalone STT command. Output: accepted attempt allowlist. Side effects: posts a processing status and dispatches the canonical attempt.",
+  "SummaryOrchV3A01": "Stateful Summary request creation owner. Inputs: requestKey:string, requestType:string, orderedStreams:array, existingDialogues:object, channel:string, threadTS:string. Reconciles canonical request and attempt rows, materializes only missing-dialogue attempt 1 rows, then dispatches after a verified request transition.",
+  "AISummaryV3A0001": "A completed Slack upload may be duplicated during repair if its checkpoint write fails.",
+  "SummaryCoordV3A1": "Stateful Summary coordinator. Input: requestKey:string. It reconciles canonical request rows, writes verified terminal coverage, claims with soft-CAS leases, and fire-and-forget dispatches resolved AI input. Manual request resolution remains a Task 10 entrypoint.",
+  "RepairCandidateV3A1": "Per-candidate repair processor. Inputs: repairClass:string (retry_materialization or presentation_lease), candidateKey:string, scanTimeIso:string. Reuses the scheduler retry and presentation CAS, reread, verification, and owner-call protocols for exactly one candidate.",
+  "AutoRepairV3A001": "Bounded repair scheduler. Automatic runs never resolve manual review; a separately approved Production entrypoint is required. Fire-and-forget calls are not asserted to be idempotent.",
+  "AutomationErrorV3A1": "Masked Error Trigger audit handler. Assignment to production workflows remains a separate Production gate.",
+  "CollectSuspectV3": "Collector posts STT then log-collecting statuses before asynchronously calling the Summary orchestrator; best-effort attachments follow verified candidate status checkpoints."
+}

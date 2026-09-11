@@ -1,11 +1,9 @@
 {
   "id": "IstBotSlackIngressV3A1",
   "name": "IST bot Slack ingress v3",
-  "description": null,
+  "description": "",
   "active": true,
   "isArchived": false,
-  "sourceWorkflowId": null,
-  "triggerCount": 1,
   "nodes": [
     {
       "id": "14000001-0000-4000-8000-000000000001",
@@ -257,15 +255,9 @@
     "saveExecutionProgress": false,
     "binaryMode": "separate"
   },
-  "meta": {
-    "templateCredsSetupCompleted": true
-  },
   "tags": [
     {
-      "id": "NLo3n5BNlRhVr71N",
-      "name": "ist-bot-v3",
-      "createdAt": "2026-09-03T06:50:34.301Z",
-      "updatedAt": "2026-09-03T06:50:34.301Z"
+      "name": "ist-bot-v3"
     }
   ]
 }

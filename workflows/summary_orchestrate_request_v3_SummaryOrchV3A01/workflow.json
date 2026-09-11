@@ -1,8 +1,8 @@
 {
   "id": "SummaryOrchV3A01",
   "name": "Summary: orchestrate request v3",
-  "description": "Inactive stateful Summary request creation owner. Inputs: requestKey:string, requestType:string, orderedStreams:array, existingDialogues:object, channel:string, threadTS:string. Reconciles canonical request and attempt rows, materializes only missing-dialogue attempt 1 rows, then dispatches after a verified request transition.",
-  "active": false,
+  "description": "",
+  "active": true,
   "isArchived": false,
   "nodes": [
     {
@@ -216,7 +216,16 @@
     { "parameters": { "resource": "row", "operation": "get", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $('Normalize Request').first().json.requestKey }}" }] }, "returnAll": true, "options": {} }, "id": "0b0bb001-0000-4000-8000-000000000001", "name": "Read Initial Summary Status Rows", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [5520, -320], "alwaysOutputData": true },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Initial_Summary_Status/jsCode.js" }, "id": "0b0bb002-0000-4000-8000-000000000002", "name": "Plan Initial Summary Status", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [5760, -320] },
     { "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "0b0bb003-0000-4000-8000-000000000003", "leftValue": "={{ $json.summaryMessageAction }}", "rightValue": "post", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "options": {} }, "id": "0b0bb003-0000-4000-8000-000000000003", "name": "Initial Summary Status Needs Post", "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [6000, -320] },
-    { "parameters": { "resource": "message", "operation": "post", "select": "channel", "channelId": { "__rl": true, "value": "={{ $json.channel }}", "mode": "id" }, "text": "={{ $json.summaryMessageText }}", "otherOptions": { "thread_ts": { "replyValues": { "thread_ts": "={{ $json.threadTS }}" } } } }, "id": "0b0bb004-0000-4000-8000-000000000004", "name": "Post Initial Summary Status", "type": "n8n-nodes-base.slack", "typeVersion": 2.3, "position": [6240, -400], "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } } },
+    {
+      "parameters": { "resource": "message", "operation": "post", "select": "channel", "channelId": { "__rl": true, "value": "={{ $json.channel }}", "mode": "id" }, "text": "={{ $json.summaryMessageText }}", "otherOptions": { "thread_ts": { "replyValues": { "thread_ts": "={{ $json.threadTS }}" } } } },
+      "id": "0b0bb004-0000-4000-8000-000000000004",
+      "name": "Post Initial Summary Status",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [6240, -400],
+      "credentials": { "slackApi": { "id": "9sfslX7caXSFAVUN", "name": "n8n-streaming-testing" } },
+      "webhookId": "aa7b4346-4890-443f-9e13-82d510c922b7"
+    },
     { "parameters": { "mode": "combine", "combineBy": "combineByPosition", "numberInputs": 2, "options": {} }, "id": "0b0bb005-0000-4000-8000-000000000005", "name": "Merge Initial Summary Status Response", "type": "n8n-nodes-base.merge", "typeVersion": 3.2, "position": [6480, -400] },
     { "parameters": { "mode": "runOnceForAllItems", "jsCode": "__EXTERNAL_FILE__://nodes/Parse_Initial_Summary_Status/jsCode.js" }, "id": "0b0bb006-0000-4000-8000-000000000006", "name": "Parse Initial Summary Status", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [6720, -400] },
     { "parameters": { "resource": "row", "operation": "update", "dataTableId": { "__rl": true, "mode": "name", "value": "summary_requests_v3" }, "matchType": "allConditions", "filters": { "conditions": [{ "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }, { "keyName": "requestKey", "condition": "eq", "keyValue": "={{ $json.requestKey }}" }, { "keyName": "status", "condition": "eq", "keyValue": "creating" }, { "keyName": "reconciliationStatus", "condition": "eq", "keyValue": "canonical" }, { "keyName": "canonicalRowID", "condition": "eq", "keyValue": "={{ String($json.id) }}" }, { "keyName": "creationLeaseOwner", "condition": "eq", "keyValue": "={{ $execution.id }}" }, { "keyName": "creationLeaseUntilIso", "condition": "eq", "keyValue": "={{ $json.expectedCreationLeaseUntilIso }}" }, { "keyName": "updatedAt", "condition": "eq", "keyValue": "={{ $json.expectedUpdatedAt }}" }, { "keyName": "summaryMessageTS", "condition": "eq", "keyValue": "" }, { "keyName": "inferenceResultJson", "condition": "eq", "keyValue": "={{ $json.expectedInferenceResultJson }}" }, { "keyName": "summaryMarkdown", "condition": "eq", "keyValue": "={{ $json.expectedSummaryMarkdown }}" }, { "keyName": "summaryUploadID", "condition": "eq", "keyValue": "={{ $json.expectedSummaryUploadID }}" }] }, "columns": { "mappingMode": "defineBelow", "value": { "summaryMessageTS": "={{ $json.summaryMessageTS }}", "updatedAtIso": "={{ $json.checkpointUpdatedAtIso }}" }, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false }, "options": {} }, "id": "0b0bb007-0000-4000-8000-000000000007", "name": "Checkpoint Initial Summary Status", "type": "n8n-nodes-base.dataTable", "typeVersion": 1, "position": [6960, -400], "alwaysOutputData": true },
@@ -359,9 +368,16 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
-    "saveExecutionProgress": false
+    "saveExecutionProgress": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "AutomationErrorV3A1",
+    "binaryMode": "separate"
   },
   "tags": [
-    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
-  ]
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "nodeGroups": []
 }

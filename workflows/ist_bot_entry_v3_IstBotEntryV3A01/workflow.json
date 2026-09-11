@@ -1,11 +1,9 @@
 {
   "id": "IstBotEntryV3A01",
   "name": "IST bot entry v3",
-  "description": null,
+  "description": "",
   "active": true,
   "isArchived": false,
-  "sourceWorkflowId": null,
-  "triggerCount": 0,
   "nodes": [
     {
       "id": "13000001-0000-4000-8000-000000000001",
@@ -17,7 +15,6 @@
         0
       ],
       "parameters": {
-        "inputSource": "workflowInputs",
         "workflowInputs": {
           "values": [
             {
@@ -38,7 +35,6 @@
         0
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Command_parser/jsCode.js"
       }
     },
@@ -255,25 +251,31 @@
               "id": "streamID",
               "displayName": "streamID",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "mode",
               "displayName": "mode",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "mins",
               "displayName": "mins",
               "type": "number",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "date",
@@ -281,31 +283,39 @@
               "type": "string",
               "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "channel",
               "displayName": "channel",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "command_ts",
               "displayName": "command_ts",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "target_thread_ts",
               "displayName": "target_thread_ts",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -328,10 +338,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "gHuJuaXZTdZXAUlV",
+          "value": "QueryLogsV3A0001",
           "mode": "list",
           "cachedResultName": "Query Steam Logs v3",
-          "cachedResultUrl": "/workflow/gHuJuaXZTdZXAUlV"
+          "cachedResultUrl": "/workflow/QueryLogsV3A0001"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -345,26 +355,42 @@
             {
               "id": "streamID",
               "displayName": "streamID",
-              "type": "string",
-              "required": true,
+              "required": false,
+              "defaultMatch": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
             },
             {
               "id": "channel",
               "displayName": "channel",
-              "type": "string",
-              "required": true,
+              "required": false,
+              "defaultMatch": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
             },
             {
               "id": "target_thread_ts",
               "displayName": "target_thread_ts",
-              "type": "string",
-              "required": true,
+              "required": false,
+              "defaultMatch": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "lookbackDays",
+              "displayName": "lookbackDays",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -385,7 +411,6 @@
         160
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Build_Summary_Resolver_Input/jsCode.js"
       }
     },
@@ -401,10 +426,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "qAjDH2w1BNvom95c",
+          "value": "StreamMetaV3A001",
           "mode": "list",
           "cachedResultName": "Stream Metadata: resolve by IDs v3",
-          "cachedResultUrl": "/workflow/qAjDH2w1BNvom95c"
+          "cachedResultUrl": "/workflow/StreamMetaV3A001"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -458,7 +483,6 @@
         160
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Summary_Resolver_Output/jsCode.js"
       }
     },
@@ -537,10 +561,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "qAjDH2w1BNvom95c",
+          "value": "StreamMetaV3A001",
           "mode": "list",
           "cachedResultName": "Stream Metadata: resolve by IDs v3",
-          "cachedResultUrl": "/workflow/qAjDH2w1BNvom95c"
+          "cachedResultUrl": "/workflow/StreamMetaV3A001"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -594,7 +618,6 @@
         320
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Summary_Resolver_Output/jsCode.js"
       }
     },
@@ -610,10 +633,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "qAjDH2w1BNvom95c",
+          "value": "StreamMetaV3A001",
           "mode": "list",
           "cachedResultName": "Stream Metadata: resolve by IDs v3",
-          "cachedResultUrl": "/workflow/qAjDH2w1BNvom95c"
+          "cachedResultUrl": "/workflow/StreamMetaV3A001"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -667,7 +690,6 @@
         160
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Summary_Resolver_Output/jsCode.js"
       }
     },
@@ -714,7 +736,6 @@
         160
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Reassemble_Summary_Resolver_Output/jsCode.js"
       }
     },
@@ -730,10 +751,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "yQ10uPa6RPuEyCR4",
+          "value": "SummaryOrchV3A01",
           "mode": "list",
           "cachedResultName": "Summary: orchestrate request v3",
-          "cachedResultUrl": "/workflow/yQ10uPa6RPuEyCR4"
+          "cachedResultUrl": "/workflow/SummaryOrchV3A01"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -816,10 +837,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "O7lj0cqs9QLEXvXW",
+          "value": "TencentVDSV3A001",
           "mode": "list",
           "cachedResultName": "Tencent realtime VDS v3",
-          "cachedResultUrl": "/workflow/O7lj0cqs9QLEXvXW"
+          "cachedResultUrl": "/workflow/TencentVDSV3A001"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -1075,22 +1096,17 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false,
     "executionOrder": "v1",
-    "errorWorkflow": "run4KT7goJGVeOOk",
+    "errorWorkflow": "AutomationErrorV3A1",
     "timeSavedMode": "fixed",
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
-    "saveExecutionProgress": false
-  },
-  "meta": {
-    "templateCredsSetupCompleted": true
+    "saveExecutionProgress": false,
+    "binaryMode": "separate"
   },
   "tags": [
     {
-      "id": "NLo3n5BNlRhVr71N",
-      "name": "ist-bot-v3",
-      "createdAt": "2026-09-03T06:50:34.301Z",
-      "updatedAt": "2026-09-03T06:50:34.301Z"
+      "name": "ist-bot-v3"
     }
   ]
 }

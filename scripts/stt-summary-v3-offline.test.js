@@ -241,7 +241,7 @@ test('enables suspect collection with manual and daily Taipei triggers', () => {
   assert.equal(workflow.active, true);
   assert.deepEqual(triggers.map(({ type }) => type), ['n8n-nodes-base.manualTrigger', 'n8n-nodes-base.scheduleTrigger']);
   assert.equal(workflow.settings.timezone, 'Asia/Taipei');
-  assert.deepEqual(triggers[1].parameters.rule.interval, [{ triggerAtHour: 10, triggerAtMinute: 0 }]);
+  assert.deepEqual(triggers[1].parameters.rule.interval.map(interval => ({ triggerAtMinute: 0, ...interval })), [{ triggerAtHour: 10, triggerAtMinute: 0 }]);
   for (const [name, channel] of [['Configure Manual Run', 'C09F0SYG57D'], ['Configure Scheduled Run', 'C09F0SYG57D']]) {
     const config = workflow.nodes.find((node) => node.name === name);
     assert.equal(config.parameters.assignments.assignments.find((field) => field.name === 'channel').value, channel);

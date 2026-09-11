@@ -1,8 +1,8 @@
 {
   "id": "STTDispatchV3A01",
   "name": "STT: dispatch attempt v3",
-  "description": "Inactive soft-CAS STT dispatcher. Deployment must inject STT_CALLBACK_URL as HTTPS with the fixed /webhook/stt-callback-v3 path before any activation.",
-  "active": false,
+  "description": "",
+  "active": true,
   "isArchived": false,
   "nodes": [
     {
@@ -975,9 +975,15 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
-    "saveExecutionProgress": false
+    "saveExecutionProgress": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "AutomationErrorV3A1"
   },
   "tags": [
-    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
-  ]
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "nodeGroups": []
 }

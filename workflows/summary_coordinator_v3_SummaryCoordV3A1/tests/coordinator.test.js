@@ -416,7 +416,7 @@ test('workflow has the typed single request-key coordinator contract and authori
   assert.deepEqual(byName.get('Start').parameters.workflowInputs.values, [{ name: 'requestKey', type: 'string' }]);
   const tables = workflow.nodes.filter(({ type }) => type === 'n8n-nodes-base.dataTable').map((node) => node.parameters.dataTableId.value);
   assert.ok(tables.every((name) => ['summary_requests_v3', 'stt_jobs_v3'].includes(name)));
-  assert.equal(workflow.active, false);
+  assert.equal(workflow.active, true);
   assert.equal(workflow.isArchived, false);
 });
 
@@ -669,7 +669,7 @@ test('workflow has valid UUIDv4 IDs, external helpers, valid connection targets,
   const walk = (name) => { if (seen.has(name)) return; seen.add(name); successors(name).forEach(walk); };
   walk('Start');
   assert.deepEqual([...names].filter((name) => !seen.has(name)), []);
-  assert.deepEqual(workflow.settings, { executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false });
+  assert.deepEqual(workflow.settings, { executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false, callerPolicy: 'workflowsFromSameOwner', availableInMCP: false, errorWorkflow: 'AutomationErrorV3A1' });
 });
 
 test('runtime Code sources contain no sibling require', () => {

@@ -578,12 +578,12 @@ test('fails closed on zero-CAS inserts, partial reconciliation writes, and stale
   ], attemptRow().attemptKey), /canonical queued/i);
 });
 
-test('defines the exact inactive typed subworkflow contract without candidate rows', () => {
+test('defines the exact shared active typed subworkflow contract without candidate rows', () => {
   const workflow = readWorkflow();
   const triggers = workflow.nodes.filter(({ type }) => type.toLowerCase().includes('trigger'));
   assert.equal(workflow.id, 'SummaryOrchV3A01');
   assert.equal(workflow.name, 'Summary: orchestrate request v3');
-  assert.equal(workflow.active, false);
+  assert.equal(workflow.active, true);
   assert.equal(workflow.isArchived, false);
   assert.deepEqual(triggers.map(({ type }) => type), ['n8n-nodes-base.executeWorkflowTrigger']);
   assert.deepEqual(triggers[0].parameters.workflowInputs.values, [
@@ -757,5 +757,6 @@ test('uses no logs, secrets, candidate table, legacy table, or retained executio
   assert.deepEqual(workflow.settings, {
     executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all',
     saveManualExecutions: true, saveExecutionProgress: false,
+    callerPolicy: 'workflowsFromSameOwner', availableInMCP: false, errorWorkflow: 'AutomationErrorV3A1', binaryMode: 'separate',
   });
 });

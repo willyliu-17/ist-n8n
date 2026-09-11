@@ -7,6 +7,7 @@ const { buildWorkflow } = require('../../../scripts/utils');
 
 const workflowDir = path.resolve(__dirname, '..');
 const workflow = JSON.parse(fs.readFileSync(path.join(workflowDir, 'workflow.json'), 'utf8'));
+const workflowContract = require('../../../docs/v3-workflow-contracts.json')[workflow.id];
 const assembledWorkflow = buildWorkflow(workflowDir);
 const state = require(path.join(workflowDir, 'nodes', 'Presentation_State', 'jsCode.js'));
 const reconciliation = require(path.join(workflowDir, 'nodes', 'Reconcile_Canonical', 'jsCode.js'));
@@ -180,10 +181,10 @@ test('keeps live active metadata with one typed Define Below attemptKey trigger 
   assert.equal(triggers.length, 1);
   assert.deepEqual(triggers[0].parameters.workflowInputs.values, [{ name: 'attemptKey', type: 'string' }]);
   assert.equal('inputSource' in triggers[0].parameters, false);
-  assert.match(workflow.description, /Input: required attemptKey string/);
-  assert.match(workflow.description, /Side effects:/);
-  assert.match(workflow.description, /Output:/);
-  assert.match(workflow.description, /Require Automation: error handler v3 assignment before activation/);
+  assert.match(workflowContract, /Input: required attemptKey string/);
+  assert.match(workflowContract, /Side effects:/);
+  assert.match(workflowContract, /Output:/);
+  assert.match(workflowContract, /Require Automation: error handler v3 assignment before activation/);
   assert.equal(workflow.nodes.some(({ type }) => type === 'n8n-nodes-base.webhook'), false);
 });
 
@@ -770,8 +771,8 @@ test('records the upload-success checkpoint-write crash as a residual duplicate 
   assert.equal(state.checkpointCrashCode('transcript', true), 'potential_duplicate_upload');
   assert.equal(state.checkpointCrashCode('analysis', true), 'potential_duplicate_upload');
   assert.notEqual(state.checkpointCrashCode('transcript', false), 'potential_duplicate_upload');
-  assert.match(workflow.description, /potential_duplicate_upload/);
-  assert.doesNotMatch(workflow.description, /idempotent|exactly-once/i);
+  assert.match(workflowContract, /potential_duplicate_upload/);
+  assert.doesNotMatch(workflowContract, /idempotent|exactly-once/i);
 });
 
 test('builds deterministic sanitized transcript binary with canonical return shape', () => {
@@ -932,7 +933,7 @@ test('has no callback body, Webhook references, raw token, STT core writer, or n
 });
 
 test('retains its error handler with approved execution retention and unique UUIDv4 node IDs', () => {
-  assert.equal(workflow.settings.errorWorkflow, 'run4KT7goJGVeOOk');
+  assert.equal(workflow.settings.errorWorkflow, 'AutomationErrorV3A1');
   for (const [key, value] of Object.entries({ executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false })) assert.equal(workflow.settings[key], value);
   const ids = workflow.nodes.map(({ id }) => id);
   assert.equal(new Set(ids).size, ids.length);

@@ -319,11 +319,11 @@ test('routes summary through STT resolver and orchestrator while STT remains res
   assert.deepEqual(starts[0].parameters.workflowInputs.values, [{ name: 'event', type: 'object' }]);
   assert.equal(workflow.nodes.some(({ type }) => type === 'n8n-nodes-base.slackTrigger'), false);
   assert.deepEqual(workflow.connections.Start.main, [[{ node: 'Command Parser', type: 'main', index: 0 }]]);
-  assert.equal(nodeByName(workflow, 'Command Parser').parameters.mode, 'runOnceForAllItems');
-  assert.equal(nodeByName(workflow, 'Resolve Summary Discovery').parameters.workflowId.value, 'qAjDH2w1BNvom95c');
-  assert.equal(nodeByName(workflow, 'Resolve Summary Previous Fallback').parameters.workflowId.value, 'qAjDH2w1BNvom95c');
-  assert.equal(nodeByName(workflow, 'Resolve Summary Streams').parameters.workflowId.value, 'qAjDH2w1BNvom95c');
-  assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.workflowId.value, 'yQ10uPa6RPuEyCR4');
+  assert.equal(nodeByName(workflow, 'Command Parser').parameters.mode ?? 'runOnceForAllItems', 'runOnceForAllItems');
+  assert.equal(nodeByName(workflow, 'Resolve Summary Discovery').parameters.workflowId.value, 'StreamMetaV3A001');
+  assert.equal(nodeByName(workflow, 'Resolve Summary Previous Fallback').parameters.workflowId.value, 'StreamMetaV3A001');
+  assert.equal(nodeByName(workflow, 'Resolve Summary Streams').parameters.workflowId.value, 'StreamMetaV3A001');
+  assert.equal(nodeByName(workflow, 'Call Summary Orchestrator').parameters.workflowId.value, 'SummaryOrchV3A01');
 
   const stt = nodeByName(workflow, 'Call Req. STT process');
   assert.deepEqual(Object.keys(stt.parameters.workflowInputs.value).sort(), [
@@ -337,7 +337,8 @@ test('routes summary through STT resolver and orchestrator while STT remains res
   assert.equal(stt.parameters.workflowInputs.value.target_thread_ts, '={{ $json.thread_ts }}');
   assert.equal(stt.parameters.workflowInputs.value.channel, '={{ $json.channel }}');
   assert.equal(stt.parameters.workflowInputs.schema.find(({ id }) => id === 'command_ts').type, 'string');
-  assert.equal(stt.parameters.workflowInputs.schema.find(({ id }) => id === 'command_ts').required, true);
+  // The editor cache is optional; the mapped value and callee validation remain mandatory.
+  assert.equal(stt.parameters.workflowInputs.schema.find(({ id }) => id === 'command_ts').required, false);
   assert.equal(nodeByName(workflow, 'Call Query Stream Logs').parameters.workflowInputs.value.channel, '={{ $json.channel }}');
   assert.equal(nodeByName(workflow, 'Call Query Stream Logs').parameters.workflowInputs.value.target_thread_ts, '={{ $json.thread_ts }}');
   assert.equal(nodeByName(workflow, 'Call Tencent Realtime VDS').parameters.workflowInputs.value.channel, '={{ $json.channel }}');

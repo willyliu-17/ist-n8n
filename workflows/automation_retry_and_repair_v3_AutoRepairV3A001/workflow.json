@@ -1,8 +1,8 @@
 {
   "id": "AutoRepairV3A001",
   "name": "Automation: retry and repair v3",
-  "description": "Inactive bounded repair scheduler. Automatic runs never resolve manual review; a separately approved Production entrypoint is required. Fire-and-forget calls are not asserted to be idempotent.",
-  "active": false,
+  "description": "",
+  "active": true,
   "isArchived": false,
   "nodes": [
     {
@@ -3932,9 +3932,15 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
-    "saveExecutionProgress": false
+    "saveExecutionProgress": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "AutomationErrorV3A1"
   },
   "tags": [
-    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
-  ]
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "nodeGroups": []
 }

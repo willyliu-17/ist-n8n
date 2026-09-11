@@ -1,8 +1,8 @@
 {
   "id": "SummaryCoordV3A1",
   "name": "Summary: coordinator v3",
-  "description": "Inactive stateful Summary coordinator. Input: requestKey:string. It reconciles canonical request rows, writes verified terminal coverage, claims with soft-CAS leases, and fire-and-forget dispatches resolved AI input. Manual request resolution remains a Task 10 entrypoint.",
-  "active": false,
+  "description": "",
+  "active": true,
   "isArchived": false,
   "nodes": [
     {"parameters":{"inputSource":"workflowInputs","workflowInputs":{"values":[{"name":"requestKey","type":"string"}]}},"id":"9e871e57-9cf7-4f56-b896-7d9edc7ca10d","name":"Start","type":"n8n-nodes-base.executeWorkflowTrigger","typeVersion":1.1,"position":[0,0]},
@@ -28,7 +28,16 @@
     {"parameters":{"resource":"row","operation":"get","dataTableId":{"__rl":true,"mode":"name","value":"summary_requests_v3"},"matchType":"allConditions","filters":{"conditions":[{"keyName":"requestKey","condition":"eq","keyValue":"={{ $('Start').first().json.requestKey }}"}]},"returnAll":true,"options":{}},"id":"e6b129ef-6120-43e4-93d6-4f11919ef12a","name":"Re-read Failed Request","type":"n8n-nodes-base.dataTable","typeVersion":1,"position":[2160,180],"alwaysOutputData":true},
     {"parameters":{"mode":"runOnceForAllItems","jsCode":"__EXTERNAL_FILE__://nodes/Verify_Request_Write/jsCode.js"},"id":"8afcf064-98b1-4b6d-9f65-7df80c04c9a8","name":"Verify All Failed Request","type":"n8n-nodes-base.code","typeVersion":2,"position":[2400,180]},
     {"parameters":{"mode":"runOnceForAllItems","jsCode":"__EXTERNAL_FILE__://nodes/Build_All_Failed_Status_Update/jsCode.js"},"id":"5bd093d9-f0f5-48c1-8c2c-73bbeb12f1c5","name":"Build All Failed Status Update","type":"n8n-nodes-base.code","typeVersion":2,"position":[2640,180]},
-    {"parameters":{"resource":"message","operation":"update","channelId":{"__rl":true,"value":"={{ $json.channel }}","mode":"id"},"ts":"={{ Number($json.summaryMessageTS) }}","messageType":"text","text":"={{ $json.statusText }}"},"id":"2e938cb0-8d0f-43ce-a20f-5ec4b8c497f9","name":"Update All Failed Summary Status","type":"n8n-nodes-base.slack","typeVersion":2.7,"position":[2880,180],"credentials":{"slackApi":{"id":"9sfslX7caXSFAVUN","name":"n8n-streaming-testing"}}},
+    {
+      "parameters": {"resource":"message","operation":"update","channelId":{"__rl":true,"value":"={{ $json.channel }}","mode":"id"},"ts":"={{ Number($json.summaryMessageTS) }}","messageType":"text","text":"={{ $json.statusText }}"},
+      "id": "2e938cb0-8d0f-43ce-a20f-5ec4b8c497f9",
+      "name": "Update All Failed Summary Status",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [2880,180],
+      "credentials": {"slackApi":{"id":"9sfslX7caXSFAVUN","name":"n8n-streaming-testing"}},
+      "webhookId": "939f9fa0-9bd8-477d-bd21-4b27eef3450a"
+    },
     {"parameters":{"resource":"row","operation":"get","dataTableId":{"__rl":true,"mode":"name","value":"summary_requests_v3"},"matchType":"allConditions","filters":{"conditions":[{"keyName":"requestKey","condition":"eq","keyValue":"={{ $('Start').first().json.requestKey }}"}]},"returnAll":true,"options":{}},"id":"9609dcf9-eebd-4b80-a423-95e45858bc77","name":"Read Request For Claim","type":"n8n-nodes-base.dataTable","typeVersion":1,"position":[2160,260],"alwaysOutputData":true},
     {"parameters":{"mode":"runOnceForAllItems","jsCode":"__EXTERNAL_FILE__://nodes/Plan_Claim_Reconciliation/jsCode.js"},"id":"d30dfa47-57b4-43ec-9912-eac476978365","name":"Plan Claim Reconciliation","type":"n8n-nodes-base.code","typeVersion":2,"position":[2400,260]},
     {"parameters":{"rules":{"values":[{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"leftValue":"={{ $json.action }}","rightValue":"manual_review","operator":{"type":"string","operation":"equals"}}],"combinator":"and"}},{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"leftValue":"={{ $json.action }}","rightValue":"reconcile","operator":{"type":"string","operation":"equals"}}],"combinator":"and"}},{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"leftValue":"={{ $json.action }}","rightValue":"ready","operator":{"type":"string","operation":"equals"}}],"combinator":"and"}}]},"options":{"fallbackOutput":"extra"}},"id":"b27844e0-1fd3-4f31-b547-08996f49c0cc","name":"Route Claim Reconciliation","type":"n8n-nodes-base.switch","typeVersion":3.2,"position":[2640,260]},
@@ -153,6 +162,20 @@
     "Build Summary Input":{"main":[[{"node":"Run AI Summary","type":"main","index":0}]]},
     "Run AI Summary":{"main":[[{"node":"Drop Side Effect Output","type":"main","index":0}]]}
   },
-  "settings":{"executionOrder":"v1","saveDataSuccessExecution":"all","saveDataErrorExecution":"all","saveManualExecutions":true,"saveExecutionProgress":false},
-  "tags":[{"updatedAt":"2026-09-03T06:50:34.301Z","createdAt":"2026-09-03T06:50:34.301Z","id":"NLo3n5BNlRhVr71N","name":"ist-bot-v3"}]
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "AutomationErrorV3A1"
+  },
+  "tags": [
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "nodeGroups": []
 }

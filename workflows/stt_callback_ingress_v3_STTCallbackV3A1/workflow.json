@@ -1,8 +1,8 @@
 {
   "id": "STTCallbackV3A1",
   "name": "STT: callback ingress v3",
-  "description": "Inactive stable STT callback ingress. Successful and failed execution payloads are not retained. P5 must verify HTTPS registration, proxy/body logging, access control, retention, and redaction before activation; reverse proxy and upstream logs remain a raw-token residual risk.",
-  "active": false,
+  "description": "",
+  "active": true,
   "isArchived": false,
   "nodes": [
     {
@@ -331,9 +331,15 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
-    "saveExecutionProgress": false
+    "saveExecutionProgress": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "AutomationErrorV3A1"
   },
   "tags": [
-    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
-  ]
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "nodeGroups": []
 }

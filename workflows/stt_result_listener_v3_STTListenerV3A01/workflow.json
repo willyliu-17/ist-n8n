@@ -1,11 +1,9 @@
 {
   "id": "STTListenerV3A01",
   "name": "STT result listener v3",
-  "description": "Input: required attemptKey string. Side effects: presentation uploads and status updates. Output: persisted presentation state. A checkpoint write after an upload can leave potential_duplicate_upload risk. Require Automation: error handler v3 assignment before activation.",
+  "description": "",
   "active": true,
   "isArchived": false,
-  "sourceWorkflowId": null,
-  "triggerCount": 0,
   "nodes": [
     {
       "id": "a31c943b-1750-47f0-82a0-8cdf4db5d88e",
@@ -3513,15 +3511,11 @@
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
     "saveExecutionProgress": false,
-    "errorWorkflow": "run4KT7goJGVeOOk"
+    "errorWorkflow": "AutomationErrorV3A1"
   },
-  "meta": null,
   "tags": [
     {
-      "id": "NLo3n5BNlRhVr71N",
-      "name": "ist-bot-v3",
-      "createdAt": "2026-09-03T06:50:34.301Z",
-      "updatedAt": "2026-09-03T06:50:34.301Z"
+      "name": "ist-bot-v3"
     }
   ]
 }

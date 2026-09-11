@@ -77,11 +77,11 @@ test('classifies retryability only from bounded status or error-name allowlists'
   assert.equal(maskErrorEnvelope(envelope({ execution: { id: 'x', error: { name: 'Error', statusCode: 400, message: 'timeout words do not decide' } } })).retryable, false);
 });
 
-test('uses one inactive Error Trigger with UUIDs and no self-assignment or credentials', () => {
+test('uses one active Error Trigger with UUIDs and no self-assignment or credentials', () => {
   const triggers = workflow.nodes.filter(({ type }) => type.toLowerCase().includes('trigger'));
   assert.equal(workflow.id, 'AutomationErrorV3A1');
   assert.equal(workflow.name, 'Automation: error handler v3');
-  assert.equal(workflow.active, false);
+  assert.equal(workflow.active, true);
   assert.equal(workflow.isArchived, false);
   assert.deepEqual(triggers.map(({ type }) => type), ['n8n-nodes-base.errorTrigger']);
   assert.ok(workflow.nodes.every(({ id }) => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)));

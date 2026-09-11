@@ -1,8 +1,8 @@
 {
   "id": "AutomationErrorV3A1",
   "name": "Automation: error handler v3",
-  "description": "Inactive masked Error Trigger audit handler. Assignment to production workflows remains a separate Production gate.",
-  "active": false,
+  "description": "",
+  "active": true,
   "isArchived": false,
   "nodes": [
     { "parameters": {}, "type": "n8n-nodes-base.errorTrigger", "typeVersion": 1, "position": [0, 0], "id": "83525394-9a89-4c65-8f1d-6e670cbd4b14", "name": "Error Trigger" },
@@ -52,8 +52,19 @@
     "Limit Duplicate Insert": { "main": [[{ "node": "Re-read Duplicate Error", "type": "main", "index": 0 }]] },
     "Re-read Duplicate Error": { "main": [[{ "node": "Verify Duplicate Error", "type": "main", "index": 0 }]] }
   },
-  "settings": { "executionOrder": "v1", "saveDataSuccessExecution": "all", "saveDataErrorExecution": "all", "saveManualExecutions": true, "saveExecutionProgress": false },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
   "tags": [
-    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
-  ]
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "nodeGroups": []
 }

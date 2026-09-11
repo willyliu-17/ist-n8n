@@ -1270,14 +1270,14 @@ function connectionOwner(name) {
   return workflow.connections[name] ? workflow : processor;
 }
 
-test('runtime contract uses the exact inactive repair workflow identity', () => {
+test('runtime contract uses the exact shared active repair workflow identity', () => {
   assert.equal(workflow.id, 'AutoRepairV3A001');
   assert.equal(workflow.name, 'Automation: retry and repair v3');
-  assert.equal(workflow.active, false);
+  assert.equal(workflow.active, true);
   assert.equal(workflow.isArchived, false);
 });
 
-test('runtime has one inactive one-minute Schedule Trigger and no manual trigger', () => {
+test('runtime has one one-minute Schedule Trigger and no manual trigger', () => {
   const triggers = workflow.nodes.filter(({ type }) => type.endsWith('scheduleTrigger'));
   assert.equal(triggers.length, 1);
   assert.equal(triggers[0].parameters.rule.interval[0].minutesInterval, 1);
@@ -1288,6 +1288,7 @@ test('runtime uses approved execution retention', () => {
   assert.deepEqual(workflow.settings, {
     executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all',
     saveManualExecutions: true, saveExecutionProgress: false,
+    callerPolicy: 'workflowsFromSameOwner', availableInMCP: false, errorWorkflow: 'AutomationErrorV3A1',
   });
 });
 

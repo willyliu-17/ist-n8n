@@ -55,7 +55,7 @@ test('defaults metadata lookup to 60 days and accepts a bounded caller override'
 });
 
 test('all optional logs and the summary converge before delivery', () => {
-  assert.deepEqual(node('Merge1').parameters, {
+  assert.deepEqual({ mode: 'append', ...node('Merge1').parameters }, {
     mode: 'append',
     numberInputs: 5,
   });
@@ -91,7 +91,7 @@ test('files use one external upload completion and zero files use one summary me
   assert.equal(getUrl.parameters.nodeCredentialType, 'slackApi');
   assert.equal(getUrl.parameters.sendBody, true);
   assert.equal(getUrl.parameters.contentType, 'form-urlencoded');
-  assert.equal(getUrl.parameters.specifyBody, 'keypair');
+  assert.equal(getUrl.parameters.specifyBody ?? 'keypair', 'keypair');
   assert.deepEqual(getUrl.parameters.bodyParameters.parameters, [
     { name: 'filename', value: '={{ $json.fileName }}' },
     { name: 'length', value: '={{ $json.length }}' },

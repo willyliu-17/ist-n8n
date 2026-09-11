@@ -13,6 +13,7 @@ const { sanitizeStageError } = require('../nodes/Sanitize_Stage_Error/jsCode');
 
 const root = path.resolve(__dirname, '..');
 const workflow = JSON.parse(fs.readFileSync(path.join(root, 'workflow.json'), 'utf8'));
+const workflowContract = require('../../../docs/v3-workflow-contracts.json')[workflow.id];
 const source = fs.readFileSync(path.join(root, 'workflow.json'), 'utf8');
 const NOW = new Date('2099-01-01T00:00:00.000Z');
 function input(overrides = {}) { return { requestKey: 'summary:req-1', requestType: 'suspect', channel: 'C0A4JJJKJMD', threadTS: '1787364000.000001', coverageStatus: 'complete', availableRoles: ['current'], missingRoles: [], failedLogicalJobKeys: [], streams: [{ role: 'current', liveStreamID: '9', mode: 'fromStart', dialogue: 'hello', transcript: { outcome: 'transcribed', language: 'zh', errorCode: '' }, streamContext: { userID: 'user-9', device: 'ios', beginTime: 1787360400, endTime: 1787364000 } }], ...overrides }; }
@@ -22,7 +23,7 @@ function node(name) { return workflow.nodes.find((item) => item.name === name); 
 test('has exactly one typed Execute Workflow Trigger with nine fields', () => { const triggers = workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.executeWorkflowTrigger'); assert.equal(triggers.length, 1); assert.deepEqual(triggers[0].parameters.workflowInputs.values.map((item) => item.name), ['requestKey', 'requestType', 'channel', 'threadTS', 'coverageStatus', 'availableRoles', 'missingRoles', 'failedLogicalJobKeys', 'streams']); });
 test('forbids manual, webhook, wait, direct STT, metadata, and legacy table', () => { for (const forbidden of ['n8n-nodes-base.manualTrigger', 'n8n-nodes-base.webhook', 'n8n-nodes-base.wait', 'stt-api', 'query stream info', 'AISummaryV2', 'Insert row']) assert.equal(source.includes(forbidden), false, forbidden); });
 test('only event evidence BigQuery names may remain', () => { const bq = workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.googleBigQuery'); assert.ok(bq.every((item) => ['StreamerLog', 'StreamerEventLog'].includes(item.name))); });
-test('workflow keeps its live active metadata and approved execution retention', () => { assert.equal(workflow.active, true); for (const [key, value] of Object.entries({ executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false })) assert.equal(workflow.settings[key], value); assert.equal(workflow.settings.errorWorkflow, 'run4KT7goJGVeOOk'); });
+test('workflow keeps its live active metadata and approved execution retention', () => { assert.equal(workflow.active, true); for (const [key, value] of Object.entries({ executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false })) assert.equal(workflow.settings[key], value); assert.equal(workflow.settings.errorWorkflow, 'AutomationErrorV3A1'); });
 test('all node ids are UUIDs and connections resolve', () => { const names = new Set(workflow.nodes.map((item) => item.name)); workflow.nodes.forEach((item) => assert.match(item.id, /^[0-9a-f-]{36}$/)); Object.entries(workflow.connections).forEach(([from, outputs]) => { assert.ok(names.has(from)); Object.values(outputs).flat().flat().forEach((edge) => assert.ok(names.has(edge.node))); }); });
 test('external references resolve to existing files', () => { for (const match of source.matchAll(/__EXTERNAL_FILE__:\/\/([^"\\]+?)(?:"|\\n)/g)) assert.ok(fs.existsSync(path.join(root, match[1]))); });
 test('accepts valid resolved input', () => assert.equal(helper.validateInput(input()).requestKey, 'summary:req-1'));
@@ -292,7 +293,7 @@ test('summary reactions only use the primary stream for OBS detection', () => {
   assert.deepEqual(reactions.map(({ emoji }) => emoji), ['android_robot']);
 });
 test('no historical execution references remain', () => { assert.equal(source.includes('$runIndex'), false); assert.equal(source.includes('isExecuted'), false); });
-test('crash windows are explicitly documented', () => assert.match(workflow.description, /may be duplicated during repair/));
+test('crash windows are explicitly documented', () => assert.match(workflowContract, /may be duplicated during repair/));
 test('runtime Code sources are externalized and contain no sibling require', () => { workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.code').forEach((item) => assert.match(item.parameters.jsCode, /^__EXTERNAL_FILE__:\/\//)); assert.equal(source.includes("require('./Finalize_Request/jsCode')"), false); });
 test('validated carrier feeds every full stage read through append input zero', () => { const merge = node('Append Stage Carrier And Rows'); assert.equal(merge.parameters.mode, 'append'); assert.equal(merge.parameters.numberInputs, 2); assert.equal(workflow.connections['Build Direct Carrier'].main[0].some((edge) => edge.node === merge.name && edge.index === 0), true); });
 test('next-stage planner is the only stage router and has all six terminal actions', () => {
@@ -424,7 +425,7 @@ test('reconciliation and freeze mutate every planned row and freeze is terminal'
   assert.deepEqual(workflow.connections['Verify Freeze'].main[0], [{ node: 'Return Result', type: 'main', index: 0 }]);
 });
 test('workflow retains its error handler and approved execution retention settings', () => {
-  assert.equal(workflow.settings.errorWorkflow, 'run4KT7goJGVeOOk');
+  assert.equal(workflow.settings.errorWorkflow, 'AutomationErrorV3A1');
   for (const [key, value] of Object.entries({ executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false })) assert.equal(workflow.settings[key], value);
 });
 test('success planners consume actual append carrier plus latest rows and reject stale owners', () => {

@@ -1,8 +1,8 @@
 {
   "id": "RepairCandidateV3A1",
   "name": "Repair: process candidate v3",
-  "description": "Inactive per-candidate repair processor. Inputs: repairClass:string (retry_materialization or presentation_lease), candidateKey:string, scanTimeIso:string. Reuses the scheduler retry and presentation CAS, reread, verification, and owner-call protocols for exactly one candidate.",
-  "active": false,
+  "description": "",
+  "active": true,
   "isArchived": false,
   "nodes": [
     {
@@ -2656,9 +2656,14 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
-    "saveExecutionProgress": false
+    "saveExecutionProgress": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
   "tags": [
-    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
-  ]
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "nodeGroups": []
 }

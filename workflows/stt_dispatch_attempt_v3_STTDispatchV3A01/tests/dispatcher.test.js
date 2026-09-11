@@ -734,14 +734,14 @@ test('requires exactly one canonical row owned by the current dispatch lease', (
   assert.throws(() => requireCanonicalOwner([owned], 'exec-1', 'invalid-now'), /invalid current time/i);
 });
 
-test('keeps the workflow inactive with one typed Execute Workflow Trigger and UUIDv4 node IDs', () => {
+test('keeps the shared active state with one typed Execute Workflow Trigger and UUIDv4 node IDs', () => {
   const workflow = readWorkflow();
   const triggers = workflow.nodes.filter(({ type }) => type.toLowerCase().includes('trigger'));
   const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
   assert.equal(workflow.id, 'STTDispatchV3A01');
   assert.equal(workflow.name, 'STT: dispatch attempt v3');
-  assert.equal(workflow.active, false);
+  assert.equal(workflow.active, true);
   assert.equal(workflow.isArchived, false);
   assert.deepEqual(triggers.map(({ type }) => type), ['n8n-nodes-base.executeWorkflowTrigger']);
   assert.deepEqual(triggers[0].parameters.workflowInputs.values, [{ name: 'attemptKey', type: 'string' }]);

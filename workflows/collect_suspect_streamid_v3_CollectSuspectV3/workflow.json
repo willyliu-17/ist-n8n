@@ -1,11 +1,9 @@
 {
   "id": "CollectSuspectV3",
   "name": "Collect suspect streamID v3",
-  "description": "Collector posts STT then log-collecting statuses before asynchronously calling the Summary orchestrator; best-effort attachments follow verified candidate status checkpoints.",
+  "description": "",
   "active": true,
   "isArchived": false,
-  "sourceWorkflowId": null,
-  "triggerCount": 1,
   "nodes": [
     {
       "id": "12000001-0000-4000-8000-000000000001",
@@ -60,12 +58,10 @@
         "rule": {
           "interval": [
             {
-              "triggerAtHour": 10,
-              "triggerAtMinute": 0
+              "triggerAtHour": 10
             }
           ]
-        },
-        "misfirePolicy": "skip"
+        }
       }
     },
     {
@@ -1069,7 +1065,6 @@
         576
       ],
       "parameters": {
-        "batchSize": 1,
         "options": {}
       }
     },
@@ -1086,10 +1081,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "gHuJuaXZTdZXAUlV",
+          "value": "QueryLogsV3A0001",
           "mode": "list",
           "cachedResultName": "Query Steam Logs v3",
-          "cachedResultUrl": "/workflow/gHuJuaXZTdZXAUlV"
+          "cachedResultUrl": "/workflow/QueryLogsV3A0001"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -1139,8 +1134,7 @@
         },
         "options": {
           "waitForSubWorkflow": true
-        },
-        "mode": "once"
+        }
       }
     },
     {
@@ -1229,9 +1223,7 @@
         6336,
         368
       ],
-      "parameters": {
-        "maxItems": 1
-      }
+      "parameters": {}
     },
     {
       "id": "12000019-0000-4000-8000-000000000019",
@@ -1245,10 +1237,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "qAjDH2w1BNvom95c",
+          "value": "StreamMetaV3A001",
           "mode": "list",
           "cachedResultName": "Stream Metadata: resolve by IDs v3",
-          "cachedResultUrl": "/workflow/qAjDH2w1BNvom95c"
+          "cachedResultUrl": "/workflow/StreamMetaV3A001"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -1442,9 +1434,6 @@
         -80
       ],
       "parameters": {
-        "resource": "message",
-        "operation": "post",
-        "messageType": "text",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -1493,10 +1482,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "yQ10uPa6RPuEyCR4",
+          "value": "SummaryOrchV3A01",
           "mode": "list",
           "cachedResultName": "Summary: orchestrate request v3",
-          "cachedResultUrl": "/workflow/yQ10uPa6RPuEyCR4"
+          "cachedResultUrl": "/workflow/SummaryOrchV3A01"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -1577,9 +1566,7 @@
         5792,
         528
       ],
-      "parameters": {
-        "mode": "append"
-      }
+      "parameters": {}
     },
     {
       "id": "0802b5c7-b23c-4181-8d0f-f2c8d79e40cd",
@@ -1604,9 +1591,7 @@
         528
       ],
       "parameters": {
-        "resource": "message",
         "operation": "update",
-        "messageType": "text",
         "channelId": {
           "__rl": true,
           "value": "={{ $json.channel }}",
@@ -1614,7 +1599,8 @@
         },
         "ts": "={{ Number($json.ts) }}",
         "text": "={{ $json.text }}",
-        "otherOptions": {}
+        "otherOptions": {},
+        "updateFields": {}
       },
       "credentials": {
         "slackApi": {
@@ -2324,17 +2310,13 @@
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
     "saveExecutionProgress": false,
-    "errorWorkflow": "run4KT7goJGVeOOk",
+    "errorWorkflow": "AutomationErrorV3A1",
     "binaryMode": "separate",
     "timezone": "Asia/Taipei"
   },
-  "meta": null,
   "tags": [
     {
-      "id": "NLo3n5BNlRhVr71N",
-      "name": "ist-bot-v3",
-      "createdAt": "2026-09-03T06:50:34.301Z",
-      "updatedAt": "2026-09-03T06:50:34.301Z"
+      "name": "ist-bot-v3"
     }
   ]
 }

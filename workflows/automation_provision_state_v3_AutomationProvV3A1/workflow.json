@@ -1,7 +1,7 @@
 {
   "id": "AutomationProvV3A1",
   "name": "Automation: provision state v3",
-  "description": "Read-only by-name existence probes for the expected v3 Data Table schema. Table creation and schema validation remain separately approved Production gates.",
+  "description": "",
   "active": false,
   "isArchived": false,
   "nodes": [
@@ -235,9 +235,15 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
-    "saveExecutionProgress": false
+    "saveExecutionProgress": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "AutomationErrorV3A1"
   },
   "tags": [
-    { "updatedAt": "2026-09-03T06:50:34.301Z", "createdAt": "2026-09-03T06:50:34.301Z", "id": "NLo3n5BNlRhVr71N", "name": "ist-bot-v3" }
-  ]
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "nodeGroups": []
 }
