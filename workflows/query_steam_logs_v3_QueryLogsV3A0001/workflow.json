@@ -108,8 +108,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        -2272,
-        336
+        -2288,
+        592
       ],
       "parameters": {
         "select": "channel",
@@ -975,6 +975,112 @@
         "combineBy": "combineByPosition",
         "options": {}
       }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list",
+          "cachedResultName": "Media17",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=media17-1119"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/FirebaseLog/sqlQuery.sql",
+        "options": {}
+      },
+      "id": "a919d560-24d2-4d0c-bf9f-3942369a188c",
+      "name": "FirebaseLog",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2272,
+        320
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "=FirebaseLog-{{$('If streamID exist1').item.json.liveStreamID }}.xlsx"
+        }
+      },
+      "id": "b86a6851-cf3e-487a-8f77-6df8d41df939",
+      "name": "Convert to FirebaseLog",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1872,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_FirebaseLog_Upload/jsCode.js"
+      },
+      "id": "bb2b6ce8-9e41-4c79-854b-9c433f7a40a7",
+      "name": "Prepare FirebaseLog Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1568,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"kind\": \"firebaseLog\",\n  \"label\": \"FirebaseLog\",\n  \"available\": false\n}\n",
+        "options": {}
+      },
+      "id": "b9eec968-2824-453a-a4b9-56742589f410",
+      "name": "FirebaseLog1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1344,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "abfe2e67-9473-4380-bae0-485261072c5c",
+              "leftValue": "={{ $json.issue_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "34fbd76f-e208-46d4-a37f-6d2c0a7675ed",
+      "name": "if issue_id exist1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2064,
+        320
+      ]
     }
   ],
   "connections": {
@@ -1199,6 +1305,11 @@
           },
           {
             "node": "BACKEND LOG - KEEPALIVE",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "FirebaseLog",
             "type": "main",
             "index": 0
           }
@@ -1521,6 +1632,46 @@
         [
           {
             "node": "output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FirebaseLog": {
+      "main": [
+        [
+          {
+            "node": "if issue_id exist1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to FirebaseLog": {
+      "main": [
+        [
+          {
+            "node": "Prepare FirebaseLog Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if issue_id exist1": {
+      "main": [
+        [
+          {
+            "node": "Convert to FirebaseLog",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FirebaseLog1",
             "type": "main",
             "index": 0
           }
