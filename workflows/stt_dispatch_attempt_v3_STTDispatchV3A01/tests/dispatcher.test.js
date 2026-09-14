@@ -28,7 +28,6 @@ const {
   RETRY_SLOT_MINUTES,
   SUMMARY_RETRY_DEADLINE_MINUTES,
   SUMMARY_RETRY_SLOT_MINUTES,
-  SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES,
   classifyAck: classifyAckPolicy,
 } = require(ackCodePath);
 const {
@@ -392,8 +391,7 @@ test('caps summary-triggered STT retries at thirty minutes without changing stan
   assert.equal(classifyAck({ statusCode: 503 }, attempt({ attempt: 9 }), NOW, requestRows).status, 'failed');
 });
 
-test('keeps full-stream callbacks pending for 150 minutes while submission retries stay bounded', () => {
-  assert.equal(SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES, 150);
+test('uses the same absolute callback slots for full-stream and other summaries', () => {
   const requestRows = [summaryRequest({ requestType: 'single_stream_summary' })];
   const accepted = classifyAck({ statusCode: 202 }, attempt({
     requestType: 'single_stream_summary',
@@ -401,8 +399,15 @@ test('keeps full-stream callbacks pending for 150 minutes while submission retri
   }), NOW, requestRows);
 
   assert.equal(accepted.status, 'waiting_callback');
-  assert.equal(accepted.callbackDeadlineAtIso, '2026-08-22T02:30:00.000Z');
-  assert.equal(Date.parse(accepted.callbackDeadlineAtIso) > Date.parse('2026-08-22T02:10:00.000Z'), true);
+  assert.equal(accepted.callbackDeadlineAtIso, '2026-08-22T00:01:00.000Z');
+  for (let number = 1; number <= 9; number += 1) {
+    const candidate = attempt({ requestType: 'single_stream_summary', attempt: number });
+    const result = classifyAck({ statusCode: 202 }, candidate, NOW, requestRows);
+    const minutes = SUMMARY_RETRY_SLOT_MINUTES[number - 1] || 30;
+    assert.equal(result.callbackDeadlineAtIso, new Date(Date.parse(NOW) + minutes * 60_000).toISOString());
+  }
+  const delayed = classifyAck({ statusCode: 202 }, attempt({ requestType: 'single_stream_summary', attempt: 9 }), '2026-08-22T00:27:00.000Z', requestRows);
+  assert.equal(delayed.callbackDeadlineAtIso, '2026-08-22T00:30:00.000Z');
 
   const retry = classifyAck({ statusCode: 503 }, attempt({ requestType: 'single_stream_summary' }), NOW, requestRows);
   assert.equal(retry.status, 'retry_pending');

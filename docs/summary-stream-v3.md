@@ -31,15 +31,15 @@ beginTime < 2026-09-10T04:00:00+08:00
 
 ## 等待與重試
 
-- STT API 接受單場請求後，callback 等待期限為接受時間起 150 分鐘。
-- 等待期間不依舊 Summary 的短間隔重送，避免建立多個 SegmentTask。
+- 單場與一般 Summary STT 共用從 request 建立時間起算的 30 分鐘重試期限。
+- 重試時間點為建立後第 1、2、4、6、9、13、18、25 分鐘，最多 9 次提交；最後一次 callback 等待至第 30 分鐘。這些是絕對時間點，不是每次重新起算。
 - 明確可重試的 HTTP 提交錯誤沿用有界重試；提交結果不明的網路錯誤仍進入人工確認。
-- 新模式的 callback service failure 或等待逾期會終止該 attempt，不自動建立另一個整場轉錄任務。
+- 可重試的 callback service failure 或等待逾期沿用上述時程；達到期限或次數上限後，分別終止為 `failed` 或 `timed_out`。每分鐘修復排程負責推進狀態，實際處理可能受排程與佇列延遲影響。
 - 已消費 callback 的重複處理、canonical linkage 與 CAS 規則保持不變。
 - 空轉錄保留 `empty` outcome；它表示服務已完成但沒有辨識文字，不代表沒有問題。
-- timeout 可依既有 coordinator 規則產出 partial 技術分析，但 prompt 必須明示沒有完整對話證據。
+- timeout 依 coordinator 規則產出 partial 技術分析；摘要固定列出缺少 STT 的角色、直播 ID 與原因，並區分逾時、失敗、不符合條件與已完成但無文字。
 
-依後端契約，首次下載、轉檔、Whisper 與留言對齊可能耗時很久；後端另有兩小時未完成即 timeout 的硬限制。150 分鐘只避免呼叫端提早放棄，不能解除後端限制。
+此期限控制 Summary 等待與重試，不會取消後端已接受的轉錄任務。既有已持久化的 callback deadline 不會因部署自動重寫。
 
 ## 推論與長對話
 

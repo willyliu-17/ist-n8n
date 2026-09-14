@@ -22,6 +22,8 @@ const { preflightAI } = require('../workflows/summary_coordinator_v3_SummaryCoor
 const { buildSummaryInput } = require('../workflows/summary_coordinator_v3_SummaryCoordV3A1/nodes/Build_Summary_Input/jsCode');
 const aiSummary = require('../workflows/ai_summary_v3_AISummaryV3A0001/nodes/Finalize_Request/jsCode');
 const { buildInferenceAggregate } = require('../workflows/ai_summary_v3_AISummaryV3A0001/nodes/group_streamID/jsCode');
+const { classifyAttemptFailure } = require('../workflows/repair_process_candidate_v3_RepairCandidateV3A1/nodes/Plan_Repairs/jsCode');
+const { renderSummaryMarkdown } = require('../workflows/ai_summary_v3_AISummaryV3A0001/nodes/Render_Summary_Markdown/jsCode');
 
 const CHANNEL = 'C0A4JJJKJMD';
 const NOW = '2026-08-22T00:00:00.000Z';
@@ -76,7 +78,7 @@ function persistedAttempt(attempt, overrides = {}) {
     status: 'waiting_callback',
     callbackTokenHash: HASH,
     callbackTokenExpiresAtIso: '2026-08-23T00:00:00.000Z',
-    callbackDeadlineAtIso: '2026-08-22T02:30:00.000Z',
+    callbackDeadlineAtIso: '2026-08-22T00:01:00.000Z',
     consumedAtIso: '',
     dialogue: '',
     language: '',
@@ -167,7 +169,7 @@ for (const group of ['summary', 'stt']) test(`runs ${group} full-stream offline 
     createdAt: NOW,
   }], NOW);
   assert.equal(accepted.status, 'waiting_callback');
-  assert.equal(accepted.callbackDeadlineAtIso, '2026-08-22T02:30:00.000Z');
+  assert.equal(accepted.callbackDeadlineAtIso, '2026-08-22T00:01:00.000Z');
 
   const callback = normalizeCallback({ body: {
     statusCode: 200,
@@ -177,19 +179,19 @@ for (const group of ['summary', 'stt']) test(`runs ${group} full-stream offline 
   } });
   assert.equal(callback.valid, true);
   const completed = persistedAttempt(queued);
-  const claim = classifyClaim([completed], callback, HASH, '2026-08-22T02:10:00.000Z', [completed]);
+  const claim = classifyClaim([completed], callback, HASH, '2026-08-22T00:00:30.000Z', [completed]);
   assert.equal(claim.desiredStatus, 'completed');
   const aggregate = aggregateLogicalJobs(
     { ...coordinatorRequest(normalized, streams, { coverageStatus: 'waiting_stt', availableRoles: [], missingRoles: ['current'], failedLogicalJobKeys: [] }), status: 'waiting_stt' },
-    [persistedAttempt(queued, { status: 'completed', consumedAtIso: '2026-08-22T02:10:00.000Z', dialogue: claim.dialogue, language: claim.language })],
+    [persistedAttempt(queued, { status: 'completed', consumedAtIso: '2026-08-22T00:00:30.000Z', dialogue: claim.dialogue, language: claim.language })],
   );
   assert.equal(aggregate.coverageStatus, 'complete');
   assert.equal(aggregate.streams[0].dialogue, '完整逐字稿');
 
   const request = coordinatorRequest(normalized, streams, aggregate);
   const preflight = preflightAI([request], [persistedAttempt(queued, {
-    status: 'completed', consumedAtIso: '2026-08-22T02:10:00.000Z', dialogue: claim.dialogue, language: claim.language,
-  })], plan.requestKey, 'exec-single', '2026-08-22T02:10:00.000Z');
+    status: 'completed', consumedAtIso: '2026-08-22T00:00:30.000Z', dialogue: claim.dialogue, language: claim.language,
+  })], plan.requestKey, 'exec-single', '2026-08-22T00:00:30.000Z');
   assert.equal(preflight.action, 'ai');
   const aiInput = buildSummaryInput(preflight, preflight);
   assert.equal(aiSummary.validateInput(aiInput), aiInput);
@@ -216,11 +218,22 @@ test('keeps old dual-stream five-minute payloads unchanged and does not promote 
   const normalized = normalizeRequest({ requestKey: singlePlan.requestKey, requestType: singlePlan.requestType, orderedStreams: singleStreams, existingDialogues: {}, channel: CHANNEL, threadTS: singlePlan.threadTS });
   const [queued] = buildAttempts(normalized, NOW);
   const waiting = persistedAttempt(queued);
-  const timeout = aggregateLogicalJobs({ ...coordinatorRequest(normalized, singleStreams, { coverageStatus: 'waiting_stt', availableRoles: [], missingRoles: ['current'], failedLogicalJobKeys: [] }), status: 'waiting_stt' }, [
-    { ...waiting, status: 'timed_out', errorCode: 'callback_deadline_expired' },
-  ]);
+  const waitingRequest = { ...coordinatorRequest(normalized, singleStreams, { coverageStatus: 'waiting_stt', availableRoles: [], missingRoles: ['current'], failedLogicalJobKeys: [] }), status: 'waiting_stt' };
+  const timeoutPlan = classifyAttemptFailure({ deadlineExceeded: true }, waiting.attempt, '2026-08-22T00:30:00.000Z', waitingRequest.createdAt, waitingRequest.requestType);
+  assert.equal(timeoutPlan.status, 'timed_out');
+  const timedOut = { ...waiting, status: timeoutPlan.status, errorCode: timeoutPlan.errorCode, nextRetryAtIso: timeoutPlan.nextRetryAtIso };
+  const timeout = aggregateLogicalJobs(waitingRequest, [timedOut]);
   assert.equal(timeout.coverageStatus, 'partial');
   assert.notEqual(timeout.coverageStatus, 'complete');
+  const ready = coordinatorRequest(normalized, singleStreams, timeout);
+  const preflight = preflightAI([ready], [timedOut], singlePlan.requestKey, 'exec-single', '2026-08-22T00:30:00.000Z');
+  assert.equal(preflight.action, 'ai');
+  const timeoutInput = buildSummaryInput(preflight, preflight);
+  aiSummary.validateInput(timeoutInput);
+  assert.deepEqual(timeoutInput.missingRoles, ['current']);
+  assert.equal(timeoutInput.streams[0].transcript.outcome, 'timed_out');
+  const report = renderSummaryMarkdown({ report: { summary: 'Technical evidence only' } }, timeoutInput.coverageStatus, timeoutInput.streams);
+  assert.match(report, /current \/ 9001：STT 等待逾時，未取得轉錄資訊/);
   const empty = aggregateLogicalJobs({ ...coordinatorRequest(normalized, singleStreams, { coverageStatus: 'waiting_stt', availableRoles: [], missingRoles: ['current'], failedLogicalJobKeys: [] }), status: 'waiting_stt' }, [
     { ...waiting, status: 'completed', consumedAtIso: '2026-08-22T02:10:00.000Z', errorCode: 'callback_empty_transcription' },
   ]);

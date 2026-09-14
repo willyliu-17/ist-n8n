@@ -4,7 +4,6 @@ const RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9, 13, 18, 25, 35, 48, 65,
 const RETRY_DEADLINE_MINUTES = 720;
 const SUMMARY_RETRY_SLOT_MINUTES = Object.freeze([1, 2, 4, 6, 9, 13, 18, 25]);
 const SUMMARY_RETRY_DEADLINE_MINUTES = 30;
-const SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES = 150;
 
 function addMinutes(iso, minutes) {
   const timestamp = Date.parse(iso);
@@ -34,10 +33,6 @@ function retryPolicy(requestType) {
   return requestType === 'standalone_stt'
     ? { slots: RETRY_SLOT_MINUTES, deadlineMinutes: RETRY_DEADLINE_MINUTES }
     : { slots: SUMMARY_RETRY_SLOT_MINUTES, deadlineMinutes: SUMMARY_RETRY_DEADLINE_MINUTES };
-}
-
-function isSingleStreamSummary(requestType) {
-  return requestType === 'single_stream_summary';
 }
 
 function retryTiming(requestCreatedAtIso, attemptNumber, requestType = 'standalone_stt') {
@@ -87,9 +82,7 @@ function classifyAck(outcome, attempt, requestRows, nowIso = new Date().toISOStr
       classification: 'accepted',
       status: 'waiting_callback',
       submittedAtIso: nowIso,
-      callbackDeadlineAtIso: isSingleStreamSummary(request.requestType)
-        ? addMinutes(nowIso, SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES)
-        : attemptNumber <= maximumAttempts
+      callbackDeadlineAtIso: attemptNumber <= maximumAttempts
         ? (timing.nextRetryAtIso || timing.deadlineAtIso)
         : addMinutes(nowIso, 24 * 60),
     };
@@ -125,7 +118,6 @@ if (typeof module !== 'undefined' && module.exports) {
     RETRY_SLOT_MINUTES,
     SUMMARY_RETRY_DEADLINE_MINUTES,
     SUMMARY_RETRY_SLOT_MINUTES,
-    SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES,
     classifyAck,
     retryTiming,
   };

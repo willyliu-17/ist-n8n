@@ -25,7 +25,6 @@ const {
   SUMMARY_CHECKPOINT_FIELDS,
   SUMMARY_STT_RETRY_DEADLINE_MINUTES,
   SUMMARY_STT_RETRY_SLOT_MINUTES,
-  SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES,
   STT_RETRY_DEADLINE_MINUTES,
   STT_RETRY_SLOT_MINUTES,
   addMinutes,
@@ -399,8 +398,7 @@ test('summary callback deadline terminates at thirty minutes while standalone ke
   assert.equal(summaryDeadline.nextRetryAtIso, '');
 });
 
-test('production repair planner waits 150 minutes after full-stream acceptance and never materializes a callback retry', () => {
-  assert.equal(SINGLE_STREAM_CALLBACK_DEADLINE_MINUTES, 150);
+test('production repair planner retries full-stream callbacks and terminates at thirty minutes', () => {
   const singleRequest = request({
     requestKey: 'summary:req-single',
     requestType: 'single_stream_summary',
@@ -415,18 +413,21 @@ test('production repair planner waits 150 minutes after full-stream acceptance a
     status: 'waiting_callback',
     durationMinutes: 130,
     submittedAtIso: NOW,
-    callbackDeadlineAtIso: '2026-08-24T02:30:00.000Z',
+    callbackDeadlineAtIso: '2026-08-24T00:01:00.000Z',
     nextRetryAtIso: '',
   });
   const accepted = classifyAttemptFailure(
     { statusCode: 202 }, 1, NOW, singleRequest.createdAt, singleRequest.requestType,
   );
-  assert.equal(accepted.callbackDeadlineAtIso, '2026-08-24T02:30:00.000Z');
+  assert.equal(accepted.callbackDeadlineAtIso, '2026-08-24T00:01:00.000Z');
+  const retry = planCallbackDeadline(singleAttempt, singleAttempt.callbackDeadlineAtIso, singleRequest);
+  assert.equal(retry.status, 'retry_pending');
+  assert.equal(retry.nextRetryAtIso, singleAttempt.callbackDeadlineAtIso);
 
   const pending = planRepairScan({
     attemptRows: [singleAttempt],
     requestRows: [singleRequest],
-    nowIso: '2026-08-24T02:10:00.000Z',
+    nowIso: '2026-08-24T00:00:30.000Z',
     leaseOwner: 'repair',
   });
   assert.equal(pending.plans.some((plan) => plan.repairClass === 'callback_deadline'), false);
@@ -435,7 +436,7 @@ test('production repair planner waits 150 minutes after full-stream acceptance a
   const terminal = planRepairScan({
     attemptRows: [singleAttempt],
     requestRows: [singleRequest],
-    nowIso: '2026-08-24T02:30:00.000Z',
+    nowIso: '2026-08-24T00:30:00.000Z',
     leaseOwner: 'repair',
   });
   const deadline = terminal.plans.find((plan) => plan.repairClass === 'callback_deadline');

@@ -1,4 +1,4 @@
-function renderSummaryMarkdown(inference, coverageStatus) {
+function renderSummaryMarkdown(inference, coverageStatus, streams = []) {
   if (!inference || Array.isArray(inference) || typeof inference !== 'object' || !inference.report || typeof inference.report !== 'object') throw new Error('invalid inference report');
   const labelMap = {
     subjective_motivation: '【主觀動機與時間軸】',
@@ -31,6 +31,15 @@ function renderSummaryMarkdown(inference, coverageStatus) {
   };
   const lines = ['# AI SUMMARY'];
   if (coverageStatus === 'partial') lines.push('', '> Partial coverage: one or more resolved streams are unavailable.');
+  const reasons = { timed_out: 'STT 等待逾時，未取得轉錄資訊', failed: 'STT 處理失敗，未取得轉錄資訊', ineligible: '不符合 STT 處理條件，未取得轉錄資訊', empty: 'STT 已完成，但未辨識出文字' };
+  const escape = (value) => String(value).replace(/[\r\n]+/g, ' ').replace(/[\\`*_{}\[\]<>|]/g, '\\$&');
+  for (const stream of streams) {
+    const reason = reasons[stream.transcript?.outcome];
+    if (!reason) continue;
+    const errorCode = stream.transcript.errorCode;
+    const detail = /^[A-Za-z0-9_.-]{1,96}$/.test(errorCode) ? `（${escape(errorCode)}）` : '';
+    lines.push('', `> STT 資料狀態：${escape(stream.role)} / ${escape(stream.liveStreamID)}：${reason}${detail}。`);
+  }
   for (const [key, value] of Object.entries(inference.report)) {
     lines.push('', `#### ${labelMap[key] || key}`, '');
     if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -43,4 +52,4 @@ function renderSummaryMarkdown(inference, coverageStatus) {
   return lines.join('\n') + '\n';
 }
 if (typeof module !== 'undefined') module.exports = { renderSummaryMarkdown };
-if (typeof $input !== 'undefined') { const input = $input.first().json; return [{ json: { ...input, summaryMarkdown: renderSummaryMarkdown(input.inference, input.input.coverageStatus) } }]; }
+if (typeof $input !== 'undefined') { const input = $input.first().json; return [{ json: { ...input, summaryMarkdown: renderSummaryMarkdown(input.inference, input.input.coverageStatus, input.input.streams) } }]; }

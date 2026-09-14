@@ -197,6 +197,33 @@ test('markdown renderer preserves the original localized report format', () => {
   assert.doesNotMatch(markdown, /```json|subjective_motivation|responsibility_category_list/);
 });
 test('markdown renderer rejects invalid report', () => assert.throws(() => renderSummaryMarkdown({}, 'complete')));
+
+test('runtime renders missing STT evidence even when a single stream has no transcript', () => {
+  const vm = require('node:vm');
+  const resolved = input({
+    requestType: 'single_stream_summary', coverageStatus: 'partial', availableRoles: [], missingRoles: ['current'],
+    failedLogicalJobKeys: ['summary:req-1:current:9:fromStart'],
+    streams: [{ ...input().streams[0], dialogue: '', transcript: { outcome: 'timed_out', language: '', errorCode: 'callback_deadline_exceeded' } }],
+  });
+  helper.validateInput(resolved);
+  const code = fs.readFileSync(path.join(root, 'nodes/Render_Summary_Markdown/jsCode.js'), 'utf8');
+  const result = vm.runInNewContext(`(function () { ${code} })()`, {
+    $input: { first: () => ({ json: { input: resolved, inference: { report: { summary: 'Technical evidence only' } } } }) },
+  });
+  assert.match(result[0].json.summaryMarkdown, /current \/ 9：STT 等待逾時，未取得轉錄資訊/);
+  assert.ok(result[0].json.summaryMarkdown.includes('callback\\_deadline\\_exceeded'));
+  assert.match(result[0].json.summaryMarkdown, /Partial coverage/);
+});
+
+test('STT notices distinguish empty, failed and ineligible outcomes without labeling successful transcripts missing', () => {
+  const cases = [['empty', /已完成，但未辨識出文字/], ['failed', /處理失敗/], ['ineligible', /不符合 STT 處理條件/]];
+  for (const [outcome, reason] of cases) {
+    const markdown = renderSummaryMarkdown({ report: {} }, 'partial', [{ role: 'previous', liveStreamID: '8', transcript: { outcome, errorCode: '' } }]);
+    assert.match(markdown, reason);
+    assert.match(markdown, /previous \/ 8/);
+  }
+  assert.doesNotMatch(renderSummaryMarkdown({ report: {} }, 'complete', input().streams), /STT 資料狀態/);
+});
 test('redacts known IPv4 and IPv6 evidence before inference persistence', () => {
   const normalized = normalizeInference({
     carrier: {
