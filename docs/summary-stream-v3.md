@@ -5,15 +5,19 @@
 ```text
 !summary stream <liveStreamID>
 !summary stream <liveStreamID> date=YYYY-MM-DD
+!stt stream <liveStreamID>
+!stt stream <liveStreamID> date=YYYY-MM-DD
 ```
 
 單一 ID 會建立 `single_stream_summary` 請求，從直播起點轉錄到實際關播時間。直播必須具有有效開關播時間與非空 `closeBy`，尚未關播或查不到 metadata 時不提交 STT。
 
-雙 ID 指令維持既有行為：前場最後 5 分鐘、後場最初 5 分鐘，仍使用原本的日期窗口、配對延伸與前場 fallback。既有單場 suspect 也不會自動改成整場模式。
+`!stt stream <liveStreamID>` 省略片段模式時，與單場 summary 共用整場轉錄加摘要流程。明確指定 `first/last [mins]` 時則保留片段 STT；省略分鐘數時為 5 分鐘。
+
+雙 ID 指令使用前場最後 5 分鐘、目前場最初 5 分鐘，再產生摘要。既有單場 suspect 不會自動改成整場模式。
 
 ## 日期窗口
 
-單場指定日期使用台灣時間 04:00 日界線，包含指定日及前後各兩天，共 5 天，含起點、不含終點。
+片段 STT、整場 STT、單場與雙場 summary 指定日期時，皆使用台灣時間 04:00 日界線，包含指定日及前後各兩天，共 5 天，含起點、不含終點。帶日期時不 fallback，也不依直播開關播時間擴大窗口。
 
 ```text
 date=2026-09-07
@@ -21,7 +25,9 @@ date=2026-09-07
 beginTime < 2026-09-10T04:00:00+08:00
 ```
 
-未指定日期時查執行當下往前 30 天。窗口只用來依 ID 與開播時間尋找 metadata，不裁切 STT；整場分鐘數為 `ceil((endTime - beginTime) / 60)`，尾段由後端於實際關播時間截斷。單場不自動擴大窗口或尋找前場。
+未指定日期時，先查 `[執行當下 - 30 天, 執行當下)`；找不到目標時，再查 `[執行當下 - 60 天, 執行當下 - 30 天)`。兩個整場指令與片段 STT 均適用；雙場 summary 僅前場可以 fallback，目前場仍須在最近 30 天內。
+
+窗口只用來依 ID 與開播時間尋找 metadata，不裁切 STT；整場分鐘數為 `ceil((endTime - beginTime) / 60)`，尾段由後端於實際關播時間截斷。單場 fallback 仍只尋找同一個 ID，不自動配對另一場直播。
 
 ## 等待與重試
 
@@ -59,6 +65,7 @@ beginTime < 2026-09-10T04:00:00+08:00
 
 ```bash
 node --test scripts/single-stream-summary-v3.test.js
+node --test scripts/stt-summary-stream-behavior.test.js
 node --test workflows/ai_summary_inference_subwf_m8VcIoclFE2lVKrl/tests/inference.test.js workflows/ai_summary_inference_subwf_m8VcIoclFE2lVKrl/tests/long-dialogue.test.js
 node scripts/verify-stt-summary-v3.js
 ```
