@@ -7,7 +7,7 @@ const { buildInferenceAggregate } = require('../nodes/group_streamID/jsCode');
 const { renderSummaryMarkdown } = require('../nodes/Render_Summary_Markdown/jsCode');
 const { buildEventQueryItems } = require('../nodes/Build_Event_Query_Items/jsCode');
 const { parseSlackResponse } = require('../nodes/Parse_Slack_Response/jsCode');
-const { mapSummaryReactions } = require('../nodes/Map_Summary_Reactions/jsCode');
+const { mapSummaryReactions, resolveReactionTargetTS } = require('../nodes/Map_Summary_Reactions/jsCode');
 const { normalizeInference } = require('../nodes/Normalize_Inference/jsCode');
 const { sanitizeStageError } = require('../nodes/Sanitize_Stage_Error/jsCode');
 
@@ -254,7 +254,7 @@ test('Data Table id filters stay numeric while canonical filters stringify row i
   if (filters.canonicalRowID && /\$json\.row\.id/.test(filters.canonicalRowID)) assert.match(filters.canonicalRowID, /String\(\$json\.row\.id\)/, item.name);
 }));
 test('checkpoint writes use Limit 1 and rereads', () => { assert.ok(node('Limit Inference Checkpoint')); assert.ok(node('Verify Inference Checkpoint')); assert.ok(node('Limit Freeze Patch')); assert.ok(node('Re-read Frozen Request')); });
-test('summary reactions restore the original category mapping on the original thread', () => {
+test('summary reactions preserve category mapping and use the resolved target', () => {
   const reactions = mapSummaryReactions({
     inferenceResultJson: JSON.stringify({ report: { summary: { responsibility_category_list: ['[1-g] User Interaction Issue', '[2-c] Signal'] } } }),
     orderedStreamsJson: JSON.stringify([{ streamContext: { type: 'ios', deviceModel: 'iPad Pro' } }]),
@@ -262,9 +262,70 @@ test('summary reactions restore the original category mapping on the original th
   assert.deepEqual(reactions.map(({ emoji }) => emoji), ['ipad', 'user', 'signal_strength']);
   const reaction = node('Add Summary Reaction');
   assert.equal(reaction.parameters.resource, 'reaction');
-  assert.equal(reaction.parameters.timestamp, '={{ $json.input.threadTS }}');
+  assert.equal(reaction.parameters.timestamp, '={{ $json.reactionTargetTS }}');
   assert.equal(reaction.onError, 'continueErrorOutput');
   assert.equal(workflow.connections['Merge Completion Status Carrier And Output'].main[0].some((edge) => edge.node === 'Map Summary Reactions'), true);
+});
+for (const inThread of [false, true]) {
+  for (const ids of [['9001'], ['9001', '9002']]) {
+    test(`manual ${ids.length}-stream reactions target the command after persistence (${inThread ? 'thread' : 'channel'})`, () => {
+      const { normalizeSummaryCommand } = require('../../ist_bot_entry_v3_IstBotEntryV3A01/nodes/Build_Summary_Resolver_Input/jsCode');
+      const { normalizeRequest } = require('../../summary_orchestrate_request_v3_SummaryOrchV3A01/nodes/Normalize_Request/jsCode');
+      const { buildSummaryRow } = require('../../summary_orchestrate_request_v3_SummaryOrchV3A01/nodes/Reconcile_Request/jsCode');
+      const commandTS = '1789371980.258889';
+      const rootTS = '1789351245.150909';
+      const plan = normalizeSummaryCommand({
+        routeKey: 'summary:stream', channel: 'C09F0SYG57D', ts: commandTS,
+        ...(inThread ? { thread_ts: rootTS } : {}), positionals: ids, args: {},
+      }, '2026-09-14T16:00:00+08:00');
+      const normalized = normalizeRequest({
+        ...plan,
+        orderedStreams: plan.positions.map((position) => ({
+          ...position, durationMinutes: ids.length === 1 ? 60 : 5,
+          processingMessageTS: '1789371981.000001',
+          streamContext: {
+            liveStreamID: position.liveStreamID, eligible: true, profile: 'stt', source: 'livestream_v2',
+            userID: 'user-1', openID: 'open-1', region: 'TW', beginTime: 1787360400,
+            endTime: 1787364000, duration: 3600, vliverModel: 0, closeBy: 'normalEnd', deviceType: 'ios',
+          },
+        })),
+        existingDialogues: {},
+      });
+      const persisted = JSON.parse(JSON.stringify(buildSummaryRow(normalized, 'exec-1', '2026-09-14T08:00:00.000Z')));
+      persisted.inferenceResultJson = JSON.stringify({ report: { summary: { responsibility_category_list: ['[2-c] Signal'] } } });
+      assert.equal(resolveReactionTargetTS(persisted), commandTS);
+      assert.equal(persisted.threadTS, inThread ? rootTS : commandTS);
+
+      // Run the real Code node with only persisted routing and cached inference.
+      const carrier = { row: { ...persisted, summaryAttempt: 2 }, input: { channel: normalized.channel, threadTS: persisted.threadTS } };
+      const code = fs.readFileSync(path.join(root, 'nodes/Map_Summary_Reactions/jsCode.js'), 'utf8');
+      const items = require('node:vm').runInNewContext(`(function () { ${code}\n})()`, {
+        $input: { first: () => ({ json: carrier }) },
+      });
+      assert.equal(items.length, 2);
+      for (const { json } of items) {
+        assert.equal(json.reactionTargetTS, commandTS);
+        assert.equal(json.input.threadTS, persisted.threadTS);
+        const timestamp = node('Add Summary Reaction').parameters.timestamp.slice(3, -2).trim();
+        assert.equal(require('node:vm').runInNewContext(timestamp, { $json: json }), commandTS);
+      }
+    });
+  }
+}
+test('automated suspect reactions target the detection root rather than processing or summary messages', () => {
+  assert.equal(resolveReactionTargetTS({
+    requestType: 'suspect_summary', requestKey: 'suspect:9001:9002',
+    threadTS: '1789351245.150909', summaryMessageTS: '1789371980.258889',
+    orderedStreamsJson: JSON.stringify([{ processingMessageTS: '1789371981.000001' }]),
+  }), '1789351245.150909');
+});
+test('invalid manual command identities never fall back to reacting on the thread root', () => {
+  for (const requestType of ['standalone_summary', 'single_stream_summary']) {
+    for (const requestKey of ['', 'bot-summary:undefined:9001', 'bot-summary:1789371980.25:9001', 'other:1789371980.258889:9001']) {
+      assert.throws(() => resolveReactionTargetTS({ requestType, requestKey, threadTS: '1789351245.150909' }), /command identity/);
+    }
+  }
+  assert.throws(() => resolveReactionTargetTS({ requestType: 'suspect_summary', threadTS: '' }), /thread timestamp/);
 });
 test('summary reactions put OBS letters first and retain device and category reactions', () => {
   const reactions = mapSummaryReactions({

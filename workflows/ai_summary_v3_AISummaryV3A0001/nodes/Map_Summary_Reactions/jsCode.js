@@ -13,6 +13,19 @@ const EMOJI_MAP = Object.freeze({
   '2-e': 'question',
 });
 
+function resolveReactionTargetTS(row) {
+  if (['standalone_summary', 'single_stream_summary'].includes(row?.requestType)) {
+    // The immutable request key preserves the command message across async retries.
+    const match = /^bot-summary:(\d{10,}\.\d{6}):\d+(?::\d+)?$/.exec(row.requestKey || '');
+    if (!match) throw new Error('invalid summary reaction command identity');
+    return match[1];
+  }
+  if (typeof row?.threadTS !== 'string' || !/^\d{10,}\.\d{6}$/.test(row.threadTS)) {
+    throw new Error('invalid summary reaction thread timestamp');
+  }
+  return row.threadTS;
+}
+
 function mapSummaryReactions(row) {
   let inference;
   try {
@@ -39,8 +52,9 @@ function mapSummaryReactions(row) {
   return [...new Set(reactions)].map((emoji) => ({ emoji }));
 }
 
-if (typeof module !== 'undefined') module.exports = { mapSummaryReactions };
+if (typeof module !== 'undefined') module.exports = { mapSummaryReactions, resolveReactionTargetTS };
 if (typeof $input !== 'undefined') {
   const input = $input.first().json;
-  return mapSummaryReactions(input.row).map((reaction) => ({ json: { ...input, ...reaction } }));
+  const reactionTargetTS = resolveReactionTargetTS(input.row);
+  return mapSummaryReactions(input.row).map((reaction) => ({ json: { ...input, ...reaction, reactionTargetTS } }));
 }

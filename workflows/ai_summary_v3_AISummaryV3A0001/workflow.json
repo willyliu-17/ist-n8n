@@ -1542,7 +1542,7 @@
           "value": "={{ $json.input.channel }}",
           "mode": "id"
         },
-        "timestamp": "={{ $json.input.threadTS }}",
+        "timestamp": "={{ $json.reactionTargetTS }}",
         "name": "={{ $json.emoji }}"
       },
       "credentials": {
