@@ -59,6 +59,10 @@
             {
               "name": "analysisMode",
               "type": "string"
+            },
+            {
+              "name": "analysisScope",
+              "type": "object"
             }
           ]
         }

@@ -52,6 +52,7 @@ const V3_OFFLINE_TEST_FILES = Object.freeze([
     'workflows/ai_summary_inference_subwf_m8VcIoclFE2lVKrl/tests/inference.test.js',
     'workflows/ai_summary_inference_subwf_m8VcIoclFE2lVKrl/tests/long-dialogue.test.js',
     'workflows/ai_summary_v3_AISummaryV3A0001/tests/summary.test.js',
+    'workflows/ai_summary_v3_AISummaryV3A0001/tests/scope-status.test.js',
     'workflows/query_steam_logs_v3_QueryLogsV3A0001/tests/delivery-order.test.js',
     'workflows/collect_suspect_streamid_v3_CollectSuspectV3/tests/routing.test.js',
     'workflows/ist_bot_entry_v3_IstBotEntryV3A01/tests/routing.test.js',

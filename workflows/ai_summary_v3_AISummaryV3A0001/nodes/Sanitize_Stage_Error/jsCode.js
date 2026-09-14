@@ -7,7 +7,7 @@ function sanitizeStageError(source) {
   // Unlike $, this end assertion also rejects a trailing line terminator.
   const errorCode = /^[A-Za-z0-9_.-]{1,96}(?![\s\S])/.test(raw)
     ? raw
-    : /^(summary_model_output_invalid|summary_model_empty_response) \[line [1-9]\d*\](?![\s\S])/.exec(raw)?.[1] || fallback;
+    : /^(summary_model_output_invalid|summary_model_empty_response|summary_analysis_scope_invalid|summary_analysis_scope_mismatch) \[line [1-9]\d*\](?![\s\S])/.exec(raw)?.[1] || fallback;
   return { kind: 'failure_carrier', input: carrier.input, row: carrier.row, ownerConditions: carrier.ownerConditions, failureStage: carrier.nextStage, errorCode };
 }
 if (typeof module !== 'undefined') module.exports = { sanitizeStageError };

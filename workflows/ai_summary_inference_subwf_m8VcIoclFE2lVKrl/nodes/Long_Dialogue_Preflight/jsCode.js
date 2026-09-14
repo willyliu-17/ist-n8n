@@ -6,6 +6,55 @@ const MAP_OUTPUT_RESERVE_BYTES = (MAP_OUTPUT_BUDGET_BYTES * 2) + 512;
 const COVERAGE_RESERVE_BYTES = 2048;
 const KNOWN_MAIN_MODELS = new Set(['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-3.1-pro-preview']);
 
+function buildAnalysisScope(input) {
+  const fail = () => { throw new Error('summary_analysis_scope_invalid'); };
+  const aggregate = input.aggregateData || [];
+  if (!Array.isArray(aggregate)) fail();
+  const mode = input.analysisMode === 'single_stream_full' ? 'single_stream_full' : 'comparison';
+  if (![undefined, null, '', 'legacy', 'single_stream_full'].includes(input.analysisMode)) fail();
+  const supplied = input.analysisScope;
+  if (supplied != null && (typeof supplied !== 'object' || Array.isArray(supplied))) fail();
+  const identity = (stream) => {
+    if (!stream || !/^[1-9]\d*$/.test(String(stream.liveStreamID || ''))) fail();
+    const role = stream.role || 'unspecified';
+    if (!['previous', 'current', 'unspecified'].includes(role)) fail();
+    return { liveStreamID: String(stream.liveStreamID), role };
+  };
+  const present = aggregate.map((stream) => {
+    if (!stream || !Array.isArray(stream.details)) fail();
+    const dialogue = stream.details.find((detail) => detail?.type === 'dialogue');
+    const declared = Array.isArray(supplied?.requestedStreams) ? supplied.requestedStreams.find((target) => String(target?.liveStreamID) === String(stream.liveStreamID)) : null;
+    const result = identity({ liveStreamID: stream.liveStreamID, role: dialogue?.role || declared?.role });
+    for (const detail of stream.details) {
+      if (!detail || typeof detail !== 'object' || Array.isArray(detail)) fail();
+      if (detail?.liveStreamID != null && String(detail.liveStreamID) !== result.liveStreamID) fail();
+    }
+    return result;
+  });
+  const requested = supplied?.requestedStreams ?? present;
+  if (!Array.isArray(requested)) fail();
+  const requestedStreams = requested.map(identity);
+  const ids = requestedStreams.map((stream) => stream.liveStreamID);
+  if (new Set(ids).size !== ids.length || new Set(present.map((stream) => stream.liveStreamID)).size !== present.length) fail();
+  const roles = requestedStreams.map((stream) => stream.role).filter((role) => role !== 'unspecified');
+  if (new Set(roles).size !== roles.length) fail();
+  if (mode === 'single_stream_full' && (requestedStreams.length !== 1 || present.length !== 1)) fail();
+  if (present.some((stream) => !requestedStreams.some((target) => target.liveStreamID === stream.liveStreamID && target.role === stream.role))) fail();
+  const missingDialogueRoles = supplied?.missingDialogueRoles ?? [];
+  if (!Array.isArray(missingDialogueRoles) || new Set(missingDialogueRoles).size !== missingDialogueRoles.length
+    || missingDialogueRoles.some((role) => !roles.includes(role))) fail();
+  const coverageStatus = supplied?.coverageStatus ?? 'unknown';
+  if (!['complete', 'partial', 'unknown'].includes(coverageStatus)
+    || coverageStatus === 'complete' && (missingDialogueRoles.length || present.length !== ids.length)
+    || coverageStatus === 'partial' && !missingDialogueRoles.length) fail();
+  const availableStreamIDs = present.filter((stream, index) => aggregate[index].details.some((detail) => {
+    if (detail.type === 'dialogue') return typeof detail.dialogue === 'string' && detail.dialogue.trim() !== '';
+    if (detail.type === 'streamInfo') return Array.isArray(detail.streamInfo) && detail.streamInfo.some((info) => info && Object.keys(info).length > 0);
+    return ['streamerLog', 'streamEventLog'].includes(detail.type) && Array.isArray(detail.logs) && detail.logs.length > 0;
+  })).map((stream) => stream.liveStreamID);
+  return { analysisMode: mode, requestedStreams, availableStreamIDs, missingDialogueRoles, coverageStatus };
+}
+
 function utf8Bytes(value) {
   return Buffer.byteLength(value, 'utf8');
 }
@@ -92,13 +141,17 @@ function prepareLongDialogue(input) {
   }));
 }
 
-if (typeof module !== 'undefined') module.exports = { CHUNK_BUDGET_BYTES, DIRECT_BUDGET_BYTES, MAP_OUTPUT_BUDGET_BYTES, MAX_CHUNKS, chunkDialogue, prepareLongDialogue, safeCut, utf8Bytes };
+if (typeof module !== 'undefined') module.exports = { CHUNK_BUDGET_BYTES, DIRECT_BUDGET_BYTES, MAP_OUTPUT_BUDGET_BYTES, MAX_CHUNKS, buildAnalysisScope, chunkDialogue, prepareLongDialogue, safeCut, utf8Bytes };
 if (typeof $input !== 'undefined') {
   const inputs = $input.all();
   const fullStreamInputs = inputs.filter((item) => item.json && item.json.analysisMode === 'single_stream_full');
   if (fullStreamInputs.length > 0) {
     if (inputs.length !== 1 || fullStreamInputs.length !== 1) throw new Error('single_stream_full requires exactly one workflow input item');
-    return prepareLongDialogue(inputs[0].json).map((json) => ({ json, pairedItem: { item: 0 } }));
+    const analysisScope = buildAnalysisScope(inputs[0].json);
+    return prepareLongDialogue(inputs[0].json).map((json) => ({ json: { ...json, analysisScope }, pairedItem: { item: 0 } }));
   }
-  return inputs.flatMap((item, inputIndex) => prepareLongDialogue(item.json).map((json) => ({ json, pairedItem: { item: inputIndex } })));
+  return inputs.flatMap((item, inputIndex) => {
+    const analysisScope = buildAnalysisScope(item.json);
+    return prepareLongDialogue(item.json).map((json) => ({ json: { ...json, analysisScope }, pairedItem: { item: inputIndex } }));
+  });
 }

@@ -133,3 +133,21 @@ test('workflow pins a guarded chunk chain and direct bypass', () => {
   assert.match(collector, /END_OF_CHUNK_EVIDENCE/);
   assert.doesNotMatch(collector, /readPairedIndex/);
 });
+
+test('trusted analysis scope survives both direct and chunked runtime paths', () => {
+  const file = path.join(__dirname, '..', 'nodes', 'Long_Dialogue_Preflight', 'jsCode.js');
+  for (const dialogue of ['short', longDialogue()]) {
+    const input = { aggregateData: aggregate(dialogue), analysisMode: 'single_stream_full' };
+    const prepared = runRuntime(file, { $input: { all: () => [{ json: input }] } });
+    for (const item of prepared) {
+      assert.equal(item.json.analysisScope.analysisMode, 'single_stream_full');
+      assert.equal(item.json.analysisScope.requestedStreams[0].liveStreamID, '123');
+      assert.equal(item.json.analysisScope.availableStreamIDs[0], '123');
+    }
+    if (prepared[0].json.useChunks) {
+      const results = prepared.map((_, index) => chainText(`evidence ${index}`));
+      const collected = collectChunkEvidence(results, prepared.map((item) => item.json));
+      assert.equal(collected.aggregateData[0].liveStreamID, prepared[0].json.analysisScope.requestedStreams[0].liveStreamID);
+    }
+  }
+});

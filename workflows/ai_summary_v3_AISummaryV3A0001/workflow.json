@@ -575,7 +575,7 @@
         },
         "ts": "={{ Number($json.row.summaryMessageTS) }}",
         "messageType": "text",
-        "text": "={{ $json.input.coverageStatus === 'partial' ? '[PARTIAL COVERAGE] ' : '' }}AI summary analysis in progress."
+        "text": "={{ $json.input.coverageStatus === 'partial' ? '[PARTIAL COVERAGE] ' : '' }}{{ Number($json.row.summaryAttempt || 0) > 0 ? 'Retrying: ' : '' }}AI summary analysis in progress."
       },
       "credentials": {
         "slackApi": {
@@ -742,7 +742,8 @@
           "mappingMode": "defineBelow",
           "value": {
             "aggregateData": "={{ $json.aggregate.streams }}",
-            "analysisMode": "={{ $json.input.requestType === 'single_stream_summary' ? 'single_stream_full' : '' }}"
+            "analysisMode": "={{ $json.input.requestType === 'single_stream_summary' ? 'single_stream_full' : '' }}",
+            "analysisScope": "={{ { requestedStreams: $json.input.streams.map(stream => ({ liveStreamID: stream.liveStreamID, role: stream.role })), missingDialogueRoles: $json.input.missingRoles, coverageStatus: $json.input.coverageStatus } }}"
           }
         },
         "options": {
@@ -2421,7 +2422,11 @@
       "name": "Update Summary Status Failure",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
-      "onError": "continueRegularOutput",
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "position": [
         5200,
         600
@@ -2445,6 +2450,20 @@
         }
       },
       "webhookId": "23bd844a-74e2-4ab3-9c9c-05762a49822e"
+    },
+    {
+      "id": "c9be935f-ce0b-4acb-8daf-9a0af49e2a2b",
+      "name": "Verify Failure Status Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5400,
+        600
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Failure_Status_Update/jsCode.js"
+      }
     }
   ],
   "connections": {
@@ -3477,11 +3496,6 @@
       "main": [
         [
           {
-            "node": "Return Result",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Build Failure Status",
             "type": "main",
             "index": 0
@@ -3494,6 +3508,28 @@
         [
           {
             "node": "Update Summary Status Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Summary Status Failure": {
+      "main": [
+        [
+          {
+            "node": "Verify Failure Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Failure Status Update": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
             "type": "main",
             "index": 0
           }

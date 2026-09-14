@@ -606,7 +606,7 @@ test('preserves classified child errors, bounds retries and updates the same sta
   assert.equal(sanitizeStageError({ ...carrier, error: 'provider error with private transcript' }).errorCode, 'summary_inference_failed');
   const { planFailure } = require('../nodes/Plan_Failure.js');
   const vm = require('node:vm');
-  const code = fs.readFileSync(path.join(root, 'nodes/Build_Failure_Status.js'), 'utf8');
+  const code = fs.readFileSync(path.join(root, 'nodes/Build_Failure_Status/jsCode.js'), 'utf8');
   for (const attempt of [0, 1, 2]) {
     const persisted = row({ summaryAttempt: attempt, summaryMessageTS: '1787364000.000002' });
     const plan = planFailure([{ ...sanitized, row: persisted }, persisted], NOW);

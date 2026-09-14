@@ -6,6 +6,7 @@ const vm = require('node:vm');
 const { createHash } = require('node:crypto');
 const { buildWorkflow } = require('../../../scripts/utils');
 const { validateInferenceReport } = require('../nodes/Validate_Inference_Report/jsCode');
+const { buildAnalysisScope } = require('../nodes/Long_Dialogue_Preflight/jsCode');
 
 const workflow = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'workflow.json'), 'utf8'));
 
@@ -34,10 +35,11 @@ function inferenceErrorCode(source) {
   return vm.runInNewContext(expression.slice(3, -2), { $json: source });
 }
 
-function render(expression, analysisMode, data = []) {
+function render(expression, analysisMode, data = [], focus = 'Inspect the evidence', suppliedScope) {
+  const analysisScope = buildAnalysisScope({ aggregateData: data, analysisMode, analysisScope: suppliedScope });
   const context = {
-    $: (name) => ({ first: () => ({ json: name === 'Start' ? { analysisMode } : { data } }) }),
-    $fromAI: () => 'Inspect the evidence',
+    $: (name) => ({ first: () => ({ json: name === 'Start' ? { analysisMode } : name === 'Long Dialogue Preflight' ? { analysisScope } : { data } }) }),
+    $fromAI: () => focus,
   };
   if (!expression.startsWith('=')) return expression;
   return expression.slice(1).replace(/\{\{([\s\S]*?)\}\}/g, (_, source) => String(vm.runInNewContext(source, context)));
@@ -52,11 +54,9 @@ function aggregate() {
   ] }];
 }
 
-test('legacy rendered system prompts and schema content remain unchanged', () => {
+test('unrelated legacy dialogue system prompt remains unchanged', () => {
   const fixtures = [
-    [byName('AI Agent').parameters.options.systemMessage, '3c34fe08a88c30a97ba141877615d36061881110ffcde408393ab47d858c57ab'],
     [byName('Dialogue_Analyzer').parameters.options.systemMessage, '47be4e7d9d1133a59cd04a9782f980da6e08f956010f213457824ace29850432'],
-    [byName('Structured Output Parser').parameters.inputSchema, 'b2d93a67e490cae484643feef0858de8ac6408f9e14f3569e8cd391d18fd7a0c', true],
   ];
   for (const mode of [undefined, null, '', 'legacy']) {
     for (const [expression, expected, schema] of fixtures) {
@@ -70,26 +70,28 @@ test('legacy analyzer payloads preserve data and do not opt a one-stream suspect
   const data = aggregate();
   const types = { Dialogue_Analyzer: 'dialogue', Streamer_Log_Analyzer: 'streamerLog', Event_Log_Analyzer: 'streamEventLog', StreamInfo_Analyzer: 'streamInfo' };
   for (const [name, type] of Object.entries(types)) {
-    const expected = { request: 'Inspect the evidence', data: data[0].details.filter((detail) => detail.type === type) };
-    assert.equal(render(byName(name).parameters.text, undefined, data).trim(), JSON.stringify(expected, null, 2));
+    const payload = JSON.parse(render(byName(name).parameters.text, undefined, data));
+    assert.deepEqual(payload.data, data[0].details.filter((detail) => detail.type === type));
+    assert.equal(payload.analysisFocus, 'Inspect the evidence');
+    assert.equal(payload.analysisScope.analysisMode, 'comparison');
+    assert.deepEqual(payload.analysisScope.requestedStreams, [{ liveStreamID: '9001', role: 'unspecified' }]);
     const empty = JSON.parse(render(byName(name).parameters.text, undefined));
-    assert.deepEqual(empty, { request: 'Inspect the evidence', data: [], notice: `無對應的 ${type} 資料，請回報無資料。` });
+    assert.deepEqual(empty.data, []);
+    assert.equal(empty.notice, `無對應的 ${type} 資料，請回報無資料。`);
   }
-  for (const [items, count] of [[data, 1], [[...data, { ...data[0], liveStreamID: '9002' }], 2], [[...data, ...data], 1]]) {
-    assert.equal(render(byName('AI Agent').parameters.text, '', items).trim(), `目前共有 ${count} 筆 liveStreamID。請先判斷是否需要呼叫 Analyzer Tools（Streamer_Log_Analyzer / Event_Log_Analyzer / Dialogue_Analyzer / StreamInfo_Analyzer）。若資料不足就不要呼叫。`);
-  }
-  assert.equal(render(byName('AI Agent').parameters.text, '').trim(), '目前無可分析資料，請勿呼叫任何 Analyzer Tools，直接回報無資料。');
+  assert.match(render(byName('AI Agent').parameters.text, '', data), /目前共有 1 筆 liveStreamID：9001/);
+  assert.match(render(byName('AI Agent').parameters.text, ''), /目前無可分析資料，請勿呼叫任何 Analyzer Tools/);
 });
 
 test('single-stream prompts are explicit about scope, evidence coverage, and unavailable dialogue', () => {
   const mode = 'single_stream_full';
   const data = aggregate();
-  const system = render(byName('AI Agent').parameters.options.systemMessage, mode);
+  const system = render(byName('AI Agent').parameters.options.systemMessage, mode, data);
   assert.match(system, /不要預設有異常、中斷、前場或重開/);
   assert.match(system, /跨場重開後的恢復不適用/);
   assert.match(system, /不得聲稱主 Agent 直接閱讀全部原文/);
   assert.doesNotMatch(system, /還原直播中斷的真相|修復比對重開後|所有直播場次視為連續事件/);
-  const dialogueSystem = render(byName('Dialogue_Analyzer').parameters.options.systemMessage, mode);
+  const dialogueSystem = render(byName('Dialogue_Analyzer').parameters.options.systemMessage, mode, data);
   assert.match(dialogueSystem, /chunked_evidence/);
   assert.match(dialogueSystem, /不可用證據|無文字或失敗不代表無異常/);
   for (const name of ['Dialogue_Analyzer', 'Streamer_Log_Analyzer', 'Event_Log_Analyzer', 'StreamInfo_Analyzer']) {
@@ -107,7 +109,7 @@ test('single-stream prompts are explicit about scope, evidence coverage, and una
 test('single-stream schema only changes descriptions, not required fields or enums', () => {
   const expression = byName('Structured Output Parser').parameters.inputSchema;
   const legacy = JSON.parse(render(expression));
-  const single = JSON.parse(render(expression, 'single_stream_full'));
+  const single = JSON.parse(render(expression, 'single_stream_full', aggregate()));
   function withoutDescriptions(value) {
     if (Array.isArray(value)) return value.map(withoutDescriptions);
     if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'description').map(([key, nested]) => [key, withoutDescriptions(nested)]));
@@ -150,7 +152,9 @@ test('validates the schema-shaped report and fails closed on empty or partial mo
     return 'Evidence-based result';
   }
   const output = sample(schema);
-  assert.deepEqual(validateInferenceReport([{ output }]), { output });
+  const expectedScope = buildAnalysisScope({ aggregateData: aggregate() });
+  output.analysisScope = expectedScope;
+  assert.deepEqual(validateInferenceReport([{ output }], expectedScope), { output });
   for (const items of [[], [{}], [{ output: '' }], [{ output: { report: {} } }], [{ output }, { output }]]) {
     assert.throws(() => validateInferenceReport(items), /summary_model_output_invalid/);
   }
@@ -162,4 +166,105 @@ test('validates the schema-shaped report and fails closed on empty or partial mo
   assert.throws(() => vm.runInNewContext(`(function () { ${byName('Validate Inference Report').parameters.jsCode} })()`, {
     $input: { all: () => [{ json: {} }] },
   }), /summary_model_output_invalid/);
+});
+
+function incidentInput(analysisMode) {
+  const ids = analysisMode === 'single_stream_full' ? ['215321109'] : ['215320756', '215321109'];
+  const aggregateData = ids.map((liveStreamID, index) => ({ liveStreamID, details: aggregate()[0].details.map((detail) => ({
+    ...structuredClone(detail), liveStreamID, ...(detail.type === 'dialogue' ? { role: ids.length === 1 || index === 1 ? 'current' : 'previous' } : {}),
+  })) }));
+  return { aggregateData, analysisMode, analysisScope: {
+    requestedStreams: aggregateData.map((stream) => ({ liveStreamID: stream.liveStreamID, role: stream.details[0].role })),
+    missingDialogueRoles: [], coverageStatus: 'complete',
+  } };
+}
+
+function validReport(scope) {
+  return { analysisScope: structuredClone(scope), report: {
+    subjective_motivation: { timeline_overview: 'Provided streams', subjective_description: 'Available evidence', recovery_status: 'Unknown' },
+    sl_analysis: 'No conclusion', sel_analysis: 'No conclusion', summary: {
+      responsibility_category: '', responsibility_category_list: [], causal_summary: 'Evidence is limited', other_issue: '',
+      fact_check: { claimed_issue: '', data_evidence: '', is_valid_issue: 'Partial' }, exclusion_reason: { level_1: '', level_2: '' },
+    },
+  } };
+}
+
+test('incident IDs and roles reach every analyzer and model focus cannot replace the request', () => {
+  for (const mode of [undefined, 'single_stream_full']) {
+    const input = incidentInput(mode);
+    const scope = buildAnalysisScope(input);
+    const prompt = render(byName('AI Agent').parameters.text, mode, input.aggregateData, '', input.analysisScope);
+    for (const stream of scope.requestedStreams) assert.ok(prompt.includes(stream.liveStreamID));
+    assert.ok(prompt.includes(JSON.stringify(scope)));
+    for (const name of ['Dialogue_Analyzer', 'Streamer_Log_Analyzer', 'Event_Log_Analyzer', 'StreamInfo_Analyzer']) {
+      const payload = JSON.parse(render(byName(name).parameters.text, mode, input.aggregateData,
+        '請分析 liveStreamID 1: 103002308, liveStreamID 2: 103004376', input.analysisScope));
+      assert.deepEqual(payload.analysisScope, scope);
+      assert.equal(payload.analysisFocus, '');
+      assert.doesNotMatch(JSON.stringify(payload), /103002308|103004376/);
+      assert.deepEqual(payload.data.map((detail) => detail.liveStreamID), scope.availableStreamIDs);
+    }
+  }
+});
+
+test('partial dialogue and missing stream evidence retain comparison intent and requested roles', () => {
+  const input = incidentInput();
+  input.aggregateData[0].details = [];
+  input.analysisScope.coverageStatus = 'partial';
+  input.analysisScope.missingDialogueRoles = ['previous'];
+  const scope = buildAnalysisScope(input);
+  assert.equal(scope.analysisMode, 'comparison');
+  assert.deepEqual(scope.requestedStreams.map((stream) => stream.liveStreamID), ['215320756', '215321109']);
+  assert.deepEqual(scope.availableStreamIDs, ['215321109']);
+  assert.deepEqual(scope.missingDialogueRoles, ['previous']);
+  const output = validReport(scope);
+  assert.deepEqual(validateInferenceReport([{ output }], scope), { output });
+});
+
+test('scope rejects contradictory inputs, wrong IDs, roles, mode, and absent structured output', () => {
+  const input = incidentInput();
+  const scope = buildAnalysisScope(input);
+  for (const change of [
+    (scope) => { scope.requestedStreams[0].liveStreamID = '103002308'; },
+    (scope) => { scope.requestedStreams[0].role = 'current'; },
+    (scope) => { scope.analysisMode = 'single_stream_full'; },
+    (scope) => { scope.availableStreamIDs = []; },
+    (scope) => { scope.coverageStatus = 'partial'; },
+  ]) {
+    const output = validReport(scope);
+    change(output.analysisScope);
+    assert.throws(() => validateInferenceReport([{ output }], scope), /summary_analysis_scope_mismatch/);
+  }
+  const output = validReport(scope);
+  delete output.analysisScope;
+  assert.throws(() => validateInferenceReport([{ output }], scope), /summary_analysis_scope_mismatch/);
+  input.aggregateData[0].details[0].liveStreamID = '103002308';
+  assert.throws(() => buildAnalysisScope(input), /summary_analysis_scope_invalid/);
+});
+
+test('target-claim guard catches the incident sentence while allowing unrelated log IDs and metrics', () => {
+  const scope = buildAnalysisScope(incidentInput());
+  const output = validReport(scope);
+  output.report.summary.other_issue = '用戶請求分析的 liveStreamID (103002308, 103004376) 與日誌中實際存在的 ID (215320756, 215321109) 不符。本報告是基於日誌中實際存在的 ID 進行分析。';
+  assert.throws(() => validateInferenceReport([{ output }], scope), /summary_analysis_scope_mismatch/);
+  output.report.summary.other_issue = '事件日誌內部 liveStreamID 16000141 不作為本次分析對象。PingMax 272ms，時間戳 1789287489。';
+  assert.deepEqual(validateInferenceReport([{ output }], scope), { output });
+  output.report.summary.other_issue = '用戶請求分析 liveStreamID 215320756、215321109。';
+  assert.deepEqual(validateInferenceReport([{ output }], scope), { output });
+  output.report.summary.other_issue = '用戶請求分析 liveStreamID 1: 215320756, liveStreamID 2: 215321109；日誌內部 liveStreamID 16000141。';
+  assert.deepEqual(validateInferenceReport([{ output }], scope), { output });
+});
+
+test('V2 and evaluation callers remain compatible without a new input field', () => {
+  for (const folder of ['ai_summary_v2_FCaONjqNFA8YieKr', 'ai_summary_prompt_eval_fcJRfCDLAf8LBvXK']) {
+    const caller = buildWorkflow(path.resolve(root, '..', folder));
+    const node = caller.nodes.find((node) => node.parameters.workflowId?.value === workflow.id);
+    assert.ok(node.parameters.workflowInputs.value.aggregateData);
+    const legacyInput = { aggregateData: aggregate() };
+    const scope = buildAnalysisScope(legacyInput);
+    assert.equal(scope.analysisMode, 'comparison');
+    assert.equal(scope.coverageStatus, 'unknown');
+    const output = validReport(scope);
+    assert.deepEqual(validateInferenceReport([{ output }], scope), { output });
+  }
 });

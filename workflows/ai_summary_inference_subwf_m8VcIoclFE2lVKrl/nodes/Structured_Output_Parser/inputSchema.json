@@ -3,6 +3,30 @@
   "title": "AI Summary Report",
   "type": "object",
   "properties": {
+    "analysisScope": {
+      "type": "object",
+      "description": "逐欄複製可信 analysisScope；不得由日誌內部 ID 或工具分析重點重新推測。",
+      "additionalProperties": false,
+      "properties": {
+        "analysisMode": { "type": "string", "enum": ["single_stream_full", "comparison"] },
+        "requestedStreams": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "liveStreamID": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+              "role": { "type": "string", "enum": ["previous", "current", "unspecified"] }
+            },
+            "required": ["liveStreamID", "role"]
+          }
+        },
+        "availableStreamIDs": { "type": "array", "items": { "type": "string", "pattern": "^[1-9][0-9]*$" } },
+        "missingDialogueRoles": { "type": "array", "items": { "type": "string", "enum": ["previous", "current"] } },
+        "coverageStatus": { "type": "string", "enum": ["complete", "partial", "unknown"] }
+      },
+      "required": ["analysisMode", "requestedStreams", "availableStreamIDs", "missingDialogueRoles", "coverageStatus"]
+    },
     "report": {
       "type": "object",
       "description": "{{ $('Start').first().json.analysisMode === 'single_stream_full' ? '單場直播完整技術分析報告；不預設異常、前場或重開' : '直播異常歸因報告' }}",
@@ -136,6 +160,7 @@
     }
   },
   "required": [
+    "analysisScope",
     "report"
   ]
 }
