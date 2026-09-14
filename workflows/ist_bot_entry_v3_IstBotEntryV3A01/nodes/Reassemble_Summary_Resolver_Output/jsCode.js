@@ -82,18 +82,32 @@ function buildSummaryResolverCalls(ids, lookupWindow) {
 
 function finalResolutionCalls(plan, previous, current) {
   if (!previous || !current) throw new Error('Summary discovery could not resolve the paired streams');
-  const finalLookupWindow = extendPairingWindow(plan.lookupWindow, {
-    previousBegin: taipeiRfc3339(previous.beginTime, 'previous.beginTime'),
-    currentEnd: taipeiRfc3339(current.endTime, 'current.endTime'),
-  });
+  const finalLookupWindow = plan.previousResolvedWindow || plan.lookupWindow;
   const previousBeginMs = previous.beginTime * 1000;
   if (!Number.isSafeInteger(previous.beginTime)
     || previousBeginMs < Date.parse(finalLookupWindow.start)
     || previousBeginMs >= Date.parse(finalLookupWindow.end)) {
     throw new Error('Previous stream is outside the bounded final lookup window');
   }
+  if (plan.previousResolvedWindow) {
+    return [previous, current].map((context, chunkIndex) => ({
+      ...buildSummaryResolverCalls([context.liveStreamID], chunkIndex === 0 ? finalLookupWindow : plan.lookupWindow)[0],
+      chunkIndex,
+      plan,
+    }));
+  }
   return buildSummaryResolverCalls(plan.positions.map(({ liveStreamID }) => liveStreamID), finalLookupWindow)
-    .map((call) => ({ ...call, plan: { ...plan, finalLookupWindow } }));
+    .map((call) => ({ ...call, plan }));
+}
+
+function fallbackCalls(plan, rows) {
+  const id = plan.positions[0].liveStreamID;
+  const missing = rows.find((row) => row.liveStreamID === id);
+  if (plan.date || !plan.previousFallbackWindow || missing?.status !== 'not_found') {
+    throw new Error('Summary base discovery could not resolve stream within the requested window');
+  }
+  return [{ phase: 'previous_fallback', chunkIndex: 0, streams: [{ liveStreamID: id }],
+    lookupWindow: plan.previousFallbackWindow, profile: 'stt', plan }];
 }
 
 function finalSingleResolutionCalls(plan, current) {
@@ -105,27 +119,24 @@ function finalSingleResolutionCalls(plan, current) {
 function planAfterBaseDiscovery(plan, rows) {
   if (isSingleStreamPlan(plan)) {
     const current = eligibleContext(rows, plan.positions[0].liveStreamID);
-    if (!current) throw new Error('Summary base discovery could not resolve current stream');
+    if (!current) return fallbackCalls(plan, rows);
     return finalSingleResolutionCalls(plan, current);
   }
   const previous = eligibleContext(rows, plan.positions[0].liveStreamID);
   const current = eligibleContext(rows, plan.positions[1].liveStreamID);
   if (!current) throw new Error('Summary base discovery could not resolve current stream');
   if (previous) return finalResolutionCalls(plan, previous, current);
-  return [{
-    phase: 'previous_fallback',
-    chunkIndex: 0,
-    streams: [{ liveStreamID: plan.positions[0].liveStreamID }],
-    lookupWindow: plan.previousFallbackWindow,
-    profile: 'stt',
-    plan,
-  }];
+  return fallbackCalls(plan, rows);
 }
 
 function planAfterFallbackDiscovery(plan, baseRows, fallbackRows) {
+  if (plan.date || !plan.previousFallbackWindow) throw new Error('Summary fallback is not allowed');
   const previous = eligibleContext(fallbackRows, plan.positions[0].liveStreamID);
+  if (isSingleStreamPlan(plan)) {
+    return finalSingleResolutionCalls({ ...plan, lookupWindow: plan.previousFallbackWindow }, previous);
+  }
   const current = eligibleContext(baseRows, plan.positions[1].liveStreamID);
-  return finalResolutionCalls(plan, previous, current);
+  return finalResolutionCalls({ ...plan, previousResolvedWindow: plan.previousFallbackWindow }, previous, current);
 }
 
 function buildOrderedSummaryStreams(plan, contexts) {

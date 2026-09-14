@@ -191,12 +191,12 @@ test('builds exact default and explicit Asia/Taipei lookup windows', () => {
     end: '2026-08-22T04:00:00+08:00',
   });
   assert.deepEqual(buildLookupWindow({ date: '2025-01-02' }), {
-    start: '2025-01-02T04:00:00+08:00',
-    end: '2025-01-03T04:00:00+08:00',
+    start: '2024-12-31T04:00:00+08:00',
+    end: '2025-01-05T04:00:00+08:00',
   });
   assert.deepEqual(buildLookupWindow({ date: '2024-12-31' }), {
-    start: '2024-12-31T04:00:00+08:00',
-    end: '2025-01-01T04:00:00+08:00',
+    start: '2024-12-29T04:00:00+08:00',
+    end: '2025-01-03T04:00:00+08:00',
   });
 });
 
@@ -216,20 +216,20 @@ test('extends pairing only beyond base bounds and caps each side at six hours', 
 });
 
 test('keeps previousFallbackWindow separate and bounded to at most 30 days', () => {
-  const base = buildLookupWindow({ date: '2025-01-02' });
+  const base = buildLookupWindow({ nowIso: '2025-02-01T04:00:00+08:00' });
   assert.deepEqual(buildPreviousFallbackWindow(base), {
     start: '2024-12-03T04:00:00+08:00',
     end: '2025-01-02T04:00:00+08:00',
   });
   assert.deepEqual(base, {
-    start: '2025-01-02T04:00:00+08:00', end: '2025-01-03T04:00:00+08:00',
+    start: '2025-01-02T04:00:00+08:00', end: '2025-02-01T04:00:00+08:00',
   });
   assert.throws(() => buildPreviousFallbackWindow(base, 31), /1\.\.30/);
   assert.doesNotMatch(fs.readFileSync(normalizePath, 'utf8'), /narrow extension/i);
 });
 
-test('uses base discovery first and requests fallback only for a valid unusable result', () => {
-  const input = normalizedInput({ date: '2025-01-02' });
+test('uses base discovery first and requests fallback only for an undated not-found result', () => {
+  const input = normalizedInput({ date: '' });
   const notFound = resolverContext({
     status: 'not_found', eligible: false, beginTime: null, endTime: null,
     userID: null, openID: null, duration: null, vliverModel: null,
@@ -245,7 +245,11 @@ test('uses base discovery first and requests fallback only for a valid unusable 
   const partialWithoutBoundaries = resolverContext({
     status: 'partial', eligible: false, beginTime: null, endTime: null,
   });
-  assert.equal(planDiscoveryWindow([partialWithoutBoundaries], input, 'base').needsFallback, true);
+  assert.throws(() => planDiscoveryWindow([partialWithoutBoundaries], input, 'base'), /usable beginTime/);
+  const dated = normalizedInput({ date: '2025-01-02' });
+  assert.equal(dated.previousFallbackWindow, null);
+  assert.throws(() => planDiscoveryWindow([notFound], dated, 'base'), /usable beginTime/);
+  assert.throws(() => planDiscoveryWindow([notFound], dated, 'fallback'), /not allowed/);
   assert.throws(() => planDiscoveryWindow([], input, 'base'), /exactly one/i);
   assert.throws(() => planDiscoveryWindow([notFound, notFound], input, 'base'), /exactly one/i);
   assert.throws(() => planDiscoveryWindow([resolverContext({ profile: 'core' })], input, 'base'), /ownership/i);
@@ -254,7 +258,7 @@ test('uses base discovery first and requests fallback only for a valid unusable 
   assert.throws(() => planDiscoveryWindow([resolverContext({ status: 'found', beginTime: null })], input, 'base'), /found context/i);
 });
 
-test('turns discovery epoch boundaries into the exact bounded explicit final window', () => {
+test('preserves the five-day window without extending it to stream boundaries', () => {
   const input = normalizedInput({ date: '2025-01-02' });
   const discovery = resolverContext({
     status: 'partial',
@@ -263,30 +267,24 @@ test('turns discovery epoch boundaries into the exact bounded explicit final win
     beginTime: Date.parse('2025-01-01T23:30:00+08:00') / 1000,
     endTime: Date.parse('2025-01-03T08:30:00+08:00') / 1000,
   });
-  const plan = planDiscoveryWindow([discovery], input, 'fallback');
+  const plan = planDiscoveryWindow([discovery], input, 'base');
   assert.equal(plan.needsFallback, false);
-  assert.equal(plan.discoverySource, 'fallback');
-  assert.deepEqual(plan.finalLookupWindow, {
-    start: '2025-01-01T23:30:00+08:00',
-    end: '2025-01-03T08:30:00+08:00',
-  });
+  assert.equal(plan.discoverySource, 'base');
+  assert.deepEqual(plan.finalLookupWindow, input.lookupWindow);
   assert.notDeepEqual(plan.finalLookupWindow, input.previousFallbackWindow);
 });
 
-test('caps fallback discovery at the final resolver gate instead of widening to fallback', () => {
-  const input = normalizedInput({ date: '2025-01-02' });
+test('uses the older 30-day window after fallback instead of losing the discovered stream', () => {
+  const input = normalizedInput({ date: '' });
   const discovery = resolverContext({
-    beginTime: Date.parse('2025-01-01T18:00:00+08:00') / 1000,
-    endTime: Date.parse('2025-01-03T14:00:00+08:00') / 1000,
+    beginTime: Date.parse(input.previousFallbackWindow.start) / 1000 + 3600,
+    endTime: Date.parse(input.previousFallbackWindow.start) / 1000 + 7200,
   });
   const plan = planDiscoveryWindow([discovery], input, 'fallback');
-  assert.deepEqual(plan.finalLookupWindow, {
-    start: '2025-01-01T22:00:00+08:00',
-    end: '2025-01-03T10:00:00+08:00',
-  });
-  assert.ok(Date.parse(plan.finalLookupWindow.start) > discovery.beginTime * 1000);
-  assert.ok(Date.parse(plan.finalLookupWindow.end) < discovery.endTime * 1000);
-  assert.equal(Date.parse(plan.finalLookupWindow.end) - Date.parse(plan.finalLookupWindow.start), 36 * 60 * 60 * 1000);
+  assert.deepEqual(plan.finalLookupWindow, input.previousFallbackWindow);
+  assert.ok(Date.parse(plan.finalLookupWindow.start) <= discovery.beginTime * 1000);
+  assert.ok(Date.parse(plan.finalLookupWindow.end) > discovery.beginTime * 1000);
+  assert.equal(Date.parse(plan.finalLookupWindow.end) - Date.parse(plan.finalLookupWindow.start), 30 * 24 * 60 * 60 * 1000);
   assert.throws(() => planDiscoveryWindow([
     resolverContext({ status: 'not_found', eligible: false, beginTime: null, endTime: null }),
   ], input, 'fallback'), /usable beginTime/i);
@@ -365,10 +363,7 @@ test('still permits partial discovery boundaries without applying the final payl
     beginTime: Date.parse('2025-01-01T23:30:00+08:00') / 1000,
     endTime: Date.parse('2025-01-03T08:30:00+08:00') / 1000,
   });
-  assert.deepEqual(planDiscoveryWindow([partialDiscovery], input, 'fallback').finalLookupWindow, {
-    start: '2025-01-01T23:30:00+08:00',
-    end: '2025-01-03T08:30:00+08:00',
-  });
+  assert.deepEqual(planDiscoveryWindow([partialDiscovery], input, 'base').finalLookupWindow, input.lookupWindow);
   assert.throws(() => requireEligibleResolverContext([partialDiscovery], '9001'), /missing region/i);
 });
 

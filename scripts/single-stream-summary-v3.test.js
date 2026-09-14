@@ -114,15 +114,16 @@ function coordinatorRequest(normalized, streams, aggregate) {
   };
 }
 
-test('runs a single-stream summary offline from Slack command through AI aggregate', () => {
+for (const group of ['summary', 'stt']) test(`runs ${group} full-stream offline from Slack command through AI aggregate`, () => {
   const messageTS = '1787364000.000002';
   const command = parseBotItem({ event: {
     channel: CHANNEL,
     ts: messageTS,
     event_ts: messageTS,
-    text: '!summary stream 9001 date=2025-01-02',
+    text: `!${group} stream 9001 date=2025-01-02`,
   } });
   const plan = normalizeSummaryCommand(command, '2025-02-01T09:17:00+08:00');
+  assert.equal(command.dispatchKey, 'v3:summary:stream');
   assert.equal(plan.requestType, 'single_stream_summary');
   assert.deepEqual(plan.lookupWindow, {
     start: '2024-12-31T04:00:00+08:00', end: '2025-01-05T04:00:00+08:00',
