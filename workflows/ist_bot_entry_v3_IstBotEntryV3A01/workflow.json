@@ -631,6 +631,7 @@
         160
       ],
       "parameters": {
+        "mode": "each",
         "workflowId": {
           "__rl": true,
           "value": "StreamMetaV3A001",

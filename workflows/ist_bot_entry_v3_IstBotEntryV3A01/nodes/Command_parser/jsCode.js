@@ -73,6 +73,7 @@ function parseBotItem(input, channelCommands = CHANNEL_COMMANDS) {
   if (configured && !enabled) return null;
   const delivery = enabled ? 'v3' : event.channel === LEGACY_CHANNEL ? 'legacy' : null;
   if (!delivery) return null;
+  const fullStream = routeKey === 'stt:stream' && parsed.positionals.length === 1;
   const sttMode = parsed.positionals[1] === 'first'
     ? 'fromStart'
     : parsed.positionals[1] === 'last' || !parsed.positionals[1]
@@ -85,13 +86,13 @@ function parseBotItem(input, channelCommands = CHANNEL_COMMANDS) {
     thread_ts: event.thread_ts ?? event.ts,
     routeKey,
     ...parsed,
-    ...(routeKey === 'stt:stream' ? {
+    ...(routeKey === 'stt:stream' && !fullStream ? {
       sttMode,
       sttMins: Number(parsed.positionals[2] ?? 5),
     } : {}),
     channel: event.channel,
     channel_type: event.channel_type,
-    dispatchKey: delivery === 'legacy' ? 'legacy' : `${delivery}:${routeKey}`,
+    dispatchKey: delivery === 'legacy' ? 'legacy' : `${delivery}:${fullStream ? 'summary:stream' : routeKey}`,
   };
 }
 

@@ -336,7 +336,7 @@ test('processor aggregate preserves unavailable paired stream without expecting 
   assert.equal(result.streams[1].dialogue, '');
 });
 
-test('single-stream summary callback deadline is terminal and never schedules another attempt', () => {
+test('single-stream summary retries service failures and terminates callbacks at thirty minutes', () => {
   const requestKey = 'summary:req-single';
   const logicalJobKey = `${requestKey}:current:9001:fromStart`;
   const streamContext = { liveStreamID: '9001', eligible: true, beginTime: 1787360400, endTime: 1787371200 };
@@ -366,7 +366,7 @@ test('single-stream summary callback deadline is terminal and never schedules an
     durationMinutes: 180,
     streamContextJson: JSON.stringify(streamContext),
     status: 'waiting_callback',
-    callbackDeadlineAtIso: '2026-08-24T02:30:00.000Z',
+    callbackDeadlineAtIso: '2026-08-24T00:01:00.000Z',
     channel: 'C0A4JJJKJMD',
     threadTS: '1234567890.123456',
     processingMessageTS: '1234567891.123456',
@@ -376,12 +376,12 @@ test('single-stream summary callback deadline is terminal and never schedules an
   });
 
   const serviceFailure = classifyAttemptFailure(
-    { retryableServiceError: true }, 1, '2026-08-24T02:10:00.000Z', request.createdAt, request.requestType,
+    { retryableServiceError: true }, 1, '2026-08-24T00:00:30.000Z', request.createdAt, request.requestType,
   );
-  assert.equal(serviceFailure.status, 'failed');
-  assert.equal(serviceFailure.nextRetryAtIso, '');
+  assert.equal(serviceFailure.status, 'retry_pending');
+  assert.equal(serviceFailure.nextRetryAtIso, '2026-08-24T00:01:00.000Z');
 
-  const deadline = planCallbackDeadline(waiting, '2026-08-24T02:30:00.000Z', request);
+  const deadline = planCallbackDeadline(waiting, '2026-08-24T00:30:00.000Z', request);
   assert.equal(deadline.status, 'timed_out');
   assert.equal(deadline.errorCode, 'callback_deadline_exceeded');
   assert.equal(deadline.nextRetryAtIso, '');

@@ -29,9 +29,10 @@ function buildLookupWindow({ date, nowIso } = {}) {
     const [year, month, day] = match.slice(1).map(Number);
     const calendar = new Date(Date.UTC(year, month - 1, day));
     if (calendar.getUTCFullYear() !== year || calendar.getUTCMonth() !== month - 1 || calendar.getUTCDate() !== day) throw new Error('date is invalid');
-    const next = new Date(Date.UTC(year, month - 1, day + 1, 4));
+    const first = new Date(Date.UTC(year, month - 1, day - 2, 4));
+    const next = new Date(Date.UTC(year, month - 1, day + 3, 4));
     return {
-      start: `${year}-${pad(month)}-${pad(day)}T04:00:00+08:00`,
+      start: `${first.getUTCFullYear()}-${pad(first.getUTCMonth() + 1)}-${pad(first.getUTCDate())}T04:00:00+08:00`,
       end: `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}-${pad(next.getUTCDate())}T04:00:00+08:00`,
     };
   }
@@ -102,7 +103,7 @@ function buildSummaryResolverCalls({ ids, lookupWindow, phase = 'final' }) {
 }
 
 function normalizeSummaryCommand(input, nowIso) {
-  if (input?.routeKey !== 'summary:stream') throw new Error('Expected summary:stream command');
+  if (input?.routeKey !== 'summary:stream' && !(input?.routeKey === 'stt:stream' && input.positionals?.length === 1)) throw new Error('Expected summary:stream or full-stream STT command');
   if (!ALLOWED_CHANNELS.has(input.channel)) throw new Error('Summary channel is not allowed');
   const threadTS = input.thread_ts ?? input.ts;
   if (!/^\d{10,}\.\d{6}$/.test(threadTS || '')) throw new Error('Summary thread timestamp is invalid');
@@ -121,6 +122,7 @@ function normalizeSummaryCommand(input, nowIso) {
       threadTS,
       date: input.args?.date || '',
       lookupWindow,
+      ...(!input.args?.date ? { previousFallbackWindow: buildPreviousFallbackWindow(lookupWindow) } : {}),
       positions: [{ originalIndex: 0, role: 'current', liveStreamID: ids[0], mode: 'fromStart' }],
     };
   }
@@ -131,7 +133,7 @@ function normalizeSummaryCommand(input, nowIso) {
     threadTS,
     date: input.args?.date || '',
     lookupWindow,
-    previousFallbackWindow: buildPreviousFallbackWindow(lookupWindow),
+    ...(!input.args?.date ? { previousFallbackWindow: buildPreviousFallbackWindow(lookupWindow) } : {}),
     positions: [
       { originalIndex: 0, role: 'previous', liveStreamID: ids[0], mode: 'fromEnd' },
       { originalIndex: 1, role: 'current', liveStreamID: ids[1], mode: 'fromStart' },

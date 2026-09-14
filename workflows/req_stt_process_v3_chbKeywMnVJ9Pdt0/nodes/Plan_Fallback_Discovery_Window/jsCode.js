@@ -73,9 +73,10 @@ function parseDate(value) {
 function buildLookupWindow({ date, nowIso } = {}) {
   if (date !== undefined && date !== '') {
     const { year, month, day } = parseDate(date);
-    const nextLocal = new Date(Date.UTC(year, month - 1, day + 1, 4, 0, 0));
+    const firstLocal = new Date(Date.UTC(year, month - 1, day - 2, 4, 0, 0));
+    const nextLocal = new Date(Date.UTC(year, month - 1, day + 3, 4, 0, 0));
     return {
-      start: `${year}-${pad(month)}-${pad(day)}T04:00:00+08:00`,
+      start: `${firstLocal.getUTCFullYear()}-${pad(firstLocal.getUTCMonth() + 1)}-${pad(firstLocal.getUTCDate())}T04:00:00+08:00`,
       end: `${nextLocal.getUTCFullYear()}-${pad(nextLocal.getUTCMonth() + 1)}-${pad(nextLocal.getUTCDate())}T04:00:00+08:00`,
     };
   }
@@ -153,6 +154,7 @@ function validateDiscoveryRow(rows, expectedStreamID) {
 
 function planDiscoveryWindow(rows, normalizedInput, discoveryPhase) {
   if (!['base', 'fallback'].includes(discoveryPhase)) throw new Error('Discovery phase is invalid');
+  if (discoveryPhase === 'fallback' && (normalizedInput.date || !normalizedInput.previousFallbackWindow)) throw new Error('Discovery fallback is not allowed');
   const row = validateDiscoveryRow(rows, normalizedInput?.streamID);
   const hasUsableBoundaries = ['found', 'partial'].includes(row.status)
     && typeof row.beginTime === 'number' && Number.isSafeInteger(row.beginTime) && row.beginTime > 0
@@ -160,7 +162,7 @@ function planDiscoveryWindow(rows, normalizedInput, discoveryPhase) {
 
   if (!hasUsableBoundaries) {
     if (row.status === 'found') throw new Error('Discovery found context has invalid beginTime or endTime');
-    if (discoveryPhase === 'base' && (row.status === 'not_found' || row.status === 'partial')) {
+    if (discoveryPhase === 'base' && !normalizedInput.date && row.status === 'not_found') {
       return {
         streamID: normalizedInput.streamID,
         baseLookupWindow: normalizedInput.lookupWindow,
@@ -173,13 +175,8 @@ function planDiscoveryWindow(rows, normalizedInput, discoveryPhase) {
     throw new Error('Discovery resolver did not provide usable beginTime and endTime');
   }
 
-  const pairing = {
-    previousBegin: epochSecondsToTaipeiRfc3339(row.beginTime, 'discovery.beginTime'),
-    currentEnd: epochSecondsToTaipeiRfc3339(row.endTime, 'discovery.endTime'),
-  };
-  const finalLookupWindow = normalizedInput.date === ''
-    ? { ...normalizedInput.lookupWindow }
-    : extendPairingWindow(normalizedInput.lookupWindow, pairing);
+  const finalLookupWindow = { ...(discoveryPhase === 'fallback'
+    ? normalizedInput.previousFallbackWindow : normalizedInput.lookupWindow) };
   return {
     streamID: normalizedInput.streamID,
     baseLookupWindow: normalizedInput.lookupWindow,
@@ -219,7 +216,7 @@ function normalizeStandaloneInput(input, nowIso) {
     command_ts: input.command_ts,
     target_thread_ts: input.target_thread_ts,
     lookupWindow,
-    previousFallbackWindow: buildPreviousFallbackWindow(lookupWindow),
+    previousFallbackWindow: date ? null : buildPreviousFallbackWindow(lookupWindow),
   };
 }
 

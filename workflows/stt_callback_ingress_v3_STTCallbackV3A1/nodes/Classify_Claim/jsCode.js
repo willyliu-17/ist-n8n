@@ -23,11 +23,7 @@ const LOGICAL_PROVENANCE_FIELDS = Object.freeze([
 const ALLOWED_UNCONSUMED_STATUSES = new Set(['waiting_callback', 'retry_pending', 'manual_review']);
 const RECONCILIATION_STATUSES = new Set(['pending', 'canonical', 'duplicate']);
 const MAX_AUTOMATIC_ATTEMPTS = 20;
-const SUMMARY_MAX_AUTOMATIC_ATTEMPTS = 6;
-
-function isSingleStreamSummary(requestType) {
-  return requestType === 'single_stream_summary';
-}
+const SUMMARY_MAX_AUTOMATIC_ATTEMPTS = 9;
 
 function systemRowID(value) {
   if (typeof value === 'number') return Number.isSafeInteger(value) && value > 0;
@@ -150,10 +146,6 @@ function resultPatch(canonical, normalized, hash, nowIso, desiredStatus, errorCo
 }
 
 function failurePatch(canonical, normalized, hash, nowIso, errorCode, terminalStatus = 'failed') {
-  // A submitted full-stream conversion must never create another SegmentTask from its callback.
-  if (isSingleStreamSummary(canonical.requestType)) {
-    return resultPatch(canonical, normalized, hash, nowIso, terminalStatus, errorCode, '');
-  }
   const maximumAttempts = canonical.requestType === 'standalone_stt'
     ? MAX_AUTOMATIC_ATTEMPTS
     : SUMMARY_MAX_AUTOMATIC_ATTEMPTS;
@@ -234,14 +226,6 @@ function classifyClaim(attemptRows, normalized, hash, nowIso, logicalJobRows) {
       );
     }
     return resultPatch(canonical, normalized, hash, nowIso, 'failed', `callback_service_${normalized.statusCode}`, '');
-  }
-
-  if (isSingleStreamSummary(canonical.requestType)) {
-    if (canonical.callbackDeadlineAtIso === '') throw new Error('Invalid callback deadline');
-    const deadline = parseIso(canonical.callbackDeadlineAtIso, 'callback deadline');
-    if (deadline <= now) {
-      return failurePatch(canonical, normalized, hash, nowIso, 'callback_deadline_expired', 'timed_out');
-    }
   }
 
   if (!normalized.retryableServiceError && normalized.statusCode >= 200 && normalized.statusCode < 300) {

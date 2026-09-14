@@ -38,6 +38,7 @@ const V3_OFFLINE_TEST_FILES = Object.freeze([
     'scripts/deploy-utils.test.js',
     'scripts/stt-summary-v3-offline.test.js',
     'scripts/single-stream-summary-v3.test.js',
+    'scripts/stt-summary-stream-behavior.test.js',
     'workflows/automation_provision_state_v3_AutomationProvV3A1/tests/contracts.test.js',
     'workflows/stream_metadata_resolve_by_ids_v3_StreamMetaV3A001/tests/resolver.test.js',
     'workflows/stt_dispatch_attempt_v3_STTDispatchV3A01/tests/dispatcher.test.js',
