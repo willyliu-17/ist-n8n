@@ -9,6 +9,7 @@ const processorDir = path.resolve(__dirname, '../../repair_process_candidate_v3_
 const schema = require('../../automation_provision_state_v3_AutomationProvV3A1/nodes/State_Schema/schema.json');
 const workflow = JSON.parse(fs.readFileSync(path.join(workflowDir, 'workflow.json'), 'utf8'));
 const callbackDeadlineRouteSource = fs.readFileSync(path.join(workflowDir, 'nodes', 'Route_Verified_Callback_Deadline_Presentation', 'jsCode.js'), 'utf8');
+const planRepairsSource = fs.readFileSync(path.join(workflowDir, 'nodes', 'Plan_Repairs', 'jsCode.js'), 'utf8');
 const processor = JSON.parse(fs.readFileSync(path.join(processorDir, 'workflow.json'), 'utf8'));
 const {
   ATTEMPT_CHECKPOINT_FIELDS,
@@ -567,6 +568,18 @@ test('retry claim soft-CASes due retry_pending into a twenty-four-hour retry lea
     retryLeaseUntilIso: '2026-08-25T00:00:00.000Z',
   });
   assert.equal(planRetryMaterializationClaim(attempt({ nextRetryAtIso: LATER }), NOW, 'x').action, 'noop');
+});
+
+test('retry materialization uses the standalone attempt when no summary request exists', () => {
+  const standalone = attempt({
+    requestKey: 'stt:standalone:9001:fromStart',
+    requestType: 'standalone_stt',
+    status: 'retry_pending',
+    nextRetryAtIso: NOW,
+  });
+  const claim = planRetryMaterializationClaim(standalone, NOW, 'repair', undefined);
+  assert.equal(claim.action, 'claim');
+  assert.equal(claim.nextAttemptKey, `${LOGICAL}:2`);
 });
 
 test('expired retry lease is reclaimed with the same deterministic key', () => {
@@ -1944,11 +1957,27 @@ test('Subtask E: summary callback deadline attempt 9 times out while standalone 
   const standalone = planCallbackDeadline(
     attempt({ attempt: 6, requestType: 'standalone_stt', status: 'waiting_callback', callbackDeadlineAtIso: LATER }),
     LATER,
-    request({ requestType: 'standalone_stt' }),
   );
   assert.equal(standalone.action, 'callback_deadline');
   assert.equal(standalone.status, 'retry_pending');
   assert.equal(standalone.nextRetryAtIso, '2026-08-24T00:13:00.000Z');
+});
+
+test('callback deadline planning keeps a standalone timeout from blocking a summary timeout batch', () => {
+  const standaloneKey = `${LOGICAL}-standalone`;
+  const standalone = attempt({
+    id: 'standalone-timeout', requestType: 'standalone_stt', requestKey: standaloneKey,
+    logicalJobKey: standaloneKey, attemptKey: `${standaloneKey}:6`, attempt: 6,
+    status: 'waiting_callback', callbackDeadlineAtIso: LATER,
+  });
+  const summary = attempt({ attempt: 9, status: 'waiting_callback', callbackDeadlineAtIso: LATER });
+  const carrier = { repairMode: 'actual:callback_deadline', nowIso: LATER };
+  const plans = runPlanRepairs([
+    { ...standalone, ...carrier }, { ...summary, ...carrier }, { ...request(), ...carrier },
+  ]);
+  assert.deepEqual(plans.map(({ json }) => [json.attemptKey, json.plan.status]).sort(), [
+    [standalone.attemptKey, 'retry_pending'], [summary.attemptKey, 'timed_out'],
+  ].sort());
 });
 
 test('Subtask E: callback deadline attempt 20 produces timed_out with no nextRetryAtIso', () => {
@@ -2417,6 +2446,13 @@ function deadlineRouteBatch(statuses) {
 
 function runCallbackDeadlineRoute(items) {
   const result = vm.runInNewContext(`(() => {${callbackDeadlineRouteSource}\n})()`, {
+    $input: { all: () => items.map(json => ({ json })) }, Error,
+  });
+  return JSON.parse(JSON.stringify(result));
+}
+
+function runPlanRepairs(items) {
+  const result = vm.runInNewContext(`(() => {${planRepairsSource}\n})()`, {
     $input: { all: () => items.map(json => ({ json })) }, Error,
   });
   return JSON.parse(JSON.stringify(result));

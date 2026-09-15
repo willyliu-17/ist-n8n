@@ -181,7 +181,8 @@ test('processor isolates the complete presentation lease subgraph with explicit 
   const helper = fs.readFileSync(path.join(processorDir, 'nodes/Plan_Repairs/jsCode.js'), 'utf8');
   assert.match(helper, /Retry claim requires exactly one candidate carrier/);
   assert.match(helper, /Presentation repair requires exactly one candidate carrier/);
-  assert.match(helper, /planRetryMaterializationClaim\(oldAttempt, candidate\.nowIso, owner, canonicalRequest\(requests, oldAttempt\.requestKey\)\)/);
+  assert.match(helper, /oldAttempt\.requestType === 'standalone_stt' \? undefined : canonicalRequest\(requests, oldAttempt\.requestKey\)/);
+  assert.match(helper, /planRetryMaterializationClaim\(oldAttempt, candidate\.nowIso, owner, request\)/);
   assert.match(helper, /planPresentationRepair\(attReconcile\.canonical, candidate\.nowIso\)/);
   for (const name of ['Return Repaired', 'Return Noop']) {
     const code = processor.nodes.find((node) => node.name === name).parameters.jsCode;

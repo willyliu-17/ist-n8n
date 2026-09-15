@@ -449,9 +449,10 @@ function planRetryMaterializationClaim(oldAttempt, nowIso = new Date().toISOStri
   } else if (untilParsed > now) {
     return { action: 'noop', repairClass: 'retry_materialization', reason: 'retry_lease_active' };
   }
-  if (!requestRow || requestRow.requestKey !== oldAttempt.requestKey) throw new Error('Retry materialization requires canonical request');
-  validateRequestRow(requestRow);
-  const timing = sttRetryTiming(requestRow.createdAt, attemptNumber, requestRow.requestType);
+  const timingSource = oldAttempt.requestType === 'standalone_stt' ? oldAttempt : requestRow;
+  if (!timingSource || timingSource.requestKey !== oldAttempt.requestKey) throw new Error('Retry materialization requires canonical request');
+  if (timingSource !== oldAttempt) validateRequestRow(timingSource);
+  const timing = sttRetryTiming(timingSource.createdAt, attemptNumber, timingSource.requestType);
   if (now >= Date.parse(timing.deadlineAtIso)) {
     return {
       action: 'deadline_exhausted',
@@ -1501,9 +1502,10 @@ function planCallbackDeadline(row, nowIso = new Date().toISOString(), requestRow
   if (!nonempty(row.callbackDeadlineAtIso) || strictIso(row.callbackDeadlineAtIso, 'callback deadline') > strictIso(nowIso, 'current time')) {
     throw new Error('Callback deadline is not due');
   }
-  if (!requestRow || requestRow.requestKey !== row.requestKey) throw new Error('Callback deadline requires canonical request');
-  validateRequestRow(requestRow);
-  const failure = classifyAttemptFailure({ deadlineExceeded: true }, row.attempt, nowIso, requestRow.createdAt, requestRow.requestType);
+  const timingSource = row.requestType === 'standalone_stt' ? row : requestRow;
+  if (!timingSource || timingSource.requestKey !== row.requestKey) throw new Error('Callback deadline requires canonical request');
+  if (timingSource !== row) validateRequestRow(timingSource);
+  const failure = classifyAttemptFailure({ deadlineExceeded: true }, row.attempt, nowIso, timingSource.createdAt, timingSource.requestType);
   return {
     action: failure.classification,
     repairClass: 'callback_deadline',
@@ -1852,7 +1854,9 @@ function planRepairScan({ attemptRows = [], requestRows = [], nowIso, leaseOwner
     attemptsByKey.set(row.attemptKey, list);
   }
   const canonical = (rows) => rows.filter((row) => row.reconciliationStatus === 'canonical').sort(compareRows);
-  const requestForAttempt = (row) => canonicalRequest(requestsByKey.get(row.requestKey) || [], row.requestKey);
+  const requestForAttempt = (row) => row.requestType === 'standalone_stt'
+    ? undefined
+    : canonicalRequest(requestsByKey.get(row.requestKey) || [], row.requestKey);
   const plans = [];
   const capErrors = [];
 
@@ -2070,7 +2074,8 @@ if (typeof $input !== 'undefined') {
       if (canonical[0].attemptKey !== candidate.attemptKey) throw new Error('Retry claim candidate does not match the canonical attempt');
       const oldAttempt = { ...canonical[0], nowIso: candidate.nowIso };
       const requests = dedupeSystemRows(allItems.filter((row) => row?.id && !row.attemptKey && row.requestKey === oldAttempt.requestKey));
-      const plan = planRetryMaterializationClaim(oldAttempt, candidate.nowIso, owner, canonicalRequest(requests, oldAttempt.requestKey));
+      const request = oldAttempt.requestType === 'standalone_stt' ? undefined : canonicalRequest(requests, oldAttempt.requestKey);
+      const plan = planRetryMaterializationClaim(oldAttempt, candidate.nowIso, owner, request);
       return plan.action === 'claim'
         ? [{ json: { ...plan, oldAttempt, nowIso: candidate.nowIso, __repairGroupKey: groupKey, __planCarrier: true, __planPhase: 'retry-claim', repairMode: 'retry_verify_claim' } }]
         : [{ json: { ...plan, candidateKey: candidate.attemptKey } }];
