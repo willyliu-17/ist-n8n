@@ -1,5 +1,8 @@
-const DIRECT_BUDGET_BYTES = 128 * 1024;
-const CHUNK_BUDGET_BYTES = 32 * 1024;
+// Application byte budgets, not model token limits. Gemini 2.5 Pro supports
+// 1,048,576 input tokens; prompts and tool turns require separate headroom.
+// https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-pro
+const DIRECT_BUDGET_BYTES = 1024 * 1024;
+const CHUNK_BUDGET_BYTES = 128 * 1024;
 const MAX_CHUNKS = 12;
 const MAP_OUTPUT_BUDGET_BYTES = 8 * 1024;
 const MAP_OUTPUT_RESERVE_BYTES = (MAP_OUTPUT_BUDGET_BYTES * 2) + 512;
@@ -115,6 +118,49 @@ function locateDialogue(aggregateData) {
   return matches[0];
 }
 
+function retainLogTails(aggregateData, budget) {
+  const originalBytes = utf8Bytes(JSON.stringify(aggregateData));
+  if (originalBytes <= budget) return { aggregateData, logTruncations: [] };
+  const result = clone(aggregateData);
+  const groups = result.flatMap((stream) => stream.details
+    .filter((detail) => ['streamerLog', 'streamEventLog'].includes(detail.type) && Array.isArray(detail.logs))
+    .map((detail) => ({ detail, liveStreamID: String(stream.liveStreamID), logs: detail.logs })));
+  // Keep a suffix of each source array in its original order. Never slice JSON text.
+  const apply = (fraction) => {
+    const records = [];
+    for (const group of groups) {
+      const { detail, logs, liveStreamID } = group;
+      const retained = Math.floor(logs.length * fraction);
+      detail.logs = logs.slice(logs.length - retained);
+      delete detail.inputTruncation;
+      delete detail.aiPromptNotice;
+      if (retained === logs.length) continue;
+      const record = { liveStreamID, type: detail.type, originalCount: logs.length,
+        retainedCount: retained, omittedCount: logs.length - retained };
+      detail.inputTruncation = record;
+      detail.aiPromptNotice = '<system-reminder>Input logs exceeded the application byte budget. '
+        + `${record.type}: retained the last ${retained} of ${logs.length} entries in source order. `
+        + 'Earlier entries are unavailable evidence. Do not infer their state or claim full coverage. '
+        + 'Disclose this limitation in natural language; do not reproduce these tags.</system-reminder>';
+      records.push(record);
+    }
+    return records;
+  };
+  apply(0);
+  if (utf8Bytes(JSON.stringify(result)) > budget) throw new Error('non-log aggregate payload exceeds the application payload budget');
+  let low = 0;
+  let high = 1;
+  for (let index = 0; index < 32; index += 1) {
+    const middle = (low + high) / 2;
+    apply(middle);
+    if (utf8Bytes(JSON.stringify(result)) <= budget) low = middle;
+    else high = middle;
+  }
+  const logTruncations = apply(low);
+  if (utf8Bytes(JSON.stringify(result)) > budget) throw new Error('log tail payload budget exceeded');
+  return { aggregateData: result, logTruncations };
+}
+
 function prepareLongDialogue(input) {
   const aggregateData = Array.isArray(input.aggregateData) ? input.aggregateData : [];
   const analysisMode = input.analysisMode;
@@ -124,20 +170,22 @@ function prepareLongDialogue(input) {
   if (modelName && !KNOWN_MAIN_MODELS.has(modelName)) throw new Error('single_stream_full rejects an unknown evalConfig.modelName');
   const dialogue = locateDialogue(aggregateData);
   if (utf8Bytes(JSON.stringify(aggregateData)) <= DIRECT_BUDGET_BYTES) return [{ aggregateData, useChunks: false }];
-  if (dialogue.dialogue.length === 0) throw new Error('single_stream_full cannot map an empty dialogue when the aggregate exceeds the payload budget');
+  if (utf8Bytes(JSON.stringify(dialogue)) + COVERAGE_RESERVE_BYTES <= DIRECT_BUDGET_BYTES) {
+    return [{ ...retainLogTails(aggregateData, DIRECT_BUDGET_BYTES), useChunks: false }];
+  }
   const baseAggregate = clone(aggregateData);
   const baseDialogue = locateDialogue(baseAggregate);
   baseDialogue.dialogue = '';
-  if (utf8Bytes(JSON.stringify(baseAggregate)) > DIRECT_BUDGET_BYTES) throw new Error('non-dialogue aggregate payload exceeds the 128KB payload budget');
-
   const chunks = chunkDialogue(dialogue.dialogue);
-  const worstCaseMergedBytes = utf8Bytes(JSON.stringify(baseAggregate)) + COVERAGE_RESERVE_BYTES + (chunks.length * MAP_OUTPUT_RESERVE_BYTES);
+  const reservedBytes = COVERAGE_RESERVE_BYTES + (chunks.length * MAP_OUTPUT_RESERVE_BYTES);
+  const bounded = retainLogTails(baseAggregate, DIRECT_BUDGET_BYTES - reservedBytes);
+  const worstCaseMergedBytes = utf8Bytes(JSON.stringify(bounded.aggregateData)) + reservedBytes;
   if (worstCaseMergedBytes > DIRECT_BUDGET_BYTES) throw new Error('map/reduce aggregate payload budget cannot reserve all chunk evidence');
   return chunks.map((chunk, index) => ({
     ...chunk,
     useChunks: true,
     totalChunks: chunks.length,
-    ...(index === 0 ? { baseAggregate } : {}),
+    ...(index === 0 ? { baseAggregate: bounded.aggregateData, logTruncations: bounded.logTruncations } : {}),
   }));
 }
 

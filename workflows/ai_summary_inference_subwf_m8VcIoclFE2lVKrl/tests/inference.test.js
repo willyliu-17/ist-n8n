@@ -189,6 +189,32 @@ function validReport(scope) {
   } };
 }
 
+test('trusted log truncations reach analyzer prompts and rendered reports without reminder tags', () => {
+  const { prepareLongDialogue } = require('../nodes/Long_Dialogue_Preflight/jsCode');
+  const { renderSummaryMarkdown } = require('../../ai_summary_v3_AISummaryV3A0001/nodes/Render_Summary_Markdown/jsCode');
+  const input = incidentInput('single_stream_full');
+  for (const detail of input.aggregateData[0].details.filter((detail) => Array.isArray(detail.logs))) {
+    detail.logs = Array.from({ length: 100 }, (_, index) => ({ index, text: 'x'.repeat(12000) }));
+  }
+  const scope = buildAnalysisScope(input);
+  const prepared = prepareLongDialogue(input)[0];
+  for (const name of ['Streamer_Log_Analyzer', 'Event_Log_Analyzer']) {
+    const prompt = render(byName(name).parameters.text, input.analysisMode, prepared.aggregateData, '', input.analysisScope);
+    assert.match(prompt, /<system-reminder>/);
+    assert.match(prompt, /retained the last/);
+  }
+  const modelOutput = validReport(scope);
+  const result = validateInferenceReport([{ output: modelOutput }], scope, prepared.logTruncations);
+  const markdown = renderSummaryMarkdown(result.output, 'complete');
+  for (const entry of prepared.logTruncations) {
+    assert.ok(markdown.includes(entry.type));
+    assert.ok(markdown.includes(entry.liveStreamID));
+    assert.ok(markdown.includes(`省略前段 ${entry.omittedCount} 筆`));
+  }
+  assert.doesNotMatch(markdown, /system-reminder/);
+  assert.equal(modelOutput.report.subjective_motivation.timeline_overview, 'Provided streams');
+});
+
 test('incident IDs and roles reach every analyzer and model focus cannot replace the request', () => {
   for (const mode of [undefined, 'single_stream_full']) {
     const input = incidentInput(mode);

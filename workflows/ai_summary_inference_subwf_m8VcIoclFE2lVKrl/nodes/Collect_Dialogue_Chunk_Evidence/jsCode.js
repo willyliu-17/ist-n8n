@@ -1,4 +1,4 @@
-const MERGED_BUDGET_BYTES = 128 * 1024;
+const MERGED_BUDGET_BYTES = 1024 * 1024;
 const MAP_OUTPUT_BUDGET_BYTES = 8 * 1024;
 const END_MARKER = 'END_OF_CHUNK_EVIDENCE';
 
@@ -71,7 +71,7 @@ function collectChunkEvidence(results, matchedSourceChunks) {
     overlapChars: 0,
     payloadBudget: 'UTF-8 byte budget, not an exact token count',
   };
-  if (utf8Bytes(JSON.stringify(aggregateData)) > MERGED_BUDGET_BYTES) throw new Error('merged map/reduce aggregate exceeds the 128KB payload budget');
+  if (utf8Bytes(JSON.stringify(aggregateData)) > MERGED_BUDGET_BYTES) throw new Error('merged map/reduce aggregate exceeds the 1MiB payload budget');
   return { aggregateData, useChunks: false };
 }
 

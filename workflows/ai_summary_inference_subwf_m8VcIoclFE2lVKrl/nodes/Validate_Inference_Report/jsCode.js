@@ -1,4 +1,4 @@
-function validateInferenceReport(items, expectedScope) {
+function validateInferenceReport(items, expectedScope, logTruncations = []) {
   if (!Array.isArray(items) || items.length !== 1) throw new Error('summary_model_output_invalid');
   const output = items[0]?.output;
   const report = output?.report;
@@ -41,6 +41,19 @@ function validateInferenceReport(items, expectedScope) {
       }
     }
   }
+  if (logTruncations.length > 0) {
+    const notices = logTruncations.map((entry) => {
+      if (!allowed.has(entry.liveStreamID) || !['streamerLog', 'streamEventLog'].includes(entry.type)
+        || !Number.isInteger(entry.originalCount) || !Number.isInteger(entry.retainedCount)
+        || entry.retainedCount < 0 || entry.omittedCount <= 0
+        || entry.originalCount !== entry.retainedCount + entry.omittedCount) throw new Error('summary_log_truncation_invalid');
+      return `直播 ${entry.liveStreamID} 的 ${entry.type} 因輸入資料超過容量預算，僅保留來源陣列尾部 ${entry.retainedCount}／${entry.originalCount} 筆，省略前段 ${entry.omittedCount} 筆；未保留部分無法判讀。`;
+    });
+    return { output: { ...output, report: { ...report, subjective_motivation: {
+      ...report.subjective_motivation,
+      timeline_overview: `${report.subjective_motivation.timeline_overview}\n\n資料範圍限制：\n${notices.join('\n')}`,
+    } } } };
+  }
   return { output };
 }
 
@@ -48,5 +61,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { validate
 if (typeof $input !== 'undefined') {
   const items = $input.all().map(({ json }) => json);
   const scope = typeof $ === 'function' ? $('Long Dialogue Preflight').first().json.analysisScope : undefined;
-  return [{ json: validateInferenceReport(items, scope) }];
+  const truncations = typeof $ === 'function' ? $('Long Dialogue Preflight').first().json.logTruncations || [] : [];
+  return [{ json: validateInferenceReport(items, scope, truncations) }];
 }

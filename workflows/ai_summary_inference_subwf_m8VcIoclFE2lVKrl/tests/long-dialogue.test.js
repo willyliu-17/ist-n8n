@@ -13,7 +13,7 @@ function aggregate(dialogue = 'short dialogue') {
 }
 
 function longDialogue() {
-  return Array.from({ length: 4500 }, (_, index) => `[12:${String(index % 60).padStart(2, '0')}:00] [streamer]: text ${index}\n`).join('');
+  return Array.from({ length: 35000 }, (_, index) => `[12:${String(index % 60).padStart(2, '0')}:00] [streamer]: text ${index}\n`).join('');
 }
 
 function chainText(value) {
@@ -90,11 +90,55 @@ test('collector fails closed for empty, duplicate, missing, and oversized result
   assert.throws(() => collectChunkEvidence(valid, sources.map((source, index) => index === 1 ? { ...source, startChar: source.startChar + 1 } : source)), /non-contiguous/);
 });
 
-test('preflight rejects non-dialogue payload overflow and unbounded chunk cost', () => {
+test('preflight retains log tails and rejects unbounded chunk cost', () => {
   const baseline = aggregate('x');
   baseline[0].details.push({ type: 'streamerLog', logs: ['x'.repeat(DIRECT_BUDGET_BYTES)] });
-  assert.throws(() => prepareLongDialogue({ aggregateData: baseline, analysisMode: 'single_stream_full' }), /non-dialogue aggregate/);
+  const result = prepareLongDialogue({ aggregateData: baseline, analysisMode: 'single_stream_full' })[0];
+  assert.equal(result.logTruncations[0].omittedCount, 1);
+  assert.deepEqual(result.aggregateData[0].details[1].logs, []);
   assert.throws(() => prepareLongDialogue({ aggregateData: aggregate('x'.repeat(CHUNK_BUDGET_BYTES * (MAX_CHUNKS + 2))), analysisMode: 'single_stream_full' }), /payload budget|more than/);
+});
+
+test('empty STT with incident-sized logs passes without truncation', () => {
+  const data = aggregate('');
+  data[0].details.push({ type: 'streamerLog', logs: [{ text: 'x'.repeat(96000) }] },
+    { type: 'streamEventLog', logs: [{ text: 'x'.repeat(81000) }] });
+  const result = prepareLongDialogue({ aggregateData: data, analysisMode: 'single_stream_full' })[0];
+  assert.equal(result.useChunks, false);
+  assert.deepEqual(result.aggregateData, data);
+  assert.equal(result.logTruncations, undefined);
+});
+
+test('oversized mixed logs retain complete suffixes and identify both affected types', () => {
+  const data = aggregate('');
+  for (const type of ['streamerLog', 'streamEventLog']) {
+    data[0].details.push({ type, logs: Array.from({ length: 100 }, (_, index) => ({ index, text: '文'.repeat(4000) })) });
+  }
+  const before = JSON.stringify(data);
+  const result = prepareLongDialogue({ aggregateData: data, analysisMode: 'single_stream_full' })[0];
+  assert.ok(utf8Bytes(JSON.stringify(result.aggregateData)) <= DIRECT_BUDGET_BYTES);
+  assert.equal(JSON.stringify(data), before);
+  assert.deepEqual(result.logTruncations.map((entry) => entry.type), ['streamerLog', 'streamEventLog']);
+  for (const entry of result.logTruncations) {
+    const detail = result.aggregateData[0].details.find((detail) => detail.type === entry.type);
+    assert.ok(entry.retainedCount > 0);
+    assert.equal(entry.originalCount, entry.retainedCount + entry.omittedCount);
+    assert.equal(detail.logs[0].index, entry.omittedCount);
+    assert.equal(detail.logs.at(-1).index, 99);
+    assert.match(detail.aiPromptNotice, /<system-reminder>/);
+    assert.match(detail.aiPromptNotice, new RegExp(entry.type));
+  }
+});
+
+test('chunked dialogue preserves truncation evidence through map reduction', () => {
+  const data = aggregate(longDialogue());
+  data[0].details.push({ type: 'streamerLog', logs: Array.from({ length: 30 }, (_, index) => ({ index, text: 'x'.repeat(50000) })) });
+  const chunks = prepareLongDialogue({ aggregateData: data, analysisMode: 'single_stream_full' });
+  assert.ok(chunks[0].logTruncations[0].omittedCount > 0);
+  const result = collectChunkEvidence(chunks.map((_, index) => chainText(`evidence ${index}`)), chunks);
+  assert.ok(utf8Bytes(JSON.stringify(result.aggregateData)) <= DIRECT_BUDGET_BYTES);
+  assert.equal(result.aggregateData[0].details[1].logs.at(-1).index, 29);
+  assert.match(result.aggregateData[0].details[1].aiPromptNotice, /<system-reminder>/);
 });
 
 test('runtime preflight preserves every legacy item and isolates single_stream_full', () => {
