@@ -86,6 +86,80 @@ test('shared source stays shared unless one node actually changes', () => {
     assert.deepEqual(resolveReferences(split.workflow, relative => split.files.get(relative)), source);
 });
 
+function extractionFixture(names, relative = 'nodes/Shared/jsCode.js') {
+    const baseline = { nodes: names.map((name, i) => ({
+        id: String(i), name, type: 'n8n-nodes-base.code', parameters: { jsCode: EXTERNAL + relative }
+    })) };
+    const read = file => { assert.equal(file, relative); return 'return [];'; };
+    return { baseline, read, source: resolveReferences(baseline, read), relative };
+}
+
+test('a changed single-consumer file is updated in place even after a node rename', () => {
+    const { baseline, read, source, relative } = extractionFixture(['Code'], 'nodes/Code/jsCode.js');
+    source.nodes[0].name = 'Renamed';
+    source.nodes[0].parameters.jsCode = 'return [{json:{changed:true}}];';
+    const result = unpackWorkflow(source, baseline, read);
+    assert.deepEqual([...result.files.keys()], [relative]);
+    assert.equal(result.workflow.nodes[0].parameters.jsCode, EXTERNAL + relative);
+    assert.deepEqual(resolveReferences(result.workflow, file => result.files.get(file)), source);
+});
+
+test('all shared consumers changing together retain their shared path and exact whitespace', () => {
+    const { baseline, read, source, relative } = extractionFixture(['One', 'Two', 'Three']);
+    for (const node of source.nodes) node.parameters.jsCode = ' return [];';
+    const result = unpackWorkflow(source, baseline, read);
+    assert.deepEqual(result.workflow, baseline);
+    assert.deepEqual([...result.files], [[relative, ' return [];']]);
+});
+
+test('identical changed consumers share one named split and repeated sync stays stable', () => {
+    const { baseline, read, source, relative } = extractionFixture(['One', 'Two', 'Three']);
+    for (const node of source.nodes.slice(1)) node.parameters.jsCode = ' return [];';
+    source.nodes.reverse();
+    const result = unpackWorkflow(source, baseline, read);
+    assert.deepEqual([...result.files], [[relative, 'return [];'], ['nodes/Two/jsCode.js', ' return [];']]);
+    assert.equal(result.workflow.nodes[0].parameters.jsCode, result.workflow.nodes[1].parameters.jsCode);
+    assert.deepEqual(resolveReferences(result.workflow, file => result.files.get(file)), source);
+    const again = unpackWorkflow(source, result.workflow, file => result.files.get(file));
+    assert.deepEqual(again.workflow, result.workflow);
+    assert.deepEqual(again.files, result.files);
+    const changedAgain = structuredClone(source);
+    for (const node of changedAgain.nodes.filter(node => node.name !== 'One')) node.parameters.jsCode = '  return [];';
+    const next = unpackWorkflow(changedAgain, result.workflow, file => result.files.get(file));
+    assert.deepEqual(next.workflow, result.workflow);
+    assert.equal(next.files.get('nodes/Two/jsCode.js'), '  return [];');
+});
+
+test('fully divergent shared consumers retain one baseline owner regardless of source order', () => {
+    const { baseline, read, source, relative } = extractionFixture(['One', 'Two']);
+    source.nodes[0].parameters.jsCode = 'return [{json:{one:1}}];';
+    source.nodes[1].parameters.jsCode = 'return [{json:{two:2}}];';
+    source.nodes.reverse();
+    const result = unpackWorkflow(source, baseline, read);
+    assert.equal(result.workflow.nodes[1].parameters.jsCode, EXTERNAL + relative);
+    assert.equal(result.workflow.nodes[0].parameters.jsCode, EXTERNAL + 'nodes/Two/jsCode.js');
+    assert.deepEqual(resolveReferences(result.workflow, file => result.files.get(file)), source);
+});
+
+test('split naming collisions preserve existing owners and use readable numeric suffixes', () => {
+    const { baseline, read, source } = extractionFixture(['Two', 'Keep'], 'nodes/Two/jsCode.js');
+    source.nodes[0].parameters.jsCode = 'return [{json:{changed:true}}];';
+    const result = unpackWorkflow(source, baseline, read);
+    assert.equal(result.workflow.nodes[0].parameters.jsCode, EXTERNAL + 'nodes/Two_2/jsCode.js');
+    assert.equal(result.workflow.nodes[1].parameters.jsCode, EXTERNAL + 'nodes/Two/jsCode.js');
+    assert.deepEqual(resolveReferences(result.workflow, file => result.files.get(file)), source);
+});
+
+test('sanitized and case-insensitive new node name collisions never overwrite different content', () => {
+    const source = { nodes: ['A-B', 'A B', 'a_b'].map((name, i) => ({
+        id: String(i), name, type: 'n8n-nodes-base.code', parameters: { jsCode: `return [{json:{value:${i}}}];` }
+    })) };
+    const result = unpackWorkflow(source, { nodes: [] }, () => assert.fail('No baseline files'));
+    assert.equal(result.files.size, 3);
+    assert.equal(new Set([...result.files.keys()].map(file => file.toLowerCase())).size, 3);
+    assert.deepEqual(resolveReferences(result.workflow, file => result.files.get(file)), source);
+});
+
 test('JSON renderer preserves unchanged compact subtrees and returns valid JSON', () => {
     const original = '{\n  "name": "Old",\n  "connections": {"A":{"main":[[]]}}\n}\n';
     const next = { ...JSON.parse(original), name: 'New', active: true };

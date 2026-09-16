@@ -259,6 +259,7 @@ function unpackWorkflow(workflow, baseline, readBaseline) {
         } else if (value && typeof value === 'object') Object.values(value).forEach(reserve);
     }
     reserve(baseline);
+    const entries = [];
     for (const node of result.nodes) {
         const old = matches.get(node.id);
         for (const [type, keys, ext, always] of EXTRACTIONS) {
@@ -267,30 +268,53 @@ function unpackWorkflow(workflow, baseline, readBaseline) {
             if (typeof value !== 'string') continue;
             const prior = getAt(old?.parameters, keys);
             if (prior === value && !value.startsWith(EXTERNAL)) continue;
-            let relative;
-            if (typeof prior === 'string' && prior.startsWith(EXTERNAL) && readBaseline(prior.slice(EXTERNAL.length)) === value) {
-                relative = prior.slice(EXTERNAL.length);
-            } else {
-                if (!always && value.length <= 200 && value.split('\n').length <= 10 && !prior?.startsWith(EXTERNAL)) continue;
-                const safeName = node.name.replace(/[^a-z0-9_]/gi, '_') || 'Node';
-                relative = `nodes/${safeName}/${keys.join('_')}.${ext}`;
-                if (reservations.has(relative.toLowerCase())) {
-                    // A shared or stale path must not be overwritten with divergent content.
-                    if (readBaseline(reservations.get(relative.toLowerCase())) === value) {
-                        relative = reservations.get(relative.toLowerCase());
-                    } else {
-                        const suffix = require('node:crypto').createHash('sha256').update(node.id + keys.join('.')).digest('hex').slice(0, 12);
-                        relative = `nodes/${safeName}_${suffix}/${keys.join('_')}.${ext}`;
-                    }
-                }
-            }
-            const collision = reservations.get(relative.toLowerCase());
-            if (collision && collision !== relative) throw new Error('Case-insensitive extraction collision');
-            if (files.has(relative) && files.get(relative) !== value) throw new Error('Divergent extraction collision');
-            reservations.set(relative.toLowerCase(), relative);
-            files.set(relative, value);
-            getAt(node.parameters, keys.slice(0, -1))[keys.at(-1)] = EXTERNAL + relative;
+            const relative = typeof prior === 'string' && prior.startsWith(EXTERNAL) ? prior.slice(EXTERNAL.length) : undefined;
+            if (!relative && !always && value.length <= 200 && value.split('\n').length <= 10) continue;
+            entries.push({ node, keys, ext, value, relative, old });
         }
+    }
+    // Baseline order keeps the retained owner stable when the canvas is reordered.
+    const order = new Map((baseline.nodes || []).map((node, i) => [node.id, i]));
+    entries.sort((a, b) => (order.get(a.old?.id) ?? Infinity) - (order.get(b.old?.id) ?? Infinity)
+        || a.node.name.localeCompare(b.node.name) || a.keys.join('.').localeCompare(b.keys.join('.')));
+    function assign(entry, relative) {
+        reservations.set(relative.toLowerCase(), relative);
+        files.set(relative, entry.value);
+        getAt(entry.node.parameters, entry.keys.slice(0, -1))[entry.keys.at(-1)] = EXTERNAL + relative;
+    }
+    function allocate(entry) {
+        const name = entry.node.name.replace(/[^a-z0-9_]/gi, '_') || 'Node';
+        // Numeric suffixes resolve actual name collisions, never content revisions.
+        for (let i = 1; ; i++) {
+            const relative = `nodes/${name}${i === 1 ? '' : `_${i}`}/${entry.keys.join('_')}.${entry.ext}`;
+            const reserved = reservations.get(relative.toLowerCase());
+            if (!reserved) return relative;
+            if (files.get(reserved) === entry.value) return reserved;
+        }
+    }
+    const groups = new Map();
+    for (const entry of entries.filter(entry => entry.relative)) {
+        if (!groups.has(entry.relative)) groups.set(entry.relative, []);
+        groups.get(entry.relative).push(entry);
+    }
+    const splits = [];
+    for (const [relative, consumers] of groups) {
+        const previous = readBaseline(relative);
+        const retained = consumers.find(entry => entry.value === previous) || consumers[0];
+        const variants = new Map();
+        for (const entry of consumers) {
+            if (entry.value === retained.value) assign(entry, relative);
+            else {
+                if (!variants.has(entry.value)) variants.set(entry.value, []);
+                variants.get(entry.value).push(entry);
+            }
+        }
+        splits.push(...variants.values());
+    }
+    // Reserve all surviving paths before allocating genuinely divergent consumers.
+    for (const consumers of [...splits, ...entries.filter(entry => !entry.relative).map(entry => [entry])]) {
+        const relative = allocate(consumers[0]);
+        for (const entry of consumers) assign(entry, relative);
     }
     return { workflow: result, files };
 }
