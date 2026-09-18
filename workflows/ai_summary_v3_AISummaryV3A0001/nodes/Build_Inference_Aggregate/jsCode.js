@@ -5,7 +5,7 @@ function buildInferenceAggregate(input, eventEvidence = []) {
       { type: 'dialogue', liveStreamID: stream.liveStreamID, role: stream.role, mode: stream.mode, dialogue: stream.dialogue, transcript: stream.transcript },
       { type: 'streamInfo', liveStreamID: stream.liveStreamID, streamInfo: [stream.streamContext] },
     ];
-    for (const evidenceType of ['streamerLog', 'streamEventLog']) {
+    for (const evidenceType of ['streamerLog', 'streamEventLog', 'firebaseLog']) {
       const logs = evidence.filter((item) => item.evidenceType === evidenceType);
       if (logs.length) details.push({ type: evidenceType, liveStreamID: stream.liveStreamID, logs });
     }

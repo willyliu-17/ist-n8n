@@ -62,6 +62,10 @@
           "type": "string",
           "description": "在此列舉 CPU 壓力、編碼器狀態、錯誤代碼等硬體/系統指標"
         },
+        "firebase_analysis": {
+          "type": "string",
+          "description": "填入 Firebase_Log_Analyzer 的結論，整理 Firebase Crashlytics FATAL/ANR 事件、事件時間、Crash Signature、process_state、可信度及資料限制。"
+        },
         "summary": {
           "type": "object",
           "description": "綜合摘要與責任歸因",
@@ -155,6 +159,7 @@
         "subjective_motivation",
         "sl_analysis",
         "sel_analysis",
+        "firebase_analysis",
         "summary"
       ]
     }

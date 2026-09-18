@@ -9,7 +9,7 @@ function validateInferenceReport(items, expectedScope, logTruncations = []) {
     || !object(summary.exclusion_reason)) throw new Error('summary_model_output_invalid');
   const fields = [
     [report.subjective_motivation, ['timeline_overview', 'subjective_description', 'recovery_status']],
-    [report, ['sl_analysis', 'sel_analysis']],
+    [report, ['sl_analysis', 'sel_analysis', 'firebase_analysis']],
     [summary, ['responsibility_category', 'causal_summary', 'other_issue']],
     [summary.fact_check, ['claimed_issue', 'data_evidence', 'is_valid_issue']],
     [summary.exclusion_reason, ['level_1', 'level_2']],
@@ -43,7 +43,7 @@ function validateInferenceReport(items, expectedScope, logTruncations = []) {
   }
   if (logTruncations.length > 0) {
     const notices = logTruncations.map((entry) => {
-      if (!allowed.has(entry.liveStreamID) || !['streamerLog', 'streamEventLog'].includes(entry.type)
+      if (!allowed.has(entry.liveStreamID) || !['streamerLog', 'streamEventLog', 'firebaseLog'].includes(entry.type)
         || !Number.isInteger(entry.originalCount) || !Number.isInteger(entry.retainedCount)
         || entry.retainedCount < 0 || entry.omittedCount <= 0
         || entry.originalCount !== entry.retainedCount + entry.omittedCount) throw new Error('summary_log_truncation_invalid');

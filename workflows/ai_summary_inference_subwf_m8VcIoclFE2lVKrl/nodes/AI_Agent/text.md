@@ -13,8 +13,8 @@
   if ($('Start').first().json.analysisMode === 'single_stream_full') {
     const details = aggregate[0].details || [];
     const dialogue = details.find(item => item.type === 'dialogue');
-    return `${context}\n請分析單一直播間 ${liveStreamIDs[0]} 的本場完整資料，不做前後場比較。請呼叫 Dialogue_Analyzer 判讀對話與 transcript.outcome，再依可用資料呼叫 Streamer_Log_Analyzer、Event_Log_Analyzer、StreamInfo_Analyzer。對話狀態：${dialogue?.transcript?.outcome || 'unknown'}。證據覆蓋：${JSON.stringify(dialogue?.dialogueCoverage || { kind: 'direct_transcript' })}。若對話不可用，必須明示這不是完整對話摘要。`;
+    return `${context}\n請分析單一直播間 ${liveStreamIDs[0]} 的本場完整資料，不做前後場比較。請呼叫 Dialogue_Analyzer 判讀對話與 transcript.outcome，再依可用資料呼叫 Streamer_Log_Analyzer、Event_Log_Analyzer、StreamInfo_Analyzer、Firebase_Log_Analyzer。對話狀態：${dialogue?.transcript?.outcome || 'unknown'}。證據覆蓋：${JSON.stringify(dialogue?.dialogueCoverage || { kind: 'direct_transcript' })}。若對話不可用，必須明示這不是完整對話摘要。`;
   }
 
-  return `${context}\n目前共有 ${uniqueCount} 筆 liveStreamID：${liveStreamIDs.join(', ')}。依既有角色比較，角色 unspecified 時不可自行推定前後順序。若只剩一場證據，仍須明示比較限制，不得改成 single_stream_full。請先判斷是否需要呼叫 Analyzer Tools（Streamer_Log_Analyzer / Event_Log_Analyzer / Dialogue_Analyzer / StreamInfo_Analyzer）。若資料不足就不要呼叫。`;
+  return `${context}\n目前共有 ${uniqueCount} 筆 liveStreamID：${liveStreamIDs.join(', ')}。依既有角色比較，角色 unspecified 時不可自行推定前後順序。若只剩一場證據，仍須明示比較限制，不得改成 single_stream_full。請先判斷是否需要呼叫 Analyzer Tools（Streamer_Log_Analyzer / Event_Log_Analyzer / Dialogue_Analyzer / StreamInfo_Analyzer / Firebase_Log_Analyzer）。若資料不足就不要呼叫。`;
 })() }}
