@@ -6,3 +6,8 @@ opencode.json
 docs/superpowers/
 .vscode/
 *.log
+.agents/
+.opencode/
+.playwright-mcp/
+graphify-out/
+skills-lock.json
