@@ -81,8 +81,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        528,
-        -384
+        560,
+        -592
       ],
       "parameters": {
         "method": "POST",
@@ -569,7 +569,7 @@
         -416
       ],
       "parameters": {
-        "numberInputs": 5
+        "numberInputs": 6
       }
     },
     {
@@ -811,8 +811,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        752,
-        -384
+        976,
+        -624
       ],
       "parameters": {
         "jsCode": "__EXTERNAL_FILE__://nodes/output/jsCode.js"
@@ -833,7 +833,7 @@
             "caseSensitive": true,
             "leftValue": "",
             "typeValidation": "strict",
-            "version": 2
+            "version": 3
           },
           "conditions": [
             {
@@ -994,8 +994,8 @@
       "type": "n8n-nodes-base.googleBigQuery",
       "typeVersion": 2.1,
       "position": [
-        -2272,
-        320
+        -2096,
+        336
       ],
       "credentials": {
         "googleApi": {
@@ -1016,7 +1016,7 @@
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
-        -1872,
+        -1728,
         224
       ]
     },
@@ -1029,7 +1029,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1568,
+        -1504,
         224
       ]
     },
@@ -1045,7 +1045,7 @@
       "typeVersion": 3.4,
       "position": [
         -1344,
-        336
+        352
       ]
     },
     {
@@ -1078,8 +1078,42 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -2064,
-        320
+        -1920,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "abfe2e67-9473-4380-bae0-485261072c5c",
+              "leftValue": "={{ ['ANDROID', 'IOS'].includes(String($json.type ?? '').toUpperCase()) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "01101765-e8ed-450d-b334-b7931cd1d45f",
+      "name": "if mobile platform",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2272,
+        400
       ]
     }
   ],
@@ -1299,17 +1333,17 @@
             "index": 0
           },
           {
-            "node": "MatomoLog",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "BACKEND LOG - KEEPALIVE",
             "type": "main",
             "index": 0
           },
           {
-            "node": "FirebaseLog",
+            "node": "MatomoLog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "if mobile platform",
             "type": "main",
             "index": 0
           }
@@ -1512,7 +1546,7 @@
           {
             "node": "Merge1",
             "type": "main",
-            "index": 4
+            "index": 5
           }
         ]
       ]
@@ -1665,6 +1699,46 @@
         [
           {
             "node": "Convert to FirebaseLog",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FirebaseLog1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare FirebaseLog Upload": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "FirebaseLog1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "if mobile platform": {
+      "main": [
+        [
+          {
+            "node": "FirebaseLog",
             "type": "main",
             "index": 0
           }
