@@ -12,6 +12,28 @@ const { assertCleanDirectory, renderWorkflow, applyFilePlan } = require('./sync-
 
 const safeName = name => name.replace(/[^a-z0-9_]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').toLowerCase();
 
+function selectWorkflowVersion(workflow, sourceVersion) {
+    if (!['draft', 'published'].includes(sourceVersion)) throw new Error('Explicit source version required: draft or published');
+    if (sourceVersion === 'draft') return workflow;
+    const published = workflow.activeVersion;
+    if (!workflow.activeVersionId || !published || published.versionId !== workflow.activeVersionId
+        || published.workflowId !== workflow.id || !Array.isArray(published.nodes)
+        || !published.connections || typeof published.connections !== 'object' || Array.isArray(published.connections)) {
+        throw new Error(`Verified published definition unavailable: ${workflow.name}`);
+    }
+    // Workflow-level identity, settings and metadata are not selected from history.
+    return { ...workflow, nodes: published.nodes, connections: published.connections, nodeGroups: published.nodeGroups ?? [] };
+}
+
+async function resolveSourceVersion(value, { interactive, ask } = {}) {
+    if (value === undefined) {
+        if (!interactive) throw new Error('Explicit --source-version=draft or --source-version=published required');
+        value = (await ask('同步來源版本 [draft: 目前編輯版 / published: 已發布版]：')).trim();
+    }
+    if (!['draft', 'published'].includes(value)) throw new Error('Invalid source version: choose draft or published');
+    return value;
+}
+
 function loadLocalWorkflows(rootDir) {
     const workflowsDir = path.join(rootDir, 'workflows');
     if (!fs.existsSync(workflowsDir)) return [];
@@ -43,8 +65,9 @@ function planSync(source, local, context, { normalize = true } = {}) {
 
 async function syncWorkflows({
     rootDir = path.resolve(__dirname, '..'), targets = [], apiUrl, apiKey, callbackUrl,
-    includeArchived = false, dryRun = false, noUnpack = false, conflict = '', choose, fetchImpl = globalThis.fetch
+    includeArchived = false, dryRun = false, noUnpack = false, conflict = '', choose, sourceVersion, fetchImpl = globalThis.fetch
 }) {
+    sourceVersion = await resolveSourceVersion(sourceVersion);
     const api = createApi({ apiUrl, apiKey, fetchImpl });
     const inventory = new Map(V3_WORKFLOW_INVENTORY);
     const locals = loadLocalWorkflows(rootDir);
@@ -96,7 +119,7 @@ async function syncWorkflows({
         if (detail?.id !== item.id || detail.name !== item.name || !Array.isArray(detail.nodes) || !detail.connections) {
             throw new Error('Workflow identity or response shape changed during sync');
         }
-        sources.push(detail);
+        sources.push(selectWorkflowVersion(detail, sourceVersion));
     }
     const needsNormalization = prepared.some(({ remote }) => inventory.has(remote.name));
     const tables = needsNormalization && prepared.some(({ remote }) => sources.find(w => w.id === remote.id).nodes.some(n => n.type === 'n8n-nodes-base.dataTable'))
@@ -106,7 +129,8 @@ async function syncWorkflows({
     const context = needsNormalization ? createSyncContext({ localWorkflows: contextLocals, sourceWorkflows: sources, tables, callbackUrl }) : undefined;
     const plans = prepared.map(({ remote, local }) => {
         const source = sources.find(w => w.id === remote.id);
-        if (!noUnpack) return { local, ...planSync(source, local, context, { normalize: inventory.has(remote.name) }) };
+        const sourceVersionId = sourceVersion === 'published' ? source.activeVersionId : source.versionId ?? null;
+        if (!noUnpack) return { local, sourceVersionId, ...planSync(source, local, context, { normalize: inventory.has(remote.name) }) };
         const workflow = inventory.has(remote.name) ? normalizeWorkflow(source, local.workflow, context) : sanitizeWorkflow(source);
         workflow.id = local.raw.id;
         const directory = path.dirname(local.directory);
@@ -114,7 +138,7 @@ async function syncWorkflows({
         const filename = safeExternalPath(directory, relative);
         const existing = fs.existsSync(filename) ? fs.readFileSync(filename, 'utf8') : '';
         const differences = existing ? diffPaths(comparableWorkflow(JSON.parse(existing)), comparableWorkflow(workflow)) : ['create'];
-        return { local: { ...local, directory }, checkPath: filename, differences, files: differences.length ? new Map([[relative, renderWorkflow(workflow, existing)]]) : new Map() };
+        return { local: { ...local, directory }, sourceVersionId, checkPath: filename, differences, files: differences.length ? new Map([[relative, renderWorkflow(workflow, existing)]]) : new Map() };
     });
     for (const plan of plans) for (const [relative, content] of plan.files) {
         const filename = safeExternalPath(plan.local.directory, relative);
@@ -127,14 +151,17 @@ async function syncWorkflows({
     for (const plan of plans) {
         if (!dryRun && plan.files.size) assertCleanDirectory(plan.checkPath || plan.local.directory, rootDir);
         const result = dryRun ? { changed: plan.files.size } : applyFilePlan(plan.local.directory, plan.files);
-        results.push({ name: plan.local.raw.name, differences: plan.differences, ...result });
+        results.push({ name: plan.local.raw.name, sourceVersion, sourceVersionId: plan.sourceVersionId, differences: plan.differences, ...result });
     }
     return results;
 }
 
 async function runCli() {
     const flags = new Set(['--include-archived', '--dry-run', '--no-unpack', '--skip', '--overwrite', '--new']);
-    const argv = process.argv.slice(2);
+    const rawArgs = process.argv.slice(2);
+    const versionArgs = rawArgs.filter(arg => arg.startsWith('--source-version='));
+    if (versionArgs.length > 1) throw new Error('Choose only one source version');
+    const argv = rawArgs.filter(arg => !arg.startsWith('--source-version='));
     for (const flag of argv.filter(arg => arg.startsWith('--'))) {
         if (!flags.has(flag)) throw new Error(`Unsupported flag: ${flag}`);
     }
@@ -142,7 +169,15 @@ async function runCli() {
     if (decisions.length > 1) throw new Error('Choose only one conflict flag');
     let rl;
     try {
+        const sourceVersion = await resolveSourceVersion(versionArgs[0]?.slice('--source-version='.length), {
+            interactive: Boolean(process.stdin.isTTY),
+            ask: async prompt => {
+                rl ??= readline.createInterface({ input: process.stdin, output: process.stdout });
+                return rl.question(prompt);
+            }
+        });
         const results = await syncWorkflows({
+            sourceVersion,
             targets: argv.filter(arg => !arg.startsWith('--')),
             apiUrl: process.env.REMOTE_N8N_API_URL,
             apiKey: process.env.REMOTE_N8N_API_KEY,
@@ -164,4 +199,4 @@ async function runCli() {
 }
 
 if (require.main === module) runCli().catch(error => { console.error(error.message); process.exitCode = 1; });
-module.exports = { syncWorkflows, planSync, loadLocalWorkflows };
+module.exports = { syncWorkflows, planSync, loadLocalWorkflows, selectWorkflowVersion, resolveSourceVersion };

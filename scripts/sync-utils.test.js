@@ -249,7 +249,7 @@ test('new workflow sync is repeatable and refuses to overwrite a dirty real chan
     execFileSync('git', ['init', '--quiet', rootDir]);
     const workflow = { id: 'remote', name: 'New Flow', active: false, nodes: [{ id: 'code', name: 'Code', type: 'n8n-nodes-base.code', parameters: { jsCode: 'return [];' } }], connections: {}, settings: {} };
     const fetchImpl = async url => ({ ok: true, json: async () => structuredClone(url.includes('?') ? { data: [workflow] } : workflow) });
-    const options = { rootDir, apiUrl: 'https://test.invalid', apiKey: 'test', fetchImpl };
+    const options = { rootDir, apiUrl: 'https://test.invalid', apiKey: 'test', fetchImpl, sourceVersion: 'draft' };
     assert.ok((await syncWorkflows(options))[0].changed > 0);
     assert.equal((await syncWorkflows(options))[0].changed, 0);
     workflow.nodes[0].parameters.jsCode = 'return [{json:{changed:true}}];';
@@ -292,7 +292,7 @@ test('raw JSON export remains repeatable and does not create extracted node file
     execFileSync('git', ['init', '--quiet', rootDir]);
     const workflow = { id: 'raw', name: 'Raw', active: false, nodes: [{ id: 'code', name: 'Code', type: 'n8n-nodes-base.code', parameters: { jsCode: 'return [];' } }], connections: {}, settings: {} };
     const fetchImpl = async url => ({ ok: true, json: async () => structuredClone(url.includes('?') ? { data: [workflow] } : workflow) });
-    const options = { rootDir, apiUrl: 'https://test.invalid', apiKey: 'test', noUnpack: true, fetchImpl };
+    const options = { rootDir, apiUrl: 'https://test.invalid', apiKey: 'test', noUnpack: true, fetchImpl, sourceVersion: 'draft' };
     await syncWorkflows(options);
     const saved = JSON.parse(fs.readFileSync(path.join(rootDir, 'workflows/raw_raw.json'), 'utf8'));
     assert.equal(saved.nodes[0].parameters.jsCode, 'return [];');
@@ -306,7 +306,7 @@ test('a missing V3 directory is created with its canonical inventory identity', 
     execFileSync('git', ['init', '--quiet', rootDir]);
     const workflow = { id: 'remote', name: 'IST bot Slack ingress v3', active: false, nodes: [], connections: {}, settings: {} };
     const fetchImpl = async url => ({ ok: true, json: async () => structuredClone(url.includes('?') ? { data: [workflow] } : workflow) });
-    const options = { rootDir, apiUrl: 'https://test.invalid', apiKey: 'test', fetchImpl };
+    const options = { rootDir, apiUrl: 'https://test.invalid', apiKey: 'test', fetchImpl, sourceVersion: 'draft' };
     await syncWorkflows(options);
     const filename = path.join(rootDir, 'workflows/ist_bot_slack_ingress_v3_IstBotSlackIngressV3A1/workflow.json');
     assert.equal(JSON.parse(fs.readFileSync(filename, 'utf8')).id, 'IstBotSlackIngressV3A1');
