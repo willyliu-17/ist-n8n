@@ -2074,8 +2074,8 @@ if (typeof $input !== 'undefined') {
       if (canonical[0].attemptKey !== candidate.attemptKey) throw new Error('Retry claim candidate does not match the canonical attempt');
       const oldAttempt = { ...canonical[0], nowIso: candidate.nowIso };
       const requests = dedupeSystemRows(allItems.filter((row) => row?.id && !row.attemptKey && row.requestKey === oldAttempt.requestKey));
-      const request = oldAttempt.requestType === 'standalone_stt' ? undefined : canonicalRequest(requests, oldAttempt.requestKey);
-      const plan = planRetryMaterializationClaim(oldAttempt, candidate.nowIso, owner, request);
+       const request = oldAttempt.requestType === 'standalone_stt' ? undefined : canonicalRequest(requests, oldAttempt.requestKey);
+       const plan = planRetryMaterializationClaim(oldAttempt, candidate.nowIso, owner, request);
       return plan.action === 'claim'
         ? [{ json: { ...plan, oldAttempt, nowIso: candidate.nowIso, __repairGroupKey: groupKey, __planCarrier: true, __planPhase: 'retry-claim', repairMode: 'retry_verify_claim' } }]
         : [{ json: { ...plan, candidateKey: candidate.attemptKey } }];

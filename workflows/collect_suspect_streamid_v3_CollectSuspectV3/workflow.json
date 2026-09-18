@@ -1100,25 +1100,31 @@
               "id": "streamID",
               "displayName": "streamID",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "channel",
               "displayName": "channel",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "target_thread_ts",
               "displayName": "target_thread_ts",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "lookbackDays",
@@ -1126,7 +1132,9 @@
               "type": "number",
               "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -1503,49 +1511,61 @@
               "id": "requestKey",
               "displayName": "requestKey",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "requestType",
               "displayName": "requestType",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "orderedStreams",
               "displayName": "orderedStreams",
               "type": "array",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "existingDialogues",
               "displayName": "existingDialogues",
               "type": "object",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "channel",
               "displayName": "channel",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             },
             {
               "id": "threadTS",
               "displayName": "threadTS",
               "type": "string",
-              "required": true,
+              "required": false,
               "display": true,
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
