@@ -4,6 +4,7 @@ const definitions = [
   ['streamerEventLog', 'StreamerEventLog'],
   ['streamCommentLog', 'StreamCommentLog'],
   ['matomoLog', 'MatomoLog'],
+  ['firebaseLog', 'FirebaseLog'],
 ];
 const byKind = new Map(
   inputs

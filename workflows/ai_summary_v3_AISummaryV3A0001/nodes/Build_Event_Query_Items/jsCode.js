@@ -25,6 +25,9 @@ function buildEventQueryItems(carrier) {
       userID,
       beginTime,
       endTime,
+      platform: String(stream.streamContext?.deviceType || '')
+        .trim()
+        .toUpperCase(),
     };
   }).filter(Boolean);
 }

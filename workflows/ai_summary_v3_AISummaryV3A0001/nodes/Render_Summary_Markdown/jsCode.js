@@ -7,6 +7,7 @@ function renderSummaryMarkdown(inference, coverageStatus, streams = []) {
     recovery_status: '修復狀態',
     sl_analysis: '【Streamer Log 分析】',
     sel_analysis: '【Stream Event Log 分析】',
+    firebase_analysis: '【Firebase Crashlytics 分析】',
     summary: '【結論】',
     fact_check: '事實查核',
     claimed_issue: '主播主觀判定的問題',

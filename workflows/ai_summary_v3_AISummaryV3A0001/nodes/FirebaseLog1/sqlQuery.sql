@@ -9,6 +9,9 @@ DECLARE endTime TIMESTAMP DEFAULT TIMESTAMP_ADD(
 DECLARE target_error_type ARRAY<STRING> DEFAULT ["ANR", "FATAL"];
 
 SELECT
+  'firebaseLog' AS evidenceType,
+  @liveStreamID AS liveStreamID,
+  @platform AS platform,
   error_type,
   issue_id,
   issue_title,
@@ -19,12 +22,13 @@ SELECT
   storage,
   operating_system,
   application,
-  user,
   custom_keys,
   process_state
 FROM `{{
   (() => {
-    const platform = String($json.type ?? '').toUpperCase();
+    const platform = String($json.platform ?? '')
+      .trim()
+      .toUpperCase();
 
     if (platform === 'ANDROID') {
       return 'media-b6ace.firebase_crashlytics.com_machipopo_media17_ANDROID_REALTIME';
@@ -34,10 +38,10 @@ FROM `{{
       return 'media17-prod.firebase_crashlytics.com_machipopo_story17_IOS_REALTIME';
     }
 
-    throw new Error(`Unsupported platform: ${$json.type}`);
+    throw new Error(`Unsupported Firebase platform: ${platform || 'EMPTY'}`);
   })()
 }}`
 WHERE event_timestamp BETWEEN startTime AND endTime
-  AND user.id = "{{ $json.userID }}"
+  AND user.id = @userID
   AND error_type IN UNNEST(target_error_type)
 ORDER BY event_timestamp ASC;

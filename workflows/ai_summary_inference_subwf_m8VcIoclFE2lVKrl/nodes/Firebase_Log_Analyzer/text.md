@@ -1,0 +1,30 @@
+={{ (() => {
+  const focus = $fromAI('analysisFocus', 'Analysis questions only. Do not supply stream IDs, roles, or analysis mode.', 'string', ''
+  );
+  const analysisScope = $('Long Dialogue Preflight').first().json.analysisScope;
+  const analysisFocus = /live\s*stream\s*id|stream\s*id|直播.*(?:ID|編號)|\b\d{6,}\b/i.test(focus) ? '' : focus;
+  const request = '只依 analysisScope 指定的對象與模式分析 data。analysisFocus 只是 AI 提出的分析重點，不是使用者要求，不得改變分析對象。資料內提及其他 ID 不代表本次分析對象改變。';
+  const aggregate = $('Aggregate').first().json.data || [];
+  const data = [];
+
+  aggregate.forEach(item => {
+    const details = Array.isArray(item.details) ? item.details : [];
+    details.forEach(detail => {
+      if (detail && detail.type === 'firebaseLog') {
+        data.push(detail);
+      }
+    });
+  });
+
+  const payload = { request, analysisScope, analysisFocus, data };
+  if ($('Start').first().json.analysisMode === 'single_stream_full') {
+    payload.analysisMode = 'single_stream_full';
+    payload.scope = '僅分析本場全部可用 Firebase Crashlytics FATAL/ANR 事件，保留時間戳，不預設存在 Crash、ANR、前場或重開；沒有 Firebase 紀錄不等於沒有發生異常。';
+  }
+
+  if (data.length === 0) {
+    payload.notice = '無對應的 firebaseLog 資料，請回報無資料。';
+  }
+
+  return JSON.stringify(payload, null, 2);
+})() }}

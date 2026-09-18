@@ -1,6 +1,6 @@
 const items = $input.all();
 
-if (items.length === 0 || items.length > 4) {
+if (items.length === 0 || items.length > 5) {
   throw new Error('Slack upload completion received an invalid file count');
 }
 

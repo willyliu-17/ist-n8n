@@ -15,28 +15,22 @@
         0
       ],
       "parameters": {
-        "inputSource": "workflowInputs",
         "workflowInputs": {
           "values": [
             {
-              "name": "requestKey",
-              "type": "string"
+              "name": "requestKey"
             },
             {
-              "name": "requestType",
-              "type": "string"
+              "name": "requestType"
             },
             {
-              "name": "channel",
-              "type": "string"
+              "name": "channel"
             },
             {
-              "name": "threadTS",
-              "type": "string"
+              "name": "threadTS"
             },
             {
-              "name": "coverageStatus",
-              "type": "string"
+              "name": "coverageStatus"
             },
             {
               "name": "availableRoles",
@@ -64,11 +58,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        200,
+        208,
         0
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Validate_Resolved_Input/jsCode.js"
       }
     },
@@ -82,7 +75,6 @@
         0
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Build_Direct_Carrier/jsCode.js"
       }
     },
@@ -93,11 +85,10 @@
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        600,
+        608,
         0
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -109,13 +100,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.input.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -127,10 +116,7 @@
         800,
         0
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000006",
@@ -138,11 +124,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1000,
+        1008,
         0
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Next_Stage/jsCode.js"
       }
     },
@@ -298,11 +283,10 @@
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        1400,
-        -200
+        1408,
+        -496
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -313,33 +297,26 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
-              "condition": "eq",
               "keyValue": "={{ $json.row.id }}"
             },
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.row.requestKey }}"
             },
             {
               "keyName": "status",
-              "condition": "eq",
               "keyValue": "={{ $json.expectedStatus }}"
             },
             {
               "keyName": "reconciliationStatus",
-              "condition": "eq",
               "keyValue": "={{ $json.expectedReconciliationStatus }}"
             },
             {
               "keyName": "canonicalRowID",
-              "condition": "eq",
               "keyValue": "={{ String($json.expectedCanonicalRowID) }}"
             },
             {
               "keyName": "updatedAtIso",
-              "condition": "eq",
               "keyValue": "={{ $json.expectedUpdatedAtIso }}"
             }
           ]
@@ -362,11 +339,9 @@
       "typeVersion": 1,
       "position": [
         1600,
-        -200
+        -496
       ],
-      "parameters": {
-        "maxItems": 1
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000010",
@@ -375,11 +350,10 @@
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        1800,
-        -200
+        1808,
+        -496
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -391,13 +365,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -406,11 +378,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2200,
-        -200
+        2208,
+        -496
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Reconciliation/jsCode.js"
       }
     },
@@ -421,11 +392,10 @@
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        1400,
-        -100
+        1408,
+        -368
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -436,33 +406,26 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
-              "condition": "eq",
               "keyValue": "={{ $json.row.id }}"
             },
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.row.requestKey }}"
             },
             {
               "keyName": "status",
-              "condition": "eq",
               "keyValue": "={{ $json.expectedStatus }}"
             },
             {
               "keyName": "reconciliationStatus",
-              "condition": "eq",
               "keyValue": "={{ $json.expectedReconciliationStatus }}"
             },
             {
               "keyName": "canonicalRowID",
-              "condition": "eq",
               "keyValue": "={{ String($json.expectedCanonicalRowID) }}"
             },
             {
               "keyName": "updatedAtIso",
-              "condition": "eq",
               "keyValue": "={{ $json.expectedUpdatedAtIso }}"
             }
           ]
@@ -489,11 +452,9 @@
       "typeVersion": 1,
       "position": [
         1600,
-        -100
+        -368
       ],
-      "parameters": {
-        "maxItems": 1
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000014",
@@ -502,11 +463,10 @@
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        1800,
-        -100
+        1808,
+        -368
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -518,13 +478,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -533,11 +491,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2200,
-        -100
+        2208,
+        -368
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Freeze/jsCode.js"
       }
     },
@@ -548,10 +505,9 @@
       "typeVersion": 2,
       "position": [
         2000,
-        0
+        -208
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Preflight_Inference_Owner/jsCode.js"
       }
     },
@@ -562,11 +518,10 @@
       "typeVersion": 2.7,
       "onError": "continueErrorOutput",
       "position": [
-        2060,
-        -80
+        2000,
+        -656
       ],
       "parameters": {
-        "resource": "message",
         "operation": "update",
         "channelId": {
           "__rl": true,
@@ -574,8 +529,9 @@
           "mode": "id"
         },
         "ts": "={{ Number($json.row.summaryMessageTS) }}",
-        "messageType": "text",
-        "text": "={{ $json.input.coverageStatus === 'partial' ? '[PARTIAL COVERAGE] ' : '' }}{{ Number($json.row.summaryAttempt || 0) > 0 ? 'Retrying: ' : '' }}AI summary analysis in progress."
+        "text": "={{ $json.input.coverageStatus === 'partial' ? '[PARTIAL COVERAGE] ' : '' }}{{ Number($json.row.summaryAttempt || 0) > 0 ? 'Retrying: ' : '' }}AI summary analysis in progress.",
+        "updateFields": {},
+        "otherOptions": {}
       },
       "credentials": {
         "slackApi": {
@@ -591,8 +547,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2120,
-        -80
+        2192,
+        -688
       ],
       "parameters": {
         "mode": "combine",
@@ -606,11 +562,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2200,
-        0
+        2208,
+        -208
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Build_Event_Query_Items/jsCode.js"
       }
     },
@@ -623,7 +578,7 @@
       "onError": "continueErrorOutput",
       "position": [
         2400,
-        0
+        -208
       ],
       "parameters": {
         "authentication": "serviceAccount",
@@ -660,7 +615,7 @@
       "onError": "continueErrorOutput",
       "position": [
         2400,
-        80
+        -80
       ],
       "parameters": {
         "authentication": "serviceAccount",
@@ -698,12 +653,11 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2600,
-        0
+        2608,
+        -208
       ],
       "parameters": {
-        "mode": "append",
-        "numberInputs": 3
+        "numberInputs": 4
       }
     },
     {
@@ -713,10 +667,9 @@
       "typeVersion": 2,
       "position": [
         2800,
-        0
+        -208
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Build_Inference_Aggregate/jsCode.js"
       }
     },
@@ -727,8 +680,8 @@
       "typeVersion": 1.2,
       "onError": "continueErrorOutput",
       "position": [
-        3000,
-        0
+        3008,
+        -128
       ],
       "parameters": {
         "workflowId": {
@@ -744,7 +697,49 @@
             "aggregateData": "={{ $json.aggregate.streams }}",
             "analysisMode": "={{ $json.input.requestType === 'single_stream_summary' ? 'single_stream_full' : '' }}",
             "analysisScope": "={{ { requestedStreams: $json.input.streams.map(stream => ({ liveStreamID: stream.liveStreamID, role: stream.role })), missingDialogueRoles: $json.input.missingRoles, coverageStatus: $json.input.coverageStatus } }}"
-          }
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "aggregateData",
+              "displayName": "aggregateData",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array"
+            },
+            {
+              "id": "evalConfig",
+              "displayName": "evalConfig",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            },
+            {
+              "id": "analysisMode",
+              "displayName": "analysisMode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "analysisScope",
+              "displayName": "analysisScope",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {
           "waitForSubWorkflow": true
@@ -758,12 +753,11 @@
       "typeVersion": 3.2,
       "position": [
         3200,
-        0
+        -128
       ],
       "parameters": {
         "mode": "combine",
         "combineBy": "combineByPosition",
-        "numberInputs": 2,
         "options": {}
       }
     },
@@ -773,11 +767,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3400,
-        0
+        3408,
+        -128
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Normalize_Inference/jsCode.js"
       }
     },
@@ -788,10 +781,9 @@
       "typeVersion": 2,
       "position": [
         3600,
-        0
+        -128
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Render_Summary_Markdown/jsCode.js"
       }
     },
@@ -803,10 +795,9 @@
       "alwaysOutputData": true,
       "position": [
         4000,
-        0
+        -128
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -817,49 +808,37 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
-              "condition": "eq",
               "keyValue": "={{ $json.row.id }}"
             },
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.row.requestKey }}"
             },
             {
               "keyName": "status",
-              "condition": "eq",
               "keyValue": "summary_dispatching"
             },
             {
               "keyName": "reconciliationStatus",
-              "condition": "eq",
               "keyValue": "canonical"
             },
             {
               "keyName": "canonicalRowID",
-              "condition": "eq",
               "keyValue": "={{ String($json.row.id) }}"
             },
             {
               "keyName": "leaseOwner",
-              "condition": "eq",
               "keyValue": "={{ $json.row.leaseOwner }}"
             },
             {
               "keyName": "leaseUntilIso",
-              "condition": "eq",
               "keyValue": "={{ $json.row.leaseUntilIso }}"
             },
             {
-              "keyName": "inferenceResultJson",
-              "condition": "eq",
-              "keyValue": ""
+              "keyName": "inferenceResultJson"
             },
             {
-              "keyName": "summaryMarkdown",
-              "condition": "eq",
-              "keyValue": ""
+              "keyName": "summaryMarkdown"
             }
           ]
         },
@@ -880,12 +859,10 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        4200,
+        4208,
         0
       ],
-      "parameters": {
-        "maxItems": 1
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000028",
@@ -897,7 +874,6 @@
         0
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Inference_Checkpoint/jsCode.js"
       }
     },
@@ -911,7 +887,6 @@
         160
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Preflight_Upload_Owner/jsCode.js"
       }
     },
@@ -921,11 +896,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2200,
+        2208,
         160
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Build_Summary_File/jsCode.js"
       }
     },
@@ -941,7 +915,6 @@
       ],
       "parameters": {
         "resource": "file",
-        "binaryPropertyName": "data",
         "options": {
           "channelId": "={{ $json.input.channel }}",
           "threadTs": "={{ $json.input.threadTS }}"
@@ -961,13 +934,12 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2600,
+        2608,
         160
       ],
       "parameters": {
         "mode": "combine",
         "combineBy": "combineByPosition",
-        "numberInputs": 2,
         "options": {}
       }
     },
@@ -981,7 +953,6 @@
         160
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Upload_Checkpoint/jsCode.js"
       }
     },
@@ -995,7 +966,6 @@
         320
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Preflight_Message_Owner/jsCode.js"
       }
     },
@@ -1010,8 +980,6 @@
         320
       ],
       "parameters": {
-        "resource": "message",
-        "operation": "post",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -1041,13 +1009,12 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2600,
+        2608,
         320
       ],
       "parameters": {
         "mode": "combine",
         "combineBy": "combineByPosition",
-        "numberInputs": 2,
         "options": {}
       }
     },
@@ -1061,7 +1028,6 @@
         320
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Message_Checkpoint/jsCode.js"
       }
     },
@@ -1076,7 +1042,6 @@
         480
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -1087,53 +1052,42 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
-              "condition": "eq",
               "keyValue": "={{ $json.row.id }}"
             },
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.row.requestKey }}"
             },
             {
               "keyName": "status",
-              "condition": "eq",
               "keyValue": "summary_dispatching"
             },
             {
               "keyName": "reconciliationStatus",
-              "condition": "eq",
               "keyValue": "canonical"
             },
             {
               "keyName": "canonicalRowID",
-              "condition": "eq",
               "keyValue": "={{ String($json.row.id) }}"
             },
             {
               "keyName": "summaryAttempt",
-              "condition": "eq",
               "keyValue": "={{ $json.row.summaryAttempt }}"
             },
             {
               "keyName": "nextRetryAtIso",
-              "condition": "eq",
               "keyValue": "={{ $json.row.nextRetryAtIso }}"
             },
             {
               "keyName": "errorCode",
-              "condition": "eq",
               "keyValue": "={{ $json.row.errorCode }}"
             },
             {
               "keyName": "leaseOwner",
-              "condition": "eq",
               "keyValue": "={{ $json.row.leaseOwner }}"
             },
             {
               "keyName": "leaseUntilIso",
-              "condition": "eq",
               "keyValue": "={{ $json.row.leaseUntilIso }}"
             }
           ]
@@ -1158,12 +1112,10 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        4200,
+        4208,
         480
       ],
-      "parameters": {
-        "maxItems": 1
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000041",
@@ -1175,7 +1127,6 @@
         480
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Completion/jsCode.js"
       }
     },
@@ -1185,11 +1136,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5000,
+        5008,
         480
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Return_Result/jsCode.js"
       }
     },
@@ -1200,10 +1150,9 @@
       "typeVersion": 2,
       "position": [
         2800,
-        600
+        608
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Sanitize_Stage_Error/jsCode.js"
       }
     },
@@ -1215,10 +1164,9 @@
       "alwaysOutputData": true,
       "position": [
         4000,
-        600
+        608
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -1229,43 +1177,34 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
-              "condition": "eq",
               "keyValue": "={{ $json.row.id }}"
             },
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.row.requestKey }}"
             },
             {
               "keyName": "status",
-              "condition": "eq",
               "keyValue": "summary_dispatching"
             },
             {
               "keyName": "reconciliationStatus",
-              "condition": "eq",
               "keyValue": "canonical"
             },
             {
               "keyName": "canonicalRowID",
-              "condition": "eq",
               "keyValue": "={{ String($json.row.id) }}"
             },
             {
               "keyName": "summaryAttempt",
-              "condition": "eq",
               "keyValue": "={{ $json.row.summaryAttempt }}"
             },
             {
               "keyName": "leaseOwner",
-              "condition": "eq",
               "keyValue": "={{ $json.row.leaseOwner }}"
             },
             {
               "keyName": "leaseUntilIso",
-              "condition": "eq",
               "keyValue": "={{ $json.row.leaseUntilIso }}"
             }
           ]
@@ -1291,12 +1230,10 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        4200,
-        600
+        4208,
+        608
       ],
-      "parameters": {
-        "maxItems": 1
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000046",
@@ -1306,10 +1243,9 @@
       "alwaysOutputData": true,
       "position": [
         4400,
-        600
+        608
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1321,13 +1257,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -1337,10 +1271,9 @@
       "typeVersion": 2,
       "position": [
         4800,
-        600
+        608
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Failure/jsCode.js"
       }
     },
@@ -1352,10 +1285,9 @@
       "alwaysOutputData": true,
       "position": [
         1600,
-        0
+        -208
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1367,13 +1299,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.input.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -1382,13 +1312,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1800,
-        0
+        1808,
+        -208
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000050",
@@ -1401,7 +1328,6 @@
         160
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1413,13 +1339,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.input.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -1428,13 +1352,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1800,
+        1808,
         160
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000052",
@@ -1447,7 +1368,6 @@
         320
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1459,13 +1379,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.input.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -1474,13 +1392,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1800,
+        1808,
         320
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000054",
@@ -1492,7 +1407,6 @@
         160
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Parse_Upload_Response/jsCode.js"
       }
     },
@@ -1506,7 +1420,6 @@
         320
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Parse_Message_Response/jsCode.js"
       }
     },
@@ -1516,11 +1429,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3000,
+        3008,
         400
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Map_Summary_Reactions/jsCode.js"
       }
     },
@@ -1536,7 +1448,6 @@
       ],
       "parameters": {
         "resource": "reaction",
-        "operation": "add",
         "channelId": {
           "__rl": true,
           "value": "={{ $json.input.channel }}",
@@ -1559,11 +1470,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3800,
-        0
+        3808,
+        -128
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Inference_Checkpoint/jsCode.js"
       }
     },
@@ -1573,11 +1483,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3000,
+        3008,
         160
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Upload_Checkpoint/jsCode.js"
       }
     },
@@ -1587,11 +1496,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3000,
+        3008,
         320
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Message_Checkpoint/jsCode.js"
       }
     },
@@ -1601,13 +1509,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        4600,
+        4608,
         0
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000060",
@@ -1615,13 +1520,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        4600,
+        4608,
         160
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000061",
@@ -1629,13 +1531,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        4600,
+        4608,
         320
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000062",
@@ -1643,13 +1542,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        4600,
-        600
+        4608,
+        608
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000063",
@@ -1657,13 +1553,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        4600,
+        4608,
         480
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000064",
@@ -1671,11 +1564,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3800,
+        3808,
         480
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Completion/jsCode.js"
       }
     },
@@ -1690,7 +1582,6 @@
         0
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1702,13 +1593,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -1722,7 +1611,6 @@
         160
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -1733,44 +1621,34 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
-              "condition": "eq",
               "keyValue": "={{ $json.row.id }}"
             },
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.row.requestKey }}"
             },
             {
               "keyName": "status",
-              "condition": "eq",
               "keyValue": "summary_dispatching"
             },
             {
               "keyName": "reconciliationStatus",
-              "condition": "eq",
               "keyValue": "canonical"
             },
             {
               "keyName": "canonicalRowID",
-              "condition": "eq",
               "keyValue": "={{ String($json.row.id) }}"
             },
             {
               "keyName": "leaseOwner",
-              "condition": "eq",
               "keyValue": "={{ $json.row.leaseOwner }}"
             },
             {
               "keyName": "leaseUntilIso",
-              "condition": "eq",
               "keyValue": "={{ $json.row.leaseUntilIso }}"
             },
             {
-              "keyName": "summaryUploadID",
-              "condition": "eq",
-              "keyValue": ""
+              "keyName": "summaryUploadID"
             }
           ]
         },
@@ -1790,12 +1668,10 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        3400,
+        3408,
         160
       ],
-      "parameters": {
-        "maxItems": 1
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000068",
@@ -1808,7 +1684,6 @@
         160
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1820,13 +1695,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -1840,7 +1713,6 @@
         320
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -1851,44 +1723,34 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
-              "condition": "eq",
               "keyValue": "={{ $json.row.id }}"
             },
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.row.requestKey }}"
             },
             {
               "keyName": "status",
-              "condition": "eq",
               "keyValue": "summary_dispatching"
             },
             {
               "keyName": "reconciliationStatus",
-              "condition": "eq",
               "keyValue": "canonical"
             },
             {
               "keyName": "canonicalRowID",
-              "condition": "eq",
               "keyValue": "={{ String($json.row.id) }}"
             },
             {
               "keyName": "leaseOwner",
-              "condition": "eq",
               "keyValue": "={{ $json.row.leaseOwner }}"
             },
             {
               "keyName": "leaseUntilIso",
-              "condition": "eq",
               "keyValue": "={{ $json.row.leaseUntilIso }}"
             },
             {
-              "keyName": "summaryMessageTS",
-              "condition": "eq",
-              "keyValue": ""
+              "keyName": "summaryMessageTS"
             }
           ]
         },
@@ -1908,12 +1770,10 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        3400,
+        3408,
         320
       ],
-      "parameters": {
-        "maxItems": 1
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000071",
@@ -1926,7 +1786,6 @@
         320
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1938,13 +1797,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -1955,10 +1812,9 @@
       "alwaysOutputData": true,
       "position": [
         3200,
-        600
+        608
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1970,13 +1826,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.input.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -1985,13 +1839,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3400,
-        600
+        3408,
+        608
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000074",
@@ -2000,10 +1851,9 @@
       "typeVersion": 2,
       "position": [
         3600,
-        600
+        608
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Failure/jsCode.js"
       }
     },
@@ -2018,7 +1868,6 @@
         480
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -2030,13 +1879,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -2046,11 +1893,10 @@
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        3700,
-        0
+        3712,
+        -128
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -2062,13 +1908,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.input.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -2077,13 +1921,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3800,
-        0
+        3808,
+        -128
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000078",
@@ -2092,11 +1933,10 @@
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        3000,
+        3008,
         160
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -2108,13 +1948,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.input.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -2123,13 +1961,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3100,
+        3104,
         160
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000080",
@@ -2138,11 +1973,10 @@
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        3000,
+        3008,
         320
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -2154,13 +1988,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.input.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -2169,13 +2001,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3100,
+        3104,
         320
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000082",
@@ -2184,11 +2013,10 @@
       "typeVersion": 1,
       "alwaysOutputData": true,
       "position": [
-        3800,
+        3808,
         480
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -2200,13 +2028,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.input.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -2215,13 +2041,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3900,
+        3904,
         480
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000084",
@@ -2230,12 +2053,9 @@
       "typeVersion": 3.2,
       "position": [
         2000,
-        -200
+        -496
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000085",
@@ -2244,12 +2064,9 @@
       "typeVersion": 3.2,
       "position": [
         2000,
-        -100
+        -368
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000040",
@@ -2258,11 +2075,10 @@
       "typeVersion": 2.7,
       "onError": "continueErrorOutput",
       "position": [
-        2200,
+        2208,
         240
       ],
       "parameters": {
-        "resource": "message",
         "operation": "update",
         "channelId": {
           "__rl": true,
@@ -2270,8 +2086,9 @@
           "mode": "id"
         },
         "ts": "={{ Number($json.row.summaryMessageTS) }}",
-        "messageType": "text",
-        "text": "={{ $json.input.coverageStatus === 'partial' ? '[PARTIAL COVERAGE] ' : '' }}AI summary analysis complete. Uploading report."
+        "text": "={{ $json.input.coverageStatus === 'partial' ? '[PARTIAL COVERAGE] ' : '' }}AI summary analysis complete. Uploading report.",
+        "updateFields": {},
+        "otherOptions": {}
       },
       "credentials": {
         "slackApi": {
@@ -2293,7 +2110,6 @@
       "parameters": {
         "mode": "combine",
         "combineBy": "combineByPosition",
-        "numberInputs": 2,
         "options": {}
       }
     },
@@ -2308,7 +2124,6 @@
         480
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -2320,13 +2135,11 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "condition": "eq",
               "keyValue": "={{ $json.input.requestKey }}"
             }
           ]
         },
-        "returnAll": true,
-        "options": {}
+        "returnAll": true
       }
     },
     {
@@ -2335,13 +2148,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1800,
+        1808,
         480
       ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      }
+      "parameters": {}
     },
     {
       "id": "00000000-0000-4000-8000-000000000091",
@@ -2353,7 +2163,6 @@
         480
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Preflight_Completion_Owner/jsCode.js"
       }
     },
@@ -2364,11 +2173,10 @@
       "typeVersion": 2.7,
       "onError": "continueErrorOutput",
       "position": [
-        2200,
+        2208,
         480
       ],
       "parameters": {
-        "resource": "message",
         "operation": "update",
         "channelId": {
           "__rl": true,
@@ -2376,8 +2184,9 @@
           "mode": "id"
         },
         "ts": "={{ Number($json.row.summaryMessageTS) }}",
-        "messageType": "text",
-        "text": "={{ $json.input.coverageStatus === 'partial' ? '[PARTIAL COVERAGE] ' : '' }}AI summary complete. Summary report uploaded."
+        "text": "={{ $json.input.coverageStatus === 'partial' ? '[PARTIAL COVERAGE] ' : '' }}AI summary complete. Summary report uploaded.",
+        "updateFields": {},
+        "otherOptions": {}
       },
       "credentials": {
         "slackApi": {
@@ -2399,7 +2208,6 @@
       "parameters": {
         "mode": "combine",
         "combineBy": "combineByPosition",
-        "numberInputs": 2,
         "options": {}
       }
     },
@@ -2409,11 +2217,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5000,
-        600
+        5008,
+        608
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Build_Failure_Status/jsCode.js"
       }
     },
@@ -2422,17 +2229,15 @@
       "name": "Update Summary Status Failure",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
-      "onError": "stopWorkflow",
       "alwaysOutputData": true,
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
       "position": [
         5200,
-        600
+        608
       ],
       "parameters": {
-        "resource": "message",
         "operation": "update",
         "channelId": {
           "__rl": true,
@@ -2440,8 +2245,9 @@
           "mode": "id"
         },
         "ts": "={{ Number($json.summaryMessageTS) }}",
-        "messageType": "text",
-        "text": "={{ $json.statusText }}"
+        "text": "={{ $json.statusText }}",
+        "updateFields": {},
+        "otherOptions": {}
       },
       "credentials": {
         "slackApi": {
@@ -2457,13 +2263,104 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5400,
-        600
+        5408,
+        608
       ],
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Failure_Status_Update/jsCode.js"
       }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "media17-1119",
+          "mode": "list"
+        },
+        "sqlQuery": "__EXTERNAL_FILE__://nodes/FirebaseLog1/sqlQuery.sql",
+        "options": {
+          "queryParameters": {
+            "namedParameters": [
+              {
+                "name": "liveStreamID",
+                "value": "={{ $json.liveStreamID }}"
+              },
+              {
+                "name": "platform",
+                "value": "={{ $json.platform }}"
+              },
+              {
+                "name": "userID",
+                "value": "={{ $json.userID }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "3c164f8c-30f8-4a45-8140-b1817a2ea57f",
+      "name": "FirebaseLog1",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "alwaysOutputData": true,
+      "position": [
+        2400,
+        48
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "Dd7x1TQhh9YKbD8v",
+          "name": "Google BigQuery account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "abfe2e67-9473-4380-bae0-485261072c5c",
+              "leftValue": "={{ ['ANDROID', 'IOS'].includes($json.platform) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8790f48f-e182-49a9-a289-2b2d89067a2f",
+      "name": "if mobile platform",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Firebase_Skipped/jsCode.js"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        32
+      ],
+      "id": "30946ee7-6450-428f-a39f-0d56e052096d",
+      "name": "Firebase Skipped"
     }
   ],
   "connections": {
@@ -2730,6 +2627,11 @@
           },
           {
             "node": "StreamerEventLog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "if mobile platform",
             "type": "main",
             "index": 0
           }
@@ -3758,6 +3660,53 @@
           }
         ]
       ]
+    },
+    "FirebaseLog1": {
+      "main": [
+        [
+          {
+            "node": "Merge Event Evidence And Carrier",
+            "type": "main",
+            "index": 3
+          }
+        ],
+        [
+          {
+            "node": "Sanitize Stage Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if mobile platform": {
+      "main": [
+        [
+          {
+            "node": "FirebaseLog1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Firebase Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firebase Skipped": {
+      "main": [
+        [
+          {
+            "node": "Merge Event Evidence And Carrier",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
     }
   },
   "nodeGroups": [],
@@ -3769,7 +3718,8 @@
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
     "saveExecutionProgress": false,
-    "errorWorkflow": "AutomationErrorV3A1"
+    "errorWorkflow": "AutomationErrorV3A1",
+    "binaryMode": "separate"
   },
   "tags": [
     {

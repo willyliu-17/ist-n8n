@@ -53,7 +53,7 @@ function buildAnalysisScope(input) {
   const availableStreamIDs = present.filter((stream, index) => aggregate[index].details.some((detail) => {
     if (detail.type === 'dialogue') return typeof detail.dialogue === 'string' && detail.dialogue.trim() !== '';
     if (detail.type === 'streamInfo') return Array.isArray(detail.streamInfo) && detail.streamInfo.some((info) => info && Object.keys(info).length > 0);
-    return ['streamerLog', 'streamEventLog'].includes(detail.type) && Array.isArray(detail.logs) && detail.logs.length > 0;
+    return ['streamerLog', 'streamEventLog', 'firebaseLog'].includes(detail.type) && Array.isArray(detail.logs) && detail.logs.length > 0;
   })).map((stream) => stream.liveStreamID);
   return { analysisMode: mode, requestedStreams, availableStreamIDs, missingDialogueRoles, coverageStatus };
 }
@@ -123,7 +123,7 @@ function retainLogTails(aggregateData, budget) {
   if (originalBytes <= budget) return { aggregateData, logTruncations: [] };
   const result = clone(aggregateData);
   const groups = result.flatMap((stream) => stream.details
-    .filter((detail) => ['streamerLog', 'streamEventLog'].includes(detail.type) && Array.isArray(detail.logs))
+    .filter((detail) => ['streamerLog', 'streamEventLog','firebaseLog'].includes(detail.type) && Array.isArray(detail.logs))
     .map((detail) => ({ detail, liveStreamID: String(stream.liveStreamID), logs: detail.logs })));
   // Keep a suffix of each source array in its original order. Never slice JSON text.
   const apply = (fraction) => {
