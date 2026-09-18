@@ -160,13 +160,45 @@ test('sanitized and case-insensitive new node name collisions never overwrite di
     assert.deepEqual(resolveReferences(result.workflow, file => result.files.get(file)), source);
 });
 
-test('JSON renderer preserves unchanged compact subtrees and returns valid JSON', () => {
+test('JSON renderer expands compact subtrees and preserves baseline key order', () => {
     const original = '{\n  "name": "Old",\n  "connections": {"A":{"main":[[]]}}\n}\n';
-    const next = { ...JSON.parse(original), name: 'New', active: true };
+    const next = { active: true, connections: { A: { main: [[]] } }, name: 'New' };
     const rendered = renderWorkflow(next, original);
     assert.deepEqual(JSON.parse(rendered), next);
-    assert.ok(rendered.includes('"connections": {"A":{"main":[[]]}}'));
-    assert.equal(renderWorkflow(JSON.parse(original), original), original);
+    assert.equal(rendered, JSON.stringify({ name: 'New', connections: next.connections, active: true }, null, 2) + '\n');
+    assert.equal(renderWorkflow(next, rendered), rendered);
+});
+
+test('JSON renderer retains nested key order, array order and literal JSON strings', () => {
+    const original = '{"settings":{"z":1,"a":2},"nodes":[{"id":"one","parameters":{"z":1,"a":2}}],"removed":true}\r\n';
+    const next = { nodes: [{ parameters: { a: 3, z: 1, added: 4 }, id: 'one' }, { id: 'two' }], settings: { a: 2, z: 1 }, body: '{"b":2,"a":1}' };
+    const expected = { settings: { z: 1, a: 2 }, nodes: [{ id: 'one', parameters: { z: 1, a: 3, added: 4 } }, { id: 'two' }], body: next.body };
+    assert.equal(renderWorkflow(next, original), JSON.stringify(expected, null, 2) + '\n');
+    assert.equal(renderWorkflow(next, ''), JSON.stringify(next, null, 2) + '\n');
+});
+
+test('sync ignores recursive key reordering and pretty versus compact formatting', () => {
+    const local = { id: 'test', name: 'Test', nodes: [], connections: {}, settings: { executionOrder: 'v1', callerPolicy: 'workflowsFromSameOwner' } };
+    const source = { settings: { callerPolicy: 'workflowsFromSameOwner', executionOrder: 'v1' }, connections: {}, nodes: [], name: 'Test', id: 'test' };
+    for (const space of [undefined, 2]) {
+        const record = { workflow: local, raw: local, text: JSON.stringify(local, null, space), read: () => assert.fail('No extraction needed') };
+        const result = planSync(source, record, undefined, { normalize: false });
+        assert.equal(result.files.size, 0);
+        assert.deepEqual(result.differences, []);
+        const changed = planSync({ ...source, name: 'Changed' }, record, undefined, { normalize: false });
+        const text = changed.files.get('workflow.json');
+        assert.equal(text, JSON.stringify({ ...local, name: 'Changed' }, null, 2) + '\n');
+        const saved = JSON.parse(text);
+        const repeated = planSync({ ...source, name: 'Changed' }, { ...record, raw: saved, workflow: saved, text }, undefined, { normalize: false });
+        assert.equal(repeated.files.size, 0);
+    }
+});
+
+test('sync still detects node array order changes', () => {
+    const local = { id: 'test', name: 'Test', nodes: [{ id: 'a', name: 'A', type: 'test', parameters: {} }, { id: 'b', name: 'B', type: 'test', parameters: {} }], connections: {} };
+    const result = planSync({ ...local, nodes: [...local.nodes].reverse() }, { workflow: local, raw: local, text: JSON.stringify(local), read: () => assert.fail('No extraction needed') }, undefined, { normalize: false });
+    assert.ok(result.differences.includes('nodes.order'));
+    assert.deepEqual(JSON.parse(result.files.get('workflow.json')).nodes.map(node => node.id), ['b', 'a']);
 });
 
 test('semantic no-op sync creates no file plan despite metadata and JSON key order', () => {

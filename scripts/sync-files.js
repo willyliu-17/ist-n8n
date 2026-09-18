@@ -10,59 +10,19 @@ function assertCleanDirectory(directory, cwd = process.cwd()) {
     if (status.trim()) throw new Error(`Local changes would be overwritten: ${directory}`);
 }
 
-// Reuse unchanged JSON subtrees, including hand-formatted connections and nodes.
+// Preserve baseline object key order while consistently pretty-printing JSON.
 function renderWorkflow(value, original) {
-    if (!original) return JSON.stringify(value, null, 2) + '\n';
-    let pos = 0;
-    const whitespace = () => { while (/\s/.test(original[pos] || '') && pos < original.length) pos++; };
-    function parse() {
-        whitespace();
-        const start = pos;
-        let children;
-        if (original[pos] === '{' || original[pos] === '[') {
-            const object = original[pos++] === '{';
-            const end = object ? '}' : ']';
-            children = object ? Object.create(null) : [];
-            whitespace();
-            while (original[pos] !== end) {
-                let key;
-                if (object) {
-                    const token = parse();
-                    key = token.value;
-                    whitespace();
-                    if (original[pos++] !== ':') throw new Error('Invalid JSON separator');
-                } else key = children.length;
-                children[key] = parse();
-                whitespace();
-                if (original[pos] === ',') { pos++; whitespace(); }
-                else break;
-            }
-            if (original[pos++] !== end) throw new Error('Invalid JSON container');
-        } else if (original[pos] === '"') {
-            pos++;
-            while (pos < original.length) {
-                if (original[pos] === '\\') pos += 2;
-                else if (original[pos++] === '"') break;
-            }
-        } else {
-            while (pos < original.length && !/[\s,\]}]/.test(original[pos])) pos++;
-        }
-        return { start, end: pos, value: JSON.parse(original.slice(start, pos)), children };
-    }
-    const tree = parse();
-    function render(current, node, depth) {
-        if (node && isDeepStrictEqual(current, node.value)) return original.slice(node.start, node.end);
-        if (!current || typeof current !== 'object') return JSON.stringify(current);
-        const indent = '  '.repeat(depth);
+    const baseline = original ? JSON.parse(original) : undefined;
+    function orderKeys(current, previous) {
+        if (!current || typeof current !== 'object') return current;
         if (Array.isArray(current)) {
-            if (!current.length) return '[]';
-            return '[\n' + current.map((entry, i) => indent + '  ' + render(entry, node?.children?.[i], depth + 1)).join(',\n') + '\n' + indent + ']';
+            return current.map((entry, i) => orderKeys(entry, Array.isArray(previous) ? previous[i] : undefined));
         }
-        const keys = [...new Set([...Object.keys(node?.value || {}).filter(k => Object.hasOwn(current, k)), ...Object.keys(current)])];
-        if (!keys.length) return '{}';
-        return '{\n' + keys.map(key => indent + '  ' + JSON.stringify(key) + ': ' + render(current[key], node?.children?.[key], depth + 1)).join(',\n') + '\n' + indent + '}';
+        const prior = previous && typeof previous === 'object' && !Array.isArray(previous) ? previous : {};
+        const keys = [...new Set([...Object.keys(prior).filter(key => Object.hasOwn(current, key)), ...Object.keys(current)])];
+        return Object.fromEntries(keys.map(key => [key, orderKeys(current[key], Object.hasOwn(prior, key) ? prior[key] : undefined)]));
     }
-    return render(value, tree, 0) + (original.endsWith('\n') ? '\n' : '');
+    return JSON.stringify(orderKeys(value, baseline), null, 2) + '\n';
 }
 
 function applyFilePlan(directory, files, { beforeWrite = () => {}, remove = [] } = {}) {
