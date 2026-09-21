@@ -697,49 +697,7 @@
             "aggregateData": "={{ $json.aggregate.streams }}",
             "analysisMode": "={{ $json.input.requestType === 'single_stream_summary' ? 'single_stream_full' : '' }}",
             "analysisScope": "={{ { requestedStreams: $json.input.streams.map(stream => ({ liveStreamID: stream.liveStreamID, role: stream.role })), missingDialogueRoles: $json.input.missingRoles, coverageStatus: $json.input.coverageStatus } }}"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "aggregateData",
-              "displayName": "aggregateData",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "array"
-            },
-            {
-              "id": "evalConfig",
-              "displayName": "evalConfig",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object",
-              "removed": false
-            },
-            {
-              "id": "analysisMode",
-              "displayName": "analysisMode",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "analysisScope",
-              "displayName": "analysisScope",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
+          }
         },
         "options": {
           "waitForSubWorkflow": true
