@@ -16,11 +16,18 @@ function selectWorkflowVersion(workflow, sourceVersion) {
     if (!['draft', 'published'].includes(sourceVersion)) throw new Error('Explicit source version required: draft or published');
     if (sourceVersion === 'draft') return workflow;
     const published = workflow.activeVersion;
-    if (!workflow.activeVersionId || !published || published.versionId !== workflow.activeVersionId
-        || published.workflowId !== workflow.id || !Array.isArray(published.nodes)
-        || !published.connections || typeof published.connections !== 'object' || Array.isArray(published.connections)) {
-        throw new Error(`Verified published definition unavailable: ${workflow.name}`);
+    const issues = [];
+    if (!workflow.activeVersionId) issues.push('activeVersionId missing');
+    if (!published) issues.push('activeVersion missing');
+    else {
+        if (published.versionId !== workflow.activeVersionId) issues.push('activeVersion.versionId mismatch');
+        if (published.workflowId !== workflow.id) issues.push('activeVersion.workflowId mismatch');
+        if (!Array.isArray(published.nodes)) issues.push('activeVersion.nodes invalid');
+        if (!published.connections || typeof published.connections !== 'object' || Array.isArray(published.connections)) {
+            issues.push('activeVersion.connections invalid');
+        }
     }
+    if (issues.length) throw new Error(`Verified published definition unavailable: ${workflow.name} (${issues.join('; ')})`);
     // Workflow-level identity, settings and metadata are not selected from history.
     return { ...workflow, nodes: published.nodes, connections: published.connections, nodeGroups: published.nodeGroups ?? [] };
 }
@@ -86,7 +93,7 @@ async function syncWorkflows({
             if (!selected.some(workflow => workflow.id === candidates[0].id)) selected.push(candidates[0]);
         }
     }
-    const prepared = [];
+    let prepared = [];
     for (const remote of selected) {
         const candidates = locals.filter(local => local.raw.id === remote.id || local.raw.name === remote.name);
         const canonicalDir = inventory.get(remote.name);
@@ -111,6 +118,8 @@ async function syncWorkflows({
         prepared.push({ remote, local });
     }
     const sources = [];
+    const skipped = [];
+    const skippedIds = new Set();
     const selectedIds = new Set(prepared.map(({ remote }) => remote.id));
     // List identities resolve dependencies; only selected definitions need full downloads.
     for (const item of sourceList) {
@@ -119,8 +128,16 @@ async function syncWorkflows({
         if (detail?.id !== item.id || detail.name !== item.name || !Array.isArray(detail.nodes) || !detail.connections) {
             throw new Error('Workflow identity or response shape changed during sync');
         }
+        if (sourceVersion === 'published' && !targets.length && !detail.activeVersionId && !detail.activeVersion) {
+            skippedIds.add(detail.id);
+            skipped.push({ name: detail.name, sourceVersion, skipped: true, reason: 'No published version', changed: 0 });
+            // Retain identity metadata for dependency resolution, without importing the draft.
+            sources.push(item);
+            continue;
+        }
         sources.push(selectWorkflowVersion(detail, sourceVersion));
     }
+    prepared = prepared.filter(({ remote }) => !skippedIds.has(remote.id));
     const needsNormalization = prepared.some(({ remote }) => inventory.has(remote.name));
     const tables = needsNormalization && prepared.some(({ remote }) => sources.find(w => w.id === remote.id).nodes.some(n => n.type === 'n8n-nodes-base.dataTable'))
         ? await api.list('data-tables') : [];
@@ -147,7 +164,7 @@ async function syncWorkflows({
     if (!dryRun) for (const plan of plans) {
         if (plan.files.size) assertCleanDirectory(plan.checkPath || plan.local.directory, rootDir);
     }
-    const results = [];
+    const results = [...skipped];
     for (const plan of plans) {
         if (!dryRun && plan.files.size) assertCleanDirectory(plan.checkPath || plan.local.directory, rootDir);
         const result = dryRun ? { changed: plan.files.size } : applyFilePlan(plan.local.directory, plan.files);
@@ -195,6 +212,8 @@ async function runCli() {
             }
         });
         for (const result of results) console.log(JSON.stringify(result));
+        const skippedCount = results.filter(result => result.skipped).length;
+        if (skippedCount) console.log(JSON.stringify({ summary: { skipped: skippedCount, processed: results.length - skippedCount } }));
     } finally { rl?.close(); }
 }
 
