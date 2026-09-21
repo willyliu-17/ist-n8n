@@ -1,11 +1,9 @@
 {
   "id": "uz3J0cKPyNzcZPt0",
   "name": "tencent realtime vds",
-  "description": null,
+  "description": "",
   "active": true,
   "isArchived": false,
-  "sourceWorkflowId": null,
-  "triggerCount": 0,
   "nodes": [
     {
       "parameters": {
@@ -989,10 +987,8 @@
   },
   "nodeGroups": [],
   "settings": {
-    "executionOrder": "v1"
-  },
-  "meta": {
-    "templateCredsSetupCompleted": true
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   },
   "tags": []
 }
