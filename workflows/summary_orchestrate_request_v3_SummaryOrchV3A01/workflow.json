@@ -10,10 +10,12 @@
         "workflowInputs": {
           "values": [
             {
-              "name": "requestKey"
+              "name": "requestKey",
+              "type": "string"
             },
             {
-              "name": "requestType"
+              "name": "requestType",
+              "type": "string"
             },
             {
               "name": "orderedStreams",
@@ -24,13 +26,16 @@
               "type": "object"
             },
             {
-              "name": "channel"
+              "name": "channel",
+              "type": "string"
             },
             {
-              "name": "threadTS"
+              "name": "threadTS",
+              "type": "string"
             }
           ]
-        }
+        },
+        "inputSource": "workflowInputs"
       },
       "id": "00000001-0000-4000-8000-000000000001",
       "name": "Start",
@@ -43,7 +48,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Normalize_Request/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Normalize_Request/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000002-0000-4000-8000-000000000002",
       "name": "Normalize Request",
@@ -67,11 +73,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "00000003-0000-4000-8000-000000000003",
       "name": "Read All Request Rows",
@@ -85,7 +94,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Request/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Request/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000004-0000-4000-8000-000000000004",
       "name": "Plan Request Reconciliation",
@@ -178,7 +188,9 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row",
+        "operation": "insert"
       },
       "id": "00000006-0000-4000-8000-000000000006",
       "name": "Insert Creating Request",
@@ -191,7 +203,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "00000007-0000-4000-8000-000000000007",
       "name": "Limit Request Insert",
       "type": "n8n-nodes-base.limit",
@@ -214,11 +228,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "00000008-0000-4000-8000-000000000008",
       "name": "Re-read Request Rows",
@@ -286,23 +303,29 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "={{ $json.expectedStatus }}"
+              "keyValue": "={{ $json.expectedStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "canonical"
+              "keyValue": "canonical",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ String($json.id) }}"
+              "keyValue": "={{ String($json.id) }}",
+              "condition": "eq"
             }
           ]
         },
@@ -322,7 +345,8 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "0000000b-0000-4000-8000-00000000000b",
       "name": "Freeze Competing Requests",
@@ -335,7 +359,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "0000000c-0000-4000-8000-00000000000c",
       "name": "Limit Request Freeze",
       "type": "n8n-nodes-base.limit",
@@ -358,11 +384,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "0000000d-0000-4000-8000-00000000000d",
       "name": "Re-read Frozen Requests",
@@ -376,7 +405,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Conflicts/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Conflicts/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "0000000e-0000-4000-8000-00000000000e",
       "name": "Verify Frozen Requests",
@@ -432,23 +462,29 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "={{ $json.expectedStatus }}"
+              "keyValue": "={{ $json.expectedStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+              "keyValue": "={{ $json.expectedReconciliationStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ $json.expectedCanonicalRowID }}"
+              "keyValue": "={{ $json.expectedCanonicalRowID }}",
+              "condition": "eq"
             }
           ]
         },
@@ -464,7 +500,8 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "00000010-0000-4000-8000-000000000010",
       "name": "Apply Request Reconciliation",
@@ -477,7 +514,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "00000011-0000-4000-8000-000000000011",
       "name": "Limit Request Reconciliation",
       "type": "n8n-nodes-base.limit",
@@ -500,11 +539,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "00000012-0000-4000-8000-000000000012",
       "name": "Re-read Reconciled Requests",
@@ -518,7 +560,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Creation_Lease/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Creation_Lease/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000013-0000-4000-8000-000000000013",
       "name": "Plan Creation Lease",
@@ -574,31 +617,39 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "creating"
+              "keyValue": "creating",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "canonical"
+              "keyValue": "canonical",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ String($json.id) }}"
+              "keyValue": "={{ String($json.id) }}",
+              "condition": "eq"
             },
             {
               "keyName": "creationLeaseOwner",
-              "keyValue": "={{ $json.expectedCreationLeaseOwner }}"
+              "keyValue": "={{ $json.expectedCreationLeaseOwner }}",
+              "condition": "eq"
             },
             {
               "keyName": "creationLeaseUntilIso",
-              "keyValue": "={{ $json.expectedCreationLeaseUntilIso }}"
+              "keyValue": "={{ $json.expectedCreationLeaseUntilIso }}",
+              "condition": "eq"
             }
           ]
         },
@@ -614,7 +665,8 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "00000015-0000-4000-8000-000000000015",
       "name": "Claim Creation Lease",
@@ -627,7 +679,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "00000016-0000-4000-8000-000000000016",
       "name": "Limit Creation Claim",
       "type": "n8n-nodes-base.limit",
@@ -683,11 +737,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "00000018-0000-4000-8000-000000000018",
       "name": "Re-read Creation Owner",
@@ -701,7 +758,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Creation_Owner/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Creation_Owner/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000019-0000-4000-8000-000000000019",
       "name": "Verify Creation Owner",
@@ -725,11 +783,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "0000001a-0000-4000-8000-00000000001a",
       "name": "Read Existing Request Attempts",
@@ -754,25 +815,29 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "0000004a-0000-4000-8000-00000000004a",
       "name": "Read Summary Rows For Orphans",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
       "position": [
-        3248,
+        3240,
         80
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Orphans/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Orphans/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "0000001b-0000-4000-8000-00000000001b",
       "name": "Plan Orphan Cleanup",
@@ -839,27 +904,34 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "attemptKey",
-              "keyValue": "={{ $json.attemptKey }}"
+              "keyValue": "={{ $json.attemptKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "={{ $json.expectedStatus }}"
+              "keyValue": "={{ $json.expectedStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+              "keyValue": "={{ $json.expectedReconciliationStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ $json.expectedCanonicalRowID }}"
+              "keyValue": "={{ $json.expectedCanonicalRowID }}",
+              "condition": "eq"
             }
           ]
         },
@@ -878,7 +950,8 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "0000001e-0000-4000-8000-00000000001e",
       "name": "Apply Orphan Reconciliation",
@@ -919,7 +992,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        3968,
+        3960,
         -160
       ]
     },
@@ -935,76 +1008,94 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "attemptKey",
-              "keyValue": "={{ $json.attemptKey }}"
+              "keyValue": "={{ $json.attemptKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "={{ $json.expectedStatus }}"
+              "keyValue": "={{ $json.expectedStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+              "keyValue": "={{ $json.expectedReconciliationStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ $json.expectedCanonicalRowID }}"
+              "keyValue": "={{ $json.expectedCanonicalRowID }}",
+              "condition": "eq"
             },
             {
               "keyName": "updatedAt",
-              "keyValue": "={{ $json.expectedUpdatedAt }}"
+              "keyValue": "={{ $json.expectedUpdatedAt }}",
+              "condition": "eq"
             },
             {
               "keyName": "submittedAtIso",
-              "keyValue": "={{ $json.expectedSubmittedAtIso }}"
+              "keyValue": "={{ $json.expectedSubmittedAtIso }}",
+              "condition": "eq"
             },
             {
               "keyName": "callbackDeadlineAtIso",
-              "keyValue": "={{ $json.expectedCallbackDeadlineAtIso }}"
+              "keyValue": "={{ $json.expectedCallbackDeadlineAtIso }}",
+              "condition": "eq"
             },
             {
               "keyName": "consumedAtIso",
-              "keyValue": "={{ $json.expectedConsumedAtIso }}"
+              "keyValue": "={{ $json.expectedConsumedAtIso }}",
+              "condition": "eq"
             },
             {
               "keyName": "dialogue",
-              "keyValue": "={{ $json.expectedDialogue }}"
+              "keyValue": "={{ $json.expectedDialogue }}",
+              "condition": "eq"
             },
             {
               "keyName": "transcriptUploadID",
-              "keyValue": "={{ $json.expectedTranscriptUploadID }}"
+              "keyValue": "={{ $json.expectedTranscriptUploadID }}",
+              "condition": "eq"
             },
             {
               "keyName": "analysisUploadID",
-              "keyValue": "={{ $json.expectedAnalysisUploadID }}"
+              "keyValue": "={{ $json.expectedAnalysisUploadID }}",
+              "condition": "eq"
             },
             {
               "keyName": "processingMessageUpdatedAtIso",
-              "keyValue": "={{ $json.expectedProcessingMessageUpdatedAtIso }}"
+              "keyValue": "={{ $json.expectedProcessingMessageUpdatedAtIso }}",
+              "condition": "eq"
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "0000004d-0000-4000-8000-00000000004d",
       "name": "Delete Clean Orphan Rows",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
       "position": [
-        4208,
+        4200,
         -240
       ],
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "0000001f-0000-4000-8000-00000000001f",
       "name": "Limit Orphan Cleanup",
       "type": "n8n-nodes-base.limit",
@@ -1027,11 +1118,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "00000020-0000-4000-8000-000000000020",
       "name": "Re-read Orphan Cleanup",
@@ -1045,7 +1139,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Orphans/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Orphans/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000021-0000-4000-8000-000000000021",
       "name": "Verify Orphan Cleanup",
@@ -1058,7 +1153,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Attempts/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Attempts/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000022-0000-4000-8000-000000000022",
       "name": "Build Attempts",
@@ -1105,7 +1201,8 @@
     },
     {
       "parameters": {
-        "options": {}
+        "options": {},
+        "batchSize": 1
       },
       "id": "00000024-0000-4000-8000-000000000024",
       "name": "Attempt Loop",
@@ -1129,11 +1226,14 @@
           "conditions": [
             {
               "keyName": "attemptKey",
-              "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}"
+              "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "00000025-0000-4000-8000-000000000025",
       "name": "Read Attempt Key Rows",
@@ -1158,25 +1258,29 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Attempt Loop').first().json.requestKey }}"
+              "keyValue": "={{ $('Attempt Loop').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "0000004b-0000-4000-8000-00000000004b",
       "name": "Read Summary Rows For Attempt",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
       "position": [
-        4928,
+        4920,
         80
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Attempts/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Reconcile_Attempts/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000026-0000-4000-8000-000000000026",
       "name": "Plan Attempt Reconciliation",
@@ -1280,7 +1384,9 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row",
+        "operation": "insert"
       },
       "id": "00000028-0000-4000-8000-000000000028",
       "name": "Insert Attempt One",
@@ -1293,7 +1399,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "00000029-0000-4000-8000-000000000029",
       "name": "Limit Attempt Insert",
       "type": "n8n-nodes-base.limit",
@@ -1316,11 +1424,14 @@
           "conditions": [
             {
               "keyName": "attemptKey",
-              "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}"
+              "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "0000002a-0000-4000-8000-00000000002a",
       "name": "Re-read Attempt Rows",
@@ -1388,23 +1499,29 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "attemptKey",
-              "keyValue": "={{ $json.attemptKey }}"
+              "keyValue": "={{ $json.attemptKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "={{ $json.expectedStatus }}"
+              "keyValue": "={{ $json.expectedStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "canonical"
+              "keyValue": "canonical",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ String($json.id) }}"
+              "keyValue": "={{ String($json.id) }}",
+              "condition": "eq"
             }
           ]
         },
@@ -1421,7 +1538,8 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "0000002d-0000-4000-8000-00000000002d",
       "name": "Freeze Competing Attempts",
@@ -1434,7 +1552,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "0000002e-0000-4000-8000-00000000002e",
       "name": "Limit Attempt Freeze",
       "type": "n8n-nodes-base.limit",
@@ -1457,11 +1577,14 @@
           "conditions": [
             {
               "keyName": "attemptKey",
-              "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}"
+              "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "0000002f-0000-4000-8000-00000000002f",
       "name": "Re-read Frozen Attempts",
@@ -1475,7 +1598,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Conflicts/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Conflicts/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000030-0000-4000-8000-000000000030",
       "name": "Verify Frozen Attempts",
@@ -1531,23 +1655,29 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "attemptKey",
-              "keyValue": "={{ $json.attemptKey }}"
+              "keyValue": "={{ $json.attemptKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "={{ $json.expectedStatus }}"
+              "keyValue": "={{ $json.expectedStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+              "keyValue": "={{ $json.expectedReconciliationStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ $json.expectedCanonicalRowID }}"
+              "keyValue": "={{ $json.expectedCanonicalRowID }}",
+              "condition": "eq"
             }
           ]
         },
@@ -1563,7 +1693,8 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "00000032-0000-4000-8000-000000000032",
       "name": "Apply Attempt Reconciliation",
@@ -1576,7 +1707,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "00000033-0000-4000-8000-000000000033",
       "name": "Limit Attempt Reconciliation",
       "type": "n8n-nodes-base.limit",
@@ -1599,11 +1732,14 @@
           "conditions": [
             {
               "keyName": "attemptKey",
-              "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}"
+              "keyValue": "={{ $('Attempt Loop').first().json.attemptKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "00000034-0000-4000-8000-000000000034",
       "name": "Re-read Reconciled Attempts",
@@ -1627,7 +1763,9 @@
       ]
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "00000036-0000-4000-8000-000000000036",
       "name": "Limit Attempt Loop Done",
       "type": "n8n-nodes-base.limit",
@@ -1650,11 +1788,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "00000037-0000-4000-8000-000000000037",
       "name": "Read Attempts For Coverage",
@@ -1668,7 +1809,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Coverage/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Coverage/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000038-0000-4000-8000-000000000038",
       "name": "Verify Coverage",
@@ -1692,11 +1834,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "0b0bb001-0000-4000-8000-000000000001",
       "name": "Read Initial Summary Status Rows",
@@ -1710,7 +1855,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Initial_Summary_Status/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Initial_Summary_Status/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "0b0bb002-0000-4000-8000-000000000002",
       "name": "Plan Initial Summary Status",
@@ -1769,7 +1915,9 @@
               "thread_ts": "={{ $json.threadTS }}"
             }
           }
-        }
+        },
+        "resource": "message",
+        "operation": "post"
       },
       "id": "0b0bb004-0000-4000-8000-000000000004",
       "name": "Post Initial Summary Status",
@@ -1791,7 +1939,8 @@
       "parameters": {
         "mode": "combine",
         "combineBy": "combineByPosition",
-        "options": {}
+        "options": {},
+        "numberInputs": 2
       },
       "id": "0b0bb005-0000-4000-8000-000000000005",
       "name": "Merge Initial Summary Status Response",
@@ -1804,7 +1953,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Parse_Initial_Summary_Status/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Parse_Initial_Summary_Status/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "0b0bb006-0000-4000-8000-000000000006",
       "name": "Parse Initial Summary Status",
@@ -1827,50 +1977,64 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "creating"
+              "keyValue": "creating",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "canonical"
+              "keyValue": "canonical",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ String($json.id) }}"
+              "keyValue": "={{ String($json.id) }}",
+              "condition": "eq"
             },
             {
               "keyName": "creationLeaseOwner",
-              "keyValue": "={{ $execution.id }}"
+              "keyValue": "={{ $execution.id }}",
+              "condition": "eq"
             },
             {
               "keyName": "creationLeaseUntilIso",
-              "keyValue": "={{ $json.expectedCreationLeaseUntilIso }}"
+              "keyValue": "={{ $json.expectedCreationLeaseUntilIso }}",
+              "condition": "eq"
             },
             {
               "keyName": "updatedAt",
-              "keyValue": "={{ $json.expectedUpdatedAt }}"
+              "keyValue": "={{ $json.expectedUpdatedAt }}",
+              "condition": "eq"
             },
             {
-              "keyName": "summaryMessageTS"
+              "keyName": "summaryMessageTS",
+              "condition": "eq",
+              "keyValue": ""
             },
             {
               "keyName": "inferenceResultJson",
-              "keyValue": "={{ $json.expectedInferenceResultJson }}"
+              "keyValue": "={{ $json.expectedInferenceResultJson }}",
+              "condition": "eq"
             },
             {
               "keyName": "summaryMarkdown",
-              "keyValue": "={{ $json.expectedSummaryMarkdown }}"
+              "keyValue": "={{ $json.expectedSummaryMarkdown }}",
+              "condition": "eq"
             },
             {
               "keyName": "summaryUploadID",
-              "keyValue": "={{ $json.expectedSummaryUploadID }}"
+              "keyValue": "={{ $json.expectedSummaryUploadID }}",
+              "condition": "eq"
             }
           ]
         },
@@ -1885,7 +2049,8 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "0b0bb007-0000-4000-8000-000000000007",
       "name": "Checkpoint Initial Summary Status",
@@ -1898,7 +2063,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "0b0bb008-0000-4000-8000-000000000008",
       "name": "Limit Initial Summary Status Checkpoint",
       "type": "n8n-nodes-base.limit",
@@ -1921,11 +2088,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "0b0bb009-0000-4000-8000-000000000009",
       "name": "Re-read Initial Summary Status",
@@ -1939,7 +2109,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Initial_Summary_Status/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Initial_Summary_Status/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "0b0bb00a-0000-4000-8000-00000000000a",
       "name": "Verify Initial Summary Status",
@@ -1962,31 +2133,39 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "creating"
+              "keyValue": "creating",
+              "condition": "eq"
             },
             {
               "keyName": "creationLeaseOwner",
-              "keyValue": "={{ $execution.id }}"
+              "keyValue": "={{ $execution.id }}",
+              "condition": "eq"
             },
             {
               "keyName": "creationLeaseUntilIso",
-              "keyValue": "={{ $json.creationLeaseUntilIso }}"
+              "keyValue": "={{ $json.creationLeaseUntilIso }}",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "canonical"
+              "keyValue": "canonical",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ String($json.id) }}"
+              "keyValue": "={{ String($json.id) }}",
+              "condition": "eq"
             }
           ]
         },
@@ -1998,345 +2177,17 @@
             "availableRolesJson": "={{ $json.availableRolesJson }}",
             "missingRolesJson": "={{ $json.missingRolesJson }}",
             "failedLogicalJobKeysJson": "={{ $json.failedLogicalJobKeysJson }}",
-            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}",
+            "creationLeaseOwner": "",
+            "creationLeaseUntilIso": ""
           },
           "matchingColumns": [],
-          "schema": [
-            {
-              "id": "requestKey",
-              "displayName": "requestKey",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "requestType",
-              "displayName": "requestType",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "status",
-              "displayName": "status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "creationLeaseOwner",
-              "displayName": "creationLeaseOwner",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "reconciliationStatus",
-              "displayName": "reconciliationStatus",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "canonicalRowID",
-              "displayName": "canonicalRowID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "creationLeaseUntilIso",
-              "displayName": "creationLeaseUntilIso",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "orderedStreamsJson",
-              "displayName": "orderedStreamsJson",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "existingDialoguesJson",
-              "displayName": "existingDialoguesJson",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "expectedLogicalJobKeysJson",
-              "displayName": "expectedLogicalJobKeysJson",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "channel",
-              "displayName": "channel",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "threadTS",
-              "displayName": "threadTS",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "coverageStatus",
-              "displayName": "coverageStatus",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "availableRolesJson",
-              "displayName": "availableRolesJson",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "missingRolesJson",
-              "displayName": "missingRolesJson",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "failedLogicalJobKeysJson",
-              "displayName": "failedLogicalJobKeysJson",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "leaseOwner",
-              "displayName": "leaseOwner",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "leaseUntilIso",
-              "displayName": "leaseUntilIso",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "summaryAttempt",
-              "displayName": "summaryAttempt",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "number",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "nextRetryAtIso",
-              "displayName": "nextRetryAtIso",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "errorCode",
-              "displayName": "errorCode",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "inferenceResultJson",
-              "displayName": "inferenceResultJson",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "summaryMarkdown",
-              "displayName": "summaryMarkdown",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "summaryMessageTS",
-              "displayName": "summaryMessageTS",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "summaryUploadID",
-              "displayName": "summaryUploadID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "manualReviewReason",
-              "displayName": "manualReviewReason",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "manualReviewAtIso",
-              "displayName": "manualReviewAtIso",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "manualReviewResolution",
-              "displayName": "manualReviewResolution",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "manualReviewOriginalStage",
-              "displayName": "manualReviewOriginalStage",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "manualResolutionWinnerRowID",
-              "displayName": "manualResolutionWinnerRowID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "manualResolutionDecisionID",
-              "displayName": "manualResolutionDecisionID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "createdAtIso",
-              "displayName": "createdAtIso",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "updatedAtIso",
-              "displayName": "updatedAtIso",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            }
-          ],
+          "schema": [],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "00000039-0000-4000-8000-000000000039",
       "name": "Transition Request State",
@@ -2349,7 +2200,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "0000003a-0000-4000-8000-00000000003a",
       "name": "Limit Request Transition",
       "type": "n8n-nodes-base.limit",
@@ -2372,11 +2225,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}"
+              "keyValue": "={{ $('Normalize Request').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "0000003b-0000-4000-8000-00000000003b",
       "name": "Re-read Transitioned Request",
@@ -2390,7 +2246,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Request_State/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Request_State/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "0000003c-0000-4000-8000-00000000003c",
       "name": "Verify Request Transition",
@@ -2436,7 +2293,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Expand_Dispatch/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Expand_Dispatch/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "0000003e-0000-4000-8000-00000000003e",
       "name": "Expand Verified Dispatches",
@@ -2536,19 +2394,16 @@
           "value": {
             "requestKey": "={{ $json.requestKey }}"
           },
-          "matchingColumns": [
-            "requestKey"
-          ],
+          "matchingColumns": [],
           "schema": [
             {
               "id": "requestKey",
               "displayName": "requestKey",
-              "required": false,
+              "required": true,
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
+              "type": "string"
             }
           ],
           "attemptToConvertTypes": false,
@@ -2569,7 +2424,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Return_Result/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Return_Result/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000042-0000-4000-8000-000000000042",
       "name": "Return Accepted Request",
@@ -2582,7 +2438,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Insert/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Insert/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000043-0000-4000-8000-000000000043",
       "name": "Verify Request Insert",
@@ -2595,7 +2452,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Reconciliation_Write/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Reconciliation_Write/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000044-0000-4000-8000-000000000044",
       "name": "Verify Request Reconciliation Write",
@@ -2608,7 +2466,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Insert/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Insert/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000045-0000-4000-8000-000000000045",
       "name": "Verify Attempt Insert",
@@ -2621,7 +2480,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Reconciliation_Write/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Reconciliation_Write/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000046-0000-4000-8000-000000000046",
       "name": "Verify Attempt Reconciliation Write",
@@ -2634,7 +2494,8 @@
     },
     {
       "parameters": {
-        "options": {}
+        "options": {},
+        "batchSize": 1
       },
       "id": "00000047-0000-4000-8000-000000000047",
       "name": "Dispatch Verification Loop",
@@ -2658,11 +2519,14 @@
           "conditions": [
             {
               "keyName": "attemptKey",
-              "keyValue": "={{ $('Dispatch Verification Loop').first().json.attemptKey }}"
+              "keyValue": "={{ $('Dispatch Verification Loop').first().json.attemptKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "00000048-0000-4000-8000-000000000048",
       "name": "Re-read Attempt Before Dispatch",
@@ -2676,7 +2540,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Dispatch_Attempt/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Dispatch_Attempt/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "00000049-0000-4000-8000-000000000049",
       "name": "Verify Canonical Queued Dispatch",
@@ -2689,7 +2554,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Drop_Side_Effect_Output/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Drop_Side_Effect_Output/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "0000004c-0000-4000-8000-00000000004c",
       "name": "Drop Side Effect Output",

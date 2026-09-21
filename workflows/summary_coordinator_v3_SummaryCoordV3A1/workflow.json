@@ -10,10 +10,12 @@
         "workflowInputs": {
           "values": [
             {
-              "name": "requestKey"
+              "name": "requestKey",
+              "type": "string"
             }
           ]
-        }
+        },
+        "inputSource": "workflowInputs"
       },
       "id": "9e871e57-9cf7-4f56-b896-7d9edc7ca10d",
       "name": "Start",
@@ -37,11 +39,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Start').first().json.requestKey }}"
+              "keyValue": "={{ $('Start').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "b4d58ed7-c73d-426a-8839-39fe2ae95035",
       "name": "Read All Request Rows",
@@ -66,11 +71,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Start').first().json.requestKey }}"
+              "keyValue": "={{ $('Start').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "b0a6cccd-ea22-4f43-9930-5ed6b259f52c",
       "name": "Read All Request Attempts",
@@ -84,7 +92,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Aggregate_Logical_Jobs/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Aggregate_Logical_Jobs/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "8771b24e-5ceb-42fa-899e-f09efc77b7ae",
       "name": "Reconcile And Aggregate",
@@ -210,27 +219,34 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "={{ $json.expectedStatus }}"
+              "keyValue": "={{ $json.expectedStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "canonical"
+              "keyValue": "canonical",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ String($json.id) }}"
+              "keyValue": "={{ String($json.id) }}",
+              "condition": "eq"
             },
             {
               "keyName": "updatedAt",
-              "keyValue": "={{ $json.expectedUpdatedAt }}"
+              "keyValue": "={{ $json.expectedUpdatedAt }}",
+              "condition": "eq"
             }
           ]
         },
@@ -250,7 +266,8 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "185e9271-fb42-4e79-b198-cd022667c4c9",
       "name": "Freeze Competing Canonicals",
@@ -263,7 +280,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "d1cc5230-3e3d-4b32-8507-1835c103da9f",
       "name": "Limit Conflict Patch",
       "type": "n8n-nodes-base.limit",
@@ -286,11 +305,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Start').first().json.requestKey }}"
+              "keyValue": "={{ $('Start').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "674353e8-6e70-47f4-a57a-f5d461a9d57a",
       "name": "Re-read Frozen Request",
@@ -314,27 +336,34 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "={{ $json.expectedStatus }}"
+              "keyValue": "={{ $json.expectedStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "={{ $json.expectedReconciliationStatus }}"
+              "keyValue": "={{ $json.expectedReconciliationStatus }}",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ String($json.expectedCanonicalRowID) }}"
+              "keyValue": "={{ String($json.expectedCanonicalRowID) }}",
+              "condition": "eq"
             },
             {
               "keyName": "updatedAt",
-              "keyValue": "={{ $json.expectedUpdatedAt }}"
+              "keyValue": "={{ $json.expectedUpdatedAt }}",
+              "condition": "eq"
             }
           ]
         },
@@ -350,7 +379,8 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "7bb0f84b-55a8-4afc-b944-195b45e5e341",
       "name": "Apply Request Reconciliation",
@@ -363,7 +393,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "ef6ba1c6-83e1-4afb-b02c-a4ec36bc021f",
       "name": "Limit Reconciliation Patch",
       "type": "n8n-nodes-base.limit",
@@ -386,11 +418,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Start').first().json.requestKey }}"
+              "keyValue": "={{ $('Start').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "e8a15d95-e29b-4714-9d57-7df080eb6f08",
       "name": "Re-read Reconciled Request",
@@ -404,7 +439,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Initial_Plan/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Initial_Plan/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "73931501-67a4-49fc-aa3e-b2d6f6c72bf9",
       "name": "Verify Request Reconciliation",
@@ -417,7 +453,8 @@
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Coverage_Write/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Coverage_Write/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "54073cd9-96b2-4186-a8eb-3614b7b0ca75",
       "name": "Plan Coverage Write",
@@ -522,30 +559,127 @@
         "filters": {
           "conditions": [
             {
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
+            },
+            {
+              "keyName": "requestKey",
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
+            },
+            {
+              "keyName": "status",
+              "keyValue": "={{ $json.expected.status }}",
+              "condition": "eq"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "keyValue": "canonical",
+              "condition": "eq"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "keyValue": "={{ String($json.id) }}",
+              "condition": "eq"
+            },
+            {
+              "keyName": "coverageStatus",
+              "keyValue": "={{ $json.expected.coverageStatus }}",
+              "condition": "eq"
+            },
+            {
+              "keyName": "availableRolesJson",
+              "keyValue": "={{ $json.expected.availableRolesJson }}",
+              "condition": "eq"
+            },
+            {
+              "keyName": "missingRolesJson",
+              "condition": "eq",
+              "keyValue": "={{ $json.expected.missingRolesJson }}"
+            },
+            {
+              "keyName": "failedLogicalJobKeysJson",
+              "condition": "eq",
+              "keyValue": "={{ $json.expected.failedLogicalJobKeysJson }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "ready",
+            "leaseOwner": "",
+            "leaseUntilIso": "",
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}",
+            "coverageStatus": "={{ $json.desired.coverageStatus }}",
+            "availableRolesJson": "={{ $json.desired.availableRolesJson }}",
+            "missingRolesJson": "={{ $json.desired.missingRolesJson }}",
+            "failedLogicalJobKeysJson": "={{ $json.desired.failedLogicalJobKeysJson }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {},
+        "resource": "row"
+      },
+      "id": "17fe3dcc-9a6c-4051-a080-3660843574cc",
+      "name": "Write Terminal Coverage Ready",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        80
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
               "keyValue": "={{ $json.id }}"
             },
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             },
             {
               "keyName": "status",
+              "condition": "eq",
               "keyValue": "={{ $json.expected.status }}"
             },
             {
               "keyName": "reconciliationStatus",
+              "condition": "eq",
               "keyValue": "canonical"
             },
             {
               "keyName": "canonicalRowID",
+              "condition": "eq",
               "keyValue": "={{ String($json.id) }}"
             },
             {
               "keyName": "leaseOwner",
+              "condition": "eq",
               "keyValue": "={{ $json.expected.leaseOwner }}"
             },
             {
               "keyName": "leaseUntilIso",
+              "condition": "eq",
               "keyValue": "={{ $json.expected.leaseUntilIso }}"
             }
           ]
@@ -554,10 +688,10 @@
           "mappingMode": "defineBelow",
           "value": {
             "status": "failed",
+            "errorCode": "SUMMARY_ALL_STT_LOGICAL_JOBS_FAILED",
             "leaseOwner": "",
             "leaseUntilIso": "",
-            "updatedAtIso": "={{ $now.toUTC().toISO() }}",
-            "errorCode": "SUMMARY_ALL_STT_LOGICAL_JOBS_FAILED"
+            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
           },
           "matchingColumns": [],
           "schema": [],
@@ -577,7 +711,9 @@
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "eaa40910-4a83-4727-962a-99b225f16636",
       "name": "Limit Coverage Patch",
       "type": "n8n-nodes-base.limit",
@@ -588,7 +724,9 @@
       ]
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "01d270df-2c5c-4e89-bbdf-172301051b63",
       "name": "Limit Failure Patch",
       "type": "n8n-nodes-base.limit",
@@ -600,6 +738,7 @@
     },
     {
       "parameters": {
+        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -611,11 +750,13 @@
           "conditions": [
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $('Start').first().json.requestKey }}"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "options": {}
       },
       "id": "ca7f4623-7e4a-47d2-90de-8f18bcbcb444",
       "name": "Re-read Coverage Request",
@@ -623,12 +764,13 @@
       "typeVersion": 1,
       "position": [
         2160,
-        128
+        120
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Request_Write/jsCode.js"
       },
       "id": "9ebc2b9c-61ba-4f0d-93c0-ee1b7e4c2c2e",
@@ -637,11 +779,12 @@
       "typeVersion": 2,
       "position": [
         2400,
-        128
+        120
       ]
     },
     {
       "parameters": {
+        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -653,11 +796,13 @@
           "conditions": [
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $('Start').first().json.requestKey }}"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "options": {}
       },
       "id": "e6b129ef-6120-43e4-93d6-4f11919ef12a",
       "name": "Re-read Failed Request",
@@ -665,13 +810,14 @@
       "typeVersion": 1,
       "position": [
         2160,
-        192
+        180
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Request_Write/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Request_Write/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "8afcf064-98b1-4b6d-9f65-7df80c04c9a8",
       "name": "Verify All Failed Request",
@@ -679,11 +825,12 @@
       "typeVersion": 2,
       "position": [
         2400,
-        192
+        180
       ]
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Build_All_Failed_Status_Update/jsCode.js"
       },
       "id": "5bd093d9-f0f5-48c1-8c2c-73bbeb12f1c5",
@@ -692,21 +839,21 @@
       "typeVersion": 2,
       "position": [
         2640,
-        192
+        180
       ]
     },
     {
       "parameters": {
         "operation": "update",
+        "resource": "message",
         "channelId": {
           "__rl": true,
           "value": "={{ $json.channel }}",
           "mode": "id"
         },
         "ts": "={{ Number($json.summaryMessageTS) }}",
-        "text": "={{ $json.statusText }}",
-        "updateFields": {},
-        "otherOptions": {}
+        "messageType": "text",
+        "text": "={{ $json.statusText }}"
       },
       "id": "2e938cb0-8d0f-43ce-a20f-5ec4b8c497f9",
       "name": "Update All Failed Summary Status",
@@ -714,18 +861,19 @@
       "typeVersion": 2.7,
       "position": [
         2880,
-        192
+        180
       ],
-      "webhookId": "939f9fa0-9bd8-477d-bd21-4b27eef3450a",
       "credentials": {
         "slackApi": {
           "id": "9sfslX7caXSFAVUN",
           "name": "n8n-streaming-testing"
         }
-      }
+      },
+      "webhookId": "939f9fa0-9bd8-477d-bd21-4b27eef3450a"
     },
     {
       "parameters": {
+        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -737,11 +885,13 @@
           "conditions": [
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $('Start').first().json.requestKey }}"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "options": {}
       },
       "id": "9609dcf9-eebd-4b80-a423-95e45858bc77",
       "name": "Read Request For Claim",
@@ -749,12 +899,13 @@
       "typeVersion": 1,
       "position": [
         2160,
-        272
+        260
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Claim_Reconciliation/jsCode.js"
       },
       "id": "d30dfa47-57b4-43ec-9912-eac476978365",
@@ -763,11 +914,14 @@
       "typeVersion": 2,
       "position": [
         2400,
-        272
+        260
       ]
     },
     {
       "parameters": {
+        "options": {
+          "fallbackOutput": "extra"
+        },
         "rules": {
           "values": [
             {
@@ -834,9 +988,6 @@
               }
             }
           ]
-        },
-        "options": {
-          "fallbackOutput": "extra"
         }
       },
       "id": "b27844e0-1fd3-4f31-b547-08996f49c0cc",
@@ -845,12 +996,12 @@
       "typeVersion": 3.2,
       "position": [
         2640,
-        272
+        260
       ]
     },
     {
       "parameters": {
-        "options": {},
+        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -861,26 +1012,33 @@
         "filters": {
           "conditions": [
             {
+              "keyName": "id",
+              "condition": "eq",
               "keyValue": "={{ $json.id }}"
             },
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             },
             {
               "keyName": "status",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedStatus }}"
             },
             {
               "keyName": "reconciliationStatus",
+              "condition": "eq",
               "keyValue": "canonical"
             },
             {
               "keyName": "canonicalRowID",
+              "condition": "eq",
               "keyValue": "={{ String($json.id) }}"
             },
             {
               "keyName": "updatedAt",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedUpdatedAt }}"
             }
           ]
@@ -900,7 +1058,8 @@
           "schema": [],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
-        }
+        },
+        "options": {}
       },
       "id": "6e1adf1b-4d43-4de0-ad6a-24bd6e0e64e8",
       "name": "Freeze Claim-Time Canonicals",
@@ -908,19 +1067,21 @@
       "typeVersion": 1,
       "position": [
         2880,
-        192
+        180
       ],
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "6d2c8aa3-7dcf-4a25-bb7a-749917a425e1",
       "name": "Limit Claim-Time Conflict",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
         3120,
-        192
+        180
       ]
     },
     {
@@ -935,11 +1096,14 @@
         "filters": {
           "conditions": [
             {
+              "keyValue": "={{ $('Start').first().json.requestKey }}",
               "keyName": "requestKey",
-              "keyValue": "={{ $('Start').first().json.requestKey }}"
+              "condition": "eq"
             }
           ]
         },
+        "options": {},
+        "resource": "row",
         "returnAll": true
       },
       "id": "88956343-2693-44bd-ac47-91b9fab0f22a",
@@ -948,12 +1112,13 @@
       "typeVersion": 1,
       "position": [
         3360,
-        192
+        180
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
+        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -964,31 +1129,37 @@
         "filters": {
           "conditions": [
             {
+              "keyName": "id",
+              "condition": "eq",
               "keyValue": "={{ $json.id }}"
             },
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             },
             {
               "keyName": "status",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedStatus }}"
             },
             {
               "keyName": "reconciliationStatus",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedReconciliationStatus }}"
             },
             {
               "keyName": "canonicalRowID",
+              "condition": "eq",
               "keyValue": "={{ String($json.expectedCanonicalRowID) }}"
             },
             {
               "keyName": "updatedAt",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedUpdatedAt }}"
             }
           ]
         },
-        "options": {},
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
@@ -1000,7 +1171,8 @@
           "schema": [],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
-        }
+        },
+        "options": {}
       },
       "id": "7af7cd1f-bff9-4f50-bdb7-e9b8615c05c5",
       "name": "Apply Claim-Time Reconciliation",
@@ -1008,23 +1180,26 @@
       "typeVersion": 1,
       "position": [
         2880,
-        352
+        340
       ],
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "8e96b405-8e5e-449a-9a8e-5a551f116af2",
       "name": "Limit Claim-Time Reconciliation",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
         3120,
-        352
+        340
       ]
     },
     {
       "parameters": {
+        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1036,11 +1211,13 @@
           "conditions": [
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $('Start').first().json.requestKey }}"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "options": {}
       },
       "id": "5822bd78-714c-46e5-8b97-2a2d817a7490",
       "name": "Re-read Claim-Time Reconciliation",
@@ -1048,13 +1225,14 @@
       "typeVersion": 1,
       "position": [
         3360,
-        352
+        340
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Claim_Time_Plan/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Claim_Time_Plan/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "e945fd90-2764-4450-8d12-d8e8020eb023",
       "name": "Verify Claim-Time Reconciliation",
@@ -1062,11 +1240,12 @@
       "typeVersion": 2,
       "position": [
         3600,
-        352
+        340
       ]
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Plan_Claim/jsCode.js"
       },
       "id": "117d42b9-ece8-42ef-bd6f-814ad302c670",
@@ -1075,11 +1254,14 @@
       "typeVersion": 2,
       "position": [
         2400,
-        272
+        260
       ]
     },
     {
       "parameters": {
+        "options": {
+          "fallbackOutput": "extra"
+        },
         "rules": {
           "values": [
             {
@@ -1146,9 +1328,6 @@
               }
             }
           ]
-        },
-        "options": {
-          "fallbackOutput": "extra"
         }
       },
       "id": "e84ebdb3-2e5e-4fea-96d8-13b9c09e3312",
@@ -1157,12 +1336,11 @@
       "typeVersion": 3.2,
       "position": [
         2640,
-        272
+        260
       ]
     },
     {
       "parameters": {
-        "options": {},
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -1173,31 +1351,39 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "ready"
+              "keyValue": "ready",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "canonical"
+              "keyValue": "canonical",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ String($json.id) }}"
+              "keyValue": "={{ String($json.id) }}",
+              "condition": "eq"
             },
             {
               "keyName": "leaseOwner",
-              "keyValue": "={{ $json.expectedLeaseOwner }}"
+              "keyValue": "={{ $json.expectedLeaseOwner }}",
+              "condition": "eq"
             },
             {
               "keyName": "leaseUntilIso",
-              "keyValue": "={{ $json.expectedLeaseUntilIso }}"
+              "keyValue": "={{ $json.expectedLeaseUntilIso }}",
+              "condition": "eq"
             }
           ]
         },
@@ -1213,7 +1399,9 @@
           "schema": [],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
-        }
+        },
+        "options": {},
+        "resource": "row"
       },
       "id": "9b1f7b41-435e-4946-a21e-487eaed8bd67",
       "name": "Claim Initial Exact",
@@ -1221,7 +1409,7 @@
       "typeVersion": 1,
       "position": [
         2880,
-        192
+        180
       ],
       "alwaysOutputData": true
     },
@@ -1237,34 +1425,43 @@
         "filters": {
           "conditions": [
             {
-              "keyValue": "={{ $json.id }}"
+              "keyValue": "={{ $json.id }}",
+              "keyName": "id",
+              "condition": "eq"
             },
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
+              "keyValue": "={{ $json.requestKey }}",
+              "condition": "eq"
             },
             {
               "keyName": "status",
-              "keyValue": "summary_retry_pending"
+              "keyValue": "summary_retry_pending",
+              "condition": "eq"
             },
             {
               "keyName": "reconciliationStatus",
-              "keyValue": "canonical"
+              "keyValue": "canonical",
+              "condition": "eq"
             },
             {
               "keyName": "canonicalRowID",
-              "keyValue": "={{ String($json.id) }}"
+              "keyValue": "={{ String($json.id) }}",
+              "condition": "eq"
             },
             {
               "keyName": "nextRetryAtIso",
-              "keyValue": "={{ $json.expectedNextRetryAtIso }}"
+              "keyValue": "={{ $json.expectedNextRetryAtIso }}",
+              "condition": "eq"
             },
             {
               "keyName": "leaseOwner",
-              "keyValue": "={{ $json.expectedLeaseOwner }}"
+              "keyValue": "={{ $json.expectedLeaseOwner }}",
+              "condition": "eq"
             },
             {
               "keyName": "leaseUntilIso",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedLeaseUntilIso }}"
             }
           ]
@@ -1282,7 +1479,8 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {},
+        "resource": "row"
       },
       "id": "a704253c-284a-480b-af84-f06dfe5efac3",
       "name": "Claim Retry Due Exact",
@@ -1290,12 +1488,13 @@
       "typeVersion": 1,
       "position": [
         2880,
-        272
+        260
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
+        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -1306,30 +1505,38 @@
         "filters": {
           "conditions": [
             {
+              "keyName": "id",
+              "condition": "eq",
               "keyValue": "={{ $json.id }}"
             },
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             },
             {
               "keyName": "status",
+              "condition": "eq",
               "keyValue": "summary_dispatching"
             },
             {
               "keyName": "reconciliationStatus",
+              "condition": "eq",
               "keyValue": "canonical"
             },
             {
               "keyName": "canonicalRowID",
+              "condition": "eq",
               "keyValue": "={{ String($json.id) }}"
             },
             {
               "keyName": "leaseOwner",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedLeaseOwner }}"
             },
             {
               "keyName": "leaseUntilIso",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedLeaseUntilIso }}"
             }
           ]
@@ -1355,23 +1562,26 @@
       "typeVersion": 1,
       "position": [
         2880,
-        352
+        340
       ],
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "2c6ac975-2dd6-4b5b-8ecd-5f9a5a2f5bb0",
       "name": "Limit Claim",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
         3120,
-        272
+        260
       ]
     },
     {
       "parameters": {
+        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1383,11 +1593,13 @@
           "conditions": [
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $('Start').first().json.requestKey }}"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "options": {}
       },
       "id": "f1c60bb2-b91f-4ecf-bf7e-86673b395b1f",
       "name": "Re-read Claimed Request",
@@ -1395,12 +1607,13 @@
       "typeVersion": 1,
       "position": [
         3360,
-        272
+        260
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Claim/jsCode.js"
       },
       "id": "bfeec1ea-a3fa-424d-8ec9-f46c1cdc366d",
@@ -1409,7 +1622,7 @@
       "typeVersion": 2,
       "position": [
         3600,
-        272
+        260
       ]
     },
     {
@@ -1425,11 +1638,14 @@
           "conditions": [
             {
               "keyName": "requestKey",
-              "keyValue": "={{ $('Start').first().json.requestKey }}"
+              "keyValue": "={{ $('Start').first().json.requestKey }}",
+              "condition": "eq"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "resource": "row",
+        "options": {}
       },
       "id": "dcd40a7d-f6cd-422b-95e7-2a7a0a4e743d",
       "name": "Re-read Request Before AI",
@@ -1437,12 +1653,13 @@
       "typeVersion": 1,
       "position": [
         3840,
-        272
+        260
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
+        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1454,11 +1671,13 @@
           "conditions": [
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $('Start').first().json.requestKey }}"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "options": {}
       },
       "id": "4ae3ec60-1e36-48f4-8df8-5586d7639f85",
       "name": "Re-read Attempts Before AI",
@@ -1466,12 +1685,13 @@
       "typeVersion": 1,
       "position": [
         4080,
-        272
+        260
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Preflight_AI/jsCode.js"
       },
       "id": "5ea1cc0a-4ac6-48d0-a056-caaef756eed8",
@@ -1480,11 +1700,14 @@
       "typeVersion": 2,
       "position": [
         4320,
-        272
+        260
       ]
     },
     {
       "parameters": {
+        "options": {
+          "fallbackOutput": "extra"
+        },
         "rules": {
           "values": [
             {
@@ -1551,9 +1774,6 @@
               }
             }
           ]
-        },
-        "options": {
-          "fallbackOutput": "extra"
         }
       },
       "id": "561cfd7e-73f6-4fc3-b97b-357fa7c6c1d9",
@@ -1562,12 +1782,12 @@
       "typeVersion": 3.2,
       "position": [
         4560,
-        272
+        260
       ]
     },
     {
       "parameters": {
-        "options": {},
+        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -1578,26 +1798,33 @@
         "filters": {
           "conditions": [
             {
+              "keyName": "id",
+              "condition": "eq",
               "keyValue": "={{ $json.id }}"
             },
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             },
             {
               "keyName": "status",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedStatus }}"
             },
             {
               "keyName": "reconciliationStatus",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedReconciliationStatus }}"
             },
             {
               "keyName": "canonicalRowID",
+              "condition": "eq",
               "keyValue": "={{ String($json.expectedCanonicalRowID) }}"
             },
             {
               "keyName": "updatedAt",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedUpdatedAt }}"
             }
           ]
@@ -1613,7 +1840,8 @@
           "schema": [],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
-        }
+        },
+        "options": {}
       },
       "id": "d07eb16f-a4fd-467d-ba85-51f9f8eb30e7",
       "name": "Apply Pre-AI Reconciliation",
@@ -1621,23 +1849,26 @@
       "typeVersion": 1,
       "position": [
         4800,
-        192
+        180
       ],
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "3e29a99e-309c-44dc-a71d-9657b32addd0",
       "name": "Limit Pre-AI Reconciliation",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
         5040,
-        192
+        180
       ]
     },
     {
       "parameters": {
+        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1649,11 +1880,13 @@
           "conditions": [
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $('Start').first().json.requestKey }}"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "options": {}
       },
       "id": "cc2d2aa4-5806-45ed-a2bf-7ed2f0d6baf7",
       "name": "Re-read Pre-AI Reconciliation",
@@ -1661,12 +1894,13 @@
       "typeVersion": 1,
       "position": [
         5280,
-        192
+        180
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Verify_Preflight_Plan/jsCode.js"
       },
       "id": "06674c6e-e079-417b-8c28-813ac3a488d0",
@@ -1675,11 +1909,12 @@
       "typeVersion": 2,
       "position": [
         5520,
-        192
+        180
       ]
     },
     {
       "parameters": {
+        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -1690,26 +1925,33 @@
         "filters": {
           "conditions": [
             {
+              "keyName": "id",
+              "condition": "eq",
               "keyValue": "={{ $json.id }}"
             },
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $json.requestKey }}"
             },
             {
               "keyName": "status",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedStatus }}"
             },
             {
               "keyName": "reconciliationStatus",
+              "condition": "eq",
               "keyValue": "canonical"
             },
             {
               "keyName": "canonicalRowID",
+              "condition": "eq",
               "keyValue": "={{ String($json.id) }}"
             },
             {
               "keyName": "updatedAt",
+              "condition": "eq",
               "keyValue": "={{ $json.expectedUpdatedAt }}"
             }
           ]
@@ -1738,23 +1980,26 @@
       "typeVersion": 1,
       "position": [
         4800,
-        272
+        260
       ],
       "alwaysOutputData": true
     },
     {
-      "parameters": {},
+      "parameters": {
+        "maxItems": 1
+      },
       "id": "91663ae2-c30e-4b1b-a928-47e9497e1383",
       "name": "Limit Pre-AI Conflict",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
         5040,
-        272
+        260
       ]
     },
     {
       "parameters": {
+        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -1766,11 +2011,13 @@
           "conditions": [
             {
               "keyName": "requestKey",
+              "condition": "eq",
               "keyValue": "={{ $('Start').first().json.requestKey }}"
             }
           ]
         },
-        "returnAll": true
+        "returnAll": true,
+        "options": {}
       },
       "id": "e4cc049e-45f8-4e7e-ae80-935054a614da",
       "name": "Re-read Pre-AI Frozen Request",
@@ -1778,12 +2025,13 @@
       "typeVersion": 1,
       "position": [
         5280,
-        272
+        260
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Build_Summary_Input/jsCode.js"
       },
       "id": "eae4d0e0-47a8-4fd1-aedc-d93471a7b43c",
@@ -1792,7 +2040,7 @@
       "typeVersion": 2,
       "position": [
         4800,
-        352
+        340
       ]
     },
     {
@@ -1818,89 +2066,7 @@
             "streams": "={{ $json.streams }}"
           },
           "matchingColumns": [],
-          "schema": [
-            {
-              "id": "requestKey",
-              "displayName": "requestKey",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "requestType",
-              "displayName": "requestType",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "channel",
-              "displayName": "channel",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "threadTS",
-              "displayName": "threadTS",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "coverageStatus",
-              "displayName": "coverageStatus",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "availableRoles",
-              "displayName": "availableRoles",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "array"
-            },
-            {
-              "id": "missingRoles",
-              "displayName": "missingRoles",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "array"
-            },
-            {
-              "id": "failedLogicalJobKeys",
-              "displayName": "failedLogicalJobKeys",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "array"
-            },
-            {
-              "id": "streams",
-              "displayName": "streams",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "array"
-            }
-          ],
+          "schema": [],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
@@ -1914,12 +2080,13 @@
       "typeVersion": 1.2,
       "position": [
         5040,
-        352
+        340
       ]
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Drop_Side_Effect_Output/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Drop_Side_Effect_Output/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "c8347d64-c043-49f3-8b73-9000c4e45e2a",
       "name": "Drop Side Effect Output",
@@ -1927,24 +2094,26 @@
       "typeVersion": 2,
       "position": [
         5760,
-        352
+        340
       ]
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Initial_Plan/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Initial_Plan/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "11111111-1111-4111-8111-111111111111",
       "name": "Carry Initial Conflict",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1088,
+        1080,
         -160
       ]
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Initial_Plan/jsCode.js"
       },
       "id": "11111111-1111-4111-8111-111111111113",
@@ -1952,36 +2121,41 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1088,
+        1080,
         0
       ]
     },
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
       "id": "11111111-1111-4111-8111-111111111112",
       "name": "Merge Initial Plan And Reread",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1808,
+        1800,
         -80
       ]
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Coverage_Plan/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Coverage_Plan/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "22222222-2222-4222-8222-222222222221",
       "name": "Carry Coverage Ready",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1568,
+        1560,
         80
       ]
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Coverage_Plan/jsCode.js"
       },
       "id": "22222222-2222-4222-8222-222222222223",
@@ -1989,23 +2163,41 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1568,
+        1560,
         160
       ]
     },
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
       "id": "22222222-2222-4222-8222-222222222222",
       "name": "Merge Coverage Ready Plan And Reread",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2288,
+        2280,
         80
       ]
     },
     {
       "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "22222222-2222-4222-8222-222222222224",
+      "name": "Merge Coverage Failure Plan And Reread",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2280,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Claim_Time_Plan/jsCode.js"
       },
       "id": "33333333-3333-4333-8333-333333333331",
@@ -2013,49 +2205,55 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2768,
-        192
+        2760,
+        180
       ]
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Claim_Time_Plan/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Claim_Time_Plan/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "33333333-3333-4333-8333-333333333333",
       "name": "Carry Claim-Time Reconcile",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2768,
-        352
+        2760,
+        340
       ]
     },
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
       "id": "33333333-3333-4333-8333-333333333332",
       "name": "Merge Claim-Time Plan And Reread",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3488,
-        272
+        3480,
+        260
       ]
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Claim_Plan/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Claim_Plan/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "44444444-4444-4444-8444-444444444441",
       "name": "Carry Initial Claim Plan",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2768,
-        192
+        2760,
+        180
       ]
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Claim_Plan/jsCode.js"
       },
       "id": "44444444-4444-4444-8444-444444444443",
@@ -2063,36 +2261,41 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2768,
-        272
+        2760,
+        260
       ]
     },
     {
       "parameters": {
-        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Claim_Plan/jsCode.js"
+        "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Claim_Plan/jsCode.js",
+        "mode": "runOnceForAllItems"
       },
       "id": "44444444-4444-4444-8444-444444444444",
       "name": "Carry Expired Claim Plan",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2768,
-        352
+        2760,
+        340
       ]
     },
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
       "id": "44444444-4444-4444-8444-444444444442",
       "name": "Merge Claim Plan And Reread",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3488,
-        272
+        3480,
+        260
       ]
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Pre_AI_Plan/jsCode.js"
       },
       "id": "55555555-5555-4555-8555-555555555551",
@@ -2100,12 +2303,13 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4688,
-        192
+        4680,
+        180
       ]
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "__EXTERNAL_FILE__://nodes/Carry_Pre_AI_Plan/jsCode.js"
       },
       "id": "55555555-5555-4555-8555-555555555553",
@@ -2113,107 +2317,22 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4688,
-        272
+        4680,
+        260
       ]
     },
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
       "id": "55555555-5555-4555-8555-555555555552",
       "name": "Merge Pre-AI Plan And Reread",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        5408,
-        224
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "update",
-        "dataTableId": {
-          "__rl": true,
-          "mode": "name",
-          "value": "summary_requests_v3"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyValue": "={{ $json.id }}"
-            },
-            {
-              "keyName": "requestKey",
-              "keyValue": "={{ $json.requestKey }}"
-            },
-            {
-              "keyName": "status",
-              "keyValue": "={{ $json.expected.status }}"
-            },
-            {
-              "keyName": "reconciliationStatus",
-              "keyValue": "canonical"
-            },
-            {
-              "keyName": "canonicalRowID",
-              "keyValue": "={{ String($json.id) }}"
-            },
-            {
-              "keyName": "coverageStatus",
-              "keyValue": "={{ $json.expected.coverageStatus }}"
-            },
-            {
-              "keyName": "availableRolesJson",
-              "keyValue": "={{ $json.expected.availableRolesJson }}"
-            },
-            {
-              "keyName": "missingRolesJson",
-              "keyValue": "={{ $json.expected.missingRolesJson }}"
-            },
-            {
-              "keyName": "failedLogicalJobKeysJson",
-              "keyValue": "={{ $json.expected.failedLogicalJobKeysJson }}"
-            }
-          ]
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "status": "ready",
-            "coverageStatus": "={{ $json.desired.coverageStatus }}",
-            "availableRolesJson": "={{ $json.desired.availableRolesJson }}",
-            "missingRolesJson": "={{ $json.desired.missingRolesJson }}",
-            "failedLogicalJobKeysJson": "={{ $json.desired.failedLogicalJobKeysJson }}",
-            "leaseOwner": "",
-            "leaseUntilIso": "",
-            "updatedAtIso": "={{ $now.toUTC().toISO() }}"
-          },
-          "matchingColumns": [],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
-      },
-      "id": "17fe3dcc-9a6c-4051-a080-3660843574cc",
-      "name": "Write Terminal Coverage Ready",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1,
-      "position": [
-        1680,
-        80
-      ],
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {},
-      "id": "22222222-2222-4222-8222-222222222224",
-      "name": "Merge Coverage Failure Plan And Reread",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
-      "position": [
-        2288,
-        192
+        5400,
+        220
       ]
     }
   ],
@@ -2468,12 +2587,12 @@
       "main": [
         [
           {
-            "node": "Merge Coverage Ready Plan And Reread",
+            "node": "Write Terminal Coverage Ready",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Write Terminal Coverage Ready",
+            "node": "Merge Coverage Ready Plan And Reread",
             "type": "main",
             "index": 0
           }

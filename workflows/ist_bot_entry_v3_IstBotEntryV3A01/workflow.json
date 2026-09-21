@@ -444,31 +444,25 @@
               "id": "streams",
               "displayName": "streams",
               "type": "array",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "lookupWindow",
               "displayName": "lookupWindow",
               "type": "object",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "profile",
               "displayName": "profile",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -585,31 +579,25 @@
               "id": "streams",
               "displayName": "streams",
               "type": "array",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "lookupWindow",
               "displayName": "lookupWindow",
               "type": "object",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "profile",
               "displayName": "profile",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -664,31 +652,25 @@
               "id": "streams",
               "displayName": "streams",
               "type": "array",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "lookupWindow",
               "displayName": "lookupWindow",
               "type": "object",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "profile",
               "displayName": "profile",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -791,61 +773,49 @@
               "id": "requestKey",
               "displayName": "requestKey",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "requestType",
               "displayName": "requestType",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "orderedStreams",
               "displayName": "orderedStreams",
               "type": "array",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "existingDialogues",
               "displayName": "existingDialogues",
               "type": "object",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "channel",
               "displayName": "channel",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "threadTS",
               "displayName": "threadTS",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -884,72 +854,7 @@
             "durationSec": "={{ Number($json.positionals[3] || 0) }}"
           },
           "matchingColumns": [],
-          "schema": [
-            {
-              "id": "streamID",
-              "displayName": "streamID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "channel",
-              "displayName": "channel",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "target_thread_ts",
-              "displayName": "target_thread_ts",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "playback",
-              "displayName": "playback",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "playbacks",
-              "displayName": "playbacks",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "array"
-            },
-            {
-              "id": "startSec",
-              "displayName": "startSec",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "number"
-            },
-            {
-              "id": "durationSec",
-              "displayName": "durationSec",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "number"
-            }
-          ],
+          "schema": [],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },

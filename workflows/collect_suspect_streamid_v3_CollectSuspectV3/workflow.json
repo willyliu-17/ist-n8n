@@ -58,10 +58,12 @@
         "rule": {
           "interval": [
             {
-              "triggerAtHour": 10
+              "triggerAtHour": 10,
+              "triggerAtMinute": 0
             }
           ]
-        }
+        },
+        "misfirePolicy": "skip"
       }
     },
     {
@@ -1065,7 +1067,8 @@
         576
       ],
       "parameters": {
-        "options": {}
+        "options": {},
+        "batchSize": 1
       }
     },
     {
@@ -1100,31 +1103,25 @@
               "id": "streamID",
               "displayName": "streamID",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "channel",
               "displayName": "channel",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "target_thread_ts",
               "displayName": "target_thread_ts",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "lookbackDays",
@@ -1132,9 +1129,7 @@
               "type": "number",
               "required": false,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -1142,7 +1137,8 @@
         },
         "options": {
           "waitForSubWorkflow": true
-        }
+        },
+        "mode": "once"
       }
     },
     {
@@ -1231,7 +1227,9 @@
         6336,
         368
       ],
-      "parameters": {}
+      "parameters": {
+        "maxItems": 1
+      }
     },
     {
       "id": "12000019-0000-4000-8000-000000000019",
@@ -1455,7 +1453,10 @@
               "thread_ts": "={{ $json.threadTS }}"
             }
           }
-        }
+        },
+        "resource": "message",
+        "operation": "post",
+        "messageType": "text"
       },
       "credentials": {
         "slackApi": {
@@ -1511,61 +1512,49 @@
               "id": "requestKey",
               "displayName": "requestKey",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "requestType",
               "displayName": "requestType",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "orderedStreams",
               "displayName": "orderedStreams",
               "type": "array",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "existingDialogues",
               "displayName": "existingDialogues",
               "type": "object",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "channel",
               "displayName": "channel",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "threadTS",
               "displayName": "threadTS",
               "type": "string",
-              "required": false,
+              "required": true,
               "display": true,
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "removed": false
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -1586,7 +1575,9 @@
         5792,
         528
       ],
-      "parameters": {}
+      "parameters": {
+        "mode": "append"
+      }
     },
     {
       "id": "0802b5c7-b23c-4181-8d0f-f2c8d79e40cd",
@@ -1620,7 +1611,8 @@
         "ts": "={{ Number($json.ts) }}",
         "text": "={{ $json.text }}",
         "otherOptions": {},
-        "updateFields": {}
+        "resource": "message",
+        "messageType": "text"
       },
       "credentials": {
         "slackApi": {
