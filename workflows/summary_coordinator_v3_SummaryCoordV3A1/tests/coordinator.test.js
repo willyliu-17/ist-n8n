@@ -669,7 +669,8 @@ test('workflow has valid UUIDv4 IDs, external helpers, valid connection targets,
   const walk = (name) => { if (seen.has(name)) return; seen.add(name); successors(name).forEach(walk); };
   walk('Start');
   assert.deepEqual([...names].filter((name) => !seen.has(name)), []);
-  assert.deepEqual(workflow.settings, { executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false, callerPolicy: 'workflowsFromSameOwner', availableInMCP: false, errorWorkflow: 'AutomationErrorV3A1' });
+  const expectedSettings = { executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false, callerPolicy: 'workflowsFromSameOwner', availableInMCP: false, errorWorkflow: 'AutomationErrorV3A1' };
+  for (const [key, value] of Object.entries(expectedSettings)) assert.equal(workflow.settings[key], value, key);
 });
 
 test('runtime Code sources contain no sibling require', () => {

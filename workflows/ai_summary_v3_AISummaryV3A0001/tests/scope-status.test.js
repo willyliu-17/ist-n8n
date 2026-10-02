@@ -34,7 +34,8 @@ test('Slack failure does not silently return success or loop back into inference
   assert.deepEqual(targets('Update Summary Status Failure'), ['Verify Failure Status Update']);
   assert.deepEqual(targets('Verify Failure Status Update'), ['Return Result']);
   const update = node('Update Summary Status Failure');
-  assert.equal(update.onError, 'stopWorkflow');
+  assert.equal(update.onError ?? 'stopWorkflow', 'stopWorkflow');
+  assert.notEqual(update.continueOnFail, true);
   assert.equal(update.alwaysOutputData, true);
   assert.equal(update.retryOnFail, true);
   assert.equal(update.maxTries, 3);

@@ -33,6 +33,7 @@ const preparedLogs = [
   ['Convert to StreamerEventLog1', 'Prepare StreamerEventLog Upload', 1],
   ['Convert to StreamCommentLog1', 'Prepare StreamCommentLog Upload', 2],
   ['Convert to MatomoLog', 'Prepare MatomoLog Upload', 3],
+  ['Convert to FirebaseLog', 'Prepare FirebaseLog Upload', 4],
 ];
 
 test('defaults metadata lookup to 60 days and accepts a bounded caller override', () => {
@@ -57,7 +58,7 @@ test('defaults metadata lookup to 60 days and accepts a bounded caller override'
 test('all optional logs and the summary converge before delivery', () => {
   assert.deepEqual({ mode: 'append', ...node('Merge1').parameters }, {
     mode: 'append',
-    numberInputs: 5,
+    numberInputs: 6,
   });
 
   for (const [convert, prepare, input] of preparedLogs) {
@@ -65,7 +66,12 @@ test('all optional logs and the summary converge before delivery', () => {
     assert.equal(hasEdge(prepare, 'Merge1', input), true);
     assert.equal(node(prepare).type, 'n8n-nodes-base.code');
   }
-  assert.equal(hasEdge('compose slack message', 'Merge1', 4), true);
+  assert.equal(hasEdge('compose slack message', 'Merge1', 5), true);
+  assert.equal(hasEdge('FirebaseLog1', 'Merge1', 4), true);
+  assert.equal(workflow.connections['if mobile platform'].main[0][0].node, 'FirebaseLog');
+  assert.equal(workflow.connections['if mobile platform'].main[1][0].node, 'FirebaseLog1');
+  assert.equal(workflow.connections['if issue_id exist1'].main[0][0].node, 'Convert to FirebaseLog');
+  assert.equal(workflow.connections['if issue_id exist1'].main[1][0].node, 'FirebaseLog1');
   assert.equal(hasEdge('Merge1', 'Code', 0), true);
 });
 

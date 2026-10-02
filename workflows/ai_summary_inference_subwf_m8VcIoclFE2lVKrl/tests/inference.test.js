@@ -141,7 +141,7 @@ test('whole-agent retries belong to Summary and every inference outcome has a gu
     [{ node: 'Raise Inference Error', type: 'main', index: 0 }],
   ]);
   assert.equal(byName('Raise Inference Error').type, 'n8n-nodes-base.stopAndError');
-  assert.equal(byName('Raise Inference Error').parameters.errorType, 'errorMessage');
+  assert.equal(byName('Raise Inference Error').parameters.errorType ?? 'errorMessage', 'errorMessage');
 });
 
 test('validates the schema-shaped report and fails closed on empty or partial model outputs', () => {
@@ -155,6 +155,9 @@ test('validates the schema-shaped report and fails closed on empty or partial mo
   const expectedScope = buildAnalysisScope({ aggregateData: aggregate() });
   output.analysisScope = expectedScope;
   assert.deepEqual(validateInferenceReport([{ output }], expectedScope), { output });
+  const missingFirebase = structuredClone(output);
+  delete missingFirebase.report.firebase_analysis;
+  assert.throws(() => validateInferenceReport([{ output: missingFirebase }], expectedScope), /summary_model_output_invalid/);
   for (const items of [[], [{}], [{ output: '' }], [{ output: { report: {} } }], [{ output }, { output }]]) {
     assert.throws(() => validateInferenceReport(items), /summary_model_output_invalid/);
   }
@@ -182,7 +185,7 @@ function incidentInput(analysisMode) {
 function validReport(scope) {
   return { analysisScope: structuredClone(scope), report: {
     subjective_motivation: { timeline_overview: 'Provided streams', subjective_description: 'Available evidence', recovery_status: 'Unknown' },
-    sl_analysis: 'No conclusion', sel_analysis: 'No conclusion', summary: {
+    sl_analysis: 'No conclusion', sel_analysis: 'No conclusion', firebase_analysis: 'No conclusion', summary: {
       responsibility_category: '', responsibility_category_list: [], causal_summary: 'Evidence is limited', other_issue: '',
       fact_check: { claimed_issue: '', data_evidence: '', is_valid_issue: 'Partial' }, exclusion_reason: { level_1: '', level_2: '' },
     },

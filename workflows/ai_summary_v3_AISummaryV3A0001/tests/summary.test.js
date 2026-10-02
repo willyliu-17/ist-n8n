@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const helper = require('../nodes/Finalize_Request/jsCode');
 const { buildInferenceAggregate } = require('../nodes/group_streamID/jsCode');
 const { renderSummaryMarkdown } = require('../nodes/Render_Summary_Markdown/jsCode');
@@ -20,9 +21,34 @@ function input(overrides = {}) { return { requestKey: 'summary:req-1', requestTy
 function row(overrides = {}) { const data = input(); const { id = 301, canonicalRowID, ...rest } = overrides; return { id, requestKey: data.requestKey, requestType: data.requestType, status: 'summary_dispatching', reconciliationStatus: 'canonical', canonicalRowID: canonicalRowID === undefined ? String(id) : String(canonicalRowID), channel: data.channel, threadTS: data.threadTS, coverageStatus: data.coverageStatus, availableRolesJson: JSON.stringify(data.availableRoles), missingRolesJson: JSON.stringify(data.missingRoles), failedLogicalJobKeysJson: JSON.stringify(data.failedLogicalJobKeys), leaseOwner: 'exec-1', leaseUntilIso: '2099-01-01T00:05:00.000Z', summaryAttempt: 0, nextRetryAtIso: '', errorCode: '', createdAtIso: '2099-01-01T00:00:00.000Z', ...rest }; }
 function node(name) { return workflow.nodes.find((item) => item.name === name); }
 
+function mergeParameters(name) {
+  const merge = node(name);
+  assert.equal(merge.type, 'n8n-nodes-base.merge');
+  assert.equal(merge.typeVersion, 3.2);
+  return { mode: 'append', numberInputs: 2, ...merge.parameters };
+}
+
+function assertQueryTimeExpressions(name, sql) {
+  assert.equal(node(name).type, 'n8n-nodes-base.googleBigQuery');
+  assert.equal(node(name).typeVersion, 2.1);
+  // BigQuery v2.1 resolves embedded expressions itself, without a leading '='.
+  const expressions = sql.match(/{{[\s\S]*?}}/g) || [];
+  assert.deepEqual(expressions.map(value => value.slice(2, -2).trim()).sort(), ['$json.beginTime', '$json.endTime']);
+  for (const times of [{ beginTime: 1787360400, endTime: 1787364000 }, { beginTime: 1787446800, endTime: 1787450400 }]) {
+    let resolved = sql;
+    for (const expression of expressions) {
+      resolved = resolved.replace(expression, String(vm.runInNewContext(expression.slice(2, -2), { $json: times })));
+    }
+    assert.doesNotMatch(resolved, /{{|}}/);
+    assert.ok(resolved.includes(`TIMESTAMP_SUB(TIMESTAMP_SECONDS(${times.beginTime}), INTERVAL 5 MINUTE)`));
+    assert.ok(resolved.includes(`TIMESTAMP_ADD(TIMESTAMP_SECONDS(${times.endTime}), INTERVAL 5 MINUTE)`));
+    assert.match(resolved, /@liveStreamID/);
+  }
+}
+
 test('has exactly one typed Execute Workflow Trigger with nine fields', () => { const triggers = workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.executeWorkflowTrigger'); assert.equal(triggers.length, 1); assert.deepEqual(triggers[0].parameters.workflowInputs.values.map((item) => item.name), ['requestKey', 'requestType', 'channel', 'threadTS', 'coverageStatus', 'availableRoles', 'missingRoles', 'failedLogicalJobKeys', 'streams']); });
 test('forbids manual, webhook, wait, direct STT, metadata, and legacy table', () => { for (const forbidden of ['n8n-nodes-base.manualTrigger', 'n8n-nodes-base.webhook', 'n8n-nodes-base.wait', 'stt-api', 'query stream info', 'AISummaryV2', 'Insert row']) assert.equal(source.includes(forbidden), false, forbidden); });
-test('only event evidence BigQuery names may remain', () => { const bq = workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.googleBigQuery'); assert.ok(bq.every((item) => ['StreamerLog', 'StreamerEventLog'].includes(item.name))); });
+test('only approved event and Firebase evidence queries remain', () => { const bq = workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.googleBigQuery'); assert.deepEqual(bq.map(item => item.name).sort(), ['FirebaseLog1', 'StreamerEventLog', 'StreamerLog']); });
 test('workflow keeps its live active metadata and approved execution retention', () => { assert.equal(workflow.active, true); for (const [key, value] of Object.entries({ executionOrder: 'v1', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false })) assert.equal(workflow.settings[key], value); assert.equal(workflow.settings.errorWorkflow, 'AutomationErrorV3A1'); });
 test('all node ids are UUIDs and connections resolve', () => { const names = new Set(workflow.nodes.map((item) => item.name)); workflow.nodes.forEach((item) => assert.match(item.id, /^[0-9a-f-]{36}$/)); Object.entries(workflow.connections).forEach(([from, outputs]) => { assert.ok(names.has(from)); Object.values(outputs).flat().flat().forEach((edge) => assert.ok(names.has(edge.node))); }); });
 test('external references resolve to existing files', () => { for (const match of source.matchAll(/__EXTERNAL_FILE__:\/\/([^"\\]+?)(?:"|\\n)/g)) assert.ok(fs.existsSync(path.join(root, match[1]))); });
@@ -383,7 +409,7 @@ test('summary reactions only use the primary stream for OBS detection', () => {
 test('no historical execution references remain', () => { assert.equal(source.includes('$runIndex'), false); assert.equal(source.includes('isExecuted'), false); });
 test('crash windows are explicitly documented', () => assert.match(workflowContract, /may be duplicated during repair/));
 test('runtime Code sources are externalized and contain no sibling require', () => { workflow.nodes.filter((item) => item.type === 'n8n-nodes-base.code').forEach((item) => assert.match(item.parameters.jsCode, /^__EXTERNAL_FILE__:\/\//)); assert.equal(source.includes("require('./Finalize_Request/jsCode')"), false); });
-test('validated carrier feeds every full stage read through append input zero', () => { const merge = node('Append Stage Carrier And Rows'); assert.equal(merge.parameters.mode, 'append'); assert.equal(merge.parameters.numberInputs, 2); assert.equal(workflow.connections['Build Direct Carrier'].main[0].some((edge) => edge.node === merge.name && edge.index === 0), true); });
+test('validated carrier feeds every full stage read through append input zero', () => { const merge = node('Append Stage Carrier And Rows'); assert.deepEqual(mergeParameters(merge.name), { mode: 'append', numberInputs: 2 }); assert.equal(workflow.connections['Build Direct Carrier'].main[0].some((edge) => edge.node === merge.name && edge.index === 0), true); });
 test('next-stage planner is the only stage router and has all six terminal actions', () => {
   const router = node('Route Next Stage');
   assert.ok(router);
@@ -399,22 +425,28 @@ test('reconciliation has an actual exact write limit reread and verifier', () =>
 test('freeze is terminal after exact write limit reread and verifier', () => ['Freeze Competing Canonicals', 'Limit Freeze Patch', 'Re-read Frozen Request', 'Verify Freeze'].forEach((name) => assert.ok(node(name))));
 test('all side effects have an immediately preceding owner preflight', () => [['Preflight Inference Owner', 'StreamerLog'], ['Preflight Upload Owner', 'Upload Summary File'], ['Preflight Message Owner', 'Post Summary Message']].forEach(([preflight, effect]) => assert.ok(workflow.nodes.indexOf(node(preflight)) < workflow.nodes.indexOf(node(effect)))));
 test('event queries are connected from streamContext query items and retain credentials', () => { ['StreamerLog', 'StreamerEventLog'].forEach((name) => { const item = node(name); assert.equal(item.credentials.googleApi.id, 'Dd7x1TQhh9YKbD8v'); assert.equal(workflow.connections['Build Event Query Items'].main[0].some((edge) => edge.node === name), true); }); });
-test('event evidence waits for carrier and both query branches', () => {
+test('event evidence waits for carrier, event queries, and Firebase query or skip', () => {
   const merge = node('Merge Event Evidence And Carrier');
   const inputIndex = (sourceName) => workflow.connections[sourceName].main[0]
     .find((edge) => edge.node === merge.name).index;
 
-  assert.deepEqual(merge.parameters, { mode: 'append', numberInputs: 3 });
+  assert.deepEqual(mergeParameters(merge.name), { mode: 'append', numberInputs: 4 });
   assert.equal(inputIndex('Merge Inference Status Carrier And Output'), 0);
   assert.equal(inputIndex('StreamerLog'), 1);
   assert.equal(inputIndex('StreamerEventLog'), 2);
+  assert.equal(inputIndex('FirebaseLog1'), 3);
+  assert.equal(inputIndex('Firebase Skipped'), 3);
+  assert.equal(workflow.connections['if mobile platform'].main[0][0].node, 'FirebaseLog1');
+  assert.equal(workflow.connections['if mobile platform'].main[1][0].node, 'Firebase Skipped');
+  assert.equal(node('FirebaseLog1').alwaysOutputData, true);
+  assert.equal(workflow.connections['FirebaseLog1'].main[1][0].node, 'Sanitize Stage Error');
   assert.equal(node('StreamerLog').alwaysOutputData, true);
   assert.equal(node('StreamerEventLog').alwaysOutputData, true);
 });
 test('StreamerLog projects the requested stream ID instead of the source LiveStreamID', () => {
   const sql = fs.readFileSync(path.join(root, 'nodes', 'StreamerLog', 'sqlQuery.sql'), 'utf8');
 
-  assert.match(sql, /^=/);
+  assertQueryTimeExpressions('StreamerLog', sql);
   assert.match(sql, /@liveStreamID AS liveStreamID/);
   assert.doesNotMatch(sql, /LiveStreamID AS liveStreamID/);
   assert.match(sql, /Suid = @liveStreamID/);
@@ -426,7 +458,7 @@ test('EventLog uses parameterized user matching and preserves the five-minute wi
   const streamerNode = node('StreamerLog');
   const eventNode = node('StreamerEventLog');
 
-  assert.match(sql, /^=/);
+  assertQueryTimeExpressions('StreamerEventLog', sql);
   assert.doesNotMatch(sql, /\bSuid\b/);
   assert.match(sql, /@liveStreamID AS liveStreamID/);
   assert.match(sql, /triggerUserID LIKE CONCAT\('%', @userID, '%'\)/);
@@ -451,12 +483,12 @@ test('checkpoint loop returns its carrier and refreshed row to the stage planner
     assert.equal(workflow.connections[name].main[0].some((edge) => edge.node === 'Append Stage Carrier And Rows' && edge.index === 0), true);
   }
 });
-test('binary is retained through upload carrier and Slack receives data', () => { assert.equal(node('Upload Summary File').parameters.binaryPropertyName, 'data'); const file = fs.readFileSync(path.join(root, 'nodes', 'Prepare_Summary_File', 'jsCode.js'), 'utf8'); assert.match(file, /binary: \{ data:/); assert.match(file, /fileName: `summary-\$\{input\.input\.requestKey\}\.md`/); });
+test('binary is retained through upload carrier and Slack receives data', () => { assert.equal(node('Upload Summary File').parameters.binaryPropertyName ?? 'data', 'data'); const file = fs.readFileSync(path.join(root, 'nodes', 'Prepare_Summary_File', 'jsCode.js'), 'utf8'); assert.match(file, /binary: \{ data:/); assert.match(file, /fileName: `summary-\$\{input\.input\.requestKey\}\.md`/); });
 test('Slack nodes retain the pinned credential and persisted channel routing', () => ['Upload Summary File', 'Post Summary Message', 'Update Summary Status Before Upload', 'Update Summary Status Complete', 'Update Summary Status Failure'].forEach((name) => { const item = node(name); assert.equal(item.credentials.slackApi.id, '9sfslX7caXSFAVUN'); assert.match(JSON.stringify(item.parameters), /\$json\.(input\.)?channel/); }));
 test('summary notification posts a message instead of managing a channel', () => {
   const item = node('Post Summary Message');
-  assert.equal(item.parameters.resource, 'message');
-  assert.equal(item.parameters.operation, 'post');
+  assert.equal(item.parameters.resource ?? 'message', 'message');
+  assert.equal(item.parameters.operation ?? 'post', 'post');
   assert.equal(item.parameters.select, 'channel');
 });
 test('completion has exact write limit reread verifier then allowlisted return', () => ['Complete Request Exact', 'Limit Complete Patch', 'Re-read Completion Request', 'Verify Completion', 'Return Result'].forEach((name) => assert.ok(node(name))));
@@ -471,7 +503,7 @@ test('side-effect carriers use the valid combine-by-position runtime contract', 
     const merge = node(name);
     assert.equal(merge.parameters.mode, 'combine');
     assert.equal(merge.parameters.combineBy, 'combineByPosition');
-    assert.equal(merge.parameters.numberInputs, 2);
+    assert.equal(mergeParameters(name).numberInputs, 2);
   }
   assert.equal(workflow.connections['Build Inference Aggregate'].main[0][0].index, 0);
   assert.equal(workflow.connections['Call AI SUMMARY Inference SubWF'].main[0][0].index, 1);
@@ -490,12 +522,14 @@ test('every side effect has full same-key reread, direct carrier append, and own
 test('checkpoint, failure, and completion writes snapshot all owner and checkpoint fields then merge original plans into rereads', () => {
   const writes = ['Checkpoint Inference Exact', 'Checkpoint Upload Exact', 'Checkpoint Message Exact', 'Failure CAS Exact', 'Complete Request Exact'];
   for (const name of writes) {
-    const keys = node(name).parameters.filters.conditions.map(({ keyName }) => keyName);
+    const keys = node(name).parameters.filters.conditions.map(({ keyName = 'id' }) => keyName);
+    assert.equal(node(name).parameters.matchType, 'allConditions');
+    for (const condition of node(name).parameters.filters.conditions) assert.equal(condition.condition ?? 'eq', 'eq');
     for (const key of ['id', 'requestKey', 'status', 'reconciliationStatus', 'canonicalRowID', 'leaseOwner', 'leaseUntilIso']) assert.ok(keys.includes(key), `${name}: ${key}`);
   }
   for (const stage of ['Inference', 'Upload', 'Message', 'Failure', 'Completion']) {
     const merge = node(`Merge ${stage} Plan And Reread`);
-    assert.deepEqual(merge.parameters, { mode: 'append', numberInputs: 2 });
+    assert.deepEqual(mergeParameters(merge.name), { mode: 'append', numberInputs: 2 });
     assert.equal(workflow.connections[`Re-read ${stage} Request`].main[0][0].index, 1);
   }
 });
@@ -588,8 +622,8 @@ test('reconciliation and freeze execute top-level mutations with updatedAtIso CA
     assert.match(JSON.stringify(item.parameters.columns.value), /\$json\.values\./, name);
   }
   assert.equal(Object.hasOwn(workflow.connections, 'Route Next Stage'), true);
-  assert.deepEqual(node('Merge Reconciliation Plan And Reread').parameters, { mode: 'append', numberInputs: 2 });
-  assert.deepEqual(node('Merge Freeze Plan And Reread').parameters, { mode: 'append', numberInputs: 2 });
+  assert.deepEqual(mergeParameters('Merge Reconciliation Plan And Reread'), { mode: 'append', numberInputs: 2 });
+  assert.deepEqual(mergeParameters('Merge Freeze Plan And Reread'), { mode: 'append', numberInputs: 2 });
   assert.equal(workflow.connections['Route Next Stage'].main[0].some(({ node: target, index }) => target === 'Merge Reconciliation Plan And Reread' && index === 0), true);
   assert.equal(workflow.connections['Route Next Stage'].main[1].some(({ node: target, index }) => target === 'Merge Freeze Plan And Reread' && index === 0), true);
   assert.equal(workflow.connections['Re-read Reconciled Request'].main[0][0].node, 'Merge Reconciliation Plan And Reread');
@@ -645,7 +679,7 @@ test('one persisted status message is created before inference and updated throu
   assert.equal(workflow.connections['Verify Failure'].main[0].some((edge) => edge.node === 'Build Failure Status'), true);
   for (const name of ['Update Summary Status Before Inference', 'Update Summary Status Before Upload', 'Update Summary Status Complete', 'Update Summary Status Failure']) {
     const item = node(name);
-    assert.equal(item.parameters.resource, 'message');
+    assert.equal(item.parameters.resource ?? 'message', 'message');
     assert.equal(item.parameters.operation, 'update');
     assert.match(item.parameters.ts, /summaryMessageTS/);
   }

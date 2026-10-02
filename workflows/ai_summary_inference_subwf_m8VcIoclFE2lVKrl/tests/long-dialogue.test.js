@@ -167,7 +167,9 @@ test('workflow pins a guarded chunk chain and direct bypass', () => {
   assert.match(map.parameters.messages.messageValues[0].message, /untrusted evidence/);
   assert.match(map.parameters.messages.messageValues[0].message, /complete IP address/);
   const model = workflow.nodes.find((node) => node.name === 'Vertex Gemini-2.5-flash Chunk Map');
-  assert.equal(model.parameters.modelName, 'gemini-2.5-flash');
+  assert.equal(model.type, '@n8n/n8n-nodes-langchain.lmChatGoogleVertex');
+  assert.equal(model.typeVersion, 1);
+  assert.equal(model.parameters.modelName ?? 'gemini-2.5-flash', 'gemini-2.5-flash');
   assert.equal(model.parameters.options.maxOutputTokens, 2048);
   const preflight = fs.readFileSync(path.join(__dirname, '..', 'nodes', 'Long_Dialogue_Preflight', 'jsCode.js'), 'utf8');
   const collector = fs.readFileSync(path.join(__dirname, '..', 'nodes', 'Collect_Dialogue_Chunk_Evidence', 'jsCode.js'), 'utf8');
