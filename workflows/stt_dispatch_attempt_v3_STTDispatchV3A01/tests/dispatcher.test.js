@@ -62,6 +62,7 @@ const P3_ARTIFACT = Object.freeze({
     Object.freeze({ name: 'stt_jobs_v3', id: 'p3-jobs' }),
     Object.freeze({ name: 'summary_requests_v3', id: 'p3-summaries' }),
     Object.freeze({ name: 'automation_errors_v3', id: 'p3-errors' }),
+    ...require('../../../scripts/stt-summary-v3-inventory').V3_DATA_TABLE_NAMES.slice(4).map((name, i) => Object.freeze({ name, id: `p3-history-${i}` })),
   ]),
 });
 const P3_DATA_TABLE_IDS = new Map(P3_ARTIFACT.tables.map(({ name, id }) => [name, id]));

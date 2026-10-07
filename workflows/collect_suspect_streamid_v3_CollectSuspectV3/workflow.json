@@ -39,6 +39,12 @@
               "name": "channel",
               "value": "C09F0SYG57D",
               "type": "string"
+            },
+            {
+              "id": "07d9a742-b39f-4eed-8d27-01de9c173711",
+              "name": "historyTriggerKind",
+              "value": "manual",
+              "type": "string"
             }
           ]
         },
@@ -89,6 +95,12 @@
               "name": "channel",
               "value": "C09F0SYG57D",
               "type": "string"
+            },
+            {
+              "id": "64062a44-11e7-4eae-83be-320f667bc606",
+              "name": "historyTriggerKind",
+              "value": "daily",
+              "type": "string"
             }
           ]
         },
@@ -117,6 +129,12 @@
               "id": "12000002-0000-4000-8000-000000000002",
               "name": "searchKeywords",
               "value": "卡了|重開|當機|卡頓|轉圈|斷線|黑屏|沒畫面|重い|ラグ|カクカク|止まった|くるくる|落ち|見れない|再起動|枠取り直し",
+              "type": "string"
+            },
+            {
+              "id": "4d2e9116-10b4-425e-81ac-9087257a44ba",
+              "name": "historyTriggerKind",
+              "value": "={{ $json.historyTriggerKind }}",
               "type": "string"
             }
           ]
@@ -1621,6 +1639,88 @@
         }
       },
       "webhookId": "b37f0eb3-45a3-42c4-ba9a-435f36719114"
+    },
+    {
+      "id": "a8664598-e8cc-46a8-87b9-ad962a0fa4e0",
+      "name": "Register Daily History",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "HistoryRegister1",
+          "cachedResultName": "History: register daily v1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ { request: $json, triggerKind: $('Build Candidate Query Config').first().json.historyTriggerKind } }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true,
+              "display": true
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "54080033-50b7-415c-8134-16fe7e92ad68",
+      "name": "Prepare Root Identity Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7480,
+        900
+      ],
+      "parameters": {
+        "jsCode": "__EXTERNAL_FILE__://nodes/Prepare_Root_Identity_Update/buildIdentity.js"
+      }
+    },
+    {
+      "id": "4744ef9e-39b7-440b-899a-797be4395751",
+      "name": "Update Root Identity",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        7740,
+        900
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "update",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "ts": "={{ $json.threadTS }}",
+        "text": "={{ $json.text }}",
+        "updateFields": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      },
+      "webhookId": "e25c6196-644a-41e0-8dd5-11495720deaa"
     }
   ],
   "connections": {
@@ -2208,6 +2308,11 @@
             "node": "Candidate Is Eligible",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Prepare Root Identity Update",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -2286,6 +2391,11 @@
             "node": "Call Summary Orchestrator",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Register Daily History",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -2306,6 +2416,17 @@
         [
           {
             "node": "Build Log Status Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Root Identity Update": {
+      "main": [
+        [
+          {
+            "node": "Update Root Identity",
             "type": "main",
             "index": 0
           }

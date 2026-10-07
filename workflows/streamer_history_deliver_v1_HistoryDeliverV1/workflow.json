@@ -1,0 +1,403 @@
+{
+  "id": "HistoryDeliverV1",
+  "name": "History: deliver one v1",
+  "active": true,
+  "nodes": [
+    {
+      "id": "923f1d9a-0984-4cf2-8ec0-482a20f6653b",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "payload",
+              "type": "object"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a6b19201-145f-4cf2-8b11-775a9d409d0f",
+      "name": "Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Input/jsCode.js"
+      }
+    },
+    {
+      "id": "24930f9e-38a1-42ef-85ff-cf680b813237",
+      "name": "Read Summary",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "summary_requests_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.sourceRequestKey }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "3348c30b-0d0d-42d7-8e94-cdce9fc6916b",
+      "name": "Ready Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Ready_Summary/jsCode.js"
+      }
+    },
+    {
+      "id": "55a2b948-bc3b-4e55-8ce3-2a43993f37ee",
+      "name": "Lookup History",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "HistoryLookupV1A",
+          "cachedResultName": "History: lookup v1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ $json }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true,
+              "display": true
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "e24294ca-d52d-4d46-83ab-c62d78d3bf26",
+      "name": "Claim Operation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Claim_Operation/jsCode.js"
+      }
+    },
+    {
+      "id": "0ef16b15-5f3c-4cfb-8c69-fa078e63c2b1",
+      "name": "Claim Delivery",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        240
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "HistoryWriteV1A1",
+          "cachedResultName": "History: write row v1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ $json }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true,
+              "display": true
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "00460a44-0126-464b-83ae-24493a91ccec",
+      "name": "Send History",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        260,
+        240
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Input').first().json.channel }}"
+        },
+        "text": "={{ $('Lookup History').first().json.pages.join('\\n\\n') }}",
+        "otherOptions": {
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Input').first().json.threadTS }}"
+            }
+          }
+        }
+      },
+      "webhookId": "9adf8538-eec5-4ad0-82de-0878d119a167",
+      "credentials": {
+        "slackApi": {
+          "id": "9sfslX7caXSFAVUN",
+          "name": "n8n-streaming-testing"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "714320ca-bc38-4d49-8f4e-7eccfb18f661",
+      "name": "Delivery Unknown",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        520,
+        240
+      ],
+      "parameters": {
+        "errorMessage": "history_delivery_unknown_do_not_resend"
+      }
+    },
+    {
+      "id": "459119f2-04fe-48bd-815f-88728f9a9e6b",
+      "name": "Sent Operation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Sent_Operation/jsCode.js"
+      }
+    },
+    {
+      "id": "d211fe9a-cc9f-4bbe-89f3-f55c1f004898",
+      "name": "Checkpoint Delivery",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        240
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "HistoryWriteV1A1",
+          "cachedResultName": "History: write row v1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ $json }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true,
+              "display": true
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Read Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Summary": {
+      "main": [
+        [
+          {
+            "node": "Ready Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ready Summary": {
+      "main": [
+        [
+          {
+            "node": "Lookup History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup History": {
+      "main": [
+        [
+          {
+            "node": "Claim Operation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Operation": {
+      "main": [
+        [
+          {
+            "node": "Claim Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Delivery": {
+      "main": [
+        [
+          {
+            "node": "Send History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send History": {
+      "main": [
+        [
+          {
+            "node": "Sent Operation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delivery Unknown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sent Operation": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Taipei",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false,
+    "errorWorkflow": "AutomationErrorV3A1"
+  }
+}

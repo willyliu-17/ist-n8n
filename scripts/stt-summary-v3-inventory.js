@@ -15,14 +15,16 @@ const V3_WORKFLOW_INVENTORY = Object.freeze([
     ['Tencent realtime VDS v3', 'workflows/tencent_realtime_vds_v3_TencentVDSV3A001'],
     ['Collect suspect streamID v3', 'workflows/collect_suspect_streamid_v3_CollectSuspectV3'],
     ['IST bot entry v3', 'workflows/ist_bot_entry_v3_IstBotEntryV3A01'],
-    ['IST bot Slack ingress v3', 'workflows/ist_bot_slack_ingress_v3_IstBotSlackIngressV3A1']
+    ['IST bot Slack ingress v3', 'workflows/ist_bot_slack_ingress_v3_IstBotSlackIngressV3A1'],
+    ...require('./build-streamer-history').inventory.map(([name, directory]) => [name, `workflows/${directory}`])
 ].map(tuple => Object.freeze(tuple)));
 
 const V3_DATA_TABLE_NAMES = Object.freeze([
     'suspect_stt_candidates_v3',
     'stt_jobs_v3',
     'summary_requests_v3',
-    'automation_errors_v3'
+    'automation_errors_v3',
+    ...Object.keys(require('./streamer-history-schema'))
 ]);
 
 const V3_TENCENT_CALLBACK_EXCLUSION =
@@ -35,6 +37,8 @@ const V3_EXTERNAL_WORKFLOW_DEPENDENCIES = Object.freeze([
 ]);
 
 const V3_OFFLINE_TEST_FILES = Object.freeze([
+    'scripts/streamer-history-core.test.js',
+    'scripts/streamer-history-workflows.test.js',
     'scripts/deploy-utils.test.js',
     'scripts/stt-summary-v3-offline.test.js',
     'scripts/single-stream-summary-v3.test.js',

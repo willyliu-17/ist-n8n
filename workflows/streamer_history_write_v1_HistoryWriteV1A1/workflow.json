@@ -1,0 +1,3313 @@
+{
+  "id": "HistoryWriteV1A1",
+  "name": "History: write row v1",
+  "active": true,
+  "nodes": [
+    {
+      "id": "03f27375-419a-45ed-860f-c94c8e180bac",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "payload",
+              "type": "object"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "77cf04b5-c2e5-4aac-85ac-27962906204f",
+      "name": "Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Input/jsCode.js"
+      }
+    },
+    {
+      "id": "742c60df-6808-4921-8f9b-fafc3706b8cd",
+      "name": "Invalid Route",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "errorMessage": "history_invalid_route"
+      }
+    },
+    {
+      "id": "cf31fa06-7e1d-43f6-8977-a7eace0c5df1",
+      "name": "Read Existing",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "4b8c52da-c7f9-4f02-8d21-7719c5f0f5a0",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_events_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "30a937a9-3e73-44b9-8510-8dd203c253a3",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_event_streams_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "58929d00-9e99-445d-8007-6abfde1f1d9f",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_analyses_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "fabfd71c-a259-4795-8b30-af72cc8758cc",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_import_state_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "03fed95b-ab84-4fd1-801b-f4d04e4ed1b3",
+      "name": "Read Existing 0",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_events_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $('Input').first().json.keyField }}",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.key }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "a5601c41-2ef7-4cff-8bad-50c1af204e63",
+      "name": "Read Existing 1",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_event_streams_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $('Input').first().json.keyField }}",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.key }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "00927039-5671-46fb-8d55-eb52fcce6f6f",
+      "name": "Read Existing 2",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        240
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_analyses_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $('Input').first().json.keyField }}",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.key }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "a9482e83-d6d9-4c6d-828f-67cc3061432c",
+      "name": "Read Existing 3",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        260,
+        240
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_import_state_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $('Input').first().json.keyField }}",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.key }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "177b5296-aa4f-47b1-8f4c-242c2a1d0b4e",
+      "name": "Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Plan/jsCode.js"
+      }
+    },
+    {
+      "id": "385293fe-8426-4f15-8aab-016cd35b8c38",
+      "name": "Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        780,
+        240
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "4a930018-8a99-4cc1-8348-02deadb56dc8",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "insert",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0ab244f5-4196-41c9-834a-f7338900cfea",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7d191b8c-ffe1-47a9-8958-d7015be80e8a",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "noop",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "9b66688a-f438-45ba-85b6-85b4b403521e",
+      "name": "No Change",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/No_Change/jsCode.js"
+      }
+    },
+    {
+      "id": "775b0479-6eeb-432d-8874-2a2987113c7d",
+      "name": "Route insert",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
+        240
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "de20bc28-f134-46c6-832e-421062543bd8",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_events_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e0ab9f9b-4985-4f78-85de-886a95667ab0",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_event_streams_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7854fd94-d70b-44ae-86cb-789105a1cb21",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_analyses_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "773e3d48-3c2a-435d-855b-2da638855097",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_import_state_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "f2e15d29-f18b-4a55-82b1-f86fa8e78b7d",
+      "name": "Limit insert",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        0,
+        480
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "89a16875-9925-40dd-86b9-c068bd0558b2",
+      "name": "insert 0",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        260,
+        480
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_events_v1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "eventKey": "={{ $json.values.eventKey ?? '' }}",
+            "identityVersion": "={{ $json.values.identityVersion ?? '' }}",
+            "userID": "={{ $json.values.userID ?? '' }}",
+            "orderedStreamsJson": "={{ $json.values.orderedStreamsJson ?? '' }}",
+            "firstSeenAtIso": "={{ $json.values.firstSeenAtIso ?? '' }}",
+            "lastSeenAtIso": "={{ $json.values.lastSeenAtIso ?? '' }}",
+            "reconciliationStatus": "={{ $json.values.reconciliationStatus ?? '' }}",
+            "canonicalRowID": "={{ $json.values.canonicalRowID ?? '' }}",
+            "updatedAtIso": "={{ $json.values.updatedAtIso ?? '' }}"
+          },
+          "schema": [
+            {
+              "id": "eventKey",
+              "displayName": "eventKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "identityVersion",
+              "displayName": "identityVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "orderedStreamsJson",
+              "displayName": "orderedStreamsJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "firstSeenAtIso",
+              "displayName": "firstSeenAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lastSeenAtIso",
+              "displayName": "lastSeenAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reconciliationStatus",
+              "displayName": "reconciliationStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "canonicalRowID",
+              "displayName": "canonicalRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAtIso",
+              "displayName": "updatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "392c12bb-7d52-4951-8351-cc70cf4d8e40",
+      "name": "insert 1",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        480
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_event_streams_v1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "eventStreamKey": "={{ $json.values.eventStreamKey ?? '' }}",
+            "eventKey": "={{ $json.values.eventKey ?? '' }}",
+            "userID": "={{ $json.values.userID ?? '' }}",
+            "streamID": "={{ $json.values.streamID ?? '' }}",
+            "role": "={{ $json.values.role ?? '' }}",
+            "beginTime": "={{ $json.values.beginTime ?? '' }}",
+            "endTime": "={{ $json.values.endTime ?? '' }}",
+            "deviceModel": "={{ $json.values.deviceModel ?? '' }}",
+            "deviceType": "={{ $json.values.deviceType ?? '' }}",
+            "appVersion": "={{ $json.values.appVersion ?? '' }}",
+            "osVersion": "={{ $json.values.osVersion ?? '' }}",
+            "region": "={{ $json.values.region ?? '' }}",
+            "streamMode": "={{ $json.values.streamMode ?? '' }}",
+            "isOBS": "={{ $json.values.isOBS ?? '' }}",
+            "reconciliationStatus": "={{ $json.values.reconciliationStatus ?? '' }}",
+            "canonicalRowID": "={{ $json.values.canonicalRowID ?? '' }}",
+            "updatedAtIso": "={{ $json.values.updatedAtIso ?? '' }}"
+          },
+          "schema": [
+            {
+              "id": "eventStreamKey",
+              "displayName": "eventStreamKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "eventKey",
+              "displayName": "eventKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "streamID",
+              "displayName": "streamID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "beginTime",
+              "displayName": "beginTime",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "endTime",
+              "displayName": "endTime",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deviceModel",
+              "displayName": "deviceModel",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deviceType",
+              "displayName": "deviceType",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "appVersion",
+              "displayName": "appVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "osVersion",
+              "displayName": "osVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "region",
+              "displayName": "region",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "streamMode",
+              "displayName": "streamMode",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "isOBS",
+              "displayName": "isOBS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reconciliationStatus",
+              "displayName": "reconciliationStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "canonicalRowID",
+              "displayName": "canonicalRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAtIso",
+              "displayName": "updatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "2913bb9a-941e-4198-873b-4a3f77fbb52e",
+      "name": "insert 2",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        780,
+        480
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_analyses_v1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "analysisKey": "={{ $json.values.analysisKey ?? '' }}",
+            "eventKey": "={{ $json.values.eventKey ?? '' }}",
+            "userID": "={{ $json.values.userID ?? '' }}",
+            "sourceRequestKey": "={{ $json.values.sourceRequestKey ?? '' }}",
+            "sourceRowID": "={{ $json.values.sourceRowID ?? '' }}",
+            "sourceChannel": "={{ $json.values.sourceChannel ?? '' }}",
+            "requestCreatedAtIso": "={{ $json.values.requestCreatedAtIso ?? '' }}",
+            "sourceType": "={{ $json.values.sourceType ?? '' }}",
+            "analysisScopeJson": "={{ $json.values.analysisScopeJson ?? '' }}",
+            "aiCategoriesJson": "={{ $json.values.aiCategoriesJson ?? '' }}",
+            "reportJson": "={{ $json.values.reportJson ?? '' }}",
+            "summaryMarkdown": "={{ $json.values.summaryMarkdown ?? '' }}",
+            "resultFingerprint": "={{ $json.values.resultFingerprint ?? '' }}",
+            "evidenceCompleteness": "={{ $json.values.evidenceCompleteness ?? '' }}",
+            "evidenceRef": "={{ $json.values.evidenceRef ?? '' }}",
+            "evidenceHash": "={{ $json.values.evidenceHash ?? '' }}",
+            "promptVersion": "={{ $json.values.promptVersion ?? '' }}",
+            "modelVersion": "={{ $json.values.modelVersion ?? '' }}",
+            "taxonomyVersion": "={{ $json.values.taxonomyVersion ?? '' }}",
+            "triggerTS": "={{ $json.values.triggerTS ?? '' }}",
+            "triggerLink": "={{ $json.values.triggerLink ?? '' }}",
+            "linkKind": "={{ $json.values.linkKind ?? '' }}",
+            "summaryMessageTS": "={{ $json.values.summaryMessageTS ?? '' }}",
+            "summaryUploadID": "={{ $json.values.summaryUploadID ?? '' }}",
+            "reconciliationStatus": "={{ $json.values.reconciliationStatus ?? '' }}",
+            "canonicalRowID": "={{ $json.values.canonicalRowID ?? '' }}",
+            "updatedAtIso": "={{ $json.values.updatedAtIso ?? '' }}"
+          },
+          "schema": [
+            {
+              "id": "analysisKey",
+              "displayName": "analysisKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "eventKey",
+              "displayName": "eventKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceRequestKey",
+              "displayName": "sourceRequestKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceRowID",
+              "displayName": "sourceRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceChannel",
+              "displayName": "sourceChannel",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requestCreatedAtIso",
+              "displayName": "requestCreatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceType",
+              "displayName": "sourceType",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analysisScopeJson",
+              "displayName": "analysisScopeJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "aiCategoriesJson",
+              "displayName": "aiCategoriesJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reportJson",
+              "displayName": "reportJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryMarkdown",
+              "displayName": "summaryMarkdown",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "resultFingerprint",
+              "displayName": "resultFingerprint",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evidenceCompleteness",
+              "displayName": "evidenceCompleteness",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evidenceRef",
+              "displayName": "evidenceRef",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evidenceHash",
+              "displayName": "evidenceHash",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "promptVersion",
+              "displayName": "promptVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "modelVersion",
+              "displayName": "modelVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "taxonomyVersion",
+              "displayName": "taxonomyVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerTS",
+              "displayName": "triggerTS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerLink",
+              "displayName": "triggerLink",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkKind",
+              "displayName": "linkKind",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryMessageTS",
+              "displayName": "summaryMessageTS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryUploadID",
+              "displayName": "summaryUploadID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reconciliationStatus",
+              "displayName": "reconciliationStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "canonicalRowID",
+              "displayName": "canonicalRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAtIso",
+              "displayName": "updatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "8d6ebd29-a8fa-47ac-8c2d-3f38c48fabd0",
+      "name": "insert 3",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        480
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_import_state_v1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "stateKey": "={{ $json.values.stateKey ?? '' }}",
+            "recordType": "={{ $json.values.recordType ?? '' }}",
+            "userID": "={{ $json.values.userID ?? '' }}",
+            "eventKey": "={{ $json.values.eventKey ?? '' }}",
+            "sourceRequestKey": "={{ $json.values.sourceRequestKey ?? '' }}",
+            "requestCreatedAtIso": "={{ $json.values.requestCreatedAtIso ?? '' }}",
+            "sourceUpdatedAtIso": "={{ $json.values.sourceUpdatedAtIso ?? '' }}",
+            "sourceStatus": "={{ $json.values.sourceStatus ?? '' }}",
+            "triggerTS": "={{ $json.values.triggerTS ?? '' }}",
+            "triggerLink": "={{ $json.values.triggerLink ?? '' }}",
+            "linkKind": "={{ $json.values.linkKind ?? '' }}",
+            "channel": "={{ $json.values.channel ?? '' }}",
+            "threadTS": "={{ $json.values.threadTS ?? '' }}",
+            "watermarkUpdatedAtIso": "={{ $json.values.watermarkUpdatedAtIso ?? '' }}",
+            "deliveryStatus": "={{ $json.values.deliveryStatus ?? '' }}",
+            "deliveryToken": "={{ $json.values.deliveryToken ?? '' }}",
+            "deliveryMessageTS": "={{ $json.values.deliveryMessageTS ?? '' }}",
+            "runID": "={{ $json.values.runID ?? '' }}",
+            "triggerKind": "={{ $json.values.triggerKind ?? '' }}",
+            "reconciliationStatus": "={{ $json.values.reconciliationStatus ?? '' }}",
+            "canonicalRowID": "={{ $json.values.canonicalRowID ?? '' }}",
+            "updatedAtIso": "={{ $json.values.updatedAtIso ?? '' }}"
+          },
+          "schema": [
+            {
+              "id": "stateKey",
+              "displayName": "stateKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recordType",
+              "displayName": "recordType",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "eventKey",
+              "displayName": "eventKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceRequestKey",
+              "displayName": "sourceRequestKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requestCreatedAtIso",
+              "displayName": "requestCreatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceUpdatedAtIso",
+              "displayName": "sourceUpdatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceStatus",
+              "displayName": "sourceStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerTS",
+              "displayName": "triggerTS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerLink",
+              "displayName": "triggerLink",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkKind",
+              "displayName": "linkKind",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "channel",
+              "displayName": "channel",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "threadTS",
+              "displayName": "threadTS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "watermarkUpdatedAtIso",
+              "displayName": "watermarkUpdatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deliveryStatus",
+              "displayName": "deliveryStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deliveryToken",
+              "displayName": "deliveryToken",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deliveryMessageTS",
+              "displayName": "deliveryMessageTS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "runID",
+              "displayName": "runID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerKind",
+              "displayName": "triggerKind",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reconciliationStatus",
+              "displayName": "reconciliationStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "canonicalRowID",
+              "displayName": "canonicalRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAtIso",
+              "displayName": "updatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "5209a0f1-bf93-460d-8b6b-17d21d13816f",
+      "name": "Route update",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
+        480
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "59fee722-9a20-4800-87c1-c1e04687e3e0",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_events_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "5f66653c-96d0-4a96-84ae-a7b16247946f",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_event_streams_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "30553e67-625f-462a-8ef2-5aff22dfb9f7",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_analyses_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "61c6b866-8991-4360-83e6-50f938d4ee6a",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_import_state_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "78d3e113-8f76-45fb-8770-d69f3ba35060",
+      "name": "Limit update",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        0,
+        720
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "f1b45fd3-a309-4bda-8b01-a5df30ccf135",
+      "name": "update 0",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        260,
+        720
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_events_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "={{ $json.snapshot.id == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.id ?? '' }}"
+            },
+            {
+              "keyName": "eventKey",
+              "condition": "={{ $json.snapshot.eventKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.eventKey ?? '' }}"
+            },
+            {
+              "keyName": "identityVersion",
+              "condition": "={{ $json.snapshot.identityVersion == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.identityVersion ?? '' }}"
+            },
+            {
+              "keyName": "userID",
+              "condition": "={{ $json.snapshot.userID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.userID ?? '' }}"
+            },
+            {
+              "keyName": "orderedStreamsJson",
+              "condition": "={{ $json.snapshot.orderedStreamsJson == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.orderedStreamsJson ?? '' }}"
+            },
+            {
+              "keyName": "firstSeenAtIso",
+              "condition": "={{ $json.snapshot.firstSeenAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.firstSeenAtIso ?? '' }}"
+            },
+            {
+              "keyName": "lastSeenAtIso",
+              "condition": "={{ $json.snapshot.lastSeenAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.lastSeenAtIso ?? '' }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "={{ $json.snapshot.reconciliationStatus == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.reconciliationStatus ?? '' }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "={{ $json.snapshot.canonicalRowID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.canonicalRowID ?? '' }}"
+            },
+            {
+              "keyName": "updatedAtIso",
+              "condition": "={{ $json.snapshot.updatedAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.updatedAtIso ?? '' }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "eventKey": "={{ $json.values.eventKey ?? '' }}",
+            "identityVersion": "={{ $json.values.identityVersion ?? '' }}",
+            "userID": "={{ $json.values.userID ?? '' }}",
+            "orderedStreamsJson": "={{ $json.values.orderedStreamsJson ?? '' }}",
+            "firstSeenAtIso": "={{ $json.values.firstSeenAtIso ?? '' }}",
+            "lastSeenAtIso": "={{ $json.values.lastSeenAtIso ?? '' }}",
+            "reconciliationStatus": "={{ $json.values.reconciliationStatus ?? '' }}",
+            "canonicalRowID": "={{ $json.values.canonicalRowID ?? '' }}",
+            "updatedAtIso": "={{ $json.values.updatedAtIso ?? '' }}"
+          },
+          "schema": [
+            {
+              "id": "eventKey",
+              "displayName": "eventKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "identityVersion",
+              "displayName": "identityVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "orderedStreamsJson",
+              "displayName": "orderedStreamsJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "firstSeenAtIso",
+              "displayName": "firstSeenAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lastSeenAtIso",
+              "displayName": "lastSeenAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reconciliationStatus",
+              "displayName": "reconciliationStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "canonicalRowID",
+              "displayName": "canonicalRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAtIso",
+              "displayName": "updatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "8370c94b-031c-4b72-8c1b-82bfbfeca553",
+      "name": "update 1",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        720
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_event_streams_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "={{ $json.snapshot.id == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.id ?? '' }}"
+            },
+            {
+              "keyName": "eventStreamKey",
+              "condition": "={{ $json.snapshot.eventStreamKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.eventStreamKey ?? '' }}"
+            },
+            {
+              "keyName": "eventKey",
+              "condition": "={{ $json.snapshot.eventKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.eventKey ?? '' }}"
+            },
+            {
+              "keyName": "userID",
+              "condition": "={{ $json.snapshot.userID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.userID ?? '' }}"
+            },
+            {
+              "keyName": "streamID",
+              "condition": "={{ $json.snapshot.streamID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.streamID ?? '' }}"
+            },
+            {
+              "keyName": "role",
+              "condition": "={{ $json.snapshot.role == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.role ?? '' }}"
+            },
+            {
+              "keyName": "beginTime",
+              "condition": "={{ $json.snapshot.beginTime == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.beginTime ?? '' }}"
+            },
+            {
+              "keyName": "endTime",
+              "condition": "={{ $json.snapshot.endTime == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.endTime ?? '' }}"
+            },
+            {
+              "keyName": "deviceModel",
+              "condition": "={{ $json.snapshot.deviceModel == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.deviceModel ?? '' }}"
+            },
+            {
+              "keyName": "deviceType",
+              "condition": "={{ $json.snapshot.deviceType == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.deviceType ?? '' }}"
+            },
+            {
+              "keyName": "appVersion",
+              "condition": "={{ $json.snapshot.appVersion == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.appVersion ?? '' }}"
+            },
+            {
+              "keyName": "osVersion",
+              "condition": "={{ $json.snapshot.osVersion == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.osVersion ?? '' }}"
+            },
+            {
+              "keyName": "region",
+              "condition": "={{ $json.snapshot.region == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.region ?? '' }}"
+            },
+            {
+              "keyName": "streamMode",
+              "condition": "={{ $json.snapshot.streamMode == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.streamMode ?? '' }}"
+            },
+            {
+              "keyName": "isOBS",
+              "condition": "={{ $json.snapshot.isOBS == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.isOBS ?? '' }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "={{ $json.snapshot.reconciliationStatus == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.reconciliationStatus ?? '' }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "={{ $json.snapshot.canonicalRowID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.canonicalRowID ?? '' }}"
+            },
+            {
+              "keyName": "updatedAtIso",
+              "condition": "={{ $json.snapshot.updatedAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.updatedAtIso ?? '' }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "eventStreamKey": "={{ $json.values.eventStreamKey ?? '' }}",
+            "eventKey": "={{ $json.values.eventKey ?? '' }}",
+            "userID": "={{ $json.values.userID ?? '' }}",
+            "streamID": "={{ $json.values.streamID ?? '' }}",
+            "role": "={{ $json.values.role ?? '' }}",
+            "beginTime": "={{ $json.values.beginTime ?? '' }}",
+            "endTime": "={{ $json.values.endTime ?? '' }}",
+            "deviceModel": "={{ $json.values.deviceModel ?? '' }}",
+            "deviceType": "={{ $json.values.deviceType ?? '' }}",
+            "appVersion": "={{ $json.values.appVersion ?? '' }}",
+            "osVersion": "={{ $json.values.osVersion ?? '' }}",
+            "region": "={{ $json.values.region ?? '' }}",
+            "streamMode": "={{ $json.values.streamMode ?? '' }}",
+            "isOBS": "={{ $json.values.isOBS ?? '' }}",
+            "reconciliationStatus": "={{ $json.values.reconciliationStatus ?? '' }}",
+            "canonicalRowID": "={{ $json.values.canonicalRowID ?? '' }}",
+            "updatedAtIso": "={{ $json.values.updatedAtIso ?? '' }}"
+          },
+          "schema": [
+            {
+              "id": "eventStreamKey",
+              "displayName": "eventStreamKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "eventKey",
+              "displayName": "eventKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "streamID",
+              "displayName": "streamID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "beginTime",
+              "displayName": "beginTime",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "endTime",
+              "displayName": "endTime",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deviceModel",
+              "displayName": "deviceModel",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deviceType",
+              "displayName": "deviceType",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "appVersion",
+              "displayName": "appVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "osVersion",
+              "displayName": "osVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "region",
+              "displayName": "region",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "streamMode",
+              "displayName": "streamMode",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "isOBS",
+              "displayName": "isOBS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reconciliationStatus",
+              "displayName": "reconciliationStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "canonicalRowID",
+              "displayName": "canonicalRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAtIso",
+              "displayName": "updatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "ffdcf59b-14a3-4838-89af-afc49ee92a2b",
+      "name": "update 2",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        780,
+        720
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_analyses_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "={{ $json.snapshot.id == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.id ?? '' }}"
+            },
+            {
+              "keyName": "analysisKey",
+              "condition": "={{ $json.snapshot.analysisKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.analysisKey ?? '' }}"
+            },
+            {
+              "keyName": "eventKey",
+              "condition": "={{ $json.snapshot.eventKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.eventKey ?? '' }}"
+            },
+            {
+              "keyName": "userID",
+              "condition": "={{ $json.snapshot.userID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.userID ?? '' }}"
+            },
+            {
+              "keyName": "sourceRequestKey",
+              "condition": "={{ $json.snapshot.sourceRequestKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.sourceRequestKey ?? '' }}"
+            },
+            {
+              "keyName": "sourceRowID",
+              "condition": "={{ $json.snapshot.sourceRowID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.sourceRowID ?? '' }}"
+            },
+            {
+              "keyName": "sourceChannel",
+              "condition": "={{ $json.snapshot.sourceChannel == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.sourceChannel ?? '' }}"
+            },
+            {
+              "keyName": "requestCreatedAtIso",
+              "condition": "={{ $json.snapshot.requestCreatedAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.requestCreatedAtIso ?? '' }}"
+            },
+            {
+              "keyName": "sourceType",
+              "condition": "={{ $json.snapshot.sourceType == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.sourceType ?? '' }}"
+            },
+            {
+              "keyName": "analysisScopeJson",
+              "condition": "={{ $json.snapshot.analysisScopeJson == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.analysisScopeJson ?? '' }}"
+            },
+            {
+              "keyName": "aiCategoriesJson",
+              "condition": "={{ $json.snapshot.aiCategoriesJson == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.aiCategoriesJson ?? '' }}"
+            },
+            {
+              "keyName": "reportJson",
+              "condition": "={{ $json.snapshot.reportJson == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.reportJson ?? '' }}"
+            },
+            {
+              "keyName": "summaryMarkdown",
+              "condition": "={{ $json.snapshot.summaryMarkdown == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.summaryMarkdown ?? '' }}"
+            },
+            {
+              "keyName": "resultFingerprint",
+              "condition": "={{ $json.snapshot.resultFingerprint == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.resultFingerprint ?? '' }}"
+            },
+            {
+              "keyName": "evidenceCompleteness",
+              "condition": "={{ $json.snapshot.evidenceCompleteness == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.evidenceCompleteness ?? '' }}"
+            },
+            {
+              "keyName": "evidenceRef",
+              "condition": "={{ $json.snapshot.evidenceRef == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.evidenceRef ?? '' }}"
+            },
+            {
+              "keyName": "evidenceHash",
+              "condition": "={{ $json.snapshot.evidenceHash == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.evidenceHash ?? '' }}"
+            },
+            {
+              "keyName": "promptVersion",
+              "condition": "={{ $json.snapshot.promptVersion == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.promptVersion ?? '' }}"
+            },
+            {
+              "keyName": "modelVersion",
+              "condition": "={{ $json.snapshot.modelVersion == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.modelVersion ?? '' }}"
+            },
+            {
+              "keyName": "taxonomyVersion",
+              "condition": "={{ $json.snapshot.taxonomyVersion == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.taxonomyVersion ?? '' }}"
+            },
+            {
+              "keyName": "triggerTS",
+              "condition": "={{ $json.snapshot.triggerTS == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.triggerTS ?? '' }}"
+            },
+            {
+              "keyName": "triggerLink",
+              "condition": "={{ $json.snapshot.triggerLink == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.triggerLink ?? '' }}"
+            },
+            {
+              "keyName": "linkKind",
+              "condition": "={{ $json.snapshot.linkKind == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.linkKind ?? '' }}"
+            },
+            {
+              "keyName": "summaryMessageTS",
+              "condition": "={{ $json.snapshot.summaryMessageTS == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.summaryMessageTS ?? '' }}"
+            },
+            {
+              "keyName": "summaryUploadID",
+              "condition": "={{ $json.snapshot.summaryUploadID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.summaryUploadID ?? '' }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "={{ $json.snapshot.reconciliationStatus == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.reconciliationStatus ?? '' }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "={{ $json.snapshot.canonicalRowID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.canonicalRowID ?? '' }}"
+            },
+            {
+              "keyName": "updatedAtIso",
+              "condition": "={{ $json.snapshot.updatedAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.updatedAtIso ?? '' }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "analysisKey": "={{ $json.values.analysisKey ?? '' }}",
+            "eventKey": "={{ $json.values.eventKey ?? '' }}",
+            "userID": "={{ $json.values.userID ?? '' }}",
+            "sourceRequestKey": "={{ $json.values.sourceRequestKey ?? '' }}",
+            "sourceRowID": "={{ $json.values.sourceRowID ?? '' }}",
+            "sourceChannel": "={{ $json.values.sourceChannel ?? '' }}",
+            "requestCreatedAtIso": "={{ $json.values.requestCreatedAtIso ?? '' }}",
+            "sourceType": "={{ $json.values.sourceType ?? '' }}",
+            "analysisScopeJson": "={{ $json.values.analysisScopeJson ?? '' }}",
+            "aiCategoriesJson": "={{ $json.values.aiCategoriesJson ?? '' }}",
+            "reportJson": "={{ $json.values.reportJson ?? '' }}",
+            "summaryMarkdown": "={{ $json.values.summaryMarkdown ?? '' }}",
+            "resultFingerprint": "={{ $json.values.resultFingerprint ?? '' }}",
+            "evidenceCompleteness": "={{ $json.values.evidenceCompleteness ?? '' }}",
+            "evidenceRef": "={{ $json.values.evidenceRef ?? '' }}",
+            "evidenceHash": "={{ $json.values.evidenceHash ?? '' }}",
+            "promptVersion": "={{ $json.values.promptVersion ?? '' }}",
+            "modelVersion": "={{ $json.values.modelVersion ?? '' }}",
+            "taxonomyVersion": "={{ $json.values.taxonomyVersion ?? '' }}",
+            "triggerTS": "={{ $json.values.triggerTS ?? '' }}",
+            "triggerLink": "={{ $json.values.triggerLink ?? '' }}",
+            "linkKind": "={{ $json.values.linkKind ?? '' }}",
+            "summaryMessageTS": "={{ $json.values.summaryMessageTS ?? '' }}",
+            "summaryUploadID": "={{ $json.values.summaryUploadID ?? '' }}",
+            "reconciliationStatus": "={{ $json.values.reconciliationStatus ?? '' }}",
+            "canonicalRowID": "={{ $json.values.canonicalRowID ?? '' }}",
+            "updatedAtIso": "={{ $json.values.updatedAtIso ?? '' }}"
+          },
+          "schema": [
+            {
+              "id": "analysisKey",
+              "displayName": "analysisKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "eventKey",
+              "displayName": "eventKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceRequestKey",
+              "displayName": "sourceRequestKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceRowID",
+              "displayName": "sourceRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceChannel",
+              "displayName": "sourceChannel",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requestCreatedAtIso",
+              "displayName": "requestCreatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceType",
+              "displayName": "sourceType",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analysisScopeJson",
+              "displayName": "analysisScopeJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "aiCategoriesJson",
+              "displayName": "aiCategoriesJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reportJson",
+              "displayName": "reportJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryMarkdown",
+              "displayName": "summaryMarkdown",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "resultFingerprint",
+              "displayName": "resultFingerprint",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evidenceCompleteness",
+              "displayName": "evidenceCompleteness",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evidenceRef",
+              "displayName": "evidenceRef",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evidenceHash",
+              "displayName": "evidenceHash",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "promptVersion",
+              "displayName": "promptVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "modelVersion",
+              "displayName": "modelVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "taxonomyVersion",
+              "displayName": "taxonomyVersion",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerTS",
+              "displayName": "triggerTS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerLink",
+              "displayName": "triggerLink",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkKind",
+              "displayName": "linkKind",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryMessageTS",
+              "displayName": "summaryMessageTS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryUploadID",
+              "displayName": "summaryUploadID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reconciliationStatus",
+              "displayName": "reconciliationStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "canonicalRowID",
+              "displayName": "canonicalRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAtIso",
+              "displayName": "updatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b0690618-f4e6-49e5-8a56-51d002e56c94",
+      "name": "update 3",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        720
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_import_state_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "={{ $json.snapshot.id == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.id ?? '' }}"
+            },
+            {
+              "keyName": "stateKey",
+              "condition": "={{ $json.snapshot.stateKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.stateKey ?? '' }}"
+            },
+            {
+              "keyName": "recordType",
+              "condition": "={{ $json.snapshot.recordType == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.recordType ?? '' }}"
+            },
+            {
+              "keyName": "userID",
+              "condition": "={{ $json.snapshot.userID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.userID ?? '' }}"
+            },
+            {
+              "keyName": "eventKey",
+              "condition": "={{ $json.snapshot.eventKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.eventKey ?? '' }}"
+            },
+            {
+              "keyName": "sourceRequestKey",
+              "condition": "={{ $json.snapshot.sourceRequestKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.sourceRequestKey ?? '' }}"
+            },
+            {
+              "keyName": "requestCreatedAtIso",
+              "condition": "={{ $json.snapshot.requestCreatedAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.requestCreatedAtIso ?? '' }}"
+            },
+            {
+              "keyName": "sourceUpdatedAtIso",
+              "condition": "={{ $json.snapshot.sourceUpdatedAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.sourceUpdatedAtIso ?? '' }}"
+            },
+            {
+              "keyName": "sourceStatus",
+              "condition": "={{ $json.snapshot.sourceStatus == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.sourceStatus ?? '' }}"
+            },
+            {
+              "keyName": "triggerTS",
+              "condition": "={{ $json.snapshot.triggerTS == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.triggerTS ?? '' }}"
+            },
+            {
+              "keyName": "triggerLink",
+              "condition": "={{ $json.snapshot.triggerLink == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.triggerLink ?? '' }}"
+            },
+            {
+              "keyName": "linkKind",
+              "condition": "={{ $json.snapshot.linkKind == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.linkKind ?? '' }}"
+            },
+            {
+              "keyName": "channel",
+              "condition": "={{ $json.snapshot.channel == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.channel ?? '' }}"
+            },
+            {
+              "keyName": "threadTS",
+              "condition": "={{ $json.snapshot.threadTS == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.threadTS ?? '' }}"
+            },
+            {
+              "keyName": "watermarkUpdatedAtIso",
+              "condition": "={{ $json.snapshot.watermarkUpdatedAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.watermarkUpdatedAtIso ?? '' }}"
+            },
+            {
+              "keyName": "deliveryStatus",
+              "condition": "={{ $json.snapshot.deliveryStatus == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.deliveryStatus ?? '' }}"
+            },
+            {
+              "keyName": "deliveryToken",
+              "condition": "={{ $json.snapshot.deliveryToken == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.deliveryToken ?? '' }}"
+            },
+            {
+              "keyName": "deliveryMessageTS",
+              "condition": "={{ $json.snapshot.deliveryMessageTS == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.deliveryMessageTS ?? '' }}"
+            },
+            {
+              "keyName": "runID",
+              "condition": "={{ $json.snapshot.runID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.runID ?? '' }}"
+            },
+            {
+              "keyName": "triggerKind",
+              "condition": "={{ $json.snapshot.triggerKind == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.triggerKind ?? '' }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "={{ $json.snapshot.reconciliationStatus == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.reconciliationStatus ?? '' }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "={{ $json.snapshot.canonicalRowID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.canonicalRowID ?? '' }}"
+            },
+            {
+              "keyName": "updatedAtIso",
+              "condition": "={{ $json.snapshot.updatedAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.updatedAtIso ?? '' }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "stateKey": "={{ $json.values.stateKey ?? '' }}",
+            "recordType": "={{ $json.values.recordType ?? '' }}",
+            "userID": "={{ $json.values.userID ?? '' }}",
+            "eventKey": "={{ $json.values.eventKey ?? '' }}",
+            "sourceRequestKey": "={{ $json.values.sourceRequestKey ?? '' }}",
+            "requestCreatedAtIso": "={{ $json.values.requestCreatedAtIso ?? '' }}",
+            "sourceUpdatedAtIso": "={{ $json.values.sourceUpdatedAtIso ?? '' }}",
+            "sourceStatus": "={{ $json.values.sourceStatus ?? '' }}",
+            "triggerTS": "={{ $json.values.triggerTS ?? '' }}",
+            "triggerLink": "={{ $json.values.triggerLink ?? '' }}",
+            "linkKind": "={{ $json.values.linkKind ?? '' }}",
+            "channel": "={{ $json.values.channel ?? '' }}",
+            "threadTS": "={{ $json.values.threadTS ?? '' }}",
+            "watermarkUpdatedAtIso": "={{ $json.values.watermarkUpdatedAtIso ?? '' }}",
+            "deliveryStatus": "={{ $json.values.deliveryStatus ?? '' }}",
+            "deliveryToken": "={{ $json.values.deliveryToken ?? '' }}",
+            "deliveryMessageTS": "={{ $json.values.deliveryMessageTS ?? '' }}",
+            "runID": "={{ $json.values.runID ?? '' }}",
+            "triggerKind": "={{ $json.values.triggerKind ?? '' }}",
+            "reconciliationStatus": "={{ $json.values.reconciliationStatus ?? '' }}",
+            "canonicalRowID": "={{ $json.values.canonicalRowID ?? '' }}",
+            "updatedAtIso": "={{ $json.values.updatedAtIso ?? '' }}"
+          },
+          "schema": [
+            {
+              "id": "stateKey",
+              "displayName": "stateKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recordType",
+              "displayName": "recordType",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "eventKey",
+              "displayName": "eventKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceRequestKey",
+              "displayName": "sourceRequestKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requestCreatedAtIso",
+              "displayName": "requestCreatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceUpdatedAtIso",
+              "displayName": "sourceUpdatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceStatus",
+              "displayName": "sourceStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerTS",
+              "displayName": "triggerTS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerLink",
+              "displayName": "triggerLink",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkKind",
+              "displayName": "linkKind",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "channel",
+              "displayName": "channel",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "threadTS",
+              "displayName": "threadTS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "watermarkUpdatedAtIso",
+              "displayName": "watermarkUpdatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deliveryStatus",
+              "displayName": "deliveryStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deliveryToken",
+              "displayName": "deliveryToken",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deliveryMessageTS",
+              "displayName": "deliveryMessageTS",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "runID",
+              "displayName": "runID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerKind",
+              "displayName": "triggerKind",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reconciliationStatus",
+              "displayName": "reconciliationStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "canonicalRowID",
+              "displayName": "canonicalRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAtIso",
+              "displayName": "updatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "c410bbef-1e2d-47f8-81b5-b291968876a6",
+      "name": "Require Updated Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        720
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Require_Updated_Row/jsCode.js"
+      }
+    },
+    {
+      "id": "c091aba9-38b0-427a-87a3-f080742ef0c7",
+      "name": "Read Verified",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        960
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ff0f54be-0a60-4b82-8624-f6e4ee60a0ea",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_events_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e7cb2480-7fc4-4e63-867e-8005d673fe7c",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_event_streams_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b82919c2-e9b0-4a45-85bc-5dafbdf8a806",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_analyses_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c8cae853-8221-4b77-821b-f53202330741",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_import_state_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "279a351c-9108-48ed-87c5-e8492e2afd21",
+      "name": "Read Verified 0",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        260,
+        960
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_events_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $('Input').first().json.keyField }}",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.key }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "8291fed6-96f3-4408-82ee-ef8639d58b24",
+      "name": "Read Verified 1",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        960
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_event_streams_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $('Input').first().json.keyField }}",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.key }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "5fe51577-2ce2-44fd-8770-5dfd3fcd195b",
+      "name": "Read Verified 2",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        780,
+        960
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_analyses_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $('Input').first().json.keyField }}",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.key }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "6684c479-20e5-4d7e-80f2-0eb8c948f140",
+      "name": "Read Verified 3",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        960
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_import_state_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $('Input').first().json.keyField }}",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.key }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "4de5ee48-e8fd-4c05-8c6a-3bdaefc13d6e",
+      "name": "Verify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        960
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Verify/jsCode.js"
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Existing": {
+      "main": [
+        [
+          {
+            "node": "Read Existing 0",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Existing 1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Existing 2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Existing 3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Existing 0": {
+      "main": [
+        [
+          {
+            "node": "Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Existing 1": {
+      "main": [
+        [
+          {
+            "node": "Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Existing 2": {
+      "main": [
+        [
+          {
+            "node": "Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Existing 3": {
+      "main": [
+        [
+          {
+            "node": "Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Read Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan": {
+      "main": [
+        [
+          {
+            "node": "Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action": {
+      "main": [
+        [
+          {
+            "node": "Route insert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Change",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route insert": {
+      "main": [
+        [
+          {
+            "node": "insert 0",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "insert 1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "insert 2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "insert 3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert 0": {
+      "main": [
+        [
+          {
+            "node": "Limit insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert 1": {
+      "main": [
+        [
+          {
+            "node": "Limit insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert 2": {
+      "main": [
+        [
+          {
+            "node": "Limit insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert 3": {
+      "main": [
+        [
+          {
+            "node": "Limit insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route update": {
+      "main": [
+        [
+          {
+            "node": "update 0",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "update 1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "update 2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "update 3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update 0": {
+      "main": [
+        [
+          {
+            "node": "Limit update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update 1": {
+      "main": [
+        [
+          {
+            "node": "Limit update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update 2": {
+      "main": [
+        [
+          {
+            "node": "Limit update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update 3": {
+      "main": [
+        [
+          {
+            "node": "Limit update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit insert": {
+      "main": [
+        [
+          {
+            "node": "Read Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Verified": {
+      "main": [
+        [
+          {
+            "node": "Read Verified 0",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Verified 1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Verified 2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Verified 3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Verified 0": {
+      "main": [
+        [
+          {
+            "node": "Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Verified 1": {
+      "main": [
+        [
+          {
+            "node": "Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Verified 2": {
+      "main": [
+        [
+          {
+            "node": "Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Verified 3": {
+      "main": [
+        [
+          {
+            "node": "Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit update": {
+      "main": [
+        [
+          {
+            "node": "Require Updated Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Require Updated Row": {
+      "main": [
+        [
+          {
+            "node": "Read Verified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Taipei",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false,
+    "errorWorkflow": "AutomationErrorV3A1"
+  }
+}

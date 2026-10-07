@@ -859,7 +859,8 @@ function dataTableIdMap() {
         ['suspect_stt_candidates_v3', 'table-suspects'],
         ['stt_jobs_v3', 'table-jobs'],
         ['summary_requests_v3', 'table-summaries'],
-        ['automation_errors_v3', 'table-errors']
+        ['automation_errors_v3', 'table-errors'],
+        ...getV3DataTableNames().slice(4).map((name, index) => [name, `table-history-${index}`])
     ]);
 }
 
@@ -1016,7 +1017,15 @@ test('exports the exact authoritative v3 workflow inventory in deployment order'
         ['Tencent realtime VDS v3', 'workflows/tencent_realtime_vds_v3_TencentVDSV3A001'],
         ['Collect suspect streamID v3', 'workflows/collect_suspect_streamid_v3_CollectSuspectV3'],
         ['IST bot entry v3', 'workflows/ist_bot_entry_v3_IstBotEntryV3A01'],
-        ['IST bot Slack ingress v3', 'workflows/ist_bot_slack_ingress_v3_IstBotSlackIngressV3A1']
+        ['IST bot Slack ingress v3', 'workflows/ist_bot_slack_ingress_v3_IstBotSlackIngressV3A1'],
+        ['History: write row v1', 'workflows/streamer_history_write_v1_HistoryWriteV1A1'],
+        ['History: import request v1', 'workflows/streamer_history_import_request_v1_HistoryRequestV1'],
+        ['History: ingest v1', 'workflows/streamer_thermal_history_ingest_v1_HistoryIngestV1A'],
+        ['History: lookup v1', 'workflows/streamer_thermal_history_lookup_v1_HistoryLookupV1A'],
+        ['History: notify completed v1', 'workflows/streamer_thermal_history_notify_v1_HistoryNotifyV1A'],
+        ['History: deliver one v1', 'workflows/streamer_history_deliver_v1_HistoryDeliverV1'],
+        ['History: reply to command v1', 'workflows/streamer_history_reply_v1_HistoryReplyV1A'],
+        ['History: register daily v1', 'workflows/streamer_history_register_v1_HistoryRegister1']
     ]);
     assert.ok(Object.isFrozen(getV3Inventory()));
     assert.ok(getV3Inventory().every(tuple => Object.isFrozen(tuple)));
@@ -1027,12 +1036,17 @@ test('exports the frozen exact authoritative v3 Data Table names', () => {
         'suspect_stt_candidates_v3',
         'stt_jobs_v3',
         'summary_requests_v3',
-        'automation_errors_v3'
+        'automation_errors_v3',
+        'streamer_history_events_v1',
+        'streamer_history_event_streams_v1',
+        'streamer_history_analyses_v1',
+        'streamer_history_import_state_v1',
+        'streamer_history_reviews_v1'
     ]);
     assert.ok(Object.isFrozen(getV3DataTableNames()));
 });
 
-test('collectDataTableReferences accepts repeated four-table exact-name placeholders only', () => {
+test('collectDataTableReferences accepts repeated authoritative exact-name placeholders only', () => {
     const workflows = [{
         name: 'Data workflow',
         nodes: [
@@ -1057,10 +1071,7 @@ test('collectDataTableReferences accepts repeated four-table exact-name placehol
     }];
 
     assert.deepEqual(collectDataTableReferences(workflows), [
-        { workflowName: 'Data workflow', nodeName: 'Table 0', tableName: 'suspect_stt_candidates_v3' },
-        { workflowName: 'Data workflow', nodeName: 'Table 1', tableName: 'stt_jobs_v3' },
-        { workflowName: 'Data workflow', nodeName: 'Table 2', tableName: 'summary_requests_v3' },
-        { workflowName: 'Data workflow', nodeName: 'Table 3', tableName: 'automation_errors_v3' },
+        ...getV3DataTableNames().map((tableName, index) => ({ workflowName: 'Data workflow', nodeName: `Table ${index}`, tableName })),
         { workflowName: 'Data workflow', nodeName: 'Repeated jobs table', tableName: 'stt_jobs_v3' }
     ]);
     assert.deepEqual(collectDataTableReferences([{ name: 'No tables', nodes: [] }]), []);
@@ -1245,7 +1256,7 @@ test('P3 resolves the canonical schema independently from the process working di
 test('P3 fails closed for missing names, duplicate names, and duplicate target IDs', async () => {
     const validTables = [...dataTableIdMap()].map(([name, id]) => ({ id, name }));
     const cases = [
-        { label: 'missing', tables: validTables.slice(0, -1), pattern: /missing.*automation_errors_v3/i },
+        { label: 'missing', tables: validTables.slice(0, -1), pattern: /missing.*streamer_history_reviews_v1/i },
         {
             label: 'duplicate name',
             tables: [...validTables, { id: 'duplicate-jobs', name: 'stt_jobs_v3' }],

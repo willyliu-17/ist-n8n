@@ -319,7 +319,7 @@ test('builds checkpointed orchestrator requests in the assembled runtime and nor
   });
   assert.deepEqual(collectorWorkflow.connections['Build Orchestrator Requests'].main[0], [{
     node: 'Call Summary Orchestrator', type: 'main', index: 0,
-  }]);
+  }, { node: 'Register Daily History', type: 'main', index: 0 }]);
   assert.deepEqual(summaryWorkflow.connections.Start.main[0], [{
     node: 'Normalize Request', type: 'main', index: 0,
   }]);
@@ -668,10 +668,12 @@ test('is active with manual test-channel and daily production-channel triggers',
   assert.deepEqual(nodeByName(workflow, 'Configure Manual Run').parameters.assignments.assignments.map(({ name, value, type }) => ({ name, value, type })), [
     { name: 'targetDate', value: '', type: 'string' },
     { name: 'channel', value: 'C09F0SYG57D', type: 'string' },
+    { name: 'historyTriggerKind', value: 'manual', type: 'string' },
   ]);
   assert.deepEqual(nodeByName(workflow, 'Configure Scheduled Run').parameters.assignments.assignments.map(({ name, value, type }) => ({ name, value, type })), [
     { name: 'targetDate', value: '', type: 'string' },
     { name: 'channel', value: 'C09F0SYG57D', type: 'string' },
+    { name: 'historyTriggerKind', value: 'daily', type: 'string' },
   ]);
   const schedule = nodeByName(workflow, 'Daily 10:00 Taipei Trigger');
   assert.equal(schedule.typeVersion, 1.4);

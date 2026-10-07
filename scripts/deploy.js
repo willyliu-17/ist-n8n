@@ -318,7 +318,7 @@ function loadCanonicalDataTableSchema() {
         throw new Error(`Failed to load canonical Data Table schema: ${error.message}`);
     }
     if (!isPlainObject(parsed) || !isDeepStrictEqual(Object.keys(parsed), V3_DATA_TABLE_NAMES)) {
-        throw new Error('Canonical Data Table schema must contain the four authoritative tables in order');
+        throw new Error('Canonical Data Table schema must contain all authoritative tables in order');
     }
 
     const schema = {};

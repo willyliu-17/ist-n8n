@@ -1,0 +1,366 @@
+{
+  "id": "HistoryRequestV1",
+  "name": "History: import request v1",
+  "active": true,
+  "nodes": [
+    {
+      "id": "c4549ea1-5a0c-4f89-8d8f-de7eecee54ca",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "payload",
+              "type": "object"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "6942f00d-915f-49c8-8949-a6d1dcf04318",
+      "name": "Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Input/jsCode.js"
+      }
+    },
+    {
+      "id": "3a4398f3-1f06-47b3-8fcf-511da961f3f7",
+      "name": "Context Source",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cc4b4890-b4c6-4e9f-892e-009cf38d6e23",
+                    "leftValue": "={{ $json.needsJobs ? 'jobs' : 'inline' }}",
+                    "rightValue": "jobs",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "459eac46-4da5-42b7-87cf-7cca866fb336",
+                    "leftValue": "={{ $json.needsJobs ? 'jobs' : 'inline' }}",
+                    "rightValue": "inline",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "f45f2baf-f4aa-420f-8e3a-ae4bd7200228",
+      "name": "Read Matching Jobs",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stt_jobs_v3"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "requestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "c0a5ab7c-a151-48ea-87a4-eea0c7f580cf",
+      "name": "Invalid Context Route",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        0
+      ],
+      "parameters": {
+        "errorMessage": "history_invalid_context_route"
+      }
+    },
+    {
+      "id": "af56e205-e14e-4b94-8118-cd99ad779c68",
+      "name": "Build Records",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_Records/jsCode.js"
+      }
+    },
+    {
+      "id": "9cf13fc5-bcf4-4a37-85ac-55ed48a675aa",
+      "name": "Write Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        0,
+        240
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "a064ff2a-c357-4977-8d02-f71b6fb1dd45",
+      "name": "Write Record",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        260,
+        240
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "HistoryWriteV1A1",
+          "cachedResultName": "History: write row v1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ $json }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true,
+              "display": true
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "4b078d22-79f7-445c-8825-48e9045aae32",
+      "name": "Limit Done",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        520,
+        240
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    },
+    {
+      "id": "5d1b2233-79bb-4522-85e7-5b6f2e2d8bfc",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Return_Result/jsCode.js"
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Context Source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Context Source": {
+      "main": [
+        [
+          {
+            "node": "Read Matching Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Records",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Context Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Matching Jobs": {
+      "main": [
+        [
+          {
+            "node": "Build Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Records": {
+      "main": [
+        [
+          {
+            "node": "Write Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Loop": {
+      "main": [
+        [
+          {
+            "node": "Limit Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Write Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Record": {
+      "main": [
+        [
+          {
+            "node": "Write Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Done": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Taipei",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false,
+    "errorWorkflow": "AutomationErrorV3A1"
+  }
+}

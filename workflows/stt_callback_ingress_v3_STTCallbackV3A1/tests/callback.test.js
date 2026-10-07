@@ -34,6 +34,7 @@ const ATTEMPT_KEY = 'summary:req-001:current:9001:fromStart:1';
 const LOGICAL_JOB_KEY = 'summary:req-001:current:9001:fromStart';
 const RETRY_SLOT_MINUTES = [1, 2, 4, 6, 9, 13, 18, 25, 35, 48, 65, 88, 118, 158, 211, 281, 374, 497, 660];
 const P3_IDS = new Map([
+  ...require('../../../scripts/stt-summary-v3-inventory').V3_DATA_TABLE_NAMES.slice(4).map((name, i) => [name, `p3-history-${i}`]),
   ['suspect_stt_candidates_v3', 'p3-suspects'],
   ['stt_jobs_v3', 'p3-jobs'],
   ['summary_requests_v3', 'p3-summaries'],

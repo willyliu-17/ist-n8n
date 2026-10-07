@@ -636,6 +636,7 @@ test('uses only authoritative by-name state tables and exact allConditions soft-
   assert.ok(Object.keys(filterMap(deletes[0])).includes('updatedAt'));
 
   const runtimeNodes = remapDataTableReferences(workflow.nodes, new Map([
+    ...require('../../../scripts/stt-summary-v3-inventory').V3_DATA_TABLE_NAMES.slice(4).map((name, i) => [name, `p3-history-${i}`]),
     ['suspect_stt_candidates_v3', 'candidates-id'], ['stt_jobs_v3', 'jobs-id'],
     ['summary_requests_v3', 'summary-id'], ['automation_errors_v3', 'errors-id'],
   ]));

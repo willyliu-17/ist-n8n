@@ -17,6 +17,11 @@ const EXPECTED_TABLES = [
   'stt_jobs_v3',
   'summary_requests_v3',
   'automation_errors_v3',
+  'streamer_history_events_v1',
+  'streamer_history_event_streams_v1',
+  'streamer_history_analyses_v1',
+  'streamer_history_import_state_v1',
+  'streamer_history_reviews_v1',
 ];
 
 const workflowDir = path.resolve(__dirname, '..');
@@ -56,7 +61,7 @@ function expectedReportItems() {
 
 test('defines only the four isolated v3 tables', () => {
   assert.deepEqual(Object.keys(schema), EXPECTED_TABLES);
-  assert.ok(Object.keys(schema).every((name) => name.endsWith('_v3')));
+  assert.ok(Object.keys(schema).every((name) => name.endsWith('_v3') || /^streamer_history_\w+_v1$/.test(name)));
 });
 
 test('uses primitive custom columns without system column collisions', () => {
@@ -353,7 +358,7 @@ test('externalizes a self-contained manifest that exactly matches the canonical 
   assert.doesNotMatch(code, /\$input\.first\(\)\.json\.schemaJson/);
   assert.doesNotMatch(code, /\brequire\s*\(|\breadFile(?:Sync)?\b|\b schemaJson\b/);
   assert.deepEqual(output.map(({ json }) => json.tableName), EXPECTED_TABLES);
-  assert.equal(output.length, 4);
+  assert.equal(output.length, EXPECTED_TABLES.length);
 
   for (const { json } of output) {
     assert.deepEqual(JSON.parse(json.columnsJson), schema[json.tableName]);
@@ -406,16 +411,18 @@ test('connects manifest, probes, and an expectation-only report without schema c
       [{ node: 'Probe STT Jobs', type: 'main', index: 0 }],
       [{ node: 'Probe Summary Requests', type: 'main', index: 0 }],
       [{ node: 'Probe Automation Errors', type: 'main', index: 0 }],
+      ...EXPECTED_TABLES.slice(4).map((_, index) => [{ node: `Probe History ${index}`, type: 'main', index: 0 }]),
     ] },
     'Probe Suspect Candidates': { main: [[{ node: 'Wait for Table Probes', type: 'main', index: 0 }]] },
     'Probe STT Jobs': { main: [[{ node: 'Wait for Table Probes', type: 'main', index: 1 }]] },
     'Probe Summary Requests': { main: [[{ node: 'Wait for Table Probes', type: 'main', index: 2 }]] },
     'Probe Automation Errors': { main: [[{ node: 'Wait for Table Probes', type: 'main', index: 3 }]] },
+    ...Object.fromEntries(EXPECTED_TABLES.slice(4).map((_, index) => [`Probe History ${index}`, { main: [[{ node: 'Wait for Table Probes', type: 'main', index: index + 4 }]] }])),
     'Wait for Table Probes': { main: [[{ node: 'Report Expected Schema', type: 'main', index: 0 }]] },
   });
   assert.deepEqual(router.parameters.rules.values.map(({ conditions }) => conditions.conditions[0].rightValue), EXPECTED_TABLES);
   assert.equal(router.parameters.options.fallbackOutput, 'none');
-  assert.deepEqual(barrier.parameters, { mode: 'append', numberInputs: 4 });
+  assert.deepEqual(barrier.parameters, { mode: 'append', numberInputs: EXPECTED_TABLES.length });
   assert.ok(report);
   assert.equal(report.type, 'n8n-nodes-base.code');
   assert.equal(report.typeVersion, 2);
@@ -433,7 +440,7 @@ test('rebuilds all four whitelisted report items when every table probe matches 
   const output = buildExpectedSchemaReport(buildManifestItems(), zeroProbeOutput);
 
   assert.deepEqual(output, expectedReportItems());
-  assert.equal(output.length, 4);
+  assert.equal(output.length, EXPECTED_TABLES.length);
   assert.ok(output.every(({ json }) => Object.keys(json).length === 6));
 });
 

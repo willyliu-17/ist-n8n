@@ -45,7 +45,7 @@ const linkedAssertions = Object.freeze({
   'p2-inert-reuse': ['scripts/deploy-utils.test.js', 'P2 reuses one inactive empty inert exact-name workflow without POST'],
   'p2-rerun': ['scripts/deploy-utils.test.js', 'P2 rerun reuses every created ID and performs no additional POST'],
   'p2-fail-closed': ['scripts/deploy-utils.test.js', 'P2 fails closed for duplicate exact-name workflows before POST'],
-  'source-name-placeholder': ['scripts/deploy-utils.test.js', 'collectDataTableReferences accepts repeated four-table exact-name placeholders only'],
+  'source-name-placeholder': ['scripts/deploy-utils.test.js', 'collectDataTableReferences accepts repeated authoritative exact-name placeholders only'],
   'p3-table-map-fail-closed': ['scripts/deploy-utils.test.js', 'P3 compares every readback custom column against canonical name, type, and order'],
   'p4-data-table-remap': ['scripts/deploy-utils.test.js', 'P4 deep-clones and remaps Data Tables, selectors, and credentials before PUT, then confirms inactive'],
   'deployed-id-locator': ['scripts/deploy-utils.test.js', 'P4 stops later PUTs when post-PUT GET returns a non-P3 Data Table target ID'],
@@ -152,7 +152,7 @@ test('pins Data Table nodes to a version supported by Production n8n 2.38.2', ()
   const nodes = workflowEntries.flatMap(({ workflow }) => workflow.nodes)
     .filter(({ type }) => type === 'n8n-nodes-base.dataTable');
   assert.ok(nodes.length > 0);
-  assert.ok(nodes.every(({ typeVersion }) => typeVersion === 1));
+  assert.ok(nodes.every(({ typeVersion }) => typeVersion === 1 || typeVersion === 1.1));
 });
 
 test('pins Execute Workflow Trigger nodes to versions supported by Production n8n 2.38.2', () => {

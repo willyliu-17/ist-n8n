@@ -1,0 +1,1 @@
+const result=$input.first().json;return result.pages.map((text,i)=>({json:{text:text+'\n頁 '+(i+1)+' / '+result.pages.length,channel:$('Input').first().json.channel,threadTS:$('Input').first().json.threadTS}}));

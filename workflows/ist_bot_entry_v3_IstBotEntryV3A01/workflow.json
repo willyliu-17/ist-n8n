@@ -181,6 +181,28 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c5a9bcc1-bdd5-48d9-862f-2ba098c43273",
+                    "leftValue": "={{ $json.dispatchKey }}",
+                    "rightValue": "v3:history:streamer",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -903,6 +925,46 @@
           "waitForSubWorkflow": false
         }
       }
+    },
+    {
+      "id": "fd29e5d3-84b5-4665-8f07-fb30ce4c1c9b",
+      "name": "Call Streamer History",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "HistoryReplyV1A",
+          "cachedResultName": "History: reply to command v1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ $json }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true,
+              "display": true
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      }
     }
   ],
   "connections": {
@@ -968,6 +1030,13 @@
         [
           {
             "node": "Call Legacy Entry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call Streamer History",
             "type": "main",
             "index": 0
           }

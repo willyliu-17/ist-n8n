@@ -26,6 +26,7 @@ const PINNED_SLACK_2_3_UPLOAD_ITEMS = [
 const NOW = '2026-08-22T00:00:00.000Z';
 const ATTEMPT_KEY = 'summary:req-001:current:9001:fromStart:1';
 const P3_IDS = new Map([
+  ...require('../../../scripts/stt-summary-v3-inventory').V3_DATA_TABLE_NAMES.slice(4).map((name, i) => [name, `p3-history-${i}`]),
   ['stt_jobs_v3', 'p3-jobs'],
   ['summary_requests_v3', 'p3-summaries'],
   ['automation_errors_v3', 'p3-errors'],

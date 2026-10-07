@@ -4,12 +4,14 @@ const CHANNEL_COMMANDS = Object.freeze({
     'stt:stream': true,
     'log:stream': true,
     'summary:stream': true,
+    'history:streamer': true,
     'vds:stream': true,
   }),
   C09F0SYG57D: Object.freeze({
     'stt:stream': true,
     'log:stream': true,
     'summary:stream': true,
+    'history:streamer': true,
   }),
 });
 const LEGACY_CHANNEL = 'C09F0SYG57D';

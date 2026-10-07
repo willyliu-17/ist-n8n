@@ -1,0 +1,470 @@
+{
+  "id": "HistoryLookupV1A",
+  "name": "History: lookup v1",
+  "active": true,
+  "nodes": [
+    {
+      "id": "c73f097b-bd42-46e0-8acc-6075089fdeca",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "payload",
+              "type": "object"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "55621dad-8e81-4320-813d-21c319013562",
+      "name": "Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Input/jsCode.js"
+      }
+    },
+    {
+      "id": "3508a688-be8a-4a25-8975-6fd0c12ccc43",
+      "name": "Read events",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_events_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "userID",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.userID }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "2cc8ab27-6a9e-4327-88e6-a124366e3b46",
+      "name": "Collect events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Collect_events/jsCode.js"
+      }
+    },
+    {
+      "id": "57f1bfd1-1df6-4579-88bc-835e62bdcc44",
+      "name": "Read streams",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_event_streams_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "userID",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.userID }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "66b51be6-9a57-4264-8b74-fcb78b746abe",
+      "name": "Collect streams",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Collect_streams/jsCode.js"
+      }
+    },
+    {
+      "id": "1b7bf0b0-cfb3-4bcb-872a-677307502fa8",
+      "name": "Read analyses",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        240
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_analyses_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "userID",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.userID }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "63d57dfb-7f76-41ed-8238-c057417304fd",
+      "name": "Collect analyses",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Collect_analyses/jsCode.js"
+      }
+    },
+    {
+      "id": "78848fb5-28b7-482a-8593-bcb2c6578b80",
+      "name": "Read state",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        240
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_import_state_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "userID",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.userID }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b491a904-f7ad-44bd-84f4-6b269db9b290",
+      "name": "Collect state",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Collect_state/jsCode.js"
+      }
+    },
+    {
+      "id": "ee1f9a07-2b86-4cbb-8176-b853ab2b4d09",
+      "name": "Read reviews",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        240
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_reviews_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "userID",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.userID }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "4df74aa9-7492-4974-8353-3f45843d2230",
+      "name": "Collect reviews",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Collect_reviews/jsCode.js"
+      }
+    },
+    {
+      "id": "01eee34e-6d2a-4693-898d-2f916bd085a4",
+      "name": "Read Watermark",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        480
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_import_state_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "stateKey",
+              "condition": "eq",
+              "keyValue": "watermark:production:summary"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b187318c-59b6-4d69-8e3e-f2685409c806",
+      "name": "Build History",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        480
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "__EXTERNAL_FILE__://nodes/Build_History/jsCode.js"
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Read events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read events": {
+      "main": [
+        [
+          {
+            "node": "Collect events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect events": {
+      "main": [
+        [
+          {
+            "node": "Read streams",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read streams": {
+      "main": [
+        [
+          {
+            "node": "Collect streams",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect streams": {
+      "main": [
+        [
+          {
+            "node": "Read analyses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read analyses": {
+      "main": [
+        [
+          {
+            "node": "Collect analyses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect analyses": {
+      "main": [
+        [
+          {
+            "node": "Read state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read state": {
+      "main": [
+        [
+          {
+            "node": "Collect state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect state": {
+      "main": [
+        [
+          {
+            "node": "Read reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read reviews": {
+      "main": [
+        [
+          {
+            "node": "Collect reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect reviews": {
+      "main": [
+        [
+          {
+            "node": "Read Watermark",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Watermark": {
+      "main": [
+        [
+          {
+            "node": "Build History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [
+    {
+      "name": "ist-bot-v3"
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Taipei",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false,
+    "errorWorkflow": "AutomationErrorV3A1"
+  }
+}

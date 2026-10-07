@@ -41,6 +41,7 @@ function deduplicateCandidates(rows, { runID, nowIso, channel = DEFAULT_CHANNEL 
     runID: candidate.runID,
     streamID: candidate.streamID,
     prevStreamID: candidate.prevStreamID,
+    userID: candidate.userID,
     sourcesJson: JSON.stringify(candidate.sources.sort()),
     channel,
     threadTS: '',
