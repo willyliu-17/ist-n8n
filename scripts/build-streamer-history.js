@@ -53,7 +53,7 @@ class Workflow {
   save() {
     const base = path.join(root, 'workflows', this.dir);
     for (const [file, source] of Object.entries(this.files)) { fs.mkdirSync(path.dirname(path.join(base, file)), { recursive: true }); fs.writeFileSync(path.join(base, file), source); }
-    const active = !['HistoryIngestV1A', 'HistoryNotifyV1A'].includes(this.id);
+    const active = this.id !== 'HistoryNotifyV1A';
     const workflow = { id: this.id, name: this.name, active, nodes: this.nodes, connections: this.connections, tags: [{ name: 'ist-bot-v3' }], settings: { executionOrder: 'v1', timezone: 'Asia/Taipei', saveDataSuccessExecution: 'all', saveDataErrorExecution: 'all', saveManualExecutions: true, saveExecutionProgress: false, errorWorkflow: 'AutomationErrorV3A1' } };
     fs.writeFileSync(path.join(base, 'workflow.json'), JSON.stringify(workflow, null, 2) + '\n');
   }

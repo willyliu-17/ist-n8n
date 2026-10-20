@@ -1,7 +1,7 @@
 {
   "id": "HistoryIngestV1A",
   "name": "History: ingest v1",
-  "active": false,
+  "active": true,
   "nodes": [
     {
       "id": "b672bc3b-2784-489d-8fed-84d897d0ff52",

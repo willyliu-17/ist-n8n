@@ -12,7 +12,7 @@ const workflows = new Map(inventory.map(([, directory, id]) => [id, buildWorkflo
 
 test('history writes are restricted to dedicated index tables with explicit per-column CAS', () => {
   for (const workflow of workflows.values()) {
-    assert.equal(workflow.active, !['HistoryIngestV1A', 'HistoryNotifyV1A'].includes(workflow.id));
+    assert.equal(workflow.active, workflow.id !== 'HistoryNotifyV1A');
     for (const node of workflow.nodes.filter(n => n.type === 'n8n-nodes-base.dataTable' && n.parameters.operation !== 'get')) {
       const table = node.parameters.dataTableId.value;
       assert.ok(Object.values(H.TABLES).includes(table));
