@@ -15,7 +15,7 @@ test('history writes are restricted to dedicated index tables with explicit per-
     assert.equal(workflow.active, workflow.id !== 'HistoryNotifyV1A');
     for (const node of workflow.nodes.filter(n => n.type === 'n8n-nodes-base.dataTable' && n.parameters.operation !== 'get')) {
       const table = node.parameters.dataTableId.value;
-      assert.ok(Object.values(H.TABLES).includes(table));
+      assert.ok([...Object.values(H.TABLES), H.CATEGORY_TABLE].includes(table));
       assert.notEqual(table, H.TABLES.reviews);
       for (const key of ['id', 'createdAt', 'updatedAt']) assert.ok(!Object.hasOwn(node.parameters.columns.value, key));
       if (node.parameters.operation === 'update') {
@@ -53,6 +53,23 @@ test('daily poll claims before Slack and verifies a separate completion checkpoi
   const slack = w.nodes.find(n => n.name === 'Send History');
   assert.notEqual(slack.retryOnFail, true);
   assert.equal(w.nodes.find(n => n.name === 'Checkpoint Delivery').parameters.workflowId.value, 'HistoryWriteV1A1');
+  assert.equal(w.connections['Thermal Result'].main[0][0].node, 'Lookup History');
+  assert.equal(w.connections['Thermal Result'].main[1][0].node, 'Skip Nonthermal');
+  assert.equal(w.connections['Skip Nonthermal'].main[0][0].node, 'Save Nonthermal Skip');
+  assert.equal(w.connections['Save Nonthermal Skip'], undefined);
+  assert.ok(w.nodes.find(n => n.name === 'Skip Nonthermal').parameters.jsCode.includes("deliveryStatus='skipped_nonthermal'"));
+});
+test('category indexing reads explicit provenance before writing normalized facts', () => {
+  const importer=workflows.get('HistoryRequestV1');
+  assert.equal(importer.connections.Input.main[0][0].node,'Read Trigger Provenance');
+  const provenance=importer.nodes.find(n=>n.name==='Read Trigger Provenance');
+  assert.equal(provenance.parameters.dataTableId.value,H.TABLES.state);
+  assert.deepEqual(provenance.parameters.filters.conditions.map(c=>c.keyName),['recordType','sourceRequestKey']);
+  assert.ok(importer.nodes.find(n=>n.name==='Build Records').parameters.jsCode.includes('History.categoryRecords(r,ops,provenance)'));
+  const writer=workflows.get('HistoryWriteV1A1');
+  const writes=writer.nodes.filter(n=>n.type==='n8n-nodes-base.dataTable'&&n.parameters.dataTableId.value===H.CATEGORY_TABLE);
+  assert.ok(writes.some(n=>n.parameters.operation==='insert'));
+  assert.ok(writes.some(n=>n.parameters.operation==='update'));
 });
 test('streamer command routes both allowed channels without adding a stream command', () => {
   for (const channel of [H.CHANNEL, 'C0A4JJJKJMD']) {

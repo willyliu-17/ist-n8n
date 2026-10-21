@@ -1041,7 +1041,8 @@ test('exports the frozen exact authoritative v3 Data Table names', () => {
         'streamer_history_event_streams_v1',
         'streamer_history_analyses_v1',
         'streamer_history_import_state_v1',
-        'streamer_history_reviews_v1'
+        'streamer_history_reviews_v1',
+        'streamer_history_analysis_categories_v1'
     ]);
     assert.ok(Object.isFrozen(getV3DataTableNames()));
 });
@@ -1256,7 +1257,7 @@ test('P3 resolves the canonical schema independently from the process working di
 test('P3 fails closed for missing names, duplicate names, and duplicate target IDs', async () => {
     const validTables = [...dataTableIdMap()].map(([name, id]) => ({ id, name }));
     const cases = [
-        { label: 'missing', tables: validTables.slice(0, -1), pattern: /missing.*streamer_history_reviews_v1/i },
+        { label: 'missing', tables: validTables.slice(0, -1), pattern: /missing.*streamer_history_analysis_categories_v1/i },
         {
             label: 'duplicate name',
             tables: [...validTables, { id: 'duplicate-jobs', name: 'stt_jobs_v3' }],

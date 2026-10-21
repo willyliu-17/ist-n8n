@@ -63,7 +63,7 @@ const eq = (keyName, keyValue) => ({ keyName, condition: 'eq', keyValue });
 function writer() {
   const w = new Workflow(inventory[0]);
   w.start(`const op = $input.first().json; History.planWrite({...op,expected:undefined}, [], new Date().toISOString()); return [{json:op}];`);
-  const tables = Object.values(H.TABLES).filter(t => t !== H.TABLES.reviews);
+  const tables = Object.keys(schema).filter(t => t !== H.TABLES.reviews);
   function reads(routeName, target) {
     w.route(routeName, "={{ $('Input').first().json.table }}", tables);
     for (const [i, table] of tables.entries()) {
@@ -100,10 +100,11 @@ function writer() {
 function importer() {
   const w = new Workflow(inventory[1]);
   w.start(`const r=$input.first().json; if(!History.filterSource(r)) throw new Error('history_invalid_source'); return [{json:{...r,needsJobs:History.needsJobContext(r)}}];`);
-  w.route('Context Source', "={{ $json.needsJobs ? 'jobs' : 'inline' }}", ['jobs','inline']);w.connect('Input','Context Source');
+  w.read('Read Trigger Provenance', H.TABLES.state, [eq('recordType','notification'), eq('sourceRequestKey',"={{ $('Input').first().json.requestKey }}")], 'Input');
+  w.route('Context Source', "={{ $('Input').first().json.needsJobs ? 'jobs' : 'inline' }}", ['jobs','inline']);w.connect('Read Trigger Provenance','Context Source');
   w.read('Read Matching Jobs', 'stt_jobs_v3', [eq('requestKey', "={{ $('Input').first().json.requestKey }}")]);w.connect('Context Source','Read Matching Jobs');w.connect('Context Source','Build Records',1);
   w.node('Invalid Context Route','stopAndError',1,{errorMessage:'history_invalid_context_route'});w.connect('Context Source','Invalid Context Route',2);
-  w.code('Build Records', `const r=$('Input').first().json;return History.records(r, r.needsJobs?$input.all().map(i=>i.json):[]).map(json=>({json}));`); w.connect('Read Matching Jobs', 'Build Records');
+  w.code('Build Records', `const r=$('Input').first().json;const ops=History.records(r,r.needsJobs?$input.all().map(i=>i.json):[]);const provenance=$('Read Trigger Provenance').all().map(i=>i.json).filter(r=>r.id);return [...ops,...History.categoryRecords(r,ops,provenance)].map(json=>({json}));`); w.connect('Read Matching Jobs', 'Build Records');
   w.node('Write Loop', 'splitInBatches', 3, { batchSize: 1, options: {} }); w.connect('Build Records', 'Write Loop');
   w.call('Write Record', inventory[0][2]); w.connect('Write Loop', 'Write Record', 1); w.connect('Write Record', 'Write Loop');
   w.node('Limit Done', 'limit', 1, { maxItems: 1 }); w.connect('Write Loop', 'Limit Done', 0);
@@ -156,8 +157,12 @@ function deliver() {
   const w=new Workflow(inventory[5]);
   w.start(`const row=payload;if(!History.selfLinked(row)||row.recordType!=='notification'||row.triggerKind!=='daily'||row.channel!==History.CHANNEL||row.deliveryStatus!=='pending')throw new Error('history_invalid_delivery');return [{json:row}];`);
   w.read('Read Summary','summary_requests_v3',[eq('requestKey',"={{ $('Input').first().json.sourceRequestKey }}")],'Input');
-  w.code('Ready Summary',`const rows=$input.all().map(i=>i.json).filter(r=>r.id);if(!rows.length)return [];if(rows.length!==1||!History.selfLinked(rows[0]))throw new Error('history_summary_conflict');const r=rows[0],n=$('Input').first().json;if(r.status!=='completed'||!r.summaryMessageTS||!r.summaryUploadID)return [];if(!History.filterSource(r)||r.channel!==n.channel||r.threadTS!==n.threadTS||History.identity(r).userID!==n.userID)throw new Error('history_delivery_identity_conflict');return [{json:{userID:n.userID,presentationMode:'daily_completed',beforeIso:r.createdAtIso,excludeRequestKey:r.requestKey}}];`);w.connect('Read Summary','Ready Summary');
-  w.call('Lookup History',inventory[3][2],'Ready Summary');
+  w.code('Ready Summary',`const rows=$input.all().map(i=>i.json).filter(r=>r.id);if(!rows.length)return [];if(rows.length!==1||!History.selfLinked(rows[0]))throw new Error('history_summary_conflict');const decision=History.deliveryDecision(rows[0],$('Input').first().json);return decision.action==='wait'?[]:[{json:decision}];`);w.connect('Read Summary','Ready Summary');
+  w.route('Thermal Result','={{ $json.action }}',['lookup','skip']);w.connect('Ready Summary','Thermal Result');
+  w.call('Lookup History',inventory[3][2]);w.connect('Thermal Result','Lookup History');
+  w.code('Skip Nonthermal',`const row=$('Input').first().json;const fields=${JSON.stringify(schema[H.TABLES.state].map(c=>c.name).filter(k=>!['reconciliationStatus','canonicalRowID','updatedAtIso'].includes(k)))};const values=Object.fromEntries(fields.map(k=>[k,row[k]??'']));values.deliveryStatus='skipped_nonthermal';const op=History.operation(History.TABLES.state,'stateKey',values,['deliveryStatus']);op.expected={deliveryStatus:'pending',updatedAtIso:row.updatedAtIso};return [{json:op}];`);w.connect('Thermal Result','Skip Nonthermal',1);
+  w.call('Save Nonthermal Skip',inventory[0][2],'Skip Nonthermal');
+  w.node('Invalid Thermal Decision','stopAndError',1,{errorMessage:'history_invalid_thermal_decision'});w.connect('Thermal Result','Invalid Thermal Decision',2);
   w.code('Claim Operation',`if($input.first().json.historyStatus!=='ok')return [];const row=$('Input').first().json;const fields=${JSON.stringify(schema[H.TABLES.state].map(c=>c.name).filter(k=>!['reconciliationStatus','canonicalRowID','updatedAtIso'].includes(k)))};const values=Object.fromEntries(fields.map(k=>[k,row[k]??'']));values.deliveryStatus='sending';values.deliveryToken=String($execution.id);const op=History.operation(History.TABLES.state,'stateKey',values,['deliveryStatus','deliveryToken']);op.expected={deliveryStatus:'pending',updatedAtIso:row.updatedAtIso};return [{json:op}];`);w.connect('Lookup History','Claim Operation');
   w.call('Claim Delivery',inventory[0][2],'Claim Operation');
   w.node('Send History','slack',2.3,{select:'channel',channelId:{__rl:true,mode:'id',value:"={{ $('Input').first().json.channel }}"},text:"={{ $('Lookup History').first().json.pages.join('\\n\\n') }}",otherOptions:{thread_ts:{replyValues:{thread_ts:"={{ $('Input').first().json.threadTS }}"}}}},{credentials:slackCredentials(),onError:'continueErrorOutput'});w.connect('Claim Delivery','Send History');

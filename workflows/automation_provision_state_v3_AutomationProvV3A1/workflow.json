@@ -231,6 +231,28 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "1e3f1675-b1c3-4f54-82ea-d15749d4edf1",
+                    "leftValue": "={{ $json.tableName }}",
+                    "rightValue": "streamer_history_analysis_categories_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -378,7 +400,7 @@
     {
       "parameters": {
         "mode": "append",
-        "numberInputs": 9
+        "numberInputs": 10
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
@@ -562,6 +584,38 @@
       "id": "7303ef15-775f-40ef-8952-4aaa262252f5",
       "name": "Probe History 4",
       "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_analysis_categories_v1"
+        },
+        "matchType": "anyCondition",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "isNotEmpty"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        720,
+        1500
+      ],
+      "id": "1e3f1675-b1c3-4f54-82ea-d15749d4edf1",
+      "name": "Probe History 5",
+      "alwaysOutputData": true
     }
   ],
   "connections": {
@@ -648,6 +702,13 @@
         [
           {
             "node": "Probe History 4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Probe History 5",
             "type": "main",
             "index": 0
           }
@@ -760,6 +821,17 @@
             "node": "Wait for Table Probes",
             "type": "main",
             "index": 8
+          }
+        ]
+      ]
+    },
+    "Probe History 5": {
+      "main": [
+        [
+          {
+            "node": "Wait for Table Probes",
+            "type": "main",
+            "index": 9
           }
         ]
       ]

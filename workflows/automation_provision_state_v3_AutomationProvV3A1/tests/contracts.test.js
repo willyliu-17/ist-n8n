@@ -22,6 +22,7 @@ const EXPECTED_TABLES = [
   'streamer_history_analyses_v1',
   'streamer_history_import_state_v1',
   'streamer_history_reviews_v1',
+  'streamer_history_analysis_categories_v1',
 ];
 
 const workflowDir = path.resolve(__dirname, '..');

@@ -38,12 +38,48 @@
       }
     },
     {
+      "id": "898f93b4-e280-4bf8-8206-205f57c0e56f",
+      "name": "Read Trigger Provenance",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_import_state_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "recordType",
+              "condition": "eq",
+              "keyValue": "notification"
+            },
+            {
+              "keyName": "sourceRequestKey",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.requestKey }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
       "id": "3a4398f3-1f06-47b3-8fcf-511da961f3f7",
       "name": "Context Source",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        520,
+        780,
         0
       ],
       "parameters": {
@@ -59,7 +95,7 @@
                 "conditions": [
                   {
                     "id": "cc4b4890-b4c6-4e9f-892e-009cf38d6e23",
-                    "leftValue": "={{ $json.needsJobs ? 'jobs' : 'inline' }}",
+                    "leftValue": "={{ $('Input').first().json.needsJobs ? 'jobs' : 'inline' }}",
                     "rightValue": "jobs",
                     "operator": {
                       "type": "string",
@@ -80,7 +116,7 @@
                 "conditions": [
                   {
                     "id": "459eac46-4da5-42b7-87cf-7cca866fb336",
-                    "leftValue": "={{ $json.needsJobs ? 'jobs' : 'inline' }}",
+                    "leftValue": "={{ $('Input').first().json.needsJobs ? 'jobs' : 'inline' }}",
                     "rightValue": "inline",
                     "operator": {
                       "type": "string",
@@ -104,7 +140,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        780,
+        1040,
         0
       ],
       "parameters": {
@@ -135,7 +171,7 @@
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
       "position": [
-        1040,
+        1300,
         0
       ],
       "parameters": {
@@ -148,8 +184,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
-        0
+        0,
+        240
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -162,7 +198,7 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        0,
+        260,
         240
       ],
       "parameters": {
@@ -176,7 +212,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        260,
+        520,
         240
       ],
       "parameters": {
@@ -216,7 +252,7 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        520,
+        780,
         240
       ],
       "parameters": {
@@ -229,7 +265,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
+        1040,
         240
       ],
       "parameters": {
@@ -251,6 +287,17 @@
       ]
     },
     "Input": {
+      "main": [
+        [
+          {
+            "node": "Read Trigger Provenance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Trigger Provenance": {
       "main": [
         [
           {

@@ -145,6 +145,27 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "bc84600c-94e0-4f62-81ab-29f519968f44",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_analysis_categories_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -278,12 +299,43 @@
       "alwaysOutputData": true
     },
     {
+      "id": "9e73e6c0-9514-408c-8f8a-a284bbdcd643",
+      "name": "Read Existing 4",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        240
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_analysis_categories_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $('Input').first().json.keyField }}",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.key }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
       "id": "177b5296-aa4f-47b1-8f4c-242c2a1d0b4e",
       "name": "Plan",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        520,
+        780,
         240
       ],
       "parameters": {
@@ -297,7 +349,7 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        780,
+        1040,
         240
       ],
       "parameters": {
@@ -379,7 +431,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1040,
+        1300,
         240
       ],
       "parameters": {
@@ -393,8 +445,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        1300,
-        240
+        0,
+        480
       ],
       "parameters": {
         "rules": {
@@ -482,6 +534,27 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3615106b-03e5-4e9d-8f1c-666b2f5dd5f2",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_analysis_categories_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -496,7 +569,7 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        0,
+        260,
         480
       ],
       "parameters": {
@@ -509,7 +582,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        260,
+        520,
         480
       ],
       "parameters": {
@@ -618,7 +691,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        520,
+        780,
         480
       ],
       "parameters": {
@@ -799,7 +872,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        780,
+        1040,
         480
       ],
       "parameters": {
@@ -1070,7 +1143,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1040,
+        1300,
         480
       ],
       "parameters": {
@@ -1291,13 +1364,248 @@
       "alwaysOutputData": true
     },
     {
+      "id": "23c960e4-f648-49c7-8b0b-b0bb8cd8363d",
+      "name": "insert 4",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        720
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_analysis_categories_v1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "categoryKey": "={{ $json.values.categoryKey ?? '' }}",
+            "analysisKey": "={{ $json.values.analysisKey ?? '' }}",
+            "eventKey": "={{ $json.values.eventKey ?? '' }}",
+            "userID": "={{ $json.values.userID ?? '' }}",
+            "category": "={{ $json.values.category ?? '' }}",
+            "sourceRequestKey": "={{ $json.values.sourceRequestKey ?? '' }}",
+            "sourceType": "={{ $json.values.sourceType ?? '' }}",
+            "triggerKind": "={{ $json.values.triggerKind ?? '' }}",
+            "sourceChannel": "={{ $json.values.sourceChannel ?? '' }}",
+            "requestCreatedAtIso": "={{ $json.values.requestCreatedAtIso ?? '' }}",
+            "requestDateTW": "={{ $json.values.requestDateTW ?? '' }}",
+            "summaryMessageAtIso": "={{ $json.values.summaryMessageAtIso ?? '' }}",
+            "summaryMessageDateTW": "={{ $json.values.summaryMessageDateTW ?? '' }}",
+            "summaryCompletedAtIso": "={{ $json.values.summaryCompletedAtIso ?? '' }}",
+            "completionTimeEvidence": "={{ $json.values.completionTimeEvidence ?? '' }}",
+            "sourceStatus": "={{ $json.values.sourceStatus ?? '' }}",
+            "orderedStreamsJson": "={{ $json.values.orderedStreamsJson ?? '' }}",
+            "currentStreamID": "={{ $json.values.currentStreamID ?? '' }}",
+            "analysisScopeJson": "={{ $json.values.analysisScopeJson ?? '' }}",
+            "evidenceCompleteness": "={{ $json.values.evidenceCompleteness ?? '' }}",
+            "reconciliationStatus": "={{ $json.values.reconciliationStatus ?? '' }}",
+            "canonicalRowID": "={{ $json.values.canonicalRowID ?? '' }}",
+            "updatedAtIso": "={{ $json.values.updatedAtIso ?? '' }}"
+          },
+          "schema": [
+            {
+              "id": "categoryKey",
+              "displayName": "categoryKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analysisKey",
+              "displayName": "analysisKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "eventKey",
+              "displayName": "eventKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceRequestKey",
+              "displayName": "sourceRequestKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceType",
+              "displayName": "sourceType",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerKind",
+              "displayName": "triggerKind",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceChannel",
+              "displayName": "sourceChannel",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requestCreatedAtIso",
+              "displayName": "requestCreatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requestDateTW",
+              "displayName": "requestDateTW",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryMessageAtIso",
+              "displayName": "summaryMessageAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryMessageDateTW",
+              "displayName": "summaryMessageDateTW",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryCompletedAtIso",
+              "displayName": "summaryCompletedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "completionTimeEvidence",
+              "displayName": "completionTimeEvidence",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceStatus",
+              "displayName": "sourceStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "orderedStreamsJson",
+              "displayName": "orderedStreamsJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "currentStreamID",
+              "displayName": "currentStreamID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analysisScopeJson",
+              "displayName": "analysisScopeJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evidenceCompleteness",
+              "displayName": "evidenceCompleteness",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reconciliationStatus",
+              "displayName": "reconciliationStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "canonicalRowID",
+              "displayName": "canonicalRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAtIso",
+              "displayName": "updatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
       "id": "5209a0f1-bf93-460d-8b6b-17d21d13816f",
       "name": "Route update",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        1300,
-        480
+        260,
+        720
       ],
       "parameters": {
         "rules": {
@@ -1385,6 +1693,27 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "245be1cf-c7ac-44f9-8694-7ebd7df5fc08",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_analysis_categories_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -1399,7 +1728,7 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        0,
+        520,
         720
       ],
       "parameters": {
@@ -1412,7 +1741,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        260,
+        780,
         720
       ],
       "parameters": {
@@ -1576,7 +1905,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        520,
+        1040,
         720
       ],
       "parameters": {
@@ -1852,7 +2181,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        780,
+        1300,
         720
       ],
       "parameters": {
@@ -2268,8 +2597,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1040,
-        720
+        0,
+        960
       ],
       "parameters": {
         "resource": "row",
@@ -2609,13 +2938,373 @@
       "alwaysOutputData": true
     },
     {
+      "id": "22d7a73c-f69e-4448-8c72-362f3fa4035b",
+      "name": "update 4",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        260,
+        960
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_analysis_categories_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "={{ $json.snapshot.id == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.id ?? '' }}"
+            },
+            {
+              "keyName": "categoryKey",
+              "condition": "={{ $json.snapshot.categoryKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.categoryKey ?? '' }}"
+            },
+            {
+              "keyName": "analysisKey",
+              "condition": "={{ $json.snapshot.analysisKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.analysisKey ?? '' }}"
+            },
+            {
+              "keyName": "eventKey",
+              "condition": "={{ $json.snapshot.eventKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.eventKey ?? '' }}"
+            },
+            {
+              "keyName": "userID",
+              "condition": "={{ $json.snapshot.userID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.userID ?? '' }}"
+            },
+            {
+              "keyName": "category",
+              "condition": "={{ $json.snapshot.category == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.category ?? '' }}"
+            },
+            {
+              "keyName": "sourceRequestKey",
+              "condition": "={{ $json.snapshot.sourceRequestKey == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.sourceRequestKey ?? '' }}"
+            },
+            {
+              "keyName": "sourceType",
+              "condition": "={{ $json.snapshot.sourceType == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.sourceType ?? '' }}"
+            },
+            {
+              "keyName": "triggerKind",
+              "condition": "={{ $json.snapshot.triggerKind == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.triggerKind ?? '' }}"
+            },
+            {
+              "keyName": "sourceChannel",
+              "condition": "={{ $json.snapshot.sourceChannel == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.sourceChannel ?? '' }}"
+            },
+            {
+              "keyName": "requestCreatedAtIso",
+              "condition": "={{ $json.snapshot.requestCreatedAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.requestCreatedAtIso ?? '' }}"
+            },
+            {
+              "keyName": "requestDateTW",
+              "condition": "={{ $json.snapshot.requestDateTW == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.requestDateTW ?? '' }}"
+            },
+            {
+              "keyName": "summaryMessageAtIso",
+              "condition": "={{ $json.snapshot.summaryMessageAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.summaryMessageAtIso ?? '' }}"
+            },
+            {
+              "keyName": "summaryMessageDateTW",
+              "condition": "={{ $json.snapshot.summaryMessageDateTW == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.summaryMessageDateTW ?? '' }}"
+            },
+            {
+              "keyName": "summaryCompletedAtIso",
+              "condition": "={{ $json.snapshot.summaryCompletedAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.summaryCompletedAtIso ?? '' }}"
+            },
+            {
+              "keyName": "completionTimeEvidence",
+              "condition": "={{ $json.snapshot.completionTimeEvidence == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.completionTimeEvidence ?? '' }}"
+            },
+            {
+              "keyName": "sourceStatus",
+              "condition": "={{ $json.snapshot.sourceStatus == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.sourceStatus ?? '' }}"
+            },
+            {
+              "keyName": "orderedStreamsJson",
+              "condition": "={{ $json.snapshot.orderedStreamsJson == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.orderedStreamsJson ?? '' }}"
+            },
+            {
+              "keyName": "currentStreamID",
+              "condition": "={{ $json.snapshot.currentStreamID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.currentStreamID ?? '' }}"
+            },
+            {
+              "keyName": "analysisScopeJson",
+              "condition": "={{ $json.snapshot.analysisScopeJson == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.analysisScopeJson ?? '' }}"
+            },
+            {
+              "keyName": "evidenceCompleteness",
+              "condition": "={{ $json.snapshot.evidenceCompleteness == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.evidenceCompleteness ?? '' }}"
+            },
+            {
+              "keyName": "reconciliationStatus",
+              "condition": "={{ $json.snapshot.reconciliationStatus == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.reconciliationStatus ?? '' }}"
+            },
+            {
+              "keyName": "canonicalRowID",
+              "condition": "={{ $json.snapshot.canonicalRowID == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.canonicalRowID ?? '' }}"
+            },
+            {
+              "keyName": "updatedAtIso",
+              "condition": "={{ $json.snapshot.updatedAtIso == null ? 'isEmpty' : 'eq' }}",
+              "keyValue": "={{ $json.snapshot.updatedAtIso ?? '' }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "categoryKey": "={{ $json.values.categoryKey ?? '' }}",
+            "analysisKey": "={{ $json.values.analysisKey ?? '' }}",
+            "eventKey": "={{ $json.values.eventKey ?? '' }}",
+            "userID": "={{ $json.values.userID ?? '' }}",
+            "category": "={{ $json.values.category ?? '' }}",
+            "sourceRequestKey": "={{ $json.values.sourceRequestKey ?? '' }}",
+            "sourceType": "={{ $json.values.sourceType ?? '' }}",
+            "triggerKind": "={{ $json.values.triggerKind ?? '' }}",
+            "sourceChannel": "={{ $json.values.sourceChannel ?? '' }}",
+            "requestCreatedAtIso": "={{ $json.values.requestCreatedAtIso ?? '' }}",
+            "requestDateTW": "={{ $json.values.requestDateTW ?? '' }}",
+            "summaryMessageAtIso": "={{ $json.values.summaryMessageAtIso ?? '' }}",
+            "summaryMessageDateTW": "={{ $json.values.summaryMessageDateTW ?? '' }}",
+            "summaryCompletedAtIso": "={{ $json.values.summaryCompletedAtIso ?? '' }}",
+            "completionTimeEvidence": "={{ $json.values.completionTimeEvidence ?? '' }}",
+            "sourceStatus": "={{ $json.values.sourceStatus ?? '' }}",
+            "orderedStreamsJson": "={{ $json.values.orderedStreamsJson ?? '' }}",
+            "currentStreamID": "={{ $json.values.currentStreamID ?? '' }}",
+            "analysisScopeJson": "={{ $json.values.analysisScopeJson ?? '' }}",
+            "evidenceCompleteness": "={{ $json.values.evidenceCompleteness ?? '' }}",
+            "reconciliationStatus": "={{ $json.values.reconciliationStatus ?? '' }}",
+            "canonicalRowID": "={{ $json.values.canonicalRowID ?? '' }}",
+            "updatedAtIso": "={{ $json.values.updatedAtIso ?? '' }}"
+          },
+          "schema": [
+            {
+              "id": "categoryKey",
+              "displayName": "categoryKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analysisKey",
+              "displayName": "analysisKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "eventKey",
+              "displayName": "eventKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceRequestKey",
+              "displayName": "sourceRequestKey",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceType",
+              "displayName": "sourceType",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "triggerKind",
+              "displayName": "triggerKind",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceChannel",
+              "displayName": "sourceChannel",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requestCreatedAtIso",
+              "displayName": "requestCreatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requestDateTW",
+              "displayName": "requestDateTW",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryMessageAtIso",
+              "displayName": "summaryMessageAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryMessageDateTW",
+              "displayName": "summaryMessageDateTW",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summaryCompletedAtIso",
+              "displayName": "summaryCompletedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "completionTimeEvidence",
+              "displayName": "completionTimeEvidence",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceStatus",
+              "displayName": "sourceStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "orderedStreamsJson",
+              "displayName": "orderedStreamsJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "currentStreamID",
+              "displayName": "currentStreamID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analysisScopeJson",
+              "displayName": "analysisScopeJson",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evidenceCompleteness",
+              "displayName": "evidenceCompleteness",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reconciliationStatus",
+              "displayName": "reconciliationStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "canonicalRowID",
+              "displayName": "canonicalRowID",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAtIso",
+              "displayName": "updatedAtIso",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
       "id": "c410bbef-1e2d-47f8-81b5-b291968876a6",
       "name": "Require Updated Row",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
-        720
+        520,
+        960
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -2628,7 +3317,7 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        0,
+        780,
         960
       ],
       "parameters": {
@@ -2717,6 +3406,27 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d6d97896-4192-45b0-88b0-1e7233cbe614",
+                    "leftValue": "={{ $('Input').first().json.table }}",
+                    "rightValue": "streamer_history_analysis_categories_v1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -2731,7 +3441,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        260,
+        1040,
         960
       ],
       "parameters": {
@@ -2762,7 +3472,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        520,
+        1300,
         960
       ],
       "parameters": {
@@ -2793,8 +3503,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        780,
-        960
+        0,
+        1200
       ],
       "parameters": {
         "resource": "row",
@@ -2824,8 +3534,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1040,
-        960
+        260,
+        1200
       ],
       "parameters": {
         "resource": "row",
@@ -2850,13 +3560,44 @@
       "alwaysOutputData": true
     },
     {
+      "id": "9d68841e-c748-441d-8598-043bd2f693a1",
+      "name": "Read Verified 4",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        1200
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "streamer_history_analysis_categories_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $('Input').first().json.keyField }}",
+              "condition": "eq",
+              "keyValue": "={{ $('Input').first().json.key }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
       "id": "4de5ee48-e8fd-4c05-8c6a-3bdaefc13d6e",
       "name": "Verify",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
-        960
+        780,
+        1200
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -2908,6 +3649,13 @@
         ],
         [
           {
+            "node": "Read Existing 4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Invalid Route",
             "type": "main",
             "index": 0
@@ -2949,6 +3697,17 @@
       ]
     },
     "Read Existing 3": {
+      "main": [
+        [
+          {
+            "node": "Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Existing 4": {
       "main": [
         [
           {
@@ -3045,6 +3804,13 @@
         ],
         [
           {
+            "node": "insert 4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Invalid Route",
             "type": "main",
             "index": 0
@@ -3096,6 +3862,17 @@
         ]
       ]
     },
+    "insert 4": {
+      "main": [
+        [
+          {
+            "node": "Limit insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Route update": {
       "main": [
         [
@@ -3122,6 +3899,13 @@
         [
           {
             "node": "update 3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "update 4",
             "type": "main",
             "index": 0
           }
@@ -3179,6 +3963,17 @@
         ]
       ]
     },
+    "update 4": {
+      "main": [
+        [
+          {
+            "node": "Limit update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Limit insert": {
       "main": [
         [
@@ -3216,6 +4011,13 @@
         [
           {
             "node": "Read Verified 3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Verified 4",
             "type": "main",
             "index": 0
           }
@@ -3263,6 +4065,17 @@
       ]
     },
     "Read Verified 3": {
+      "main": [
+        [
+          {
+            "node": "Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Verified 4": {
       "main": [
         [
           {

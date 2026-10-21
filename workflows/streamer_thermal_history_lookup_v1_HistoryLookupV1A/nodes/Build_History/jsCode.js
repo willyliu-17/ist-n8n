@@ -2,6 +2,7 @@
 const History = (() => {
   const PREFIX = 'streamer_history_';
   const TABLES = { events: `${PREFIX}events_v1`, streams: `${PREFIX}event_streams_v1`, analyses: `${PREFIX}analyses_v1`, state: `${PREFIX}import_state_v1`, reviews: `${PREFIX}reviews_v1` };
+  const CATEGORY_TABLE = `${PREFIX}analysis_categories_v1`;
   const CHANNEL = 'C09F0SYG57D';
   const CUTOFF = '2026-09-07T16:00:00.000Z';
   const THERMAL = '[1-a] High CPU/Overheating';
@@ -98,8 +99,42 @@ const History = (() => {
     }, ['summaryMessageTS', 'summaryUploadID']));
     return ops;
   }
+  function triggerKind(r, provenance = [], userID) {
+    const markers = provenance.filter(n => n.sourceRequestKey === r.requestKey);
+    if (markers.length > 1 || markers.some(n => !selfLinked(n) || n.recordType !== 'notification' || n.triggerKind !== 'daily' || n.channel !== r.channel || n.threadTS !== r.threadTS || n.userID !== (userID || identity(r).userID))) fail('trigger_provenance_conflict');
+    if (markers.length) return 'daily';
+    return r.requestType === 'standalone_summary' && /^bot-summary:\d{10,}\.\d{6}:/.test(r.requestKey) ? 'manual' : 'unknown';
+  }
+  const dayTW = iso => new Date(date(iso) + 8 * 3600000).toISOString().slice(0, 10);
+  function categoryRecords(r, operations, provenance = []) {
+    const analysis = operations.find(op => op.table === TABLES.analyses)?.values;
+    if (!analysis) return [];
+    const messageAt = /^\d{10,}\.\d{6}$/.test(r.summaryMessageTS || '') ? new Date(Number(r.summaryMessageTS) * 1000).toISOString() : '';
+    const metadata = {
+      analysisKey: analysis.analysisKey, eventKey: analysis.eventKey, userID: analysis.userID,
+      sourceRequestKey: r.requestKey, sourceType: r.requestType, triggerKind: triggerKind(r, provenance, analysis.userID), sourceChannel: r.channel,
+      requestCreatedAtIso: r.createdAtIso, requestDateTW: dayTW(r.createdAtIso),
+      summaryMessageAtIso: messageAt, summaryMessageDateTW: messageAt ? dayTW(messageAt) : '',
+      summaryCompletedAtIso: '', completionTimeEvidence: 'not_recorded', sourceStatus: r.status,
+      orderedStreamsJson: operations.find(op => op.table === TABLES.events).values.orderedStreamsJson,
+      currentStreamID: operations.find(op => op.table === TABLES.streams && op.values.role === 'current').values.streamID,
+      analysisScopeJson: analysis.analysisScopeJson, evidenceCompleteness: analysis.evidenceCompleteness,
+    };
+    return json(analysis.aiCategoriesJson).map(category => operation(CATEGORY_TABLE, 'categoryKey', {
+      categoryKey: key('category', [analysis.analysisKey, category]), category, ...metadata,
+    }, ['triggerKind', 'summaryMessageAtIso', 'summaryMessageDateTW', 'sourceStatus']));
+  }
+  function deliveryDecision(r, n) {
+    if (!r || r.status !== 'completed' || !r.summaryMessageTS || !r.summaryUploadID) return { action: 'wait' };
+    if (!filterSource(r) || n.recordType !== 'notification' || n.triggerKind !== 'daily' || r.channel !== n.channel || r.threadTS !== n.threadTS || r.requestKey !== n.sourceRequestKey || identity(r).userID !== n.userID) fail('delivery_identity_conflict');
+    const categories = json(r.inferenceResultJson)?.report?.summary?.responsibility_category_list;
+    if (!Array.isArray(categories) || categories.some(c => typeof c !== 'string')) fail('invalid_categories');
+    return categories.includes(THERMAL)
+      ? { action: 'lookup', userID: n.userID, presentationMode: 'daily_completed', thermalOnly: true, beforeIso: r.createdAtIso, excludeRequestKey: r.requestKey }
+      : { action: 'skip' };
+  }
   function planWrite(op, rows, nowIso) {
-    if (!Object.values(TABLES).includes(op.table) || op.table === TABLES.reviews || !op.key || op.values?.[op.keyField] !== op.key) fail('invalid_write');
+    if (![...Object.values(TABLES), CATEGORY_TABLE].includes(op.table) || op.table === TABLES.reviews || !op.key || op.values?.[op.keyField] !== op.key) fail('invalid_write');
     if (Object.keys(op.values).some(k => ['id', 'createdAt', 'updatedAt', 'canonicalRowID', 'reconciliationStatus'].includes(k))) fail('system_column_write');
     if (Object.values(op.values).some(v => !['string', 'number', 'boolean'].includes(typeof v))) fail('nonprimitive_column');
     const found = rows.filter(r => r.id);
@@ -114,6 +149,7 @@ const History = (() => {
       return { action: 'insert', values: { ...observedValues(), reconciliationStatus: 'pending', canonicalRowID: '', updatedAtIso: nowIso }, conditions: [] };
     }
     const row = found[0];
+    if (op.table === CATEGORY_TABLE && row.triggerKind && row.triggerKind !== 'unknown' && row.triggerKind !== op.values.triggerKind) fail('trigger_provenance_regression');
     if (op.expected && Object.entries(op.expected).some(([k, v]) => row[k] !== v)) fail('cas_snapshot_changed');
     if (row[op.keyField] !== op.key || !(selfLinked(row) || (row.reconciliationStatus === 'pending' && !row.canonicalRowID))) fail('invalid_canonical');
     for (const [k, v] of Object.entries(op.values)) {
@@ -171,8 +207,13 @@ const History = (() => {
       }
     }
     const cutoff = input.beforeIso ? date(input.beforeIso) : Infinity;
-    const analyses = data.analyses.filter(a => selfLinked(a) && a.userID === userID && a.sourceRequestKey !== input.excludeRequestKey && date(a.requestCreatedAtIso) < cutoff);
-    const requests = data.state.filter(r => selfLinked(r) && r.recordType === 'request' && r.userID === userID && r.sourceRequestKey !== input.excludeRequestKey && date(r.requestCreatedAtIso) < cutoff);
+    const allAnalyses = data.analyses.filter(a => selfLinked(a) && a.userID === userID && a.sourceChannel === CHANNEL && a.sourceRequestKey !== input.excludeRequestKey && date(a.requestCreatedAtIso) < cutoff);
+    const thermalOnly = input.thermalOnly === true;
+    const analyses = thermalOnly ? allAnalyses.filter(a => {
+      const review = resolveReviews(allAnalyses.filter(other => other.eventKey === a.eventKey), data.reviews.filter(r => r.eventKey === a.eventKey), a.analysisKey);
+      return review.reviewed ? !review.conflict && review.categories.includes(THERMAL) : json(a.aiCategoriesJson).includes(THERMAL);
+    }) : allAnalyses;
+    const requests = thermalOnly ? [] : data.state.filter(r => selfLinked(r) && r.recordType === 'request' && r.userID === userID && r.sourceRequestKey !== input.excludeRequestKey && date(r.requestCreatedAtIso) < cutoff);
     const eventIDs = new Set([...analyses, ...requests].map(a => a.eventKey));
     const events = data.events.filter(e => selfLinked(e) && e.userID === userID && eventIDs.has(e.eventKey));
     if (events.length !== eventIDs.size) fail('index_incomplete');
@@ -186,22 +227,28 @@ const History = (() => {
     const dt = v => new Date(v).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
     const lines = [];
     const reviewed = new Map();
-    for (const e of events) reviewed.set(e.eventKey, resolveReviews(analyses.filter(a => a.eventKey === e.eventKey), data.reviews.filter(r => r.eventKey === e.eventKey)));
+    for (const e of events) reviewed.set(e.eventKey, resolveReviews(allAnalyses.filter(a => a.eventKey === e.eventKey), data.reviews.filter(r => r.eventKey === e.eventKey)));
     const sorted = [...analyses.map(a => ({ ...a, hasResult: true })), ...requests.filter(r => !analyses.some(a => a.sourceRequestKey === r.sourceRequestKey)).map(r => ({ ...r, hasResult: false }))]
       .sort((a, b) => b.requestCreatedAtIso.localeCompare(a.requestCreatedAtIso) || string(a.analysisKey).localeCompare(string(b.analysisKey)));
+    const presentedEvents = new Set();
     for (const a of sorted) {
+      if (thermalOnly && input.presentationMode === 'daily_completed' && presentedEvents.has(a.eventKey)) continue;
+      presentedEvents.add(a.eventKey);
       const e = eventByKey.get(a.eventKey);
       const ids = json(e.orderedStreamsJson).map(s => s.streamID).join(' → ');
-      const review = resolveReviews(analyses.filter(row => row.eventKey === a.eventKey), data.reviews.filter(r => r.eventKey === a.eventKey), a.analysisKey);
+      const review = resolveReviews(allAnalyses.filter(row => row.eventKey === a.eventKey), data.reviews.filter(r => r.eventKey === a.eventKey), a.analysisKey);
       const original = a.hasResult ? json(a.aiCategoriesJson).join('、') : '';
       const label = !a.hasResult ? `處理狀態：${escape(a.sourceStatus)}` : review.conflict ? `人工判定有歧異；原 AI：${escape(original)}` : review.reviewed ? `人工分類：${escape(review.categories.join('、'))}；原 AI：${escape(original)}` : `僅 AI 判讀：${escape(original)}`;
       const trigger = a.triggerLink && /^https:\/\/17media\.slack\.com\/archives\/C[A-Z0-9]+\/p\d+$/.test(a.triggerLink) ? `<${a.triggerLink}|${a.linkKind === 'thread' ? '討論串' : '原觸發訊息'}>` : '觸發連結缺漏';
       const devices = [...new Set(streams.filter(s => s.eventKey === a.eventKey).map(s => [s.deviceModel || '機型缺漏', s.appVersion || 'App 版本缺漏', s.osVersion || 'OS 版本缺漏'].join(' / ')))].map(escape).join('；');
       const repeated = analyses.filter(row => row.eventKey === a.eventKey).length > 1 ? '\n同事件的多次分析／版本，不另計事故。' : '';
       const shared = streams.some(s => s.eventKey === a.eventKey && streams.some(other => other.eventKey !== s.eventKey && other.streamID === s.streamID)) ? '\n與其他事件視角包含相同直播，不能相加為獨立事故。' : '';
-      lines.push(`${dt(a.requestCreatedAtIso)}（請求時間，台北）\nStreamID：${ids}${json(e.orderedStreamsJson).length > 1 ? '（雙場事件整體分類）' : ''}\n${label}\n${devices}\n${trigger}${repeated}${shared}`);
+      const daily = data.state.some(r => selfLinked(r) && r.recordType === 'notification' && r.triggerKind === 'daily' && r.sourceRequestKey === a.sourceRequestKey);
+      const source = daily ? 'daily' : a.sourceType === 'standalone_summary' && /^bot-summary:/.test(a.sourceRequestKey) ? '正式手動 summary' : '觸發方式未知';
+      lines.push(`${dt(a.requestCreatedAtIso)}（請求時間，台北）\n來源：${source}\nStreamID：${ids}${json(e.orderedStreamsJson).length > 1 ? '（雙場事件整體分類）' : ''}\n${label}\n${devices}\n${trigger}${repeated}${shared}`);
     }
     const thermalEvents = events.filter(e => {
+      if (thermalOnly) return true;
       const r = reviewed.get(e.eventKey);
       return r.reviewed ? !r.conflict && r.categories.includes(THERMAL) : analyses.some(a => a.eventKey === e.eventKey && json(a.aiCategoriesJson).includes(THERMAL));
     }).length;
@@ -209,7 +256,7 @@ const History = (() => {
     if (watermarks.length > 1 || watermarks.some(s => !selfLinked(s))) fail('watermark_conflict');
     const watermark = watermarks[0];
     const ready = !!watermark && (input.presentationMode !== 'daily_completed' || date(watermark.watermarkUpdatedAtIso) >= cutoff);
-    const header = `主播過往分析歷史\nuserID：${escape(userID)}\n事件視角 ${events.length}；不同直播 ${new Set(streams.map(s => s.streamID)).size}；分析結果 ${analyses.length}\n曾有高 CPU／過熱相關分類的事件視角：${thermalEvents}（非獨立事故數）\n索引更新：${watermark?.watermarkUpdatedAtIso ? dt(watermark.watermarkUpdatedAtIso) : '尚未完成回填'}`;
+    const header = `${thermalOnly ? '主播過往高 CPU／過熱相關歷史' : '主播過往分析歷史'}\nuserID：${escape(userID)}\n事件視角 ${events.length}；不同直播 ${new Set(streams.map(s => s.streamID)).size}；分析結果 ${analyses.length}\n曾有高 CPU／過熱相關分類的事件視角：${thermalEvents}（非獨立事故數、非確認過熱）\n索引更新：${watermark?.watermarkUpdatedAtIso ? dt(watermark.watermarkUpdatedAtIso) : '尚未完成回填'}`;
     const max = input.presentationMode === 'daily_completed' ? 3 : lines.length;
     const selected = lines.slice(0, max);
     const pages = []; let text = header;
@@ -217,12 +264,12 @@ const History = (() => {
       if (text.length + line.length > 2800) { pages.push(text); text = `主播歷史（續）\nuserID：${escape(userID)}`; }
       text += `\n\n${line}`;
     }
-    if (!lines.length) text += ready ? '\n此範圍尚無已分析歷史。' : '\n歷史索引尚未就緒，不能判定沒有歷史。';
+    if (!lines.length) text += ready ? thermalOnly ? '\n查無過往高 CPU／過熱相關紀錄。' : '\n此範圍尚無已分析歷史。' : '\n歷史索引尚未就緒，不能判定沒有歷史。';
     if (lines.length > selected.length) text += `\n尚有 ${lines.length - selected.length} 筆未列出。`;
     pages.push(text);
     return { userID, historyStatus: ready ? 'ok' : 'not_ready', pages, eventCount: events.length, analysisCount: analyses.length, thermalEvents };
   }
-  return { TABLES, CHANNEL, CUTOFF, THERMAL, key, json, canonical, selfLinked, filterSource, needsJobContext, identity, sourceLink, records, operation, planWrite, verifyWrite, resolveReviews, lookup };
+  return { TABLES, CATEGORY_TABLE, CHANNEL, CUTOFF, THERMAL, key, json, canonical, selfLinked, filterSource, needsJobContext, identity, sourceLink, records, triggerKind, categoryRecords, deliveryDecision, operation, planWrite, verifyWrite, resolveReviews, lookup };
 })();
 if (typeof module !== 'undefined') module.exports = History;
 

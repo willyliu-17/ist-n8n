@@ -208,5 +208,30 @@
     { "name": "reconciliationStatus", "type": "string" },
     { "name": "canonicalRowID", "type": "string" },
     { "name": "updatedAtIso", "type": "string" }
+  ],
+  "streamer_history_analysis_categories_v1": [
+    { "name": "categoryKey", "type": "string" },
+    { "name": "analysisKey", "type": "string" },
+    { "name": "eventKey", "type": "string" },
+    { "name": "userID", "type": "string" },
+    { "name": "category", "type": "string" },
+    { "name": "sourceRequestKey", "type": "string" },
+    { "name": "sourceType", "type": "string" },
+    { "name": "triggerKind", "type": "string" },
+    { "name": "sourceChannel", "type": "string" },
+    { "name": "requestCreatedAtIso", "type": "string" },
+    { "name": "requestDateTW", "type": "string" },
+    { "name": "summaryMessageAtIso", "type": "string" },
+    { "name": "summaryMessageDateTW", "type": "string" },
+    { "name": "summaryCompletedAtIso", "type": "string" },
+    { "name": "completionTimeEvidence", "type": "string" },
+    { "name": "sourceStatus", "type": "string" },
+    { "name": "orderedStreamsJson", "type": "string" },
+    { "name": "currentStreamID", "type": "string" },
+    { "name": "analysisScopeJson", "type": "string" },
+    { "name": "evidenceCompleteness", "type": "string" },
+    { "name": "reconciliationStatus", "type": "string" },
+    { "name": "canonicalRowID", "type": "string" },
+    { "name": "updatedAtIso", "type": "string" }
   ]
 }

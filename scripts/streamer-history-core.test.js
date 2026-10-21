@@ -138,3 +138,59 @@ test('lookup detects missing event-stream rows instead of presenting partial cou
   data.streams.pop();
   assert.throws(() => H.lookup({ userID: 'user-a' }, data), /index_incomplete/);
 });
+function historyData(requests) {
+  const maps = Object.fromEntries(Object.keys(H.TABLES).map(k => [k, new Map()]));
+  let id = 1;
+  for (const r of requests) for (const op of H.records(r)) {
+    maps[Object.keys(H.TABLES).find(k => H.TABLES[k] === op.table)].set(op.key, persisted(op.values, id++));
+  }
+  return Object.fromEntries(Object.entries(maps).map(([k, rows]) => [k, [...rows.values()]]));
+}
+test('only completed daily thermal summaries reach history lookup', () => {
+  const r = request({summaryMessageTS:'1790000000.000001',summaryUploadID:'F-result'});
+  const marker = {recordType:'notification',triggerKind:'daily',sourceRequestKey:r.requestKey,channel:r.channel,threadTS:r.threadTS,userID:'user-a'};
+  assert.deepEqual(H.deliveryDecision(r,marker), {action:'lookup',userID:'user-a',thermalOnly:true,presentationMode:'daily_completed',beforeIso:r.createdAtIso,excludeRequestKey:r.requestKey});
+  for(const status of ['pending','failed','summary_dispatching'])assert.equal(H.deliveryDecision({...r,status},marker).action,'wait');
+  assert.equal(H.deliveryDecision({...r,summaryUploadID:''},marker).action,'wait');
+  assert.equal(H.deliveryDecision({...r,inferenceResultJson:JSON.stringify({report:{summary:{responsibility_category_list:['[1-d] App Crash']}}})},marker).action,'skip');
+  assert.throws(()=>H.deliveryDecision({...r,inferenceResultJson:'{}'},marker),/invalid_categories/);
+  assert.throws(()=>H.deliveryDecision(r,{...marker,triggerKind:'manual'}),/identity_conflict/);
+});
+test('thermal history includes formal manual results and excludes nonthermal, current and future results', () => {
+  const thermal=request();
+  const repeat=request({id:2,canonicalRowID:'2',requestKey:'bot-summary:1790000000.000002:1000:1001',createdAtIso:'2026-09-22T00:00:00Z'});
+  const nonthermal=request({id:3,canonicalRowID:'3',requestKey:'other',inferenceResultJson:JSON.stringify({report:{summary:{responsibility_category_list:['App Crash']}}})});
+  const current=request({id:4,canonicalRowID:'4',requestKey:'current',createdAtIso:'2026-09-23T00:00:00Z'});
+  const future=request({id:5,canonicalRowID:'5',requestKey:'future',createdAtIso:'2026-09-24T00:00:00Z'});
+  const data=historyData([thermal,repeat,nonthermal,current,future]);
+  data.state.push(persisted({stateKey:'watermark:production:summary',recordType:'watermark',watermarkUpdatedAtIso:'2026-09-25T00:00:00Z'},99));
+  const result=H.lookup({userID:'user-a',presentationMode:'daily_completed',thermalOnly:true,beforeIso:current.createdAtIso,excludeRequestKey:'current'},data);
+  assert.equal(result.analysisCount,2);assert.equal(result.eventCount,1);assert.equal(result.thermalEvents,1);
+  const text=result.pages.join('');assert.ok(text.includes('正式手動 summary'));assert.ok(text.includes('同事件的多次分析'));assert.ok(!text.includes('App Crash'));
+  assert.equal(text.split('StreamID：').length-1,1);
+  assert.equal(H.lookup({userID:'user-a'},data).analysisCount,5);
+});
+test('thermal history respects explicit human reclassification without losing the original AI record', () => {
+  const data=historyData([request()]);const analysis=data.analyses[0];
+  data.reviews.push(persisted({reviewID:'r1',eventKey:analysis.eventKey,analysisKey:analysis.analysisKey,reviewType:'reclassify',humanCategoriesJson:'["App Crash"]'},98));
+  data.state.push(persisted({stateKey:'watermark',recordType:'watermark',watermarkUpdatedAtIso:'2026-10-01T00:00:00Z'},99));
+  const result=H.lookup({userID:'user-a',thermalOnly:true,presentationMode:'daily_completed',beforeIso:'2026-09-30T00:00:00Z'},data);
+  assert.equal(result.analysisCount,0);assert.ok(result.pages.join('').includes('查無過往高 CPU／過熱相關紀錄'));
+  assert.equal(data.analyses[0].aiCategoriesJson,JSON.stringify([H.THERMAL]));
+});
+test('category facts flatten all labels once per analysis and retain honest time provenance', () => {
+  const r=request({createdAtIso:'2026-09-20T16:01:00Z',summaryMessageTS:'1790000000.123456',inferenceResultJson:JSON.stringify({report:{summary:{responsibility_category_list:[H.THERMAL,'App Crash',H.THERMAL]}}})});
+  const ops=H.records(r);const facts=H.categoryRecords(r,ops);
+  assert.equal(facts.length,2);assert.equal(new Set(facts.map(f=>f.key)).size,2);
+  for(const op of facts){assert.equal(op.table,H.CATEGORY_TABLE);assert.equal(op.values.analysisKey,ops.at(-1).values.analysisKey);assert.equal(op.values.triggerKind,'manual');assert.equal(op.values.requestDateTW,'2026-09-21');assert.equal(op.values.summaryCompletedAtIso,'');assert.equal(op.values.completionTimeEvidence,'not_recorded');assert.equal(op.values.currentStreamID,'1001');assert.ok(op.values.summaryMessageAtIso);for(const k of Object.keys(op.values))assert.ok(schema[op.table].some(c=>c.name===k));}
+  assert.deepEqual(H.categoryRecords(r,ops),facts);
+  const unknown=request({requestType:'suspect_summary',requestKey:'suspect-request'});
+  assert.equal(H.categoryRecords(unknown,H.records(unknown))[0].values.triggerKind,'unknown');
+  const marker=persisted({recordType:'notification',triggerKind:'daily',sourceRequestKey:unknown.requestKey,channel:unknown.channel,threadTS:unknown.threadTS,userID:'user-a'});
+  const daily=H.categoryRecords(unknown,H.records(unknown),[marker])[0];assert.equal(daily.values.triggerKind,'daily');
+  assert.throws(()=>H.categoryRecords(unknown,H.records(unknown),[marker,marker]),/provenance_conflict/);
+  assert.throws(()=>H.categoryRecords(unknown,H.records(unknown),[{...marker,userID:'other'}]),/provenance_conflict/);
+  const old=H.categoryRecords(unknown,H.records(unknown))[0];assert.equal(H.planWrite(daily,[persisted(old.values)],'2026-10-20T00:00:00Z').action,'update');
+  assert.throws(()=>H.planWrite(old,[persisted(daily.values)],'2026-10-20T00:00:00Z'),/provenance_regression/);
+  assert.deepEqual(H.categoryRecords(request({inferenceResultJson:''}),H.records(request({inferenceResultJson:''}))),[]);
+});
