@@ -66,7 +66,7 @@ beginTime < 2026-09-10T04:00:00+08:00
 ```bash
 node --test scripts/single-stream-summary-v3.test.js
 node --test scripts/stt-summary-stream-behavior.test.js
-node --test workflows/ai_summary_inference_subwf_m8VcIoclFE2lVKrl/tests/inference.test.js workflows/ai_summary_inference_subwf_m8VcIoclFE2lVKrl/tests/long-dialogue.test.js
+node --test workflows/ai_summary_inference_subwf_c1N70rhCjsLlHlVN/tests/inference.test.js workflows/ai_summary_inference_subwf_c1N70rhCjsLlHlVN/tests/long-dialogue.test.js
 node scripts/verify-stt-summary-v3.js
 ```
 

@@ -38,8 +38,20 @@ function buildTranscriptFile(input) {
   };
 }
 
+function extractTranslationText(response) {
+  const text =
+    response?.message?.content ??
+    response?.choices?.[0]?.message?.content ??
+    response?.content?.parts?.[0]?.text ??
+    response?.text;
+  if (typeof text !== 'string' || !text.trim()) {
+    throw new Error('Gemini translation response is empty or malformed');
+  }
+  return text.trim();
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { buildTranscriptFile, sanitizeFilenamePart };
+  module.exports = { buildTranscriptFile, extractTranslationText, sanitizeFilenamePart };
 }
 
 if (typeof $input !== 'undefined') {
@@ -47,9 +59,7 @@ if (typeof $input !== 'undefined') {
   let translatedDialogue = '';
   if (canonical.language !== 'zh') {
     const response = $input.first().json;
-    const text = response?.content?.parts?.[0]?.text;
-    if (typeof text !== 'string' || !text.trim()) throw new Error('Gemini translation response is empty or malformed');
-    translatedDialogue = text.trim();
+    translatedDialogue = extractTranslationText(response);
   }
   return [buildTranscriptFile({ ...canonical, translatedDialogue })];
 }

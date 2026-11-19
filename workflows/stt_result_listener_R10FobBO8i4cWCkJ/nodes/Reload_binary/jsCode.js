@@ -1,1 +1,0 @@
-return $('Merge Process').all();

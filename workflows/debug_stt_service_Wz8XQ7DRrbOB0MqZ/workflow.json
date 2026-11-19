@@ -1,0 +1,95 @@
+{
+  "id": "Wz8XQ7DRrbOB0MqZ",
+  "name": "Debug STT service",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=http://35.206.206.41/ping",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "last_mins",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        -240
+      ],
+      "id": "21a2de2f-fa04-4b6b-a32f-1f4c444ec7df",
+      "name": "STT ping"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "aec0d590-73e9-4532-9272-c493a34b0d49",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        240,
+        -240
+      ]
+    }
+  ],
+  "connections": {
+    "STT ping": {
+      "main": [
+        []
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "STT ping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": null,
+  "tags": [
+    {
+      "id": "1aivWf6nJKJPatrn",
+      "name": "aliveCheck",
+      "createdAt": "2025-10-31T00:43:57.669Z",
+      "updatedAt": "2025-10-31T00:43:57.669Z"
+    },
+    {
+      "id": "boreCiHZYpl3eDGl",
+      "name": "ist-bot",
+      "createdAt": "2025-10-31T00:33:05.881Z",
+      "updatedAt": "2025-10-31T00:33:05.881Z"
+    }
+  ]
+}

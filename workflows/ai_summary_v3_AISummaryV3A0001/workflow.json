@@ -686,10 +686,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "m8VcIoclFE2lVKrl",
+          "value": "c1N70rhCjsLlHlVN",
           "mode": "list",
           "cachedResultName": "AI SUMMARY Inference SubWF",
-          "cachedResultUrl": "/workflow/m8VcIoclFE2lVKrl"
+          "cachedResultUrl": "/workflow/c1N70rhCjsLlHlVN"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",

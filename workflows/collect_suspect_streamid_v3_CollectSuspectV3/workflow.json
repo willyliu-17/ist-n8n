@@ -2444,7 +2444,6 @@
     "saveManualExecutions": true,
     "saveExecutionProgress": false,
     "errorWorkflow": "AutomationErrorV3A1",
-    "binaryMode": "separate",
     "timezone": "Asia/Taipei"
   },
   "tags": [

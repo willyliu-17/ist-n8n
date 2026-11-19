@@ -575,11 +575,11 @@ test('parses actual single-item combine-by-position Slack 2.3 upload and message
 });
 test('BigQuery casing and child aggregate contract are normalized at the runtime boundary', () => {
   assert.equal(buildInferenceAggregate(input(), [{ LiveStreamID: '9', evidenceType: 'streamerLog' }]).streams[0].details.find(({ type }) => type === 'streamerLog').logs.length, 1);
-  const child = JSON.parse(fs.readFileSync(path.resolve(root, '..', 'ai_summary_inference_subwf_m8VcIoclFE2lVKrl', 'workflow.json'), 'utf8'));
+  const child = JSON.parse(fs.readFileSync(path.resolve(root, '..', 'ai_summary_inference_subwf_c1N70rhCjsLlHlVN', 'workflow.json'), 'utf8'));
   assert.equal(child.nodes.find(({ name }) => name === 'Start').parameters.workflowInputs.values.find(({ name }) => name === 'aggregateData').type, 'array');
   assert.equal(node('Call AI SUMMARY Inference SubWF').parameters.workflowInputs.value.aggregateData, '={{ $json.aggregate.streams }}');
   for (const file of ['AI_Agent', 'Streamer_Log_Analyzer', 'Event_Log_Analyzer', 'Dialogue_Analyzer', 'StreamInfo_Analyzer']) {
-    const prompt = fs.readFileSync(path.resolve(root, '..', 'ai_summary_inference_subwf_m8VcIoclFE2lVKrl', 'nodes', file, 'text.md'), 'utf8');
+    const prompt = fs.readFileSync(path.resolve(root, '..', 'ai_summary_inference_subwf_c1N70rhCjsLlHlVN', 'nodes', file, 'text.md'), 'utf8');
     if (file === 'AI_Agent') assert.match(prompt, /item\.liveStreamID/);
     else assert.match(prompt, /item\.details/);
   }

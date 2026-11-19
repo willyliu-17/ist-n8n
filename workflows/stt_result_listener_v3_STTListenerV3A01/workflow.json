@@ -1144,8 +1144,8 @@
     {
       "id": "df36906d-b37c-4a3b-b75a-d6d51d59215f",
       "name": "Translate Dialogue",
-      "type": "@n8n/n8n-nodes-langchain.googleGemini",
-      "typeVersion": 1,
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
       "alwaysOutputData": true,
       "onError": "continueErrorOutput",
       "position": [
@@ -1153,26 +1153,28 @@
         600
       ],
       "parameters": {
+        "resource": "text",
+        "operation": "message",
         "modelId": {
           "__rl": true,
-          "value": "models/gemini-2.5-flash",
-          "mode": "list",
-          "cachedResultName": "models/gemini-2.5-flash"
+          "value": "gemini-3.5-flash-lite",
+          "mode": "id"
         },
         "messages": {
           "values": [
             {
-              "content": "=你是一個專業的翻譯引擎。你的任務是將以下直播的語音轉錄文字與觀看者的留言翻譯成「繁體中文」。\n- 如果輸入的文字是任何非繁體中文的語言，你必須將其翻譯成流暢的繁體中文。\n- 如果輸入的文字已經是通順的繁體中文，你必須原封不動地回傳。\n你的回傳內容只能是最終的文字，不要包含任何解釋。\n待處理的文字：\n---\n{{ $('Guard Side Effect Owner').first().json.dialogue }}"
+              "content": "=你是一個專業的翻譯引擎。你的任務是將以下直播的語音轉錄文字與觀看者的留言翻譯成「繁體中文」。\n- 如果輸入的文字是任何非繁體中文的語言，你必須將其翻譯成流暢的繁體中文。\n- 如果輸入的文字已經是通順的繁體中文，你必須原封不動地回傳。\n你的回傳內容只能是最終的文字，不要包含任何解釋。\n待處理的文字：\n---\n{{ $('Guard Side Effect Owner').first().json.dialogue }}",
+              "role": "user"
             }
           ]
         },
-        "jsonOutput": true,
+        "jsonOutput": false,
         "options": {}
       },
       "credentials": {
-        "googlePalmApi": {
-          "id": "gMeMxD0Uq89xl8xy",
-          "name": "Google Gemini(PaLM) Api account"
+        "openAiApi": {
+          "id": "QVGpNgukHGWJ0kVe",
+          "name": "LiteLLM Proxy"
         }
       }
     },
@@ -1237,8 +1239,8 @@
     {
       "id": "5960969b-e1c3-4c51-a162-3f6a17db8a21",
       "name": "Analyze Dialogue",
-      "type": "@n8n/n8n-nodes-langchain.googleGemini",
-      "typeVersion": 1,
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
       "alwaysOutputData": true,
       "onError": "continueErrorOutput",
       "position": [
@@ -1246,26 +1248,28 @@
         760
       ],
       "parameters": {
+        "resource": "text",
+        "operation": "message",
         "modelId": {
           "__rl": true,
-          "value": "models/gemini-2.5-pro",
-          "mode": "list",
-          "cachedResultName": "models/gemini-2.5-pro"
+          "value": "gemini-4-argon",
+          "mode": "id"
         },
         "messages": {
           "values": [
             {
-              "content": "=您是一位直播間問題分析專家。以下是主播的一段直播轉文字與觀眾的留言記錄。您的任務是根據提供的文字記錄，識別。\n說明：\n- 根據他說話的內容與觀眾留言，分析直播主在這段開播發生什麼問題\n- 如果他沒有提到問題相關，不進一步推測\n- 將發生的問題描述以繁體中文表示，並且標注引用原句\n- 若有提到多個問題，逐一列出\n- {\"issue\": \"問題描述\", \"ref\" : \"參照來源\"}\n輸出內容一定是 JSON array 格式。\n以下是直播內容：\n{{ $('Guard Side Effect Owner').first().json.dialogue }}"
+              "content": "=您是一位直播間問題分析專家。以下是主播的一段直播轉文字與觀眾的留言記錄。您的任務是根據提供的文字記錄，識別。\n說明：\n- 根據他說話的內容與觀眾留言，分析直播主在這段開播發生什麼問題\n- 如果他沒有提到問題相關，不進一步推測\n- 將發生的問題描述以繁體中文表示，並且標注引用原句\n- 若有提到多個問題，逐一列出\n- {\"issue\": \"問題描述\", \"ref\" : \"參照來源\"}\n輸出內容一定是 JSON array 格式。\n以下是直播內容：\n{{ $('Guard Side Effect Owner').first().json.dialogue }}",
+              "role": "user"
             }
           ]
         },
-        "jsonOutput": true,
+        "jsonOutput": false,
         "options": {}
       },
       "credentials": {
-        "googlePalmApi": {
-          "id": "gMeMxD0Uq89xl8xy",
-          "name": "Google Gemini(PaLM) Api account"
+        "openAiApi": {
+          "id": "QVGpNgukHGWJ0kVe",
+          "name": "LiteLLM Proxy"
         }
       }
     },

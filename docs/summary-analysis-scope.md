@@ -47,7 +47,7 @@ V2 與 Prompt Eval 可以省略新增的輸入欄位；子流程從 Aggregate �
 本機回歸測試涵蓋本次事故 ID、單場、長對話、比較缺資料、範圍不符、合理日誌引用、舊呼叫端與 Slack 更新失敗。
 
 ```bash
-node --test workflows/ai_summary_inference_subwf_m8VcIoclFE2lVKrl/tests/*.test.js workflows/ai_summary_v3_AISummaryV3A0001/tests/*.test.js
+node --test workflows/ai_summary_inference_subwf_c1N70rhCjsLlHlVN/tests/*.test.js workflows/ai_summary_v3_AISummaryV3A0001/tests/*.test.js
 node scripts/verify-stt-summary-v3.js
 ```
 

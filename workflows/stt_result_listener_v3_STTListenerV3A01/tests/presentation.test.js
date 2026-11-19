@@ -381,7 +381,7 @@ test('routes every fallible node by phase without recursive failure handling', (
   const intentionalTerminal = ['Write Masked Presentation Audit', 'Write Masked Terminal Audit'];
   const fallibleTypes = new Set([
     'n8n-nodes-base.code', 'n8n-nodes-base.dataTable', 'n8n-nodes-base.slack',
-    '@n8n/n8n-nodes-langchain.googleGemini',
+    '@n8n/n8n-nodes-langchain.openAi',
   ]);
   const classified = [...preClaim, ...postClaim, ...failureTerminal, ...intentionalTerminal].sort();
   const actual = workflow.nodes.filter(({ type }) => fallibleTypes.has(type)).map(({ name }) => name).sort();
@@ -792,12 +792,24 @@ test('uses dialogue directly for zh and requires Gemini translation otherwise', 
   assert.doesNotMatch(text, /繁體中文翻譯/);
   assert.match(text, /原文/);
   assert.throws(() => transcript.buildTranscriptFile(row({ language: 'en' })), /Translation is empty/);
+  assert.equal(transcript.extractTranslationText({ message: { content: ' 翻譯結果 ' } }), '翻譯結果');
+  assert.equal(transcript.extractTranslationText({ choices: [{ message: { content: ' 翻譯結果2 ' } }] }), '翻譯結果2');
+  assert.equal(transcript.extractTranslationText({ content: { parts: [{ text: ' 舊版格式 ' }] } }), '舊版格式');
+  assert.equal(node('Translate Dialogue').type, '@n8n/n8n-nodes-langchain.openAi');
+  assert.equal(node('Translate Dialogue').parameters.modelId.value, 'gemini-3.5-flash-lite');
+  assert.equal(node('Translate Dialogue').credentials.openAiApi.name, 'LiteLLM Proxy');
 });
 
 test('rejects empty or malformed AI analysis and preserves report formatting', () => {
   assert.throws(() => analysisFormat.parseAnalysisResponse({}), /empty/);
   assert.throws(() => analysisFormat.parseAnalysisResponse({ content: { parts: [{ text: 'not-json' }] } }), /malformed/);
+  assert.throws(() => analysisFormat.parseAnalysisResponse({ message: { content: 'not-json' } }), /malformed/);
   const parsed = analysisFormat.parseAnalysisResponse({ content: { parts: [{ text: '```json\n[{"issue":"lag","ref":"畫面卡住"}]\n```' }] } });
+  const parsedOpenAi = analysisFormat.parseAnalysisResponse({ message: { content: '```json\n[{"issue":"lag","ref":"畫面卡住"}]\n```' } });
+  assert.deepEqual(parsedOpenAi, parsed);
+  assert.equal(node('Analyze Dialogue').type, '@n8n/n8n-nodes-langchain.openAi');
+  assert.equal(node('Analyze Dialogue').parameters.modelId.value, 'gemini-4-argon');
+  assert.equal(node('Analyze Dialogue').credentials.openAiApi.name, 'LiteLLM Proxy');
   const formatted = analysisFormat.formatAnalysis(parsed);
   assert.match(formatted, /\[問題 1\]/);
   assert.match(formatted, /描述: lag/);

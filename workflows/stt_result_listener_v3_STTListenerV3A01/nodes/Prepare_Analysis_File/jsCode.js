@@ -1,12 +1,20 @@
 function parseAnalysisResponse(response) {
-  const raw = response?.content?.parts?.[0]?.text;
-  if (typeof raw !== 'string' || !raw.trim()) throw new Error('Gemini analysis response is empty');
-  const normalized = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const candidate =
+    response?.message?.content ??
+    response?.choices?.[0]?.message?.content ??
+    response?.content?.parts?.[0]?.text ??
+    response?.text;
   let inspection;
-  try {
-    inspection = JSON.parse(normalized);
-  } catch {
-    throw new Error('Gemini analysis response is malformed');
+  if (Array.isArray(candidate)) {
+    inspection = candidate;
+  } else {
+    if (typeof candidate !== 'string' || !candidate.trim()) throw new Error('Gemini analysis response is empty');
+    const normalized = candidate.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    try {
+      inspection = JSON.parse(normalized);
+    } catch {
+      throw new Error('Gemini analysis response is malformed');
+    }
   }
   if (!Array.isArray(inspection)) throw new Error('Gemini analysis response must be an array');
   for (const item of inspection) {
