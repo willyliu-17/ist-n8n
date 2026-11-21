@@ -115,7 +115,7 @@ async function migrateWorkflows({ targetUrl, targetKey, dryRun = false }) {
 
     let deployedCount = 0;
     for (const entry of sortedEntries) {
-        const wf = structuredClone(entry.workflow);
+        let wf = structuredClone(entry.workflow);
         const targetId = targetWorkflowIdByName.get(wf.name);
 
         // Remap Data Tables
@@ -155,7 +155,7 @@ async function migrateWorkflows({ targetUrl, targetKey, dryRun = false }) {
         }
 
         // Inject STT callback url if placeholder exists
-        injectDeploymentValues(wf, { sttCallbackUrl });
+        wf = injectDeploymentValues(wf, { sttCallbackUrl });
 
         // Remap errorWorkflow in settings if present
         if (wf.settings?.errorWorkflow) {
