@@ -55,6 +55,29 @@ test('defaults metadata lookup to 60 days and accepts a bounded caller override'
   assert.doesNotMatch(sql('steamID_beginTime_and_endTime1'), /INTERVAL (?:30|60) DAY/);
 });
 
+test('normalizes streamID from Slack links and rejects non-numeric values', () => {
+  const assignment = node('Normalize Input').parameters.assignments.assignments
+    .find(({ name }) => name === 'streamID');
+  assert.equal(assignment.type, 'string');
+
+  const exprBody = assignment.value.replace(/^=\s*\{\{\s*/, '').replace(/\s*\}\}\s*$/, '');
+  const evalStreamID = ($json, startJson = {}) => {
+    const $node = { Start: { json: startJson } };
+    return new Function('$json', '$node', `return (${exprBody});`)($json, $node);
+  };
+
+  assert.equal(evalStreamID({ streamID: '215661211' }), '215661211');
+  assert.equal(evalStreamID({ streamID: '<tel:215661211|215661211>' }), '215661211');
+  assert.equal(evalStreamID({ streamID: '<tel:215661211>' }), '215661211');
+  assert.equal(evalStreamID({ streamID: '<215661211>' }), '215661211');
+  assert.equal(evalStreamID({}, { positionals: ['<tel:215661211|215661211>'] }), '215661211');
+
+  assert.throws(() => evalStreamID({ streamID: '' }), /streamID must match \^\[0-9\]\{1,20\}\$/);
+  assert.throws(() => evalStreamID({ streamID: 'abc' }), /streamID must match \^\[0-9\]\{1,20\}\$/);
+  assert.throws(() => evalStreamID({ streamID: '215661211; DROP TABLE' }), /streamID must match \^\[0-9\]\{1,20\}\$/);
+  assert.throws(() => evalStreamID({ streamID: '<https://malicious.com>' }), /streamID must match \^\[0-9\]\{1,20\}\$/);
+});
+
 test('all optional logs and the summary converge before delivery', () => {
   assert.deepEqual({ mode: 'append', ...node('Merge1').parameters }, {
     mode: 'append',

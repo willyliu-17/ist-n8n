@@ -49,7 +49,7 @@
             {
               "id": "18f5d023-3b1a-4632-84b2-034876212501",
               "name": "streamID",
-              "value": "={{ $json.streamID ? $json.streamID : $node[\"Start\"].json.positionals[0] }}",
+              "value": "={{ (() => { const raw = String($json.streamID || $node[\"Start\"].json.positionals?.[0] || \"\").trim(); const match = /^<([^>]+)>$/.exec(raw); let val = raw; if (match) { const inner = match[1]; const pipe = inner.indexOf('|'); const target = pipe >= 0 ? inner.slice(0, pipe) : inner; const label = pipe >= 0 ? inner.slice(pipe + 1) : ''; val = (target.startsWith('tel:') ? (label || target.slice(4)) : (label || target)).trim(); } if (!/^[0-9]{1,20}$/.test(val)) throw new Error('streamID must match ^[0-9]{1,20}$'); return val; })() }}",
               "type": "string"
             },
             {
@@ -1762,8 +1762,7 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true,
-    "saveExecutionProgress": false,
-    "binaryMode": "separate"
+    "saveExecutionProgress": false
   },
   "tags": [
     {

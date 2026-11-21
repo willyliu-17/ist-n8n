@@ -5,7 +5,7 @@ const test = require('node:test');
 
 const workflowDir = path.resolve(__dirname, '..');
 const { buildWorkflow } = require('../../../scripts/utils');
-const { CHANNEL_COMMANDS, parseBotItem } = require('../nodes/Command_parser/jsCode');
+const { CHANNEL_COMMANDS, parseBotItem, unwrapSlackToken } = require('../nodes/Command_parser/jsCode');
 const {
   buildLookupWindow,
   buildSingleStreamLookupWindow,
@@ -150,6 +150,63 @@ test('preserves rich-text commands and the complete original event for Legacy', 
   assert.equal(rich.dispatchKey, 'v3:stt:stream');
   assert.equal(rich.sttMode, 'FIRST');
   assert.equal(nodeByName(readWorkflow(), 'Call Legacy Entry').parameters.workflowInputs.value.event, "={{ $('Start').item.json.event }}");
+});
+
+test('unwraps Slack formatting for tel, mailto, URL links, and mentions', () => {
+  assert.equal(unwrapSlackToken('<tel:215661211|215661211>'), '215661211');
+  assert.equal(unwrapSlackToken('<tel:215661211>'), '215661211');
+  assert.equal(unwrapSlackToken('<mailto:dev@17.live|dev@17.live>'), 'dev@17.live');
+  assert.equal(unwrapSlackToken('<mailto:dev@17.live>'), 'dev@17.live');
+  assert.equal(unwrapSlackToken('<https://17.live/live/123|17.live/live/123>'), 'https://17.live/live/123');
+  assert.equal(unwrapSlackToken('<https://17.live/live/123>'), 'https://17.live/live/123');
+  assert.equal(unwrapSlackToken('<@U12345|alice>'), 'alice');
+  assert.equal(unwrapSlackToken('<215661211>'), '215661211');
+  assert.equal(unwrapSlackToken('215661211'), '215661211');
+
+  const parsedLog = parseBotItem({ event: {
+    channel: CHANNEL,
+    ts: THREAD_TS,
+    event_ts: THREAD_TS,
+    text: '!log stream <tel:215661211|215661211>',
+  } });
+  assert.equal(parsedLog.routeKey, 'log:stream');
+  assert.deepEqual(parsedLog.positionals, ['215661211']);
+
+  const parsedSectionBlock = parseBotItem({ event: {
+    channel: CHANNEL,
+    ts: THREAD_TS,
+    event_ts: THREAD_TS,
+    blocks: [{
+      type: 'rich_text',
+      elements: [{
+        type: 'rich_text_section',
+        elements: [
+          { type: 'text', text: '!log stream ' },
+          { type: 'link', url: 'tel:215661211', text: '215661211' },
+        ],
+      }],
+    }],
+  } });
+  assert.equal(parsedSectionBlock.routeKey, 'log:stream');
+  assert.deepEqual(parsedSectionBlock.positionals, ['215661211']);
+
+  const parsedSummary = parseBotItem({ event: {
+    channel: CHANNEL,
+    ts: THREAD_TS,
+    event_ts: THREAD_TS,
+    text: '!summary stream <tel:215661211|215661211> <tel:215661212|215661212>',
+  } });
+  assert.equal(parsedSummary.routeKey, 'summary:stream');
+  assert.deepEqual(parsedSummary.positionals, ['215661211', '215661212']);
+
+  const parsedVds = parseBotItem({ event: {
+    channel: CHANNEL,
+    ts: THREAD_TS,
+    event_ts: THREAD_TS,
+    text: '!vds stream <tel:215661211|215661211> <https://play.17app.co/live/play.m3u8|play.17app.co/live/play.m3u8>',
+  } });
+  assert.equal(parsedVds.routeKey, 'vds:stream');
+  assert.deepEqual(parsedVds.positionals, ['215661211', 'https://play.17app.co/live/play.m3u8']);
 });
 
 test('builds exact default and explicit lookup windows', () => {

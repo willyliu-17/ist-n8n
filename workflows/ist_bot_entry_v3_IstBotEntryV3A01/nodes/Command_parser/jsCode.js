@@ -17,9 +17,26 @@ const CHANNEL_COMMANDS = Object.freeze({
 const LEGACY_CHANNEL = 'C09F0SYG57D';
 const SLACK_TIMESTAMP_PATTERN = /^\d{10,}\.\d{6}$/;
 
+function renderSectionElements(elements) {
+  if (!Array.isArray(elements)) return '';
+  return elements.map((el) => {
+    if (!el || typeof el !== 'object') return '';
+    if (typeof el.text === 'string') return el.text;
+    if (typeof el.url === 'string') return el.url;
+    if (el.type === 'user' && el.user_id) return `<@${el.user_id}>`;
+    if (el.type === 'channel' && el.channel_id) return `<#${el.channel_id}>`;
+    return '';
+  }).join('');
+}
+
 function collectTextsFromSlackRich(root) {
   const texts = [];
   if (!root || typeof root !== 'object') return texts;
+  if (root.type === 'rich_text_section' && Array.isArray(root.elements)) {
+    const rendered = renderSectionElements(root.elements).trim();
+    if (rendered) texts.push(rendered);
+    return texts;
+  }
   if (typeof root.text === 'string') texts.push(root.text);
   if (Array.isArray(root)) {
     for (const value of root) texts.push(...collectTextsFromSlackRich(value));
@@ -31,6 +48,27 @@ function collectTextsFromSlackRich(root) {
   return texts;
 }
 
+function unwrapSlackToken(token) {
+  if (typeof token !== 'string') return token;
+  const match = /^<([^>]+)>$/.exec(token.trim());
+  if (!match) return token;
+  const inner = match[1];
+  const pipeIndex = inner.indexOf('|');
+  const target = pipeIndex >= 0 ? inner.slice(0, pipeIndex) : inner;
+  const label = pipeIndex >= 0 ? inner.slice(pipeIndex + 1) : '';
+
+  if (target.startsWith('tel:')) {
+    return label || target.slice(4);
+  }
+  if (target.startsWith('mailto:')) {
+    return label || target.slice(7);
+  }
+  if (/^https?:\/\//i.test(target)) {
+    return target;
+  }
+  return label || target;
+}
+
 function parseCommand(line) {
   const match = /^!\s*([a-zA-Z0-9_]+)(?:\s+([a-zA-Z0-9_]+))?(?:\s+(.*))?$/u.exec(line);
   if (!match) return null;
@@ -40,8 +78,13 @@ function parseCommand(line) {
   for (const raw of tokens) {
     const token = raw.replace(/^"|"$/g, '');
     const separator = token.indexOf('=');
-    if (separator > 0) args[token.slice(0, separator).toLowerCase()] = token.slice(separator + 1);
-    else if (token) positionals.push(token);
+    if (separator > 0) {
+      const key = token.slice(0, separator).toLowerCase();
+      const value = unwrapSlackToken(token.slice(separator + 1));
+      args[key] = value;
+    } else if (token) {
+      positionals.push(unwrapSlackToken(token));
+    }
   }
   return {
     group: (match[1] || '').toLowerCase(),
@@ -99,7 +142,7 @@ function parseBotItem(input, channelCommands = CHANNEL_COMMANDS) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { CHANNEL_COMMANDS, LEGACY_CHANNEL, collectTextsFromSlackRich, parseBotItem, parseCommand };
+  module.exports = { CHANNEL_COMMANDS, LEGACY_CHANNEL, collectTextsFromSlackRich, parseBotItem, parseCommand, unwrapSlackToken };
 }
 
 if (typeof $input !== 'undefined') {
