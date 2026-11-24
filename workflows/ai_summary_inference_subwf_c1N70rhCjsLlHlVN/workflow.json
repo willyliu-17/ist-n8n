@@ -7,7 +7,7 @@
   "nodes": [
     {
       "id": "7dc5500f-a031-4e20-8fd0-9c53c9524f2c",
-      "name": "Vertex Gemini-2.5-flash Chunk Map",
+      "name": "LiteLLM Gemini-3.5-flash-lite Chunk Map",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
@@ -234,7 +234,7 @@
     },
     {
       "id": "26e14f7a-3511-4ded-bcb4-1dc7b7e8f16d",
-      "name": "Vertex Gemini-2.5-flash",
+      "name": "LiteLLM Gemini-3.8-flash",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
@@ -332,7 +332,7 @@
     },
     {
       "id": "3ce1b82b-8e60-4a6b-8ba8-feafc255d8e9",
-      "name": "Vertex gemini pro",
+      "name": "LiteLLM Gemini-4-argon",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
@@ -448,7 +448,7 @@
         ]
       ]
     },
-    "Vertex Gemini-2.5-flash Chunk Map": {
+    "LiteLLM Gemini-3.5-flash-lite Chunk Map": {
       "ai_languageModel": [
         [
           {
@@ -492,7 +492,7 @@
         ]
       ]
     },
-    "Vertex Gemini-2.5-flash": {
+    "LiteLLM Gemini-3.8-flash": {
       "ai_languageModel": [
         [
           {
@@ -572,7 +572,7 @@
         ]
       ]
     },
-    "Vertex gemini pro": {
+    "LiteLLM Gemini-4-argon": {
       "ai_languageModel": [
         [
           {
@@ -607,6 +607,9 @@
     },
     {
       "name": "v2"
+    },
+    {
+      "name": "ist-bot-v3"
     }
   ]
 }
